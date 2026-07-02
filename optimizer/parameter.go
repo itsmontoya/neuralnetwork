@@ -8,10 +8,11 @@ import (
 )
 
 // NewParameter constructs a Parameter with copied values and a zero gradient.
-func NewParameter(values *matrix.Matrix) (p *Parameter, err error) {
+func NewParameter(values *matrix.Matrix) (out *Parameter, err error) {
 	var (
 		clonedValues *matrix.Matrix
 		gradient     *matrix.Matrix
+		p            Parameter
 	)
 
 	if values == nil {
@@ -27,11 +28,9 @@ func NewParameter(values *matrix.Matrix) (p *Parameter, err error) {
 		return nil, err
 	}
 
-	p = &Parameter{
-		values:   clonedValues,
-		gradient: gradient,
-	}
-	return p, nil
+	p.values = clonedValues
+	p.gradient = gradient
+	return &p, nil
 }
 
 // Parameter stores trainable values and their accumulated gradient.
