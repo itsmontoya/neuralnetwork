@@ -266,6 +266,7 @@ func (a *Adam) stateFor(parameter *Parameter) (state *adamState, err error) {
 	var (
 		rows int
 		cols int
+		next adamState
 	)
 
 	if state = a.states[parameter]; state != nil {
@@ -273,7 +274,7 @@ func (a *Adam) stateFor(parameter *Parameter) (state *adamState, err error) {
 	}
 
 	rows, cols = parameter.Values().Shape()
-	state = &adamState{}
+	state = &next
 	if state.firstMoment, err = matrix.New(rows, cols); err != nil {
 		return nil, err
 	}
