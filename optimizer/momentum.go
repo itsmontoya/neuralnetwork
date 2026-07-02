@@ -5,9 +5,9 @@ import "github.com/itsmontoya/neuralnetwork/matrix"
 const defaultMomentumCoefficient = 0.9
 
 // NewMomentum constructs Momentum with the default coefficient.
-func NewMomentum(learningRate float64) (m *Momentum, err error) {
-	m, err = NewMomentumWithCoefficient(learningRate, defaultMomentumCoefficient)
-	return m, err
+func NewMomentum(learningRate float64) (out *Momentum, err error) {
+	out, err = NewMomentumWithCoefficient(learningRate, defaultMomentumCoefficient)
+	return out, err
 }
 
 // NewMomentumWithCoefficient constructs Momentum with an explicit coefficient.
@@ -41,7 +41,6 @@ type Momentum struct {
 // Update applies one Momentum update to each parameter.
 func (m *Momentum) Update(parameters []*Parameter) (err error) {
 	var parameter *Parameter
-
 	if err = m.validate(); err != nil {
 		return err
 	}
