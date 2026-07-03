@@ -9,29 +9,31 @@ import (
 )
 
 // New constructs a zero-filled Matrix with the provided shape.
-func New(rows, cols int) (m *Matrix, err error) {
-	var size int
+func New(rows, cols int) (out *Matrix, err error) {
+	var (
+		size int
+		m    Matrix
+	)
 
-	m = &Matrix{
-		rows: rows,
-		cols: cols,
-	}
+	m.rows = rows
+	m.cols = cols
 	if size, err = m.matrixSize(); err != nil {
 		return nil, err
 	}
 
 	m.data = make([]float64, size)
-	return m, nil
+	return &m, nil
 }
 
 // FromSlice constructs a Matrix by copying values in row-major order.
-func FromSlice(rows, cols int, values []float64) (m *Matrix, err error) {
-	var size int
+func FromSlice(rows, cols int, values []float64) (out *Matrix, err error) {
+	var (
+		size int
+		m    Matrix
+	)
 
-	m = &Matrix{
-		rows: rows,
-		cols: cols,
-	}
+	m.rows = rows
+	m.cols = cols
 	if size, err = m.matrixSize(); err != nil {
 		return nil, err
 	}
@@ -43,17 +45,17 @@ func FromSlice(rows, cols int, values []float64) (m *Matrix, err error) {
 
 	m.data = make([]float64, size)
 	copy(m.data, values)
-	return m, nil
+	return &m, nil
 }
 
 // NewRandom constructs a Matrix filled with values from random.Float64.
-func NewRandom(rows, cols int, random *rand.Rand) (m *Matrix, err error) {
-	m, err = NewUniform(rows, cols, 0, 1, random)
-	return m, err
+func NewRandom(rows, cols int, random *rand.Rand) (out *Matrix, err error) {
+	out, err = NewUniform(rows, cols, 0, 1, random)
+	return out, err
 }
 
 // NewUniform constructs a Matrix filled from a uniform distribution in [min, max).
-func NewUniform(rows, cols int, min, max float64, random *rand.Rand) (m *Matrix, err error) {
+func NewUniform(rows, cols int, min, max float64, random *rand.Rand) (out *Matrix, err error) {
 	if random == nil {
 		err = errors.New("matrix: random source is nil")
 		return nil, err
@@ -64,7 +66,7 @@ func NewUniform(rows, cols int, min, max float64, random *rand.Rand) (m *Matrix,
 		return nil, err
 	}
 
-	if m, err = New(rows, cols); err != nil {
+	if out, err = New(rows, cols); err != nil {
 		return nil, err
 	}
 
@@ -74,15 +76,15 @@ func NewUniform(rows, cols int, min, max float64, random *rand.Rand) (m *Matrix,
 	)
 
 	span = max - min
-	for index = range m.data {
-		m.data[index] = min + span*random.Float64()
+	for index = range out.data {
+		out.data[index] = min + span*random.Float64()
 	}
 
-	return m, nil
+	return out, nil
 }
 
 // NewNormal constructs a Matrix filled from a normal distribution with mean and stddev.
-func NewNormal(rows, cols int, mean, stddev float64, random *rand.Rand) (m *Matrix, err error) {
+func NewNormal(rows, cols int, mean, stddev float64, random *rand.Rand) (out *Matrix, err error) {
 	if random == nil {
 		err = errors.New("matrix: random source is nil")
 		return nil, err
@@ -93,52 +95,50 @@ func NewNormal(rows, cols int, mean, stddev float64, random *rand.Rand) (m *Matr
 		return nil, err
 	}
 
-	if m, err = New(rows, cols); err != nil {
+	if out, err = New(rows, cols); err != nil {
 		return nil, err
 	}
 
 	var index int
-	for index = range m.data {
-		m.data[index] = mean + stddev*random.NormFloat64()
+	for index = range out.data {
+		out.data[index] = mean + stddev*random.NormFloat64()
 	}
 
-	return m, nil
+	return out, nil
 }
 
 // NewXavierUniform constructs a fanIn by fanOut Matrix using Xavier/Glorot uniform initialization.
 // Values are sampled from [-sqrt(6/(fanIn+fanOut)), sqrt(6/(fanIn+fanOut))).
-func NewXavierUniform(fanIn, fanOut int, random *rand.Rand) (m *Matrix, err error) {
+func NewXavierUniform(fanIn, fanOut int, random *rand.Rand) (out *Matrix, err error) {
+	var shape Matrix
 	var limit float64
 
-	m = &Matrix{
-		rows: fanIn,
-		cols: fanOut,
-	}
-	if _, err = m.matrixSize(); err != nil {
+	shape.rows = fanIn
+	shape.cols = fanOut
+	if _, err = shape.matrixSize(); err != nil {
 		return nil, err
 	}
 
 	limit = math.Sqrt(6 / float64(fanIn+fanOut))
-	m, err = NewUniform(fanIn, fanOut, -limit, limit, random)
-	return m, err
+	out, err = NewUniform(fanIn, fanOut, -limit, limit, random)
+	return out, err
 }
 
 // NewHeNormal constructs a fanIn by fanOut Matrix using He normal initialization.
 // Values are sampled from a normal distribution with mean 0 and stddev sqrt(2/fanIn).
-func NewHeNormal(fanIn, fanOut int, random *rand.Rand) (m *Matrix, err error) {
+func NewHeNormal(fanIn, fanOut int, random *rand.Rand) (out *Matrix, err error) {
+	var shape Matrix
 	var stddev float64
 
-	m = &Matrix{
-		rows: fanIn,
-		cols: fanOut,
-	}
-	if _, err = m.matrixSize(); err != nil {
+	shape.rows = fanIn
+	shape.cols = fanOut
+	if _, err = shape.matrixSize(); err != nil {
 		return nil, err
 	}
 
 	stddev = math.Sqrt(2 / float64(fanIn))
-	m, err = NewNormal(fanIn, fanOut, 0, stddev, random)
-	return m, err
+	out, err = NewNormal(fanIn, fanOut, 0, stddev, random)
+	return out, err
 }
 
 // Matrix stores dense float64 values in row-major order.
@@ -435,6 +435,8 @@ func (m *Matrix) DivideScalar(value float64) (result *Matrix, err error) {
 
 // MatMul returns the matrix product of m and other.
 func (m *Matrix) MatMul(other *Matrix) (result *Matrix, err error) {
+	var next Matrix
+
 	if err = m.validate(); err != nil {
 		return nil, err
 	}
@@ -454,11 +456,10 @@ func (m *Matrix) MatMul(other *Matrix) (result *Matrix, err error) {
 		return nil, err
 	}
 
-	result = &Matrix{
-		rows: m.rows,
-		cols: other.cols,
-		data: make([]float64, m.rows*other.cols),
-	}
+	next.rows = m.rows
+	next.cols = other.cols
+	next.data = make([]float64, m.rows*other.cols)
+	result = &next
 
 	m.matMulInto(other, result)
 	return result, nil
@@ -503,15 +504,16 @@ func (m *Matrix) MatMulInto(other, result *Matrix) (err error) {
 
 // Transpose returns a matrix with rows and columns swapped.
 func (m *Matrix) Transpose() (result *Matrix, err error) {
+	var next Matrix
+
 	if err = m.validate(); err != nil {
 		return nil, err
 	}
 
-	result = &Matrix{
-		rows: m.cols,
-		cols: m.rows,
-		data: make([]float64, len(m.data)),
-	}
+	next.rows = m.cols
+	next.cols = m.rows
+	next.data = make([]float64, len(m.data))
+	result = &next
 
 	err = m.TransposeInto(result)
 	return result, err
@@ -673,12 +675,12 @@ func (m *Matrix) Apply(fn func(float64) float64) (result *Matrix, err error) {
 }
 
 func (m *Matrix) newLike() (result *Matrix) {
-	result = &Matrix{
-		rows: m.rows,
-		cols: m.cols,
-		data: make([]float64, len(m.data)),
-	}
-	return result
+	var next Matrix
+
+	next.rows = m.rows
+	next.cols = m.cols
+	next.data = make([]float64, len(m.data))
+	return &next
 }
 
 func (m *Matrix) matMulInto(other, result *Matrix) {
