@@ -1,0 +1,20 @@
+# Go build outputs
+/bin/
+/neuralnetwork
+*.test
+*.out
+
+# Coverage files
+coverage.out
+coverage.html
+*.coverprofile
+
+# Benchmark and profiling outputs
+*.bench
+*.prof
+*.pprof
+bench.out
+
+# Temporary files
+/tmp/
+/.tmp/
