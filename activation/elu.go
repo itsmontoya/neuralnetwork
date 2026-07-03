@@ -1,0 +1,43 @@
+package activation
+
+import (
+	"math"
+
+	"github.com/itsmontoya/neuralnetwork/matrix"
+)
+
+const eluAlpha = 1
+
+// ELU applies the exponential linear unit activation with alpha 1.
+type ELU struct{}
+
+// Forward returns x for positive inputs and exp(x)-1 otherwise.
+func (e ELU) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error) {
+	output, err = apply(input, eluValue)
+	return output, err
+}
+
+// Backward multiplies outputGradient by the ELU derivative at input.
+func (e ELU) Backward(input, outputGradient *matrix.Matrix) (inputGradient *matrix.Matrix, err error) {
+	inputGradient, err = applyDerivative(input, outputGradient, eluDerivative)
+	return inputGradient, err
+}
+
+func eluValue(value float64) (result float64) {
+	if value > 0 {
+		result = value
+		return result
+	}
+
+	result = eluAlpha * (math.Exp(value) - 1)
+	return result
+}
+
+func eluDerivative(value float64) (result float64) {
+	if value > 0 {
+		return 1
+	}
+
+	result = eluAlpha * math.Exp(value)
+	return result
+}
