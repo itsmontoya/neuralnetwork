@@ -1,0 +1,814 @@
+// Package matrix provides dense row-major float64 matrix primitives.
+package matrix
+
+import (
+	"errors"
+	"fmt"
+	"math"
+	"math/rand"
+)
+
+// New constructs a zero-filled Matrix with the provided shape.
+func New(rows, cols int) (m *Matrix, err error) {
+	var size int
+
+	m = &Matrix{
+		rows: rows,
+		cols: cols,
+	}
+	if size, err = m.matrixSize(); err != nil {
+		return nil, err
+	}
+
+	m.data = make([]float64, size)
+	return m, nil
+}
+
+// FromSlice constructs a Matrix by copying values in row-major order.
+func FromSlice(rows, cols int, values []float64) (m *Matrix, err error) {
+	var size int
+
+	m = &Matrix{
+		rows: rows,
+		cols: cols,
+	}
+	if size, err = m.matrixSize(); err != nil {
+		return nil, err
+	}
+
+	if len(values) != size {
+		err = fmt.Errorf("matrix: values length mismatch: got %d, want %d", len(values), size)
+		return nil, err
+	}
+
+	m.data = make([]float64, size)
+	copy(m.data, values)
+	return m, nil
+}
+
+// NewRandom constructs a Matrix filled with values from random.Float64.
+func NewRandom(rows, cols int, random *rand.Rand) (m *Matrix, err error) {
+	m, err = NewUniform(rows, cols, 0, 1, random)
+	return m, err
+}
+
+// NewUniform constructs a Matrix filled from a uniform distribution in [min, max).
+func NewUniform(rows, cols int, min, max float64, random *rand.Rand) (m *Matrix, err error) {
+	if random == nil {
+		err = errors.New("matrix: random source is nil")
+		return nil, err
+	}
+
+	if max < min {
+		err = fmt.Errorf("matrix: uniform max must be greater than or equal to min: min=%g max=%g", min, max)
+		return nil, err
+	}
+
+	if m, err = New(rows, cols); err != nil {
+		return nil, err
+	}
+
+	var (
+		index int
+		span  float64
+	)
+
+	span = max - min
+	for index = range m.data {
+		m.data[index] = min + span*random.Float64()
+	}
+
+	return m, nil
+}
+
+// NewNormal constructs a Matrix filled from a normal distribution with mean and stddev.
+func NewNormal(rows, cols int, mean, stddev float64, random *rand.Rand) (m *Matrix, err error) {
+	if random == nil {
+		err = errors.New("matrix: random source is nil")
+		return nil, err
+	}
+
+	if stddev < 0 {
+		err = fmt.Errorf("matrix: normal standard deviation must be non-negative: stddev=%g", stddev)
+		return nil, err
+	}
+
+	if m, err = New(rows, cols); err != nil {
+		return nil, err
+	}
+
+	var index int
+	for index = range m.data {
+		m.data[index] = mean + stddev*random.NormFloat64()
+	}
+
+	return m, nil
+}
+
+// NewXavierUniform constructs a fanIn by fanOut Matrix using Xavier/Glorot uniform initialization.
+// Values are sampled from [-sqrt(6/(fanIn+fanOut)), sqrt(6/(fanIn+fanOut))).
+func NewXavierUniform(fanIn, fanOut int, random *rand.Rand) (m *Matrix, err error) {
+	var limit float64
+
+	m = &Matrix{
+		rows: fanIn,
+		cols: fanOut,
+	}
+	if _, err = m.matrixSize(); err != nil {
+		return nil, err
+	}
+
+	limit = math.Sqrt(6 / float64(fanIn+fanOut))
+	m, err = NewUniform(fanIn, fanOut, -limit, limit, random)
+	return m, err
+}
+
+// NewHeNormal constructs a fanIn by fanOut Matrix using He normal initialization.
+// Values are sampled from a normal distribution with mean 0 and stddev sqrt(2/fanIn).
+func NewHeNormal(fanIn, fanOut int, random *rand.Rand) (m *Matrix, err error) {
+	var stddev float64
+
+	m = &Matrix{
+		rows: fanIn,
+		cols: fanOut,
+	}
+	if _, err = m.matrixSize(); err != nil {
+		return nil, err
+	}
+
+	stddev = math.Sqrt(2 / float64(fanIn))
+	m, err = NewNormal(fanIn, fanOut, 0, stddev, random)
+	return m, err
+}
+
+// Matrix stores dense float64 values in row-major order.
+type Matrix struct {
+	rows int
+	cols int
+	data []float64
+}
+
+// Rows returns the matrix row count.
+func (m *Matrix) Rows() (rows int) {
+	if m == nil {
+		return 0
+	}
+
+	rows = m.rows
+	return rows
+}
+
+// Cols returns the matrix column count.
+func (m *Matrix) Cols() (cols int) {
+	if m == nil {
+		return 0
+	}
+
+	cols = m.cols
+	return cols
+}
+
+// Shape returns the matrix row and column counts.
+func (m *Matrix) Shape() (rows, cols int) {
+	if m == nil {
+		return 0, 0
+	}
+
+	rows = m.rows
+	cols = m.cols
+	return rows, cols
+}
+
+// Validate reports whether the matrix has a valid shape and storage length.
+func (m *Matrix) Validate() (err error) {
+	err = m.validate()
+	return err
+}
+
+// Values returns a copy of the row-major matrix values.
+func (m *Matrix) Values() (values []float64, err error) {
+	if err = m.validate(); err != nil {
+		return nil, err
+	}
+
+	values = make([]float64, len(m.data))
+	copy(values, m.data)
+	return values, nil
+}
+
+// At returns the value at row and col.
+func (m *Matrix) At(row, col int) (value float64, err error) {
+	if err = m.validate(); err != nil {
+		return 0, err
+	}
+
+	if err = m.validateIndex(row, col); err != nil {
+		return 0, err
+	}
+
+	value = m.data[m.index(row, col)]
+	return value, nil
+}
+
+// Set updates the value at row and col.
+func (m *Matrix) Set(row, col int, value float64) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if err = m.validateIndex(row, col); err != nil {
+		return err
+	}
+
+	m.data[m.index(row, col)] = value
+	return nil
+}
+
+// Fill sets every matrix value to value.
+func (m *Matrix) Fill(value float64) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	var index int
+	for index = range m.data {
+		m.data[index] = value
+	}
+
+	return nil
+}
+
+// Clone returns a deep copy of the matrix.
+func (m *Matrix) Clone() (clone *Matrix, err error) {
+	if err = m.validate(); err != nil {
+		return nil, err
+	}
+
+	clone = m.newLike()
+	copy(clone.data, m.data)
+	return clone, nil
+}
+
+// CopyFrom copies all values from source into m.
+func (m *Matrix) CopyFrom(source *Matrix) (err error) {
+	if err = m.sameShape(source); err != nil {
+		return err
+	}
+
+	copy(m.data, source.data)
+	return nil
+}
+
+// Add returns the elementwise sum of m and other.
+func (m *Matrix) Add(other *Matrix) (result *Matrix, err error) {
+	if err = m.sameShape(other); err != nil {
+		return nil, err
+	}
+
+	result = m.newLike()
+
+	var index int
+	for index = range result.data {
+		result.data[index] = m.data[index] + other.data[index]
+	}
+
+	return result, nil
+}
+
+// AddInto writes the elementwise sum of m and other into result.
+func (m *Matrix) AddInto(other, result *Matrix) (err error) {
+	if err = m.sameShape(other); err != nil {
+		return err
+	}
+
+	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+
+	var index int
+	for index = range result.data {
+		result.data[index] = m.data[index] + other.data[index]
+	}
+
+	return nil
+}
+
+// AddInPlace adds other to m elementwise.
+func (m *Matrix) AddInPlace(other *Matrix) (err error) {
+	err = m.AddInto(other, m)
+	return err
+}
+
+// AddScaledInPlace adds scale*other to m elementwise.
+func (m *Matrix) AddScaledInPlace(other *Matrix, scale float64) (err error) {
+	if err = m.sameShape(other); err != nil {
+		return err
+	}
+
+	var index int
+	for index = range m.data {
+		m.data[index] += scale * other.data[index]
+	}
+
+	return nil
+}
+
+// MultiplyScalarInPlace multiplies every element of m by value.
+func (m *Matrix) MultiplyScalarInPlace(value float64) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	var index int
+	for index = range m.data {
+		m.data[index] *= value
+	}
+
+	return nil
+}
+
+// Subtract returns the elementwise difference of m and other.
+func (m *Matrix) Subtract(other *Matrix) (result *Matrix, err error) {
+	if err = m.sameShape(other); err != nil {
+		return nil, err
+	}
+
+	result = m.newLike()
+
+	var index int
+	for index = range result.data {
+		result.data[index] = m.data[index] - other.data[index]
+	}
+
+	return result, nil
+}
+
+// MultiplyElements returns the elementwise product of m and other.
+func (m *Matrix) MultiplyElements(other *Matrix) (result *Matrix, err error) {
+	if err = m.sameShape(other); err != nil {
+		return nil, err
+	}
+
+	result = m.newLike()
+
+	var index int
+	for index = range result.data {
+		result.data[index] = m.data[index] * other.data[index]
+	}
+
+	return result, nil
+}
+
+// DivideElements returns the elementwise quotient of m and other.
+func (m *Matrix) DivideElements(other *Matrix) (result *Matrix, err error) {
+	if err = m.sameShape(other); err != nil {
+		return nil, err
+	}
+
+	result = m.newLike()
+
+	var index int
+	for index = range result.data {
+		if other.data[index] == 0 {
+			err = fmt.Errorf("matrix: division by zero at row %d column %d", index/m.cols, index%m.cols)
+			return nil, err
+		}
+
+		result.data[index] = m.data[index] / other.data[index]
+	}
+
+	return result, nil
+}
+
+// AddScalar returns a matrix with value added to every element.
+func (m *Matrix) AddScalar(value float64) (result *Matrix, err error) {
+	if err = m.validate(); err != nil {
+		return nil, err
+	}
+
+	result = m.newLike()
+
+	var index int
+	for index = range result.data {
+		result.data[index] = m.data[index] + value
+	}
+
+	return result, nil
+}
+
+// MultiplyScalar returns a matrix with every element multiplied by value.
+func (m *Matrix) MultiplyScalar(value float64) (result *Matrix, err error) {
+	if err = m.validate(); err != nil {
+		return nil, err
+	}
+
+	result = m.newLike()
+
+	var index int
+	for index = range result.data {
+		result.data[index] = m.data[index] * value
+	}
+
+	return result, nil
+}
+
+// DivideScalar returns a matrix with every element divided by value.
+func (m *Matrix) DivideScalar(value float64) (result *Matrix, err error) {
+	if err = m.validate(); err != nil {
+		return nil, err
+	}
+
+	if value == 0 {
+		err = errors.New("matrix: division by zero scalar")
+		return nil, err
+	}
+
+	result = m.newLike()
+
+	var index int
+	for index = range result.data {
+		result.data[index] = m.data[index] / value
+	}
+
+	return result, nil
+}
+
+// MatMul returns the matrix product of m and other.
+func (m *Matrix) MatMul(other *Matrix) (result *Matrix, err error) {
+	if err = m.validate(); err != nil {
+		return nil, err
+	}
+
+	if err = other.validate(); err != nil {
+		return nil, err
+	}
+
+	if m.cols != other.rows {
+		err = fmt.Errorf(
+			"matrix: multiplication shape mismatch: left %dx%d, right %dx%d",
+			m.rows,
+			m.cols,
+			other.rows,
+			other.cols,
+		)
+		return nil, err
+	}
+
+	result = &Matrix{
+		rows: m.rows,
+		cols: other.cols,
+		data: make([]float64, m.rows*other.cols),
+	}
+
+	m.matMulInto(other, result)
+	return result, nil
+}
+
+// MatMulInto writes the matrix product of m and other into result.
+//
+// The destination must be shaped [m.Rows(), other.Cols()] and must not be one
+// of the input matrices.
+func (m *Matrix) MatMulInto(other, result *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if err = other.validate(); err != nil {
+		return err
+	}
+
+	if m.cols != other.rows {
+		err = fmt.Errorf(
+			"matrix: multiplication shape mismatch: left %dx%d, right %dx%d",
+			m.rows,
+			m.cols,
+			other.rows,
+			other.cols,
+		)
+		return err
+	}
+
+	if result == m || result == other {
+		err = errors.New("matrix: multiplication destination must not alias inputs")
+		return err
+	}
+
+	if err = result.requireShape("multiplication destination", m.rows, other.cols); err != nil {
+		return err
+	}
+
+	m.matMulInto(other, result)
+	return nil
+}
+
+// Transpose returns a matrix with rows and columns swapped.
+func (m *Matrix) Transpose() (result *Matrix, err error) {
+	if err = m.validate(); err != nil {
+		return nil, err
+	}
+
+	result = &Matrix{
+		rows: m.cols,
+		cols: m.rows,
+		data: make([]float64, len(m.data)),
+	}
+
+	err = m.TransposeInto(result)
+	return result, err
+}
+
+// TransposeInto writes the transpose of m into result.
+//
+// The destination must be shaped [m.Cols(), m.Rows()] and must not be m.
+func (m *Matrix) TransposeInto(result *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if result == m {
+		err = errors.New("matrix: transpose destination must not alias input")
+		return err
+	}
+
+	if err = result.requireShape("transpose destination", m.cols, m.rows); err != nil {
+		return err
+	}
+
+	var (
+		row int
+		col int
+	)
+
+	for row = 0; row < m.rows; row++ {
+		for col = 0; col < m.cols; col++ {
+			result.data[col*result.cols+row] = m.data[row*m.cols+col]
+		}
+	}
+
+	return nil
+}
+
+// RowSums returns one sum for each row.
+func (m *Matrix) RowSums() (sums []float64, err error) {
+	if err = m.validate(); err != nil {
+		return nil, err
+	}
+
+	sums = make([]float64, m.rows)
+
+	var (
+		row int
+		col int
+	)
+
+	for row = 0; row < m.rows; row++ {
+		for col = 0; col < m.cols; col++ {
+			sums[row] += m.data[row*m.cols+col]
+		}
+	}
+
+	return sums, nil
+}
+
+// ColumnSums returns one sum for each column.
+func (m *Matrix) ColumnSums() (sums []float64, err error) {
+	if err = m.validate(); err != nil {
+		return nil, err
+	}
+
+	sums = make([]float64, m.cols)
+
+	var (
+		row int
+		col int
+	)
+
+	for row = 0; row < m.rows; row++ {
+		for col = 0; col < m.cols; col++ {
+			sums[col] += m.data[row*m.cols+col]
+		}
+	}
+
+	return sums, nil
+}
+
+// ColumnSumsInto writes column sums into a [1, m.Cols()] destination matrix.
+func (m *Matrix) ColumnSumsInto(result *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if result == m {
+		err = errors.New("matrix: column sums destination must not alias input")
+		return err
+	}
+
+	if err = result.requireShape("column sums destination", 1, m.cols); err != nil {
+		return err
+	}
+
+	var (
+		row int
+		col int
+	)
+
+	for col = range result.data {
+		result.data[col] = 0
+	}
+
+	for row = 0; row < m.rows; row++ {
+		for col = 0; col < m.cols; col++ {
+			result.data[col] += m.data[row*m.cols+col]
+		}
+	}
+
+	return nil
+}
+
+// AddRowVectorInPlace adds a [1, m.Cols()] row vector to every row of m.
+func (m *Matrix) AddRowVectorInPlace(rowVector *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if err = rowVector.requireShape("row vector", 1, m.cols); err != nil {
+		return err
+	}
+
+	var (
+		row         int
+		col         int
+		valueOffset int
+	)
+
+	for row = 0; row < m.rows; row++ {
+		valueOffset = row * m.cols
+		for col = 0; col < m.cols; col++ {
+			m.data[valueOffset+col] += rowVector.data[col]
+		}
+	}
+
+	return nil
+}
+
+// Apply returns a matrix with fn applied to every element.
+func (m *Matrix) Apply(fn func(float64) float64) (result *Matrix, err error) {
+	if fn == nil {
+		err = errors.New("matrix: apply function is nil")
+		return nil, err
+	}
+
+	if err = m.validate(); err != nil {
+		return nil, err
+	}
+
+	result = m.newLike()
+
+	var index int
+	for index = range result.data {
+		result.data[index] = fn(m.data[index])
+	}
+
+	return result, nil
+}
+
+func (m *Matrix) newLike() (result *Matrix) {
+	result = &Matrix{
+		rows: m.rows,
+		cols: m.cols,
+		data: make([]float64, len(m.data)),
+	}
+	return result
+}
+
+func (m *Matrix) matMulInto(other, result *Matrix) {
+	var (
+		index        int
+		row          int
+		col          int
+		inner        int
+		left         float64
+		leftOffset   int
+		rightOffset  int
+		resultOffset int
+	)
+
+	for index = range result.data {
+		result.data[index] = 0
+	}
+
+	for row = 0; row < m.rows; row++ {
+		resultOffset = row * result.cols
+		leftOffset = row * m.cols
+		for inner = 0; inner < m.cols; inner++ {
+			left = m.data[leftOffset+inner]
+			rightOffset = inner * other.cols
+			for col = 0; col < other.cols; col++ {
+				result.data[resultOffset+col] += left * other.data[rightOffset+col]
+			}
+		}
+	}
+}
+
+func (m *Matrix) validate() (err error) {
+	if m == nil {
+		err = errors.New("matrix: matrix is nil")
+		return err
+	}
+
+	var size int
+	if size, err = m.matrixSize(); err != nil {
+		return err
+	}
+
+	if len(m.data) != size {
+		err = fmt.Errorf("matrix: storage length mismatch: got %d, want %d", len(m.data), size)
+		return err
+	}
+
+	return nil
+}
+
+func (m *Matrix) validateIndex(row, col int) (err error) {
+	if row < 0 || row >= m.rows {
+		err = fmt.Errorf("matrix: row index out of range: row=%d rows=%d", row, m.rows)
+		return err
+	}
+
+	if col < 0 || col >= m.cols {
+		err = fmt.Errorf("matrix: column index out of range: col=%d cols=%d", col, m.cols)
+		return err
+	}
+
+	return nil
+}
+
+func (m *Matrix) index(row, col int) (index int) {
+	index = row*m.cols + col
+	return index
+}
+
+func (m *Matrix) sameShape(other *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if err = other.validate(); err != nil {
+		return err
+	}
+
+	if m.rows != other.rows || m.cols != other.cols {
+		err = fmt.Errorf(
+			"matrix: shape mismatch: left %dx%d, right %dx%d",
+			m.rows,
+			m.cols,
+			other.rows,
+			other.cols,
+		)
+		return err
+	}
+
+	return nil
+}
+
+func (m *Matrix) requireShape(name string, rows, cols int) (err error) {
+	var (
+		matrixRows int
+		matrixCols int
+	)
+
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	matrixRows, matrixCols = m.Shape()
+	if matrixRows != rows || matrixCols != cols {
+		err = fmt.Errorf("matrix: %s shape mismatch: got %dx%d, want %dx%d", name, matrixRows, matrixCols, rows, cols)
+		return err
+	}
+
+	return nil
+}
+
+func (m *Matrix) matrixSize() (size int, err error) {
+	if m == nil {
+		err = errors.New("matrix: matrix is nil")
+		return 0, err
+	}
+
+	if m.rows <= 0 || m.cols <= 0 {
+		err = fmt.Errorf("matrix: dimensions must be positive: rows=%d cols=%d", m.rows, m.cols)
+		return 0, err
+	}
+
+	var maxInt int
+	maxInt = int(^uint(0) >> 1)
+
+	if m.rows > maxInt/m.cols {
+		err = fmt.Errorf("matrix: dimensions are too large: rows=%d cols=%d", m.rows, m.cols)
+		return 0, err
+	}
+
+	size = m.rows * m.cols
+	return size, nil
+}
