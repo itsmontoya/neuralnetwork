@@ -23,7 +23,11 @@ We optimize for:
 
 ## File Per Type
 
-Each primary type gets its own file.
+Each primary type or interface gets its own file.
+
+A file that defines a primary type should not define another primary type.
+Small private helper types may live with the primary type only when they are
+implementation details of that type and are not shared across the package.
 
 All methods belonging to a type must live in the same file as the type definition.
 
@@ -39,7 +43,7 @@ Place constructor/initializer functions directly above the type they construct.
 ### Preferred
 
 ```go
-func NewService(store Store) (s *Service) { ... }
+func NewService(store Store) (out *Service) { ... }
 
 type Service struct { ... }
 ```
@@ -65,6 +69,7 @@ service.go
 client.go
 parser.go
 store.go
+reader.go
 
 ### Preferred
 
@@ -72,11 +77,10 @@ store.go
 // service.go
 
 // NewService constructs a Service with the provided Store.
-func NewService(store Store) (s *Service) {
-    s = &Service{
-        store: store,
-    }
-    return s
+func NewService(store Store) (out *Service) {
+    var s Service
+    s.store = store
+    return &s
 }
 
 // Service coordinates request handling and persistence.
@@ -97,9 +101,54 @@ func (s *Service) validate(...) error {
 ### Avoid
 
 * Defining a type in one file and spreading its methods across multiple files.
+* Defining multiple primary types or interfaces in the same file.
 * Creating service_helpers.go, service_utils.go, etc. for methods of the same type.
 
 If behavior grows too large, extract a new type instead of splitting methods across files.
+
+## Constructor Initialization
+
+Constructors should initialize owned struct values with an explicit local value
+and field assignments.
+
+### Why
+
+* Makes initialization order easy to scan.
+* Keeps validation and assignment steps visually separate.
+* Avoids hiding field setup inside large composite literals.
+
+### Preferred
+
+```go
+func NewService(store Store) (out *Service, err error) {
+    if store == nil {
+        err = errors.New("store is nil")
+        return nil, err
+    }
+
+    var s Service
+    s.store = store
+    s.ready = true
+    return &s, nil
+}
+```
+
+### Avoid
+
+```go
+func NewService(store Store) (s *Service, err error) {
+    if store == nil {
+        err = errors.New("store is nil")
+        return nil, err
+    }
+
+    s = &Service{
+        store: store,
+        ready: true,
+    }
+    return s, nil
+}
+```
 
 # Formatting
 
