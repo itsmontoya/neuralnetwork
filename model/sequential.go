@@ -29,9 +29,16 @@ func NewSequential(layers ...layer.Layer) (out *Sequential, err error) {
 	return &s, nil
 }
 
-// LoadSequential restores a Sequential model from a v1 JSON serialization.
+// LoadSequential restores a Sequential model from the v1 JSON contract.
 //
-// Dropout layers are restored with deterministic local random sources.
+// The document must use format "neuralnetwork.sequential", version 1, and
+// layer types "dense", "activation", "dropout", or "batch_normalization".
+// Loading restores architecture, parameter values, and batch-normalization
+// running statistics only. Optimizer state, accumulated gradients, training
+// history, callbacks, learning-rate schedules, and original random source state
+// are not serialized; dropout layers use deterministic local random sources.
+// New layer types or JSON fields should be added only with explicit
+// compatibility handling for this contract.
 func LoadSequential(reader io.Reader) (out *Sequential, err error) {
 	if reader == nil {
 		err = errors.New("model: load reader is nil")
@@ -314,7 +321,15 @@ func (s *Sequential) Fit(trainingData *data.Dataset, config FitConfig) (history 
 	return history, nil
 }
 
-// Save writes the model architecture and trainable parameter values as v1 JSON.
+// Save writes the model using the v1 JSON contract.
+//
+// The document uses format "neuralnetwork.sequential", version 1, and layer
+// types "dense", "activation", "dropout", or "batch_normalization". It stores
+// supported layer configuration, dense parameters, and batch-normalization
+// parameters and running statistics. It does not serialize optimizer state,
+// accumulated gradients, training history, callbacks, learning-rate schedules,
+// or original random source state. New layer types or JSON fields should be
+// added only with explicit compatibility handling for this contract.
 func (s *Sequential) Save(writer io.Writer) (err error) {
 	if writer == nil {
 		err = errors.New("model: save writer is nil")
