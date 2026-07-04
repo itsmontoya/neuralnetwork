@@ -13,13 +13,13 @@ The stable public packages are:
 | Package | Role | Review |
 | --- | --- | --- |
 | `activation` | Stateless activation functions. | Short noun package with no stutter. |
-| `data` | In-memory supervised datasets and batching. | Short noun package with a clear boundary. |
-| `layer` | Layer contracts and implementations. | Short noun package with no top-level `neuralnetwork.Layer` wrapper. |
+| `data` | In-memory supervised datasets, batching, splitting, and CSV loading. | Short noun package with a clear boundary. |
+| `layer` | Layer contracts and implementations for dense, activation, dropout, and batch-normalization layers. | Short noun package with no top-level `neuralnetwork.Layer` wrapper. |
 | `loss` | Training losses and prediction gradients. | Short noun package separate from metrics. |
 | `matrix` | Dense row-major numeric primitives. | Short noun package for low-level storage and operations. |
-| `metric` | Reporting metrics. | Singular package name follows Go package naming convention. |
+| `metric` | Reporting, accuracy, confusion-matrix, precision, recall, and F1 metrics. | Singular package name follows Go package naming convention. |
 | `model` | Model composition, prediction, training, and serialization. | Short noun package with `Sequential` as the concrete model type. |
-| `optimizer` | Parameter update contracts and implementations. | Short noun package for training updates. |
+| `optimizer` | Parameter update rules, learning-rate schedules, and regularization helpers. | Short noun package for training updates. |
 
 There is no broad root package API, so the module avoids names such as
 `neuralnetwork.Network`. Focused subpackages remain the intended import style.
@@ -30,14 +30,14 @@ The following exported APIs are tagged as stable for v1:
 
 | Package | Stable APIs |
 | --- | --- |
-| `activation` | `Activation`, `Linear`, `ReLU`, `Sigmoid`, `Softmax`, `Tanh`, `Name`, `FromName`. Stable serialization names are `linear`, `relu`, `sigmoid`, `softmax`, and `tanh`. |
-| `data` | `NewDataset`, `Dataset`, `Batch`, and their exported read, batch, split, and size methods. `Batch` construction remains owned by `Dataset.Batches`. |
-| `layer` | `Layer`, `NewDense`, `Dense`, `NewActivation`, `Activation`, `WeightInitializer`, `ZeroWeights`, `UniformWeights`, `NormalWeights`, `XavierUniformWeights`, and `HeNormalWeights`. |
+| `activation` | `Activation`, `ELU`, `GELU`, `LeakyReLU`, `Linear`, `ReLU`, `Sigmoid`, `Softmax`, `Tanh`, `Name`, and `FromName`. Stable serialization names are `elu`, `gelu`, `leaky_relu`, `linear`, `relu`, `sigmoid`, `softmax`, and `tanh`. |
+| `data` | `NewDataset`, `Dataset`, `Batch`, `CSVConfig`, `LoadCSV`, and their exported read, batch, split, CSV-load, and size methods. `Batch` construction remains owned by `Dataset.Batches`. |
+| `layer` | `Layer`, `NewDense`, `Dense`, `NewActivation`, `Activation`, `NewDropout`, `Dropout`, `NewBatchNormalization`, `NewBatchNormalizationWithConfig`, `BatchNormalization`, `WeightInitializer`, `ZeroWeights`, `UniformWeights`, `NormalWeights`, `XavierUniformWeights`, and `HeNormalWeights`. |
 | `loss` | `Loss`, `MeanSquaredError`, `BinaryCrossEntropy`, and `CategoricalCrossEntropy`. |
-| `matrix` | `Matrix`, its constructors, random initialization helpers, shape/value accessors, copy/clone methods, elementwise operations, scalar operations, multiplication, transpose, sums, and apply helpers. |
-| `metric` | `Metric`, `MeanSquaredError`, `NewBinaryAccuracy`, `BinaryAccuracy`, and `CategoricalAccuracy`. |
-| `model` | `NewSequential`, `LoadSequential`, `Sequential`, `FitConfig`, `AccuracyFunc`, `FitCallback`, `TrainingHistory`, `EpochMetrics`, and `TrainMetrics`. |
-| `optimizer` | `NewParameter`, `Parameter`, `Optimizer`, `NewSGD`, `SGD`, `NewMomentum`, `NewMomentumWithCoefficient`, `Momentum`, `NewAdam`, `NewAdamWithConfig`, and `Adam`. |
+| `matrix` | `Matrix`, `New`, `FromSlice`, random initialization helpers, shape/value accessors, copy/clone methods, elementwise operations, scalar operations, multiplication, transpose, sums, and apply helpers. |
+| `metric` | `Metric`, `MeanSquaredError`, `NewBinaryAccuracy`, `BinaryAccuracy`, `NewBinaryPrecision`, `BinaryPrecision`, `NewBinaryRecall`, `BinaryRecall`, `NewBinaryF1`, `BinaryF1`, `CategoricalAccuracy`, `CategoricalMacroPrecision`, `CategoricalMacroRecall`, `CategoricalMacroF1`, `NewBinaryConfusionMatrix`, `NewBinaryConfusionMatrixWithThreshold`, `NewCategoricalConfusionMatrix`, `ConfusionMatrix`, and exported confusion-matrix count, accuracy, precision, recall, and F1 methods. |
+| `model` | `NewSequential`, `LoadSequential`, `Sequential`, `Sequential.Save`, exported sequential composition, prediction, training, serialization, and training-mode methods, `FitConfig`, `AccuracyFunc`, `FitCallback`, `TrainingHistory`, `EpochMetrics`, `TrainMetrics`, `NewEarlyStopping`, and `EarlyStopping`. |
+| `optimizer` | `DefaultAdamBeta1`, `DefaultAdamBeta2`, `DefaultAdamEpsilon`, `NewParameter`, `Parameter`, `Optimizer`, `NewSGD`, `SGD`, `NewMomentum`, `NewMomentumWithCoefficient`, `Momentum`, `NewAdam`, `NewAdamWithConfig`, `Adam`, `LearningRateSchedule`, `NewConstantLearningRate`, `ConstantLearningRate`, `NewStepDecay`, `StepDecay`, `NewExponentialDecay`, `ExponentialDecay`, `Regularizer`, `NewL1`, `L1`, `NewL2WeightDecay`, `L2WeightDecay`, `NewRegularized`, and `Regularized`. |
 
 Post-v1 work may add packages, functions, methods, or implementations, but it
 should not break this surface without an explicit maintainer decision.
@@ -49,9 +49,10 @@ usable values. Matrix and dataset constructors copy caller-owned mutable data
 where ownership matters. `NewDense` requires an explicit weight initializer so
 callers choose deterministic or random initialization deliberately.
 
-Optimizer constructors reject invalid learning rates and configuration values.
-Metric, layer, and model constructors reject nil dependencies instead of
-deferring failures to the first training step.
+Optimizer constructors reject invalid learning rates, schedule settings,
+regularization coefficients, and configuration values. Metric, layer, and model
+constructors reject nil dependencies instead of deferring failures to the first
+training step.
 
 ## Shape Errors
 
@@ -66,6 +67,9 @@ Randomness is caller-controlled through `*rand.Rand`:
 
 * Matrix random constructors require a random source.
 * Layer initializer helpers close over caller-provided random sources.
+* Dropout layers require a random source and expose training-mode control.
+* Serialized dropout layers are restored with deterministic local random
+  sources.
 * Dataset batching and splitting use caller-provided random sources when
   shuffling is requested.
 * `FitConfig` requires `Random` when `Shuffle` is enabled.
