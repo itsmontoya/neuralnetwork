@@ -335,7 +335,391 @@ func Test_Sequential_SaveRejectsUnsupportedLayer(t *testing.T) {
 	}
 }
 
-func Test_LoadSequential_RejectsUnknownLayerType(t *testing.T) {
+func Test_Sequential_SaveRejectsNilWriter(t *testing.T) {
+	var (
+		network *model.Sequential
+		err     error
+	)
+
+	network, err = model.NewSequential(mustDense(t))
+	if err != nil {
+		t.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	err = network.Save(nil)
+	if err == nil {
+		t.Fatal("Save error = nil, want error")
+	}
+
+	if !strings.Contains(err.Error(), "save writer is nil") {
+		t.Fatalf("Save error = %q, want save writer is nil", err.Error())
+	}
+}
+
+func Test_LoadSequential_RejectsMalformedDocuments(t *testing.T) {
+	type testcase struct {
+		name      string
+		document  string
+		wantError string
+	}
+
+	var (
+		tests  []testcase
+		tt     testcase
+		loaded *model.Sequential
+		err    error
+	)
+
+	tests = []testcase{
+		{
+			name: "unsupported format",
+			document: `{
+				"format": "neuralnetwork.feedforward",
+				"version": 1,
+				"layers": []
+			}`,
+			wantError: "unsupported serialization format",
+		},
+		{
+			name: "unsupported version",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 2,
+				"layers": []
+			}`,
+			wantError: "unsupported serialization version",
+		},
+		{
+			name: "trailing json",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": []
+			}
+			{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": []
+			}`,
+			wantError: "JSON contains multiple values",
+		},
+		{
+			name: "missing dense weights",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "dense",
+						"input_size": 2,
+						"output_size": 1,
+						"biases": {"rows": 1, "cols": 1, "values": [0.1]}
+					}
+				]
+			}`,
+			wantError: "dense weights are missing",
+		},
+		{
+			name: "missing dense biases",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "dense",
+						"input_size": 2,
+						"output_size": 1,
+						"weights": {"rows": 2, "cols": 1, "values": [0.2, 0.3]}
+					}
+				]
+			}`,
+			wantError: "dense biases are missing",
+		},
+		{
+			name: "invalid dense weight shape",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "dense",
+						"input_size": 2,
+						"output_size": 1,
+						"weights": {"rows": 1, "cols": 2, "values": [0.2, 0.3]},
+						"biases": {"rows": 1, "cols": 1, "values": [0.1]}
+					}
+				]
+			}`,
+			wantError: "dense weights shape mismatch",
+		},
+		{
+			name: "invalid dense bias shape",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "dense",
+						"input_size": 2,
+						"output_size": 1,
+						"weights": {"rows": 2, "cols": 1, "values": [0.2, 0.3]},
+						"biases": {"rows": 1, "cols": 2, "values": [0.1, 0.2]}
+					}
+				]
+			}`,
+			wantError: "dense biases copy failed",
+		},
+		{
+			name: "missing batch normalization gamma",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "batch_normalization",
+						"feature_size": 2,
+						"momentum": 0.8,
+						"epsilon": 0.0001,
+						"beta": {"rows": 1, "cols": 2, "values": [0, 0]},
+						"running_mean": {"rows": 1, "cols": 2, "values": [0, 0]},
+						"running_variance": {"rows": 1, "cols": 2, "values": [1, 1]}
+					}
+				]
+			}`,
+			wantError: "batch normalization gamma is missing",
+		},
+		{
+			name: "missing batch normalization beta",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "batch_normalization",
+						"feature_size": 2,
+						"momentum": 0.8,
+						"epsilon": 0.0001,
+						"gamma": {"rows": 1, "cols": 2, "values": [1, 1]},
+						"running_mean": {"rows": 1, "cols": 2, "values": [0, 0]},
+						"running_variance": {"rows": 1, "cols": 2, "values": [1, 1]}
+					}
+				]
+			}`,
+			wantError: "batch normalization beta is missing",
+		},
+		{
+			name: "missing batch normalization running mean",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "batch_normalization",
+						"feature_size": 2,
+						"momentum": 0.8,
+						"epsilon": 0.0001,
+						"gamma": {"rows": 1, "cols": 2, "values": [1, 1]},
+						"beta": {"rows": 1, "cols": 2, "values": [0, 0]},
+						"running_variance": {"rows": 1, "cols": 2, "values": [1, 1]}
+					}
+				]
+			}`,
+			wantError: "batch normalization running mean is missing",
+		},
+		{
+			name: "missing batch normalization running variance",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "batch_normalization",
+						"feature_size": 2,
+						"momentum": 0.8,
+						"epsilon": 0.0001,
+						"gamma": {"rows": 1, "cols": 2, "values": [1, 1]},
+						"beta": {"rows": 1, "cols": 2, "values": [0, 0]},
+						"running_mean": {"rows": 1, "cols": 2, "values": [0, 0]}
+					}
+				]
+			}`,
+			wantError: "batch normalization running variance is missing",
+		},
+		{
+			name: "invalid batch normalization gamma shape",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "batch_normalization",
+						"feature_size": 2,
+						"momentum": 0.8,
+						"epsilon": 0.0001,
+						"gamma": {"rows": 1, "cols": 3, "values": [1, 1, 1]},
+						"beta": {"rows": 1, "cols": 2, "values": [0, 0]},
+						"running_mean": {"rows": 1, "cols": 2, "values": [0, 0]},
+						"running_variance": {"rows": 1, "cols": 2, "values": [1, 1]}
+					}
+				]
+			}`,
+			wantError: "batch normalization gamma copy failed",
+		},
+		{
+			name: "invalid batch normalization beta shape",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "batch_normalization",
+						"feature_size": 2,
+						"momentum": 0.8,
+						"epsilon": 0.0001,
+						"gamma": {"rows": 1, "cols": 2, "values": [1, 1]},
+						"beta": {"rows": 1, "cols": 3, "values": [0, 0, 0]},
+						"running_mean": {"rows": 1, "cols": 2, "values": [0, 0]},
+						"running_variance": {"rows": 1, "cols": 2, "values": [1, 1]}
+					}
+				]
+			}`,
+			wantError: "batch normalization beta copy failed",
+		},
+		{
+			name: "invalid batch normalization running mean shape",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "batch_normalization",
+						"feature_size": 2,
+						"momentum": 0.8,
+						"epsilon": 0.0001,
+						"gamma": {"rows": 1, "cols": 2, "values": [1, 1]},
+						"beta": {"rows": 1, "cols": 2, "values": [0, 0]},
+						"running_mean": {"rows": 1, "cols": 3, "values": [0, 0, 0]},
+						"running_variance": {"rows": 1, "cols": 2, "values": [1, 1]}
+					}
+				]
+			}`,
+			wantError: "batch normalization running mean copy failed",
+		},
+		{
+			name: "invalid batch normalization running variance shape",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "batch_normalization",
+						"feature_size": 2,
+						"momentum": 0.8,
+						"epsilon": 0.0001,
+						"gamma": {"rows": 1, "cols": 2, "values": [1, 1]},
+						"beta": {"rows": 1, "cols": 2, "values": [0, 0]},
+						"running_mean": {"rows": 1, "cols": 2, "values": [0, 0]},
+						"running_variance": {"rows": 1, "cols": 3, "values": [1, 1, 1]}
+					}
+				]
+			}`,
+			wantError: "batch normalization running variance copy failed",
+		},
+		{
+			name: "invalid dropout rate",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "dropout",
+						"rate": 1
+					}
+				]
+			}`,
+			wantError: "dropout construct failed",
+		},
+		{
+			name: "empty activation name",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "activation"
+					}
+				]
+			}`,
+			wantError: "unknown activation name",
+		},
+		{
+			name: "unsupported activation name",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "activation",
+						"activation": "swish"
+					}
+				]
+			}`,
+			wantError: "unknown activation name",
+		},
+		{
+			name: "unknown layer type",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "batch_norm"
+					}
+				]
+			}`,
+			wantError: "unknown layer type",
+		},
+	}
+
+	for _, tt = range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			loaded, err = model.LoadSequential(strings.NewReader(tt.document))
+			if err == nil {
+				t.Fatal("LoadSequential error = nil, want error")
+			}
+
+			if loaded != nil {
+				t.Fatal("LoadSequential returned model on error")
+			}
+
+			if !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("LoadSequential error = %q, want %q", err.Error(), tt.wantError)
+			}
+		})
+	}
+}
+
+func Test_LoadSequential_RejectsNilReader(t *testing.T) {
+	var (
+		loaded *model.Sequential
+		err    error
+	)
+
+	loaded, err = model.LoadSequential(nil)
+	if err == nil {
+		t.Fatal("LoadSequential error = nil, want error")
+	}
+
+	if loaded != nil {
+		t.Fatal("LoadSequential returned model on error")
+	}
+
+	if !strings.Contains(err.Error(), "load reader is nil") {
+		t.Fatalf("LoadSequential error = %q, want load reader is nil", err.Error())
+	}
+}
+
+func Test_LoadSequential_RejectsInvalidJSON(t *testing.T) {
 	var (
 		loaded *model.Sequential
 		err    error
@@ -345,10 +729,6 @@ func Test_LoadSequential_RejectsUnknownLayerType(t *testing.T) {
 		"format": "neuralnetwork.sequential",
 			"version": 1,
 			"layers": [
-				{
-					"type": "batch_norm"
-				}
-			]
 	}`))
 	if err == nil {
 		t.Fatal("LoadSequential error = nil, want error")
@@ -358,37 +738,8 @@ func Test_LoadSequential_RejectsUnknownLayerType(t *testing.T) {
 		t.Fatal("LoadSequential returned model on error")
 	}
 
-	if !strings.Contains(err.Error(), "unknown layer type") {
-		t.Fatalf("LoadSequential error = %q, want unknown layer type", err.Error())
-	}
-}
-
-func Test_LoadSequential_RejectsUnknownActivationName(t *testing.T) {
-	var (
-		loaded *model.Sequential
-		err    error
-	)
-
-	loaded, err = model.LoadSequential(strings.NewReader(`{
-		"format": "neuralnetwork.sequential",
-		"version": 1,
-		"layers": [
-			{
-				"type": "activation",
-				"activation": "swish"
-			}
-		]
-	}`))
-	if err == nil {
-		t.Fatal("LoadSequential error = nil, want error")
-	}
-
-	if loaded != nil {
-		t.Fatal("LoadSequential returned model on error")
-	}
-
-	if !strings.Contains(err.Error(), "unknown activation name") {
-		t.Fatalf("LoadSequential error = %q, want unknown activation name", err.Error())
+	if !strings.Contains(err.Error(), "decode JSON") {
+		t.Fatalf("LoadSequential error = %q, want decode JSON", err.Error())
 	}
 }
 
