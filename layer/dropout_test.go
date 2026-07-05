@@ -3,6 +3,7 @@ package layer_test
 import (
 	"math"
 	"math/rand"
+	"strings"
 	"testing"
 
 	"github.com/itsmontoya/neuralnetwork/layer"
@@ -59,6 +60,55 @@ func Test_NewDropout_ValidatesConfig(t *testing.T) {
 				t.Fatal("NewDropout returned layer on error")
 			}
 		})
+	}
+}
+
+func Test_Dropout_AccessorsAndNilReceiverBehavior(t *testing.T) {
+	var (
+		dropout    *layer.Dropout
+		nilDropout *layer.Dropout
+		err        error
+	)
+
+	dropout, err = layer.NewDropout(0.25, rand.New(rand.NewSource(1)))
+	if err != nil {
+		t.Fatalf("NewDropout returned error: %v", err)
+	}
+
+	if dropout.Rate() != 0.25 {
+		t.Fatalf("Rate = %g, want 0.25", dropout.Rate())
+	}
+
+	if !dropout.Training() {
+		t.Fatal("Training = false, want true")
+	}
+
+	dropout.SetTraining(false)
+	if dropout.Training() {
+		t.Fatal("Training = true, want false")
+	}
+
+	if nilDropout.Rate() != 0 {
+		t.Fatalf("nil Rate = %g, want 0", nilDropout.Rate())
+	}
+
+	if nilDropout.Training() {
+		t.Fatal("nil Training = true, want false")
+	}
+
+	nilDropout.SetTraining(true)
+	if nilDropout.Training() {
+		t.Fatal("nil Training changed after SetTraining")
+	}
+
+	_, err = nilDropout.Forward(mustMatrix(t, 1, 1, []float64{1}))
+	if err == nil {
+		t.Fatal("nil Forward error = nil, want error")
+	}
+
+	_, err = nilDropout.Backward(mustMatrix(t, 1, 1, []float64{1}))
+	if err == nil {
+		t.Fatal("nil Backward error = nil, want error")
 	}
 }
 
@@ -126,6 +176,48 @@ func Test_Dropout_ForwardTrainingIsDeterministicWithSeed(t *testing.T) {
 	if !dropped {
 		t.Fatal("Forward dropped no values, want at least one dropped value")
 	}
+}
+
+func Test_Dropout_RateZeroTrainingIsIdentity(t *testing.T) {
+	var (
+		dropout        *layer.Dropout
+		input          *matrix.Matrix
+		output         *matrix.Matrix
+		outputGradient *matrix.Matrix
+		inputGradient  *matrix.Matrix
+		err            error
+	)
+
+	dropout, err = layer.NewDropout(0, rand.New(rand.NewSource(1)))
+	if err != nil {
+		t.Fatalf("NewDropout returned error: %v", err)
+	}
+
+	input = mustMatrix(t, 1, 3, []float64{1, 2, 3})
+	output, err = dropout.Forward(input)
+	if err != nil {
+		t.Fatalf("Forward returned error: %v", err)
+	}
+
+	err = input.Set(0, 0, 10)
+	if err != nil {
+		t.Fatalf("Set returned error: %v", err)
+	}
+
+	requireMatrixValues(t, output, []float64{1, 2, 3})
+
+	outputGradient = mustMatrix(t, 1, 3, []float64{4, 5, 6})
+	inputGradient, err = dropout.Backward(outputGradient)
+	if err != nil {
+		t.Fatalf("Backward returned error: %v", err)
+	}
+
+	err = outputGradient.Set(0, 0, 20)
+	if err != nil {
+		t.Fatalf("Set returned error: %v", err)
+	}
+
+	requireMatrixValues(t, inputGradient, []float64{4, 5, 6})
 }
 
 func Test_Dropout_BackwardUsesTrainingMask(t *testing.T) {
@@ -226,6 +318,60 @@ func Test_Dropout_EvaluationModeIsIdentity(t *testing.T) {
 	requireMatrixValues(t, inputGradient, []float64{4, 5, 6})
 }
 
+func Test_Dropout_EvaluationModeIgnoresPreviousTrainingMask(t *testing.T) {
+	var (
+		dropout        *layer.Dropout
+		input          *matrix.Matrix
+		output         *matrix.Matrix
+		outputGradient *matrix.Matrix
+		inputGradient  *matrix.Matrix
+		err            error
+	)
+
+	dropout, err = layer.NewDropout(0.5, rand.New(rand.NewSource(7)))
+	if err != nil {
+		t.Fatalf("NewDropout returned error: %v", err)
+	}
+
+	input = mustMatrix(t, 2, 4, []float64{
+		1, 2, 3, 4,
+		5, 6, 7, 8,
+	})
+	_, err = dropout.Forward(input)
+	if err != nil {
+		t.Fatalf("training Forward returned error: %v", err)
+	}
+
+	dropout.SetTraining(false)
+	input = mustMatrix(t, 2, 4, []float64{
+		8, 7, 6, 5,
+		4, 3, 2, 1,
+	})
+	output, err = dropout.Forward(input)
+	if err != nil {
+		t.Fatalf("evaluation Forward returned error: %v", err)
+	}
+
+	requireMatrixValues(t, output, []float64{
+		8, 7, 6, 5,
+		4, 3, 2, 1,
+	})
+
+	outputGradient = mustMatrix(t, 2, 4, []float64{
+		1, 2, 3, 4,
+		5, 6, 7, 8,
+	})
+	inputGradient, err = dropout.Backward(outputGradient)
+	if err != nil {
+		t.Fatalf("Backward returned error: %v", err)
+	}
+
+	requireMatrixValues(t, inputGradient, []float64{
+		1, 2, 3, 4,
+		5, 6, 7, 8,
+	})
+}
+
 func Test_Dropout_BackwardRequiresForward(t *testing.T) {
 	var (
 		dropout       *layer.Dropout
@@ -268,6 +414,10 @@ func Test_Dropout_BackwardReportsShapeMismatch(t *testing.T) {
 	_, err = dropout.Backward(mustMatrix(t, 1, 2, []float64{1, 2}))
 	if err == nil {
 		t.Fatal("Backward error = nil, want shape error")
+	}
+
+	if !strings.Contains(err.Error(), "got 1x2, want 2x2") {
+		t.Fatalf("Backward error = %q, want received and expected shape", err.Error())
 	}
 }
 

@@ -28,6 +28,45 @@ func Test_NewActivation_ValidatesFunction(t *testing.T) {
 	}
 }
 
+func Test_ActivationLayer_Function(t *testing.T) {
+	var (
+		function        activation.Activation
+		activationLayer *layer.Activation
+		err             error
+	)
+
+	function = activation.Sigmoid{}
+	activationLayer, err = layer.NewActivation(function)
+	if err != nil {
+		t.Fatalf("NewActivation returned error: %v", err)
+	}
+
+	if activationLayer.Function() != function {
+		t.Fatal("Function did not return wrapped activation")
+	}
+}
+
+func Test_ActivationLayer_NilReceiverBehavior(t *testing.T) {
+	var (
+		activationLayer *layer.Activation
+		err             error
+	)
+
+	if activationLayer.Function() != nil {
+		t.Fatal("Function returned value for nil receiver")
+	}
+
+	_, err = activationLayer.Forward(mustMatrix(t, 1, 1, []float64{1}))
+	if err == nil {
+		t.Fatal("Forward error = nil, want nil receiver error")
+	}
+
+	_, err = activationLayer.Backward(mustMatrix(t, 1, 1, []float64{1}))
+	if err == nil {
+		t.Fatal("Backward error = nil, want nil receiver error")
+	}
+}
+
 func Test_ActivationLayer_ForwardBackward(t *testing.T) {
 	var (
 		activationLayer *layer.Activation
