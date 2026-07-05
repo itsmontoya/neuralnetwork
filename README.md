@@ -108,6 +108,9 @@ go test ./...
 Testing policy, floating-point helpers, and the v1 numeric type decision are
 documented in [docs/testing.md](docs/testing.md).
 
+Data loading, batching, and splitting behavior is documented in
+[docs/data.md](docs/data.md).
+
 ## Examples
 
 Run the XOR smoke test with:
