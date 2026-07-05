@@ -2,7 +2,7 @@ package metric
 
 import "github.com/itsmontoya/neuralnetwork/matrix"
 
-// NewBinaryPrecision constructs BinaryPrecision with the provided threshold.
+// NewBinaryPrecision constructs BinaryPrecision with the provided finite threshold.
 func NewBinaryPrecision(threshold float64) (b BinaryPrecision, err error) {
 	if _, err = configuredBinaryThreshold("binary precision", threshold, true); err != nil {
 		return b, err
@@ -14,6 +14,10 @@ func NewBinaryPrecision(threshold float64) (b BinaryPrecision, err error) {
 }
 
 // BinaryPrecision reports positive-class precision for binary predictions.
+//
+// The zero value uses a threshold of 0.5. Predictions greater than or equal to
+// the threshold are treated as class 1; lower predictions are treated as class 0.
+// Custom thresholds may be any finite float64, including values outside [0, 1].
 type BinaryPrecision struct {
 	threshold    float64
 	hasThreshold bool

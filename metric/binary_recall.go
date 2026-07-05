@@ -2,7 +2,7 @@ package metric
 
 import "github.com/itsmontoya/neuralnetwork/matrix"
 
-// NewBinaryRecall constructs BinaryRecall with the provided threshold.
+// NewBinaryRecall constructs BinaryRecall with the provided finite threshold.
 func NewBinaryRecall(threshold float64) (b BinaryRecall, err error) {
 	if _, err = configuredBinaryThreshold("binary recall", threshold, true); err != nil {
 		return b, err
@@ -14,6 +14,10 @@ func NewBinaryRecall(threshold float64) (b BinaryRecall, err error) {
 }
 
 // BinaryRecall reports positive-class recall for binary predictions.
+//
+// The zero value uses a threshold of 0.5. Predictions greater than or equal to
+// the threshold are treated as class 1; lower predictions are treated as class 0.
+// Custom thresholds may be any finite float64, including values outside [0, 1].
 type BinaryRecall struct {
 	threshold    float64
 	hasThreshold bool

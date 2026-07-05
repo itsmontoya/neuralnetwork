@@ -111,6 +111,9 @@ documented in [docs/testing.md](docs/testing.md).
 Data loading, batching, and splitting behavior is documented in
 [docs/data.md](docs/data.md).
 
+Classification metric semantics are documented in
+[docs/metrics.md](docs/metrics.md).
+
 ## Examples
 
 Run the XOR smoke test with:
