@@ -1,6 +1,7 @@
 package model_test
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -212,6 +213,106 @@ func Test_Sequential_TrainBatchUpdatesParameters(t *testing.T) {
 	requireMatrixValues(t, dense.Biases().Gradient(), []float64{0})
 }
 
+func Test_Sequential_TrainBatchRejectsNilDependencies(t *testing.T) {
+	type testcase struct {
+		name          string
+		lossFunc      loss.Loss
+		optimizerRule optimizer.Optimizer
+	}
+
+	var (
+		tests   []testcase
+		input   *matrix.Matrix
+		targets *matrix.Matrix
+		sgd     *optimizer.SGD
+		err     error
+	)
+
+	input = mustMatrix(t, 1, 1, []float64{1})
+	targets = mustMatrix(t, 1, 1, []float64{1})
+	sgd, err = optimizer.NewSGD(0.1)
+	if err != nil {
+		t.Fatalf("NewSGD returned error: %v", err)
+	}
+
+	tests = []testcase{
+		{
+			name:          "nil loss",
+			optimizerRule: sgd,
+		},
+		{
+			name:     "nil optimizer",
+			lossFunc: loss.MeanSquaredError{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				network *model.Sequential
+				metrics model.TrainMetrics
+				runErr  error
+			)
+
+			network, runErr = model.NewSequential(&recordingLayer{})
+			if runErr != nil {
+				t.Fatalf("NewSequential returned error: %v", runErr)
+			}
+
+			metrics, runErr = network.TrainBatch(input, targets, tt.lossFunc, tt.optimizerRule)
+			if runErr == nil {
+				t.Fatal("TrainBatch error = nil, want error")
+			}
+
+			testutil.RequireAlmostEqual(t, metrics.Loss, 0, epsilon)
+		})
+	}
+}
+
+func Test_Sequential_TrainBatchRestoresPreviousModeAfterLossError(t *testing.T) {
+	var (
+		lossErr       error
+		mode          *modeLayer
+		network       *model.Sequential
+		input         *matrix.Matrix
+		targets       *matrix.Matrix
+		optimizerRule *recordingOptimizer
+		err           error
+	)
+
+	lossErr = errors.New("loss failed")
+	mode = &modeLayer{}
+	network, err = model.NewSequential(mode)
+	if err != nil {
+		t.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	err = network.SetTraining(false)
+	if err != nil {
+		t.Fatalf("SetTraining returned error: %v", err)
+	}
+
+	input = mustMatrix(t, 1, 1, []float64{1})
+	targets = mustMatrix(t, 1, 1, []float64{1})
+	optimizerRule = &recordingOptimizer{}
+	_, err = network.TrainBatch(input, targets, &errorLoss{valueErr: lossErr}, optimizerRule)
+	if !errors.Is(err, lossErr) {
+		t.Fatalf("TrainBatch error = %v, want %v", err, lossErr)
+	}
+
+	if network.Training() {
+		t.Fatal("Training = true, want restored false")
+	}
+
+	if mode.modes[len(mode.modes)-1] {
+		t.Fatal("mode layer final training mode = true, want false")
+	}
+
+	if optimizerRule.updateCalls != 0 {
+		t.Fatalf("optimizer update calls = %d, want 0", optimizerRule.updateCalls)
+	}
+}
+
 func Test_Sequential_FitDecreasesLossAndRecordsHistory(t *testing.T) {
 	var (
 		dense          *layer.Dense
@@ -260,6 +361,88 @@ func Test_Sequential_FitDecreasesLossAndRecordsHistory(t *testing.T) {
 
 	requireInts(t, callbackEpochs, sequence(30))
 	requireFitMetrics(t, history)
+}
+
+func Test_Sequential_FitRejectsInvalidConfig(t *testing.T) {
+	type testcase struct {
+		name      string
+		configure func(config *model.FitConfig)
+	}
+
+	var tests []testcase
+
+	tests = []testcase{
+		{
+			name: "invalid epochs",
+			configure: func(config *model.FitConfig) {
+				config.Epochs = 0
+			},
+		},
+		{
+			name: "invalid batch size",
+			configure: func(config *model.FitConfig) {
+				config.BatchSize = 0
+			},
+		},
+		{
+			name: "nil optimizer",
+			configure: func(config *model.FitConfig) {
+				config.Optimizer = nil
+			},
+		},
+		{
+			name: "nil loss",
+			configure: func(config *model.FitConfig) {
+				config.Loss = nil
+			},
+		},
+		{
+			name: "shuffle without random source",
+			configure: func(config *model.FitConfig) {
+				config.Shuffle = true
+				config.Random = nil
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				network *model.Sequential
+				dataset *data.Dataset
+				sgd     *optimizer.SGD
+				config  model.FitConfig
+				history model.TrainingHistory
+				err     error
+			)
+
+			network, err = model.NewSequential(&recordingLayer{})
+			if err != nil {
+				t.Fatalf("NewSequential returned error: %v", err)
+			}
+
+			dataset = mustSequenceDataset(t)
+			sgd, err = optimizer.NewSGD(0.1)
+			if err != nil {
+				t.Fatalf("NewSGD returned error: %v", err)
+			}
+
+			config = model.FitConfig{
+				Epochs:    1,
+				BatchSize: 1,
+				Optimizer: sgd,
+				Loss:      loss.MeanSquaredError{},
+			}
+			tt.configure(&config)
+
+			history, err = network.Fit(dataset, config)
+			if err == nil {
+				t.Fatal("Fit error = nil, want error")
+			}
+
+			requireEpochCount(t, history, 0)
+		})
+	}
 }
 
 func Test_Sequential_FitIsReproducibleWithFixedSeed(t *testing.T) {
@@ -324,6 +507,72 @@ func Test_Sequential_FitAppliesLearningRateScheduleBeforeEachEpoch(t *testing.T)
 
 	requireEpochCount(t, history, 3)
 	testutil.RequireSliceAlmostEqual(t, epochRates, []float64{0.2, 0.1, 0.05}, epsilon)
+}
+
+func Test_Sequential_FitReturnsLearningRateScheduleErrors(t *testing.T) {
+	type testcase struct {
+		name          string
+		schedule      *recordingSchedule
+		optimizerRule *recordingOptimizer
+		wantErr       error
+	}
+
+	var (
+		scheduleErr error
+		updateErr   error
+		tests       []testcase
+	)
+
+	scheduleErr = errors.New("schedule failed")
+	updateErr = errors.New("learning rate update failed")
+	tests = []testcase{
+		{
+			name:          "schedule error",
+			schedule:      &recordingSchedule{err: scheduleErr},
+			optimizerRule: &recordingOptimizer{},
+			wantErr:       scheduleErr,
+		},
+		{
+			name:          "optimizer set learning rate error",
+			schedule:      &recordingSchedule{rates: []float64{0.2}},
+			optimizerRule: &recordingOptimizer{setLearningRateErr: updateErr},
+			wantErr:       updateErr,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				network *model.Sequential
+				dataset *data.Dataset
+				history model.TrainingHistory
+				err     error
+			)
+
+			network, err = model.NewSequential(&recordingLayer{})
+			if err != nil {
+				t.Fatalf("NewSequential returned error: %v", err)
+			}
+
+			dataset = mustSequenceDataset(t)
+			history, err = network.Fit(dataset, model.FitConfig{
+				Epochs:               2,
+				BatchSize:            2,
+				Optimizer:            tt.optimizerRule,
+				LearningRateSchedule: tt.schedule,
+				Loss:                 loss.MeanSquaredError{},
+			})
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("Fit error = %v, want %v", err, tt.wantErr)
+			}
+
+			requireEpochCount(t, history, 0)
+			requireInts(t, tt.schedule.epochs, []int{1})
+			if tt.optimizerRule.updateCalls != 0 {
+				t.Fatalf("optimizer update calls = %d, want 0", tt.optimizerRule.updateCalls)
+			}
+		})
+	}
 }
 
 func Test_Sequential_FitStopsEarlyOnTrainingLoss(t *testing.T) {
@@ -436,6 +685,108 @@ func Test_Sequential_FitEarlyStoppingUsesValidationLossWhenAvailable(t *testing.
 	testutil.RequireAlmostEqual(t, history.Epochs[1].ValidationLoss, 1, epsilon)
 }
 
+func Test_Sequential_FitReturnsCallbackErrorWithPartialHistory(t *testing.T) {
+	var (
+		callbackErr    error
+		callbackEpochs []int
+		network        *model.Sequential
+		dataset        *data.Dataset
+		sgd            *optimizer.SGD
+		history        model.TrainingHistory
+		err            error
+	)
+
+	callbackErr = errors.New("callback failed")
+	network, err = model.NewSequential(&recordingLayer{})
+	if err != nil {
+		t.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	err = network.SetTraining(false)
+	if err != nil {
+		t.Fatalf("SetTraining returned error: %v", err)
+	}
+
+	dataset = mustSequenceDataset(t)
+	sgd, err = optimizer.NewSGD(0.1)
+	if err != nil {
+		t.Fatalf("NewSGD returned error: %v", err)
+	}
+
+	history, err = network.Fit(dataset, model.FitConfig{
+		Epochs:    3,
+		BatchSize: 2,
+		Optimizer: sgd,
+		Loss:      loss.MeanSquaredError{},
+		Callback: func(metrics model.EpochMetrics) error {
+			callbackEpochs = append(callbackEpochs, metrics.Epoch)
+			if metrics.Epoch == 2 {
+				return callbackErr
+			}
+
+			return nil
+		},
+	})
+	if !errors.Is(err, callbackErr) {
+		t.Fatalf("Fit error = %v, want %v", err, callbackErr)
+	}
+
+	requireEpochCount(t, history, 2)
+	requireInts(t, callbackEpochs, []int{1, 2})
+	if network.Training() {
+		t.Fatal("Training = true, want restored false")
+	}
+}
+
+func Test_Sequential_FitRestoresTrainingModeAfterBatchFailure(t *testing.T) {
+	var (
+		updateErr     error
+		mode          *modeLayer
+		network       *model.Sequential
+		dataset       *data.Dataset
+		optimizerRule *recordingOptimizer
+		history       model.TrainingHistory
+		err           error
+	)
+
+	updateErr = errors.New("optimizer update failed")
+	mode = &modeLayer{}
+	network, err = model.NewSequential(mode)
+	if err != nil {
+		t.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	err = network.SetTraining(false)
+	if err != nil {
+		t.Fatalf("SetTraining returned error: %v", err)
+	}
+
+	dataset = mustSequenceDataset(t)
+	optimizerRule = &recordingOptimizer{updateErr: updateErr}
+	history, err = network.Fit(dataset, model.FitConfig{
+		Epochs:    2,
+		BatchSize: 2,
+		Optimizer: optimizerRule,
+		Loss:      loss.MeanSquaredError{},
+	})
+	if !errors.Is(err, updateErr) {
+		t.Fatalf("Fit error = %v, want %v", err, updateErr)
+	}
+
+	requireEpochCount(t, history, 0)
+	if network.Training() {
+		t.Fatal("Training = true, want restored false")
+	}
+
+	if mode.modes[len(mode.modes)-1] {
+		t.Fatal("mode layer final training mode = true, want false")
+	}
+
+	if optimizerRule.updateCalls != 1 {
+		t.Fatalf("optimizer update calls = %d, want 1", optimizerRule.updateCalls)
+	}
+}
+
 func Test_Sequential_TrainBatchUsesTrainingModeAndRestoresPreviousMode(t *testing.T) {
 	var (
 		dropout *layer.Dropout
@@ -502,6 +853,11 @@ func Test_Sequential_FitEvaluatesWithTrainingDisabled(t *testing.T) {
 		t.Fatalf("NewSequential returned error: %v", err)
 	}
 
+	err = network.SetTraining(false)
+	if err != nil {
+		t.Fatalf("SetTraining returned error: %v", err)
+	}
+
 	inputs = mustMatrix(t, 2, 2, []float64{
 		1, 2,
 		3, 4,
@@ -532,6 +888,9 @@ func Test_Sequential_FitEvaluatesWithTrainingDisabled(t *testing.T) {
 
 	requireEpochCount(t, history, 1)
 	testutil.RequireAlmostEqual(t, history.Epochs[0].Loss, 0, epsilon)
+	if network.Training() {
+		t.Fatal("Training = true, want restored false")
+	}
 }
 
 func mustDense(tb testing.TB) (dense *layer.Dense) {
@@ -901,4 +1260,95 @@ func (s *sequenceLoss) Gradient(predictions, targets *matrix.Matrix) (gradient *
 	rows, cols = predictions.Shape()
 	gradient, err = matrix.New(rows, cols)
 	return gradient, err
+}
+
+type errorLoss struct {
+	valueErr    error
+	gradientErr error
+}
+
+func (e *errorLoss) Value(predictions, targets *matrix.Matrix) (value float64, err error) {
+	var mse loss.MeanSquaredError
+
+	if e.valueErr != nil {
+		err = e.valueErr
+		return 0, err
+	}
+
+	value, err = mse.Value(predictions, targets)
+	return value, err
+}
+
+func (e *errorLoss) Gradient(predictions, targets *matrix.Matrix) (gradient *matrix.Matrix, err error) {
+	var mse loss.MeanSquaredError
+
+	if e.gradientErr != nil {
+		err = e.gradientErr
+		return nil, err
+	}
+
+	gradient, err = mse.Gradient(predictions, targets)
+	return gradient, err
+}
+
+type recordingSchedule struct {
+	rates  []float64
+	err    error
+	epochs []int
+}
+
+func (r *recordingSchedule) LearningRate(epoch int) (learningRate float64, err error) {
+	var index int
+
+	r.epochs = append(r.epochs, epoch)
+	if r.err != nil {
+		err = r.err
+		return 0, err
+	}
+
+	if len(r.rates) == 0 {
+		return 0, nil
+	}
+
+	index = len(r.epochs) - 1
+	if index >= len(r.rates) {
+		index = len(r.rates) - 1
+	}
+
+	learningRate = r.rates[index]
+	return learningRate, nil
+}
+
+type recordingOptimizer struct {
+	learningRate       float64
+	setLearningRateErr error
+	updateErr          error
+	updateCalls        int
+	setRates           []float64
+}
+
+func (r *recordingOptimizer) Update(parameters []*optimizer.Parameter) (err error) {
+	r.updateCalls++
+	if r.updateErr != nil {
+		err = r.updateErr
+		return err
+	}
+
+	return nil
+}
+
+func (r *recordingOptimizer) LearningRate() (learningRate float64) {
+	learningRate = r.learningRate
+	return learningRate
+}
+
+func (r *recordingOptimizer) SetLearningRate(learningRate float64) (err error) {
+	r.setRates = append(r.setRates, learningRate)
+	if r.setLearningRateErr != nil {
+		err = r.setLearningRateErr
+		return err
+	}
+
+	r.learningRate = learningRate
+	return nil
 }
