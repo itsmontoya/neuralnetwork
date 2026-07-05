@@ -7,13 +7,15 @@ import (
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
-// NewBinaryConfusionMatrix constructs a binary confusion matrix using the default threshold.
+// NewBinaryConfusionMatrix constructs a binary confusion matrix using the
+// default threshold of 0.5.
 func NewBinaryConfusionMatrix(predictions, targets *matrix.Matrix) (out *ConfusionMatrix, err error) {
 	out, err = NewBinaryConfusionMatrixWithThreshold(predictions, targets, defaultBinaryThreshold)
 	return out, err
 }
 
-// NewBinaryConfusionMatrixWithThreshold constructs a binary confusion matrix with threshold.
+// NewBinaryConfusionMatrixWithThreshold constructs a binary confusion matrix
+// with a finite threshold.
 func NewBinaryConfusionMatrixWithThreshold(predictions, targets *matrix.Matrix, threshold float64) (out *ConfusionMatrix, err error) {
 	var (
 		predictedClasses []int
@@ -29,6 +31,8 @@ func NewBinaryConfusionMatrixWithThreshold(predictions, targets *matrix.Matrix, 
 }
 
 // NewCategoricalConfusionMatrix constructs a confusion matrix for one-hot targets.
+//
+// Predicted classes use each prediction row's first maximum value.
 func NewCategoricalConfusionMatrix(predictions, targets *matrix.Matrix) (out *ConfusionMatrix, err error) {
 	var (
 		classCount       int

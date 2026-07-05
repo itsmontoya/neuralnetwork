@@ -2,7 +2,7 @@ package metric
 
 import "github.com/itsmontoya/neuralnetwork/matrix"
 
-// NewBinaryF1 constructs BinaryF1 with the provided threshold.
+// NewBinaryF1 constructs BinaryF1 with the provided finite threshold.
 func NewBinaryF1(threshold float64) (b BinaryF1, err error) {
 	if _, err = configuredBinaryThreshold("binary f1", threshold, true); err != nil {
 		return b, err
@@ -14,6 +14,10 @@ func NewBinaryF1(threshold float64) (b BinaryF1, err error) {
 }
 
 // BinaryF1 reports positive-class F1 for binary predictions.
+//
+// The zero value uses a threshold of 0.5. Predictions greater than or equal to
+// the threshold are treated as class 1; lower predictions are treated as class 0.
+// Custom thresholds may be any finite float64, including values outside [0, 1].
 type BinaryF1 struct {
 	threshold    float64
 	hasThreshold bool

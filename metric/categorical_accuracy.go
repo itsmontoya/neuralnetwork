@@ -4,7 +4,8 @@ import "github.com/itsmontoya/neuralnetwork/matrix"
 
 // CategoricalAccuracy reports the fraction of correct one-hot categorical predictions.
 //
-// The predicted class is the first maximum value in each prediction row.
+// The predicted class is the first maximum value in each prediction row. Targets
+// must be one-hot encoded.
 type CategoricalAccuracy struct{}
 
 // Value returns categorical accuracy for one-hot classification targets.

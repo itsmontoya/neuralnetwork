@@ -9,7 +9,7 @@ import (
 
 const defaultBinaryThreshold = 0.5
 
-// NewBinaryAccuracy constructs BinaryAccuracy with the provided classification threshold.
+// NewBinaryAccuracy constructs BinaryAccuracy with the provided finite threshold.
 func NewBinaryAccuracy(threshold float64) (b BinaryAccuracy, err error) {
 	if math.IsNaN(threshold) || math.IsInf(threshold, 0) {
 		err = fmt.Errorf("metric: binary accuracy threshold must be finite: threshold=%g", threshold)
@@ -25,6 +25,7 @@ func NewBinaryAccuracy(threshold float64) (b BinaryAccuracy, err error) {
 //
 // The zero value uses a threshold of 0.5. Predictions greater than or equal to
 // the threshold are treated as class 1; lower predictions are treated as class 0.
+// Custom thresholds may be any finite float64, including values outside [0, 1].
 type BinaryAccuracy struct {
 	threshold    float64
 	hasThreshold bool
