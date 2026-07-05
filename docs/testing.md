@@ -21,3 +21,9 @@ unit tests.
 The v1 numeric type is `float64`. This keeps the initial implementation simple
 and gives gradient checks more stable precision. `float32` support is deferred
 until there is a measured need.
+
+Example packages use package-local smoke tests for helper-level behavior rather
+than running the full training commands by default. These tests cover dataset
+construction, model construction, prediction shapes, and deterministic helper
+behavior while keeping `go test ./examples/...` fast enough for CI. Run example
+commands manually when their runtime behavior or printed output changes.
