@@ -140,6 +140,19 @@ func Test_NewLearningRateSchedule_ValidatesConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "step factor zero",
+			construct: func() (schedule optimizer.LearningRateSchedule, err error) {
+				var step *optimizer.StepDecay
+
+				if step, err = optimizer.NewStepDecay(0.1, 0, 2); step == nil {
+					return nil, err
+				}
+
+				schedule = step
+				return schedule, err
+			},
+		},
+		{
 			name: "step size",
 			construct: func() (schedule optimizer.LearningRateSchedule, err error) {
 				var step *optimizer.StepDecay
@@ -158,6 +171,19 @@ func Test_NewLearningRateSchedule_ValidatesConfig(t *testing.T) {
 				var exponential *optimizer.ExponentialDecay
 
 				if exponential, err = optimizer.NewExponentialDecay(0, 0.5); exponential == nil {
+					return nil, err
+				}
+
+				schedule = exponential
+				return schedule, err
+			},
+		},
+		{
+			name: "exponential decay rate zero",
+			construct: func() (schedule optimizer.LearningRateSchedule, err error) {
+				var exponential *optimizer.ExponentialDecay
+
+				if exponential, err = optimizer.NewExponentialDecay(0.1, 0); exponential == nil {
 					return nil, err
 				}
 
@@ -195,6 +221,64 @@ func Test_NewLearningRateSchedule_ValidatesConfig(t *testing.T) {
 			if schedule != nil {
 				t.Fatal("constructor returned schedule on error")
 			}
+		})
+	}
+}
+
+func Test_LearningRateSchedule_DecayRateBoundaries(t *testing.T) {
+	type testcase struct {
+		name      string
+		construct func() (schedule optimizer.LearningRateSchedule, err error)
+		epochs    int
+		want      []float64
+	}
+
+	tests := []testcase{
+		{
+			name: "step factor one",
+			construct: func() (schedule optimizer.LearningRateSchedule, err error) {
+				schedule, err = optimizer.NewStepDecay(0.1, 1, 2)
+				return schedule, err
+			},
+			epochs: 4,
+			want:   []float64{0.1, 0.1, 0.1, 0.1},
+		},
+		{
+			name: "exponential decay rate one",
+			construct: func() (schedule optimizer.LearningRateSchedule, err error) {
+				schedule, err = optimizer.NewExponentialDecay(0.1, 1)
+				return schedule, err
+			},
+			epochs: 4,
+			want:   []float64{0.1, 0.1, 0.1, 0.1},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				schedule optimizer.LearningRateSchedule
+				rates    []float64
+				rate     float64
+				epoch    int
+				err      error
+			)
+
+			schedule, err = tt.construct()
+			if err != nil {
+				t.Fatalf("constructor returned error: %v", err)
+			}
+
+			for epoch = 1; epoch <= tt.epochs; epoch++ {
+				rate, err = schedule.LearningRate(epoch)
+				if err != nil {
+					t.Fatalf("LearningRate epoch %d returned error: %v", epoch, err)
+				}
+
+				rates = append(rates, rate)
+			}
+
+			testutil.RequireSliceAlmostEqual(t, rates, tt.want, epsilon)
 		})
 	}
 }

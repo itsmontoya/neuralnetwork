@@ -1,6 +1,7 @@
 package optimizer_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/itsmontoya/neuralnetwork/internal/testutil"
@@ -105,6 +106,57 @@ func Test_Regularized_UpdateAppliesRegularizersBeforeBaseOptimizer(t *testing.T)
 	requireMatrixValues(t, parameter.Gradient(), []float64{0, 0, 0})
 }
 
+func Test_Regularized_UpdateRegularizesGradientsBeforeBaseUpdate(t *testing.T) {
+	var (
+		parameter   *optimizer.Parameter
+		base        *mockOptimizer
+		l1          *optimizer.L1
+		regularized *optimizer.Regularized
+		err         error
+	)
+
+	parameter = mustParameter(t, 1, 2, []float64{2, -3})
+	accumulateGradient(t, parameter, []float64{0.5, 0.5})
+
+	base = &mockOptimizer{
+		learningRate: 0.1,
+		updateFunc: func(parameters []*optimizer.Parameter) (err error) {
+			if len(parameters) != 1 {
+				t.Fatalf("parameters length = %d, want 1", len(parameters))
+				return nil
+			}
+
+			requireMatrixValues(t, parameters[0].Values(), []float64{2, -3})
+			requireMatrixValues(t, parameters[0].Gradient(), []float64{0.75, 0.25})
+
+			if err = parameters[0].Values().AddScaledInPlace(parameters[0].Gradient(), -0.1); err != nil {
+				return err
+			}
+
+			err = parameters[0].ResetGradient()
+			return err
+		},
+	}
+
+	l1, err = optimizer.NewL1(0.25)
+	if err != nil {
+		t.Fatalf("NewL1 returned error: %v", err)
+	}
+
+	regularized, err = optimizer.NewRegularized(base, l1)
+	if err != nil {
+		t.Fatalf("NewRegularized returned error: %v", err)
+	}
+
+	err = regularized.Update([]*optimizer.Parameter{parameter})
+	if err != nil {
+		t.Fatalf("Update returned error: %v", err)
+	}
+
+	requireMatrixValues(t, parameter.Values(), []float64{1.925, -3.025})
+	requireMatrixValues(t, parameter.Gradient(), []float64{0, 0})
+}
+
 func Test_Regularized_DelegatesLearningRate(t *testing.T) {
 	var (
 		base        *mockOptimizer
@@ -132,6 +184,84 @@ func Test_Regularized_DelegatesLearningRate(t *testing.T) {
 
 	testutil.RequireAlmostEqual(t, base.learningRate, 0.25, epsilon)
 	testutil.RequireAlmostEqual(t, regularized.LearningRate(), 0.25, epsilon)
+}
+
+func Test_Regularized_SetLearningRate_ErrorPaths(t *testing.T) {
+	t.Run("nil receiver", func(t *testing.T) {
+		var (
+			regularized *optimizer.Regularized
+			err         error
+		)
+
+		err = regularized.SetLearningRate(0.1)
+		if err == nil {
+			t.Fatal("SetLearningRate error = nil, want error")
+		}
+	})
+
+	t.Run("nil base", func(t *testing.T) {
+		var (
+			regularized optimizer.Regularized
+			err         error
+		)
+
+		err = regularized.SetLearningRate(0.1)
+		if err == nil {
+			t.Fatal("SetLearningRate error = nil, want error")
+		}
+	})
+
+	t.Run("base error", func(t *testing.T) {
+		var (
+			wantErr     error
+			base        *mockOptimizer
+			l1          *optimizer.L1
+			regularized *optimizer.Regularized
+			err         error
+		)
+
+		wantErr = errors.New("set learning rate failed")
+		base = &mockOptimizer{setLearningRateErr: wantErr}
+
+		l1, err = optimizer.NewL1(0.1)
+		if err != nil {
+			t.Fatalf("NewL1 returned error: %v", err)
+		}
+
+		regularized, err = optimizer.NewRegularized(base, l1)
+		if err != nil {
+			t.Fatalf("NewRegularized returned error: %v", err)
+		}
+
+		err = regularized.SetLearningRate(0.2)
+		if !errors.Is(err, wantErr) {
+			t.Fatalf("SetLearningRate error = %v, want %v", err, wantErr)
+		}
+	})
+}
+
+func Test_Regularized_Base(t *testing.T) {
+	var (
+		base        *mockOptimizer
+		l1          *optimizer.L1
+		regularized *optimizer.Regularized
+		err         error
+	)
+
+	base = &mockOptimizer{learningRate: 0.1}
+	l1, err = optimizer.NewL1(0.1)
+	if err != nil {
+		t.Fatalf("NewL1 returned error: %v", err)
+	}
+
+	regularized, err = optimizer.NewRegularized(base, l1)
+	if err != nil {
+		t.Fatalf("NewRegularized returned error: %v", err)
+	}
+
+	if regularized.Base() != base {
+		t.Fatal("Base did not return wrapped optimizer")
+	}
 }
 
 func Test_Regularized_ReturnsRegularizerCopy(t *testing.T) {
