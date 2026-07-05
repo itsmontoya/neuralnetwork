@@ -7,6 +7,7 @@ import (
 	"github.com/itsmontoya/neuralnetwork/internal/testutil"
 	"github.com/itsmontoya/neuralnetwork/layer"
 	"github.com/itsmontoya/neuralnetwork/matrix"
+	"github.com/itsmontoya/neuralnetwork/optimizer"
 )
 
 const epsilon = 1e-12
@@ -43,6 +44,69 @@ func Test_NewDense_UsesWeightInitializer(t *testing.T) {
 
 	requireMatrixValues(t, dense.Weights().Values(), []float64{1, 2, 3, 4, 5, 6})
 	requireMatrixValues(t, dense.Biases().Values(), []float64{0, 0, 0})
+}
+
+func Test_Dense_Accessors(t *testing.T) {
+	var (
+		dense      *layer.Dense
+		parameters []*optimizer.Parameter
+	)
+
+	dense = mustDense(
+		t,
+		2,
+		3,
+		[]float64{
+			1, 2, 3,
+			4, 5, 6,
+		},
+		[]float64{0.1, 0.2, 0.3},
+	)
+
+	if dense.InputSize() != 2 {
+		t.Fatalf("InputSize = %d, want 2", dense.InputSize())
+	}
+
+	if dense.OutputSize() != 3 {
+		t.Fatalf("OutputSize = %d, want 3", dense.OutputSize())
+	}
+
+	parameters = dense.Parameters()
+	if len(parameters) != 2 {
+		t.Fatalf("Parameters length = %d, want 2", len(parameters))
+	}
+
+	if parameters[0] != dense.Weights() {
+		t.Fatal("Parameters[0] did not match weights")
+	}
+
+	if parameters[1] != dense.Biases() {
+		t.Fatal("Parameters[1] did not match biases")
+	}
+}
+
+func Test_Dense_NilReceiverAccessors(t *testing.T) {
+	var dense *layer.Dense
+
+	if dense.InputSize() != 0 {
+		t.Fatalf("InputSize = %d, want 0", dense.InputSize())
+	}
+
+	if dense.OutputSize() != 0 {
+		t.Fatalf("OutputSize = %d, want 0", dense.OutputSize())
+	}
+
+	if dense.Weights() != nil {
+		t.Fatal("Weights returned value for nil receiver")
+	}
+
+	if dense.Biases() != nil {
+		t.Fatal("Biases returned value for nil receiver")
+	}
+
+	if dense.Parameters() != nil {
+		t.Fatal("Parameters returned value for nil receiver")
+	}
 }
 
 func Test_NewDense_ValidatesConfig(t *testing.T) {
