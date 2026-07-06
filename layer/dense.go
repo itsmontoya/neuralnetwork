@@ -89,7 +89,7 @@ func (d *Dense) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error)
 	}
 
 	batchRows = input.Rows()
-	if d.outputScratch, err = denseScratch(d.outputScratch, batchRows, d.outputSize); err != nil {
+	if d.outputScratch, err = matrixScratch(d.outputScratch, batchRows, d.outputSize); err != nil {
 		return nil, err
 	}
 
@@ -99,7 +99,7 @@ func (d *Dense) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error)
 		}
 	}
 
-	if d.inputCache, err = denseScratch(d.inputCache, batchRows, d.inputSize); err != nil {
+	if d.inputCache, err = matrixScratch(d.inputCache, batchRows, d.inputSize); err != nil {
 		return nil, err
 	}
 
@@ -137,11 +137,11 @@ func (d *Dense) Backward(outputGradient *matrix.Matrix) (inputGradient *matrix.M
 	}
 
 	batchRows = outputGradient.Rows()
-	if d.weightGradient, err = denseScratch(d.weightGradient, d.inputSize, d.outputSize); err != nil {
+	if d.weightGradient, err = matrixScratch(d.weightGradient, d.inputSize, d.outputSize); err != nil {
 		return nil, err
 	}
 
-	if d.inputGradientScratch, err = denseScratch(d.inputGradientScratch, batchRows, d.inputSize); err != nil {
+	if d.inputGradientScratch, err = matrixScratch(d.inputGradientScratch, batchRows, d.inputSize); err != nil {
 		return nil, err
 	}
 
@@ -361,14 +361,4 @@ func validateMatrixShape(name string, m *matrix.Matrix, rows, cols int) (err err
 	}
 
 	return nil
-}
-
-func denseScratch(current *matrix.Matrix, rows, cols int) (scratch *matrix.Matrix, err error) {
-	if current != nil && current.Rows() == rows && current.Cols() == cols {
-		scratch = current
-		return scratch, nil
-	}
-
-	scratch, err = matrix.New(rows, cols)
-	return scratch, err
 }

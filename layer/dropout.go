@@ -33,27 +33,30 @@ func NewDropout(rate float64, random *rand.Rand) (out *Dropout, err error) {
 // Training forward passes use inverted dropout: kept activations are scaled by
 // 1/(1-rate), so evaluation passes do not need additional scaling.
 type Dropout struct {
-	rate            float64
-	random          *rand.Rand
-	training        bool
-	maskCache       *matrix.Matrix
-	forwardRows     int
-	forwardCols     int
-	forwardCalled   bool
-	forwardTraining bool
+	rate                 float64
+	random               *rand.Rand
+	training             bool
+	maskCache            *matrix.Matrix
+	outputScratch        *matrix.Matrix
+	inputGradientScratch *matrix.Matrix
+	inputValues          []float64
+	outputValues         []float64
+	maskValues           []float64
+	forwardRows          int
+	forwardCols          int
+	forwardCalled        bool
+	forwardTraining      bool
 }
 
 // Forward applies dropout in training mode and identity in evaluation mode.
 func (d *Dropout) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error) {
 	var (
-		rows         int
-		cols         int
-		inputValues  []float64
-		outputValues []float64
-		maskValues   []float64
-		index        int
-		scale        float64
-		mask         float64
+		rows       int
+		cols       int
+		index      int
+		scale      float64
+		mask       float64
+		valueCount int
 	)
 
 	if err = d.validate(); err != nil {
@@ -71,43 +74,71 @@ func (d *Dropout) Forward(input *matrix.Matrix) (output *matrix.Matrix, err erro
 	}
 
 	rows, cols = input.Shape()
+	valueCount = rows * cols
+	if d.outputScratch, err = matrixScratch(d.outputScratch, rows, cols); err != nil {
+		return nil, err
+	}
+
 	d.forwardRows = rows
 	d.forwardCols = cols
 	d.forwardCalled = true
 	d.forwardTraining = d.training
-	d.maskCache = nil
 
 	if !d.training {
-		output, err = input.Clone()
-		return output, err
+		d.maskCache = nil
+		if err = d.outputScratch.CopyFrom(input); err != nil {
+			return nil, err
+		}
+
+		output = d.outputScratch
+		return output, nil
 	}
 
-	if inputValues, err = input.Values(); err != nil {
+	if d.maskCache, err = matrixScratch(d.maskCache, rows, cols); err != nil {
 		return nil, err
 	}
 
-	outputValues = make([]float64, len(inputValues))
-	maskValues = make([]float64, len(inputValues))
-	scale = 1 / (1 - d.rate)
+	if d.rate == 0 {
+		if err = d.outputScratch.CopyFrom(input); err != nil {
+			return nil, err
+		}
 
-	for index = range inputValues {
+		if err = d.maskCache.Fill(1); err != nil {
+			return nil, err
+		}
+
+		output = d.outputScratch
+		return output, nil
+	}
+
+	d.inputValues = floatScratch(d.inputValues, valueCount)
+	d.outputValues = floatScratch(d.outputValues, valueCount)
+	d.maskValues = floatScratch(d.maskValues, valueCount)
+
+	if err = input.ValuesInto(d.inputValues); err != nil {
+		return nil, err
+	}
+
+	scale = 1 / (1 - d.rate)
+	for index = range d.inputValues {
 		mask = scale
-		if d.rate > 0 && d.random.Float64() < d.rate {
+		if d.random.Float64() < d.rate {
 			mask = 0
 		}
 
-		maskValues[index] = mask
-		outputValues[index] = inputValues[index] * mask
+		d.maskValues[index] = mask
+		d.outputValues[index] = d.inputValues[index] * mask
 	}
 
-	if output, err = matrix.FromSlice(rows, cols, outputValues); err != nil {
+	if err = d.outputScratch.CopyValuesFrom(d.outputValues); err != nil {
 		return nil, err
 	}
 
-	if d.maskCache, err = matrix.FromSlice(rows, cols, maskValues); err != nil {
+	if err = d.maskCache.CopyValuesFrom(d.maskValues); err != nil {
 		return nil, err
 	}
 
+	output = d.outputScratch
 	return output, nil
 }
 
@@ -127,8 +158,16 @@ func (d *Dropout) Backward(outputGradient *matrix.Matrix) (inputGradient *matrix
 	}
 
 	if !d.forwardTraining {
-		inputGradient, err = outputGradient.Clone()
-		return inputGradient, err
+		if d.inputGradientScratch, err = matrixScratch(d.inputGradientScratch, d.forwardRows, d.forwardCols); err != nil {
+			return nil, err
+		}
+
+		if err = d.inputGradientScratch.CopyFrom(outputGradient); err != nil {
+			return nil, err
+		}
+
+		inputGradient = d.inputGradientScratch
+		return inputGradient, nil
 	}
 
 	if d.maskCache == nil {
@@ -136,8 +175,16 @@ func (d *Dropout) Backward(outputGradient *matrix.Matrix) (inputGradient *matrix
 		return nil, err
 	}
 
-	inputGradient, err = outputGradient.MultiplyElements(d.maskCache)
-	return inputGradient, err
+	if d.inputGradientScratch, err = matrixScratch(d.inputGradientScratch, d.forwardRows, d.forwardCols); err != nil {
+		return nil, err
+	}
+
+	if err = outputGradient.MultiplyElementsInto(d.maskCache, d.inputGradientScratch); err != nil {
+		return nil, err
+	}
+
+	inputGradient = d.inputGradientScratch
+	return inputGradient, nil
 }
 
 // Rate returns the probability that an activation is dropped during training.

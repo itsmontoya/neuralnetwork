@@ -21,16 +21,14 @@ func (l Linear) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error)
 
 // Backward returns a copy of outputGradient after validating its shape.
 func (l Linear) Backward(input, outputGradient *matrix.Matrix) (inputGradient *matrix.Matrix, err error) {
-	var (
-		rows           int
-		cols           int
-		gradientValues []float64
-	)
-
-	if rows, cols, _, gradientValues, err = matrixValuePair(input, outputGradient); err != nil {
+	if _, _, err = matrixPairShape(input, outputGradient); err != nil {
 		return nil, err
 	}
 
-	inputGradient, err = matrix.FromSlice(rows, cols, gradientValues)
-	return inputGradient, err
+	if inputGradient, err = outputGradient.Clone(); err != nil {
+		err = fmt.Errorf("activation: output gradient matrix invalid: %w", err)
+		return nil, err
+	}
+
+	return inputGradient, nil
 }

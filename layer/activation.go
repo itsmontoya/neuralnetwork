@@ -28,7 +28,10 @@ type Activation struct {
 
 // Forward applies the wrapped activation function and caches input for Backward.
 func (a *Activation) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error) {
-	var cachedInput *matrix.Matrix
+	var (
+		rows int
+		cols int
+	)
 
 	if err = a.validate(); err != nil {
 		return nil, err
@@ -44,15 +47,19 @@ func (a *Activation) Forward(input *matrix.Matrix) (output *matrix.Matrix, err e
 		return nil, err
 	}
 
+	rows, cols = input.Shape()
+	if a.inputCache, err = matrixScratch(a.inputCache, rows, cols); err != nil {
+		return nil, err
+	}
+
 	if output, err = a.function.Forward(input); err != nil {
 		return nil, err
 	}
 
-	if cachedInput, err = input.Clone(); err != nil {
+	if err = a.inputCache.CopyFrom(input); err != nil {
 		return nil, err
 	}
 
-	a.inputCache = cachedInput
 	return output, nil
 }
 
