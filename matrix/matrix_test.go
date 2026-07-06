@@ -658,6 +658,46 @@ func Test_MatMulInto(t *testing.T) {
 	requireMatrixValues(t, destination, []float64{58, 64, 139, 154})
 }
 
+func Test_MatMulLeftTransposeInto(t *testing.T) {
+	var (
+		left        *matrix.Matrix
+		right       *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	left = mustMatrix(t, 2, 3, []float64{1, 2, 3, 4, 5, 6})
+	right = mustMatrix(t, 2, 2, []float64{7, 8, 9, 10})
+	destination = mustMatrix(t, 3, 2, []float64{100, 100, 100, 100, 100, 100})
+
+	err = left.MatMulLeftTransposeInto(right, destination)
+	if err != nil {
+		t.Fatalf("MatMulLeftTransposeInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, []float64{43, 48, 59, 66, 75, 84})
+}
+
+func Test_MatMulRightTransposeInto(t *testing.T) {
+	var (
+		left        *matrix.Matrix
+		right       *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	left = mustMatrix(t, 2, 3, []float64{1, 2, 3, 4, 5, 6})
+	right = mustMatrix(t, 2, 3, []float64{7, 8, 9, 10, 11, 12})
+	destination = mustMatrix(t, 2, 2, []float64{100, 100, 100, 100})
+
+	err = left.MatMulRightTransposeInto(right, destination)
+	if err != nil {
+		t.Fatalf("MatMulRightTransposeInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, []float64{50, 68, 122, 167})
+}
+
 func Test_MatMul_ValidatesShape(t *testing.T) {
 	var (
 		left   *matrix.Matrix
@@ -694,6 +734,39 @@ func Test_MatMulInto_ValidatesDestination(t *testing.T) {
 	err = left.MatMulInto(right, left)
 	if err == nil {
 		t.Fatal("MatMulInto alias error = nil, want error")
+	}
+}
+
+func Test_MatMulTransposeInto_ValidatesDestination(t *testing.T) {
+	var (
+		left        *matrix.Matrix
+		right       *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	left = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
+	right = mustMatrix(t, 2, 2, []float64{5, 6, 7, 8})
+	destination = mustMatrix(t, 1, 4, []float64{0, 0, 0, 0})
+
+	err = left.MatMulLeftTransposeInto(right, destination)
+	if err == nil {
+		t.Fatal("MatMulLeftTransposeInto shape error = nil, want error")
+	}
+
+	err = left.MatMulLeftTransposeInto(right, left)
+	if err == nil {
+		t.Fatal("MatMulLeftTransposeInto alias error = nil, want error")
+	}
+
+	err = left.MatMulRightTransposeInto(right, destination)
+	if err == nil {
+		t.Fatal("MatMulRightTransposeInto shape error = nil, want error")
+	}
+
+	err = left.MatMulRightTransposeInto(right, right)
+	if err == nil {
+		t.Fatal("MatMulRightTransposeInto alias error = nil, want error")
 	}
 }
 
@@ -812,6 +885,29 @@ func Test_ColumnSumsInto(t *testing.T) {
 	}
 
 	requireMatrixValues(t, destination, []float64{5, 7, 9})
+}
+
+func Test_AccumulateColumnSumsInto(t *testing.T) {
+	var (
+		input       *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	input = mustMatrix(t, 2, 3, []float64{1, 2, 3, 4, 5, 6})
+	destination = mustMatrix(t, 1, 3, []float64{10, 20, 30})
+
+	err = input.AccumulateColumnSumsInto(destination)
+	if err != nil {
+		t.Fatalf("AccumulateColumnSumsInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, []float64{15, 27, 39})
+
+	err = input.AccumulateColumnSumsInto(input)
+	if err == nil {
+		t.Fatal("AccumulateColumnSumsInto alias error = nil, want error")
+	}
 }
 
 func Test_AddRowVectorInPlace(t *testing.T) {

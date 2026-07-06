@@ -620,6 +620,80 @@ func (m *Matrix) MatMulInto(other, result *Matrix) (err error) {
 	return nil
 }
 
+// MatMulLeftTransposeInto writes the matrix product of m transposed and other into result.
+//
+// The destination must be shaped [m.Cols(), other.Cols()] and must not be one
+// of the input matrices.
+func (m *Matrix) MatMulLeftTransposeInto(other, result *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if err = other.validate(); err != nil {
+		return err
+	}
+
+	if m.rows != other.rows {
+		err = fmt.Errorf(
+			"matrix: left-transpose multiplication shape mismatch: left %dx%d, right %dx%d",
+			m.rows,
+			m.cols,
+			other.rows,
+			other.cols,
+		)
+		return err
+	}
+
+	if result == m || result == other {
+		err = errors.New("matrix: left-transpose multiplication destination must not alias inputs")
+		return err
+	}
+
+	if err = result.requireShape("left-transpose multiplication destination", m.cols, other.cols); err != nil {
+		return err
+	}
+
+	m.matMulLeftTransposeInto(other, result)
+	return nil
+}
+
+// MatMulRightTransposeInto writes the matrix product of m and other transposed into result.
+//
+// The destination must be shaped [m.Rows(), other.Rows()] and must not be one
+// of the input matrices.
+func (m *Matrix) MatMulRightTransposeInto(other, result *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if err = other.validate(); err != nil {
+		return err
+	}
+
+	if m.cols != other.cols {
+		err = fmt.Errorf(
+			"matrix: right-transpose multiplication shape mismatch: left %dx%d, right %dx%d",
+			m.rows,
+			m.cols,
+			other.rows,
+			other.cols,
+		)
+		return err
+	}
+
+	if result == m || result == other {
+		err = errors.New("matrix: right-transpose multiplication destination must not alias inputs")
+		return err
+	}
+
+	if err = result.requireShape("right-transpose multiplication destination", m.rows, other.rows); err != nil {
+		return err
+	}
+
+	m.matMulRightTransposeInto(other, result)
+	return nil
+}
+
 // Transpose returns a matrix with rows and columns swapped.
 func (m *Matrix) Transpose() (result *Matrix, err error) {
 	var next Matrix
@@ -775,6 +849,35 @@ func (m *Matrix) ColumnSumsInto(result *Matrix) (err error) {
 	return nil
 }
 
+// AccumulateColumnSumsInto adds column sums to a [1, m.Cols()] destination matrix.
+func (m *Matrix) AccumulateColumnSumsInto(result *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if result == m {
+		err = errors.New("matrix: column sums destination must not alias input")
+		return err
+	}
+
+	if err = result.requireShape("column sums destination", 1, m.cols); err != nil {
+		return err
+	}
+
+	var (
+		row int
+		col int
+	)
+
+	for row = 0; row < m.rows; row++ {
+		for col = 0; col < m.cols; col++ {
+			result.data[col] += m.data[row*m.cols+col]
+		}
+	}
+
+	return nil
+}
+
 // AddRowVectorInPlace adds a [1, m.Cols()] row vector to every row of m.
 func (m *Matrix) AddRowVectorInPlace(rowVector *Matrix) (err error) {
 	if err = m.validate(); err != nil {
@@ -878,6 +981,64 @@ func (m *Matrix) matMulInto(other, result *Matrix) {
 			rightOffset = inner * other.cols
 			for col = 0; col < other.cols; col++ {
 				result.data[resultOffset+col] += left * other.data[rightOffset+col]
+			}
+		}
+	}
+}
+
+func (m *Matrix) matMulLeftTransposeInto(other, result *Matrix) {
+	var (
+		index        int
+		row          int
+		col          int
+		inner        int
+		left         float64
+		leftOffset   int
+		rightOffset  int
+		resultOffset int
+	)
+
+	for index = range result.data {
+		result.data[index] = 0
+	}
+
+	for inner = 0; inner < m.rows; inner++ {
+		leftOffset = inner * m.cols
+		rightOffset = inner * other.cols
+		for row = 0; row < m.cols; row++ {
+			left = m.data[leftOffset+row]
+			resultOffset = row * result.cols
+			for col = 0; col < other.cols; col++ {
+				result.data[resultOffset+col] += left * other.data[rightOffset+col]
+			}
+		}
+	}
+}
+
+func (m *Matrix) matMulRightTransposeInto(other, result *Matrix) {
+	var (
+		index        int
+		row          int
+		col          int
+		inner        int
+		left         float64
+		leftOffset   int
+		rightOffset  int
+		resultOffset int
+	)
+
+	for index = range result.data {
+		result.data[index] = 0
+	}
+
+	for row = 0; row < m.rows; row++ {
+		resultOffset = row * result.cols
+		leftOffset = row * m.cols
+		for inner = 0; inner < m.cols; inner++ {
+			left = m.data[leftOffset+inner]
+			for col = 0; col < other.rows; col++ {
+				rightOffset = col * other.cols
+				result.data[resultOffset+col] += left * other.data[rightOffset+inner]
 			}
 		}
 	}
