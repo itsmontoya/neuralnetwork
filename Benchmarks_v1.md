@@ -204,6 +204,92 @@ PASS
 ok  	github.com/itsmontoya/neuralnetwork/optimizer	5.127s
 ```
 
+## V2 Dense Allocation Reduction
+
+Captured on July 6, 2026.
+
+### Commands
+
+```sh
+go test ./layer -run '^$' -bench=Dense -benchmem
+go test ./matrix -run '^$' -bench=MatMul -benchmem
+go test ./matrix -run '^$' -bench=ColumnSums -benchmem
+```
+
+### Implementation Notes
+
+Dense forward now retains stable-shape output and input-cache scratch matrices.
+Dense backward now retains stable-shape gradient scratch matrices, computes
+`input^T * outputGradient` and `outputGradient * weights^T` with transpose-aware
+matrix helpers, and accumulates output-gradient column sums directly into the
+bias gradient.
+
+The transpose-aware kernels are private matrix helpers with narrow exported
+`Into` wrappers because `layer.Dense` lives outside the `matrix` package. The
+wrappers preserve destination shape validation and reject destination aliasing.
+
+### Dense Before
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/layer
+cpu: Apple M3
+Benchmark_DenseForward_XOR-8            	 7653796	       138.3 ns/op	     288 B/op	       4 allocs/op
+Benchmark_DenseForward_MediumBatch-8    	    7454	    161317 ns/op	   98400 B/op	       4 allocs/op
+Benchmark_DenseBackward_XOR-8           	 3487857	       320.7 ns/op	     528 B/op	      10 allocs/op
+Benchmark_DenseBackward_MediumBatch-8   	    3663	    328354 ns/op	   99056 B/op	      10 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/layer	5.453s
+```
+
+### Dense After
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/layer
+cpu: Apple M3
+Benchmark_DenseForward_XOR-8            	11071054	        95.21 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DenseForward_MediumBatch-8    	    7483	    158685 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DenseBackward_XOR-8           	 7946544	       151.5 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DenseBackward_MediumBatch-8   	    3664	    324080 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/layer	6.255s
+```
+
+### Matrix Helper Results
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_MatMul-8                     	    7797	    154799 ns/op	   32817 B/op	       2 allocs/op
+Benchmark_MatMulInto-8                 	    7906	    153849 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulLeftTransposeInto-8    	    7748	    154676 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeInto-8   	    7452	    167003 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	5.862s
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_ColumnSums-8                 	   39604	     29091 ns/op	    2048 B/op	       1 allocs/op
+Benchmark_ColumnSumsInto-8             	   35931	     33499 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AccumulateColumnSumsInto-8   	   35869	     33413 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	4.743s
+```
+
+### Interpretation
+
+The dense forward and backward hot paths now report zero steady-state
+allocations for the measured stable-shape cases. Dense forward improves both
+small and medium throughput. Dense backward improves the XOR-sized case
+substantially and removes allocations from the medium case, but medium
+throughput remains close to baseline and does not yet meet the v2 target.
+
 ## Raw Output
 
 ```text
