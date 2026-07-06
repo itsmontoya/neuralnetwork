@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/itsmontoya/neuralnetwork/activation"
+	"github.com/itsmontoya/neuralnetwork/data"
 	"github.com/itsmontoya/neuralnetwork/layer"
 	"github.com/itsmontoya/neuralnetwork/loss"
 	"github.com/itsmontoya/neuralnetwork/matrix"
@@ -13,6 +14,7 @@ import (
 )
 
 var benchmarkTrainMetrics model.TrainMetrics
+var benchmarkTrainingHistory model.TrainingHistory
 
 func Benchmark_SequentialTrainBatch_XOR(b *testing.B) {
 	var (
@@ -45,6 +47,48 @@ func Benchmark_SequentialTrainBatch_XOR(b *testing.B) {
 	benchmarkTrainMetrics = metrics
 }
 
+func Benchmark_SequentialFit_XOR(b *testing.B) {
+	var (
+		network       *model.Sequential
+		optimizerRule optimizer.Optimizer
+		inputs        *matrix.Matrix
+		targets       *matrix.Matrix
+		dataset       *data.Dataset
+		config        model.FitConfig
+		history       model.TrainingHistory
+		err           error
+		index         int
+	)
+
+	inputs, targets = benchmarkXORMatrices(b)
+	if dataset, err = data.NewDataset(inputs, targets); err != nil {
+		b.Fatalf("NewDataset returned error: %v", err)
+	}
+
+	network = benchmarkXORModel(b)
+	optimizerRule, err = optimizer.NewAdam(0.05)
+	if err != nil {
+		b.Fatalf("NewAdam returned error: %v", err)
+	}
+
+	config.Epochs = 1
+	config.BatchSize = 4
+	config.Optimizer = optimizerRule
+	config.Loss = loss.BinaryCrossEntropy{}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		history, err = network.Fit(dataset, config)
+		if err != nil {
+			b.Fatalf("Fit returned error: %v", err)
+		}
+	}
+
+	benchmarkTrainingHistory = history
+}
+
 func Benchmark_SequentialTrainBatch_SyntheticDense(b *testing.B) {
 	var (
 		network       *model.Sequential
@@ -74,6 +118,48 @@ func Benchmark_SequentialTrainBatch_SyntheticDense(b *testing.B) {
 	}
 
 	benchmarkTrainMetrics = metrics
+}
+
+func Benchmark_SequentialFit_SyntheticDense(b *testing.B) {
+	var (
+		network       *model.Sequential
+		optimizerRule optimizer.Optimizer
+		inputs        *matrix.Matrix
+		targets       *matrix.Matrix
+		dataset       *data.Dataset
+		config        model.FitConfig
+		history       model.TrainingHistory
+		err           error
+		index         int
+	)
+
+	inputs, targets = benchmarkSyntheticMatrices(b, 128, 32, 16)
+	if dataset, err = data.NewDataset(inputs, targets); err != nil {
+		b.Fatalf("NewDataset returned error: %v", err)
+	}
+
+	network = benchmarkSyntheticModel(b)
+	optimizerRule, err = optimizer.NewSGD(0.01)
+	if err != nil {
+		b.Fatalf("NewSGD returned error: %v", err)
+	}
+
+	config.Epochs = 1
+	config.BatchSize = 32
+	config.Optimizer = optimizerRule
+	config.Loss = loss.MeanSquaredError{}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		history, err = network.Fit(dataset, config)
+		if err != nil {
+			b.Fatalf("Fit returned error: %v", err)
+		}
+	}
+
+	benchmarkTrainingHistory = history
 }
 
 func benchmarkXORMatrices(tb testing.TB) (inputs, targets *matrix.Matrix) {
