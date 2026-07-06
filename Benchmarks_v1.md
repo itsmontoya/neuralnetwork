@@ -290,6 +290,75 @@ small and medium throughput. Dense backward improves the XOR-sized case
 substantially and removes allocations from the medium case, but medium
 throughput remains close to baseline and does not yet meet the v2 target.
 
+## V2 Layer Scratch Reuse Review
+
+Captured on July 6, 2026.
+
+### Command
+
+```sh
+go test ./layer -run '^$' -bench='(Activation|Dropout|BatchNormalization)' -benchmem
+```
+
+### Implementation Notes
+
+Activation layers now reuse their input-cache matrix for stable input shapes.
+Elementwise activation helpers use matrix `Apply` and `MultiplyElementsInto`
+instead of copying through temporary value slices.
+
+Dropout now retains stable-shape output, mask, gradient, and value scratch
+storage. Training mode still uses the caller-provided random source, and
+evaluation mode still behaves as identity while ignoring any previous training
+mask.
+
+Batch normalization now retains stable-shape output, input-gradient, parameter
+gradient, statistic, and value scratch storage. Running mean and variance are
+updated in their existing matrices.
+
+The matrix package added `ValuesInto` and `CopyValuesFrom` so callers can copy
+through owned slices without exposing mutable matrix storage.
+
+### Layer Scratch Before
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/layer
+cpu: Apple M3
+Benchmark_ActivationForward_MediumBatch-8                    	   19392	     60087 ns/op	  262241 B/op	       6 allocs/op
+Benchmark_ActivationBackward_MediumBatch-8                   	   16794	     72203 ns/op	  262192 B/op	       5 allocs/op
+Benchmark_DropoutForwardTraining_MediumBatch-8               	   12793	     92954 ns/op	  327776 B/op	       7 allocs/op
+Benchmark_DropoutBackwardTraining_MediumBatch-8              	  171691	      6980 ns/op	   65584 B/op	       2 allocs/op
+Benchmark_BatchNormalizationForwardTraining_MediumBatch-8    	   34942	     34183 ns/op	  334017 B/op	      21 allocs/op
+Benchmark_BatchNormalizationBackwardTraining_MediumBatch-8   	   43413	     27957 ns/op	  264848 B/op	      12 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/layer	11.195s
+```
+
+### Layer Scratch After
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/layer
+cpu: Apple M3
+Benchmark_ActivationForward_MediumBatch-8                    	   22641	     52492 ns/op	   65584 B/op	       2 allocs/op
+Benchmark_ActivationBackward_MediumBatch-8                   	   19569	     61749 ns/op	   65584 B/op	       2 allocs/op
+Benchmark_DropoutForwardTraining_MediumBatch-8               	   13761	     84838 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DropoutBackwardTraining_MediumBatch-8              	  244677	      5244 ns/op	       0 B/op	       0 allocs/op
+Benchmark_BatchNormalizationForwardTraining_MediumBatch-8    	   44822	     24538 ns/op	       0 B/op	       0 allocs/op
+Benchmark_BatchNormalizationBackwardTraining_MediumBatch-8   	   53437	     22271 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/layer	9.893s
+```
+
+### Interpretation
+
+Dropout and batch normalization now report zero steady-state allocations for
+the measured stable-shape training cases. Activation layers still allocate the
+returned activation or gradient matrix, but the cache and helper-copy
+allocations were removed.
+
 ## Raw Output
 
 ```text
