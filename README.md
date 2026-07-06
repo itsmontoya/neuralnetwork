@@ -5,7 +5,8 @@ models trained with backpropagation.
 
 The project is currently an early implementation. The v1 scope and public API
 direction are documented in [docs/v1-scope-and-api.md](docs/v1-scope-and-api.md),
-and implementation packages are being added incrementally from that plan.
+and the current stable surface is reviewed in
+[docs/v1-api-review.md](docs/v1-api-review.md).
 
 Example import path:
 
@@ -96,6 +97,60 @@ func train() (predictions *matrix.Matrix, err error) {
 	return predictions, err
 }
 ```
+
+## Data
+
+Use `data.NewDataset` for in-memory supervised data and `data.LoadCSV` with
+`data.CSVConfig` for simple CSV input. Datasets, batches, and split results own
+copies of their matrices so callers can mutate source data without changing
+stored samples. Batching and splitting preserve order when the random source is
+nil and shuffle deterministically when callers provide a seeded `*rand.Rand`.
+
+See [docs/data.md](docs/data.md) for CSV, batching, and train/test split
+contracts.
+
+## Training Controls
+
+`model.Sequential.Fit` is configured with `model.FitConfig`. In addition to the
+optimizer and loss, `FitConfig` supports validation data, an optional
+`model.AccuracyFunc`, epoch callbacks through `model.FitCallback`, early
+stopping through `model.NewEarlyStopping`, and optimizer learning-rate schedules.
+
+Learning-rate schedules live in `optimizer`: use
+`optimizer.NewConstantLearningRate`, `optimizer.NewStepDecay`, or
+`optimizer.NewExponentialDecay` and pass the schedule to `FitConfig`.
+
+Regularization wraps an existing optimizer with `optimizer.NewRegularized`.
+Built-in regularizers include `optimizer.NewL1` and
+`optimizer.NewL2WeightDecay`.
+
+## Layers
+
+The `layer` package includes dense layers, activation layers, inverted dropout,
+and per-feature batch normalization. `layer.NewDropout` requires a caller-owned
+random source for deterministic masks and follows training/evaluation mode.
+`layer.NewBatchNormalization` and `layer.NewBatchNormalizationWithConfig` manage
+trainable gamma and beta parameters plus running statistics for evaluation.
+
+## Metrics
+
+The `metric` package provides reporting-only metrics for regression, binary
+classification, categorical classification, and confusion matrices. Metrics do
+not affect optimization. Classification behavior, threshold handling, one-hot
+target expectations, and confusion-matrix orientation are documented in
+[docs/metrics.md](docs/metrics.md).
+
+## Serialization
+
+Use `Sequential.Save` and `model.LoadSequential` to persist sequential models
+with the v1 JSON contract. The format is `neuralnetwork.sequential`, version
+`1`, and supports `dense`, `activation`, `dropout`, and `batch_normalization`
+layers.
+
+Serialization stores model structure and layer parameters. It does not store
+optimizer state, accumulated gradients, training history, callbacks,
+learning-rate schedules, or original random source state. Loaded dropout layers
+use deterministic local random sources.
 
 ## Development
 
