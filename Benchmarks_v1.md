@@ -443,3 +443,107 @@ Benchmark_AdamUpdate_SteadyState-8       	   54430	     21709 ns/op	  177184 B/o
 PASS
 ok  	github.com/itsmontoya/neuralnetwork/optimizer	5.046s
 ```
+
+## V2 Loss Allocation Reduction
+
+Captured on July 6, 2026.
+
+### Commands
+
+```sh
+go test ./loss
+go test ./loss -run '^$' -bench=. -benchmem
+go test ./...
+go test ./model -run '^$' -bench=Sequential -benchmem
+```
+
+### Allocation Audit
+
+The loss allocation sources were direct code paths:
+
+| Package | Path | Finding | Change |
+| --- | --- | --- | --- |
+| `loss` | `matrixValuePair` | Every `Value` and `Gradient` call copied predictions and targets through `Matrix.Values`, producing two temporary slices before any loss-specific work. | Replaced it with shape validation that does not copy values. |
+| `loss` | `MeanSquaredError.Gradient` | Allocated a gradient slice, filled it, then copied it again through `matrix.FromSlice`. | Allocate the returned matrix once, write `predictions - targets` into it with `SubtractInto`, and scale in place. |
+| `loss` | Cross-entropy gradients | Allocated prediction and target copies, a gradient slice, and a copied result matrix. | Allocate only the returned gradient matrix and fill it through matrix pair destination iteration. |
+| `matrix` | Loss pair iteration | `At` and `Set` avoid storage exposure but validate on every element, which removed allocations at the cost of large timing regressions. | Added documented `Pairwise` and `PairwiseInto` helpers that validate once, keep storage private, and support the loss hot paths. |
+
+The `loss.Loss` interface is unchanged. Matrix ownership remains unchanged:
+constructors and `Values` still copy, and the new pair helpers pass values to
+callbacks without exposing mutable matrix storage.
+
+### Loss Before
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/loss
+cpu: Apple M3
+Benchmark_MeanSquaredErrorValue_Small-8                   	36446523	        33.10 ns/op	      64 B/op	       2 allocs/op
+Benchmark_MeanSquaredErrorValue_MediumBatch-8             	  308329	      3966 ns/op	   32768 B/op	       2 allocs/op
+Benchmark_MeanSquaredErrorGradient_Small-8                	17035028	        59.95 ns/op	     144 B/op	       4 allocs/op
+Benchmark_MeanSquaredErrorGradient_MediumBatch-8          	  267528	      4432 ns/op	   65584 B/op	       5 allocs/op
+Benchmark_BinaryCrossEntropyValue_Small-8                 	17457644	        68.84 ns/op	      64 B/op	       2 allocs/op
+Benchmark_BinaryCrossEntropyValue_MediumBatch-8           	  991759	      1221 ns/op	    2048 B/op	       2 allocs/op
+Benchmark_BinaryCrossEntropyGradient_Small-8              	18061419	        66.99 ns/op	     144 B/op	       4 allocs/op
+Benchmark_BinaryCrossEntropyGradient_MediumBatch-8        	 2427573	       487.4 ns/op	    4144 B/op	       5 allocs/op
+Benchmark_CategoricalCrossEntropyValue_Small-8            	14054724	        86.31 ns/op	     192 B/op	       2 allocs/op
+Benchmark_CategoricalCrossEntropyValue_MediumBatch-8      	  230536	      5216 ns/op	   32768 B/op	       2 allocs/op
+Benchmark_CategoricalCrossEntropyGradient_Small-8         	10818448	       112.1 ns/op	     432 B/op	       5 allocs/op
+Benchmark_CategoricalCrossEntropyGradient_MediumBatch-8   	  195165	      5754 ns/op	   65584 B/op	       5 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/loss	16.459s
+```
+
+### Loss After
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/loss
+cpu: Apple M3
+Benchmark_MeanSquaredErrorValue_Small-8                   	60705260	        19.66 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MeanSquaredErrorValue_MediumBatch-8             	  430102	      2801 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MeanSquaredErrorGradient_Small-8                	22906390	        52.28 ns/op	      80 B/op	       2 allocs/op
+Benchmark_MeanSquaredErrorGradient_MediumBatch-8          	  486931	      2457 ns/op	   16432 B/op	       2 allocs/op
+Benchmark_BinaryCrossEntropyValue_Small-8                 	19853510	        58.98 ns/op	       0 B/op	       0 allocs/op
+Benchmark_BinaryCrossEntropyValue_MediumBatch-8           	  914274	      1319 ns/op	       0 B/op	       0 allocs/op
+Benchmark_BinaryCrossEntropyGradient_Small-8              	16259473	        72.83 ns/op	      80 B/op	       2 allocs/op
+Benchmark_BinaryCrossEntropyGradient_MediumBatch-8        	 1548943	       773.4 ns/op	    1072 B/op	       2 allocs/op
+Benchmark_CategoricalCrossEntropyValue_Small-8            	18233282	        65.33 ns/op	       0 B/op	       0 allocs/op
+Benchmark_CategoricalCrossEntropyValue_MediumBatch-8      	  241802	      4970 ns/op	       0 B/op	       0 allocs/op
+Benchmark_CategoricalCrossEntropyGradient_Small-8         	10244148	       115.0 ns/op	     144 B/op	       2 allocs/op
+Benchmark_CategoricalCrossEntropyGradient_MediumBatch-8   	  142140	      8383 ns/op	   16432 B/op	       2 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/loss	16.709s
+```
+
+### Model Loss Re-run
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialTrainBatch_XOR-8              	  468099	      2482 ns/op	    2296 B/op	      58 allocs/op
+Benchmark_SequentialFit_XOR-8                     	  349948	      3548 ns/op	    3760 B/op	      88 allocs/op
+Benchmark_SequentialTrainBatch_SyntheticDense-8   	    1502	    794022 ns/op	  147926 B/op	      10 allocs/op
+Benchmark_SequentialFit_SyntheticDense-8          	    1042	   1131147 ns/op	 1015716 B/op	     141 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/model	6.121s
+```
+
+### Interpretation
+
+Loss value paths now report zero allocations. Gradient paths now allocate only
+the returned matrix, reducing medium-batch gradients from 5 allocations to 2
+and cutting medium-batch gradient bytes by 50% to 75%.
+
+Most measured loss paths are also faster after removing copies. Binary
+cross-entropy medium value and cross-entropy gradients retain small timing
+costs from validation and callback dispatch, but they remove the temporary
+copies without changing loss validation, clamping, or the public loss API.
+
+Model benchmarks that exercise losses improved allocation counts materially:
+`SequentialTrainBatch_XOR` dropped from the v1 baseline of 102 allocs/op to 58,
+and `SequentialTrainBatch_SyntheticDense` dropped from 50 allocs/op to 10.
