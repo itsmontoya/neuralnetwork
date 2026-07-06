@@ -364,6 +364,27 @@ func Test_ElementwiseDestinationOperations(t *testing.T) {
 
 	requireMatrixValues(t, destination, []float64{3, 6, 9, 12})
 
+	err = left.SubtractInto(right, destination)
+	if err != nil {
+		t.Fatalf("SubtractInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, []float64{1, 2, 3, 4})
+
+	err = left.MultiplyElementsInto(right, destination)
+	if err != nil {
+		t.Fatalf("MultiplyElementsInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, []float64{2, 8, 18, 32})
+
+	err = left.DivideElementsInto(right, destination)
+	if err != nil {
+		t.Fatalf("DivideElementsInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, []float64{2, 2, 2, 2})
+
 	err = left.AddInPlace(right)
 	if err != nil {
 		t.Fatalf("AddInPlace returned error: %v", err)
@@ -384,6 +405,34 @@ func Test_ElementwiseDestinationOperations(t *testing.T) {
 	}
 
 	requireMatrixValues(t, left, []float64{5, 10, 15, 20})
+}
+
+func Test_ElementwiseDestinationOperations_ValidateShape(t *testing.T) {
+	var (
+		left        *matrix.Matrix
+		right       *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	left = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
+	right = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
+	destination = mustMatrix(t, 1, 4, []float64{0, 0, 0, 0})
+
+	err = left.SubtractInto(right, destination)
+	if err == nil {
+		t.Fatal("SubtractInto destination shape error = nil, want error")
+	}
+
+	err = left.MultiplyElementsInto(right, destination)
+	if err == nil {
+		t.Fatal("MultiplyElementsInto destination shape error = nil, want error")
+	}
+
+	err = left.DivideElementsInto(right, destination)
+	if err == nil {
+		t.Fatal("DivideElementsInto destination shape error = nil, want error")
+	}
 }
 
 func Test_ElementwiseOperations_ValidateShape(t *testing.T) {
@@ -415,6 +464,24 @@ func Test_DivideElements_ValidatesZeroDenominator(t *testing.T) {
 	result, err = left.DivideElements(right)
 	if err == nil {
 		t.Fatalf("DivideElements returned result %v and nil error, want error", result)
+	}
+}
+
+func Test_DivideElementsInto_ValidatesZeroDenominator(t *testing.T) {
+	var (
+		left        *matrix.Matrix
+		right       *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	left = mustMatrix(t, 1, 3, []float64{1, 2, 3})
+	right = mustMatrix(t, 1, 3, []float64{1, 0, 3})
+	destination = mustMatrix(t, 1, 3, []float64{0, 0, 0})
+
+	err = left.DivideElementsInto(right, destination)
+	if err == nil {
+		t.Fatal("DivideElementsInto error = nil, want error")
 	}
 }
 
@@ -452,6 +519,64 @@ func Test_ScalarOperations(t *testing.T) {
 	requireMatrixValues(t, input, original)
 }
 
+func Test_ScalarDestinationOperations(t *testing.T) {
+	var (
+		input       *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	input = mustMatrix(t, 2, 2, []float64{2, 4, 6, 8})
+	destination = mustMatrix(t, 2, 2, []float64{0, 0, 0, 0})
+
+	err = input.AddScalarInto(3, destination)
+	if err != nil {
+		t.Fatalf("AddScalarInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, []float64{5, 7, 9, 11})
+
+	err = input.MultiplyScalarInto(0.5, destination)
+	if err != nil {
+		t.Fatalf("MultiplyScalarInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, []float64{1, 2, 3, 4})
+
+	err = input.DivideScalarInto(2, destination)
+	if err != nil {
+		t.Fatalf("DivideScalarInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, []float64{1, 2, 3, 4})
+}
+
+func Test_ScalarDestinationOperations_ValidateShape(t *testing.T) {
+	var (
+		input       *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	input = mustMatrix(t, 2, 2, []float64{2, 4, 6, 8})
+	destination = mustMatrix(t, 1, 4, []float64{0, 0, 0, 0})
+
+	err = input.AddScalarInto(3, destination)
+	if err == nil {
+		t.Fatal("AddScalarInto destination shape error = nil, want error")
+	}
+
+	err = input.MultiplyScalarInto(0.5, destination)
+	if err == nil {
+		t.Fatal("MultiplyScalarInto destination shape error = nil, want error")
+	}
+
+	err = input.DivideScalarInto(2, destination)
+	if err == nil {
+		t.Fatal("DivideScalarInto destination shape error = nil, want error")
+	}
+}
+
 func Test_DivideScalar_ValidatesZeroDenominator(t *testing.T) {
 	var (
 		input  *matrix.Matrix
@@ -463,6 +588,22 @@ func Test_DivideScalar_ValidatesZeroDenominator(t *testing.T) {
 	result, err = input.DivideScalar(0)
 	if err == nil {
 		t.Fatalf("DivideScalar returned result %v and nil error, want error", result)
+	}
+}
+
+func Test_DivideScalarInto_ValidatesZeroDenominator(t *testing.T) {
+	var (
+		input       *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	input = mustMatrix(t, 1, 2, []float64{1, 2})
+	destination = mustMatrix(t, 1, 2, []float64{0, 0})
+
+	err = input.DivideScalarInto(0, destination)
+	if err == nil {
+		t.Fatal("DivideScalarInto error = nil, want error")
 	}
 }
 
@@ -632,6 +773,29 @@ func Test_RowAndColumnSums(t *testing.T) {
 	testutil.RequireSliceAlmostEqual(t, columnSums, []float64{5, 7, 9}, epsilon)
 }
 
+func Test_RowSumsInto(t *testing.T) {
+	var (
+		input       *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	input = mustMatrix(t, 2, 3, []float64{1, 2, 3, 4, 5, 6})
+	destination = mustMatrix(t, 2, 1, []float64{100, 100})
+
+	err = input.RowSumsInto(destination)
+	if err != nil {
+		t.Fatalf("RowSumsInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, []float64{6, 15})
+
+	err = input.RowSumsInto(input)
+	if err == nil {
+		t.Fatal("RowSumsInto alias error = nil, want error")
+	}
+}
+
 func Test_ColumnSumsInto(t *testing.T) {
 	var (
 		input       *matrix.Matrix
@@ -691,6 +855,27 @@ func Test_Apply(t *testing.T) {
 	requireMatrixValues(t, input, original)
 }
 
+func Test_ApplyInto(t *testing.T) {
+	var (
+		input       *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	input = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
+	destination = mustMatrix(t, 2, 2, []float64{0, 0, 0, 0})
+
+	err = input.ApplyInto(func(value float64) (result float64) {
+		result = value * value
+		return result
+	}, destination)
+	if err != nil {
+		t.Fatalf("ApplyInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, []float64{1, 4, 9, 16})
+}
+
 func Test_Apply_ValidatesFunction(t *testing.T) {
 	var (
 		input  *matrix.Matrix
@@ -702,6 +887,22 @@ func Test_Apply_ValidatesFunction(t *testing.T) {
 	result, err = input.Apply(nil)
 	if err == nil {
 		t.Fatalf("Apply returned result %v and nil error, want error", result)
+	}
+}
+
+func Test_ApplyInto_ValidatesFunction(t *testing.T) {
+	var (
+		input       *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	input = mustMatrix(t, 1, 2, []float64{1, 2})
+	destination = mustMatrix(t, 1, 2, []float64{0, 0})
+
+	err = input.ApplyInto(nil, destination)
+	if err == nil {
+		t.Fatal("ApplyInto error = nil, want error")
 	}
 }
 

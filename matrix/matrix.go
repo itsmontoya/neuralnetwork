@@ -343,6 +343,24 @@ func (m *Matrix) Subtract(other *Matrix) (result *Matrix, err error) {
 	return result, nil
 }
 
+// SubtractInto writes the elementwise difference of m and other into result.
+func (m *Matrix) SubtractInto(other, result *Matrix) (err error) {
+	if err = m.sameShape(other); err != nil {
+		return err
+	}
+
+	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+
+	var index int
+	for index = range result.data {
+		result.data[index] = m.data[index] - other.data[index]
+	}
+
+	return nil
+}
+
 // MultiplyElements returns the elementwise product of m and other.
 func (m *Matrix) MultiplyElements(other *Matrix) (result *Matrix, err error) {
 	if err = m.sameShape(other); err != nil {
@@ -357,6 +375,24 @@ func (m *Matrix) MultiplyElements(other *Matrix) (result *Matrix, err error) {
 	}
 
 	return result, nil
+}
+
+// MultiplyElementsInto writes the elementwise product of m and other into result.
+func (m *Matrix) MultiplyElementsInto(other, result *Matrix) (err error) {
+	if err = m.sameShape(other); err != nil {
+		return err
+	}
+
+	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+
+	var index int
+	for index = range result.data {
+		result.data[index] = m.data[index] * other.data[index]
+	}
+
+	return nil
 }
 
 // DivideElements returns the elementwise quotient of m and other.
@@ -380,6 +416,29 @@ func (m *Matrix) DivideElements(other *Matrix) (result *Matrix, err error) {
 	return result, nil
 }
 
+// DivideElementsInto writes the elementwise quotient of m and other into result.
+func (m *Matrix) DivideElementsInto(other, result *Matrix) (err error) {
+	if err = m.sameShape(other); err != nil {
+		return err
+	}
+
+	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+
+	var index int
+	for index = range result.data {
+		if other.data[index] == 0 {
+			err = fmt.Errorf("matrix: division by zero at row %d column %d", index/m.cols, index%m.cols)
+			return err
+		}
+
+		result.data[index] = m.data[index] / other.data[index]
+	}
+
+	return nil
+}
+
 // AddScalar returns a matrix with value added to every element.
 func (m *Matrix) AddScalar(value float64) (result *Matrix, err error) {
 	if err = m.validate(); err != nil {
@@ -396,6 +455,24 @@ func (m *Matrix) AddScalar(value float64) (result *Matrix, err error) {
 	return result, nil
 }
 
+// AddScalarInto writes m plus value into result.
+func (m *Matrix) AddScalarInto(value float64, result *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+
+	var index int
+	for index = range result.data {
+		result.data[index] = m.data[index] + value
+	}
+
+	return nil
+}
+
 // MultiplyScalar returns a matrix with every element multiplied by value.
 func (m *Matrix) MultiplyScalar(value float64) (result *Matrix, err error) {
 	if err = m.validate(); err != nil {
@@ -410,6 +487,24 @@ func (m *Matrix) MultiplyScalar(value float64) (result *Matrix, err error) {
 	}
 
 	return result, nil
+}
+
+// MultiplyScalarInto writes m multiplied by value into result.
+func (m *Matrix) MultiplyScalarInto(value float64, result *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+
+	var index int
+	for index = range result.data {
+		result.data[index] = m.data[index] * value
+	}
+
+	return nil
 }
 
 // DivideScalar returns a matrix with every element divided by value.
@@ -431,6 +526,29 @@ func (m *Matrix) DivideScalar(value float64) (result *Matrix, err error) {
 	}
 
 	return result, nil
+}
+
+// DivideScalarInto writes m divided by value into result.
+func (m *Matrix) DivideScalarInto(value float64, result *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if value == 0 {
+		err = errors.New("matrix: division by zero scalar")
+		return err
+	}
+
+	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+
+	var index int
+	for index = range result.data {
+		result.data[index] = m.data[index] / value
+	}
+
+	return nil
 }
 
 // MatMul returns the matrix product of m and other.
@@ -572,6 +690,36 @@ func (m *Matrix) RowSums() (sums []float64, err error) {
 	return sums, nil
 }
 
+// RowSumsInto writes row sums into a [m.Rows(), 1] destination matrix.
+func (m *Matrix) RowSumsInto(result *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if result == m {
+		err = errors.New("matrix: row sums destination must not alias input")
+		return err
+	}
+
+	if err = result.requireShape("row sums destination", m.rows, 1); err != nil {
+		return err
+	}
+
+	var (
+		row int
+		col int
+	)
+
+	for row = 0; row < m.rows; row++ {
+		result.data[row] = 0
+		for col = 0; col < m.cols; col++ {
+			result.data[row] += m.data[row*m.cols+col]
+		}
+	}
+
+	return nil
+}
+
 // ColumnSums returns one sum for each column.
 func (m *Matrix) ColumnSums() (sums []float64, err error) {
 	if err = m.validate(); err != nil {
@@ -672,6 +820,29 @@ func (m *Matrix) Apply(fn func(float64) float64) (result *Matrix, err error) {
 	}
 
 	return result, nil
+}
+
+// ApplyInto writes fn applied to every element of m into result.
+func (m *Matrix) ApplyInto(fn func(float64) float64, result *Matrix) (err error) {
+	if fn == nil {
+		err = errors.New("matrix: apply function is nil")
+		return err
+	}
+
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+
+	var index int
+	for index = range result.data {
+		result.data[index] = fn(m.data[index])
+	}
+
+	return nil
 }
 
 func (m *Matrix) newLike() (result *Matrix) {
