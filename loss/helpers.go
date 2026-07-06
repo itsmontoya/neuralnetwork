@@ -8,20 +8,20 @@ import (
 
 const predictionEpsilon = 1e-15
 
-func matrixValuePair(predictions, targets *matrix.Matrix) (rows, cols int, predictionValues, targetValues []float64, err error) {
+func matrixShapePair(predictions, targets *matrix.Matrix) (rows, cols int, err error) {
 	var (
 		targetRows int
 		targetCols int
 	)
 
-	if predictionValues, err = predictions.Values(); err != nil {
+	if err = predictions.Validate(); err != nil {
 		err = fmt.Errorf("loss: predictions matrix invalid: %w", err)
-		return 0, 0, nil, nil, err
+		return 0, 0, err
 	}
 
-	if targetValues, err = targets.Values(); err != nil {
+	if err = targets.Validate(); err != nil {
 		err = fmt.Errorf("loss: targets matrix invalid: %w", err)
-		return 0, 0, nil, nil, err
+		return 0, 0, err
 	}
 
 	rows, cols = predictions.Shape()
@@ -34,10 +34,10 @@ func matrixValuePair(predictions, targets *matrix.Matrix) (rows, cols int, predi
 			targetRows,
 			targetCols,
 		)
-		return 0, 0, nil, nil, err
+		return 0, 0, err
 	}
 
-	return rows, cols, predictionValues, targetValues, nil
+	return rows, cols, nil
 }
 
 func clampPrediction(value float64) (clamped float64) {

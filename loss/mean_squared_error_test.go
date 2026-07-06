@@ -70,3 +70,20 @@ func Test_MeanSquaredError_ValidatesShape(t *testing.T) {
 		t.Fatalf("Value returned %g and nil error, want error", got)
 	}
 }
+
+func Test_MeanSquaredError_GradientValidatesShape(t *testing.T) {
+	var (
+		predictions *matrix.Matrix
+		targets     *matrix.Matrix
+		gradient    *matrix.Matrix
+		err         error
+	)
+
+	predictions = mustMatrix(t, 1, 2, []float64{1, 2})
+	targets = mustMatrix(t, 2, 1, []float64{1, 2})
+
+	gradient, err = loss.MeanSquaredError{}.Gradient(predictions, targets)
+	if err == nil {
+		t.Fatalf("Gradient returned %#v and nil error, want error", gradient)
+	}
+}

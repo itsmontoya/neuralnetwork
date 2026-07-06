@@ -984,6 +984,78 @@ func (m *Matrix) ApplyInto(fn func(float64) float64, result *Matrix) (err error)
 	return nil
 }
 
+// Pairwise visits matching elements of m and other in row-major order.
+//
+// The callback receives element coordinates and values from each matrix. Matrix
+// storage is not exposed to the callback.
+func (m *Matrix) Pairwise(other *Matrix, fn func(row, col int, left, right float64) (err error)) (err error) {
+	if fn == nil {
+		err = errors.New("matrix: pairwise function is nil")
+		return err
+	}
+
+	if err = m.sameShape(other); err != nil {
+		return err
+	}
+
+	var (
+		row   int
+		col   int
+		index int
+	)
+
+	for row = 0; row < m.rows; row++ {
+		for col = 0; col < m.cols; col++ {
+			index = row*m.cols + col
+			if err = fn(row, col, m.data[index], other.data[index]); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// PairwiseInto writes callback results for matching elements of m and other into result.
+//
+// The destination must have the same shape as both inputs. Matrix storage is not
+// exposed to the callback.
+func (m *Matrix) PairwiseInto(
+	other, result *Matrix,
+	fn func(row, col int, left, right float64) (value float64, err error),
+) (err error) {
+	if fn == nil {
+		err = errors.New("matrix: pairwise function is nil")
+		return err
+	}
+
+	if err = m.sameShape(other); err != nil {
+		return err
+	}
+
+	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+
+	var (
+		row   int
+		col   int
+		index int
+	)
+
+	for row = 0; row < m.rows; row++ {
+		for col = 0; col < m.cols; col++ {
+			index = row*m.cols + col
+			result.data[index], err = fn(row, col, m.data[index], other.data[index])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func (m *Matrix) newLike() (result *Matrix) {
 	var next Matrix
 

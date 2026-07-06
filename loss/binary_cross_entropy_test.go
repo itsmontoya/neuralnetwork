@@ -1,6 +1,7 @@
 package loss_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/itsmontoya/neuralnetwork/internal/testutil"
@@ -60,6 +61,9 @@ func Test_BinaryCrossEntropy_StableAroundZeroAndOne(t *testing.T) {
 		targets     *matrix.Matrix
 		gradient    *matrix.Matrix
 		value       float64
+		lower       float64
+		upper       float64
+		wantValue   float64
 		err         error
 	)
 
@@ -72,6 +76,10 @@ func Test_BinaryCrossEntropy_StableAroundZeroAndOne(t *testing.T) {
 	}
 
 	requireFinite(t, value)
+	lower = clampEpsilon
+	upper = 1 - clampEpsilon
+	wantValue = -(math.Log(lower) + math.Log(1-upper)) / 2
+	testutil.RequireAlmostEqual(t, value, wantValue, epsilon)
 
 	gradient, err = loss.BinaryCrossEntropy{}.Gradient(predictions, targets)
 	if err != nil {
@@ -79,6 +87,10 @@ func Test_BinaryCrossEntropy_StableAroundZeroAndOne(t *testing.T) {
 	}
 
 	requireFiniteMatrix(t, gradient)
+	requireMatrixValues(t, gradient, []float64{
+		(lower - 1) / (lower * (1 - lower)) / 2,
+		upper / (upper * (1 - upper)) / 2,
+	})
 }
 
 func Test_BinaryCrossEntropy_ValidatesTargetFormat(t *testing.T) {
@@ -95,6 +107,23 @@ func Test_BinaryCrossEntropy_ValidatesTargetFormat(t *testing.T) {
 	got, err = loss.BinaryCrossEntropy{}.Value(predictions, targets)
 	if err == nil {
 		t.Fatalf("Value returned %g and nil error, want error", got)
+	}
+}
+
+func Test_BinaryCrossEntropy_GradientValidatesTargetFormat(t *testing.T) {
+	var (
+		predictions *matrix.Matrix
+		targets     *matrix.Matrix
+		gradient    *matrix.Matrix
+		err         error
+	)
+
+	predictions = mustMatrix(t, 1, 1, []float64{0.5})
+	targets = mustMatrix(t, 1, 1, []float64{0.5})
+
+	gradient, err = loss.BinaryCrossEntropy{}.Gradient(predictions, targets)
+	if err == nil {
+		t.Fatalf("Gradient returned %#v and nil error, want error", gradient)
 	}
 }
 
