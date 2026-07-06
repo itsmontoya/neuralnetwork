@@ -349,6 +349,71 @@ func (m *Matrix) AddScaledInPlace(other *Matrix, scale float64) (err error) {
 	return nil
 }
 
+// AdamUpdateInPlace applies one Adam optimizer update to m.
+//
+// The gradient, firstMoment, and secondMoment matrices must match m's shape and
+// must not alias each other or m. Moment matrices are updated in place before m
+// is updated. Correction values are the precomputed bias-correction
+// denominators for the current Adam step and must be nonzero.
+func (m *Matrix) AdamUpdateInPlace(
+	gradient *Matrix,
+	firstMoment *Matrix,
+	secondMoment *Matrix,
+	learningRate float64,
+	beta1 float64,
+	beta2 float64,
+	epsilon float64,
+	firstCorrection float64,
+	secondCorrection float64,
+) (err error) {
+	var (
+		gradientValue  float64
+		firstEstimate  float64
+		secondEstimate float64
+		index          int
+	)
+
+	if err = m.sameShape(gradient); err != nil {
+		return err
+	}
+
+	if err = firstMoment.requireShape("first moment", m.rows, m.cols); err != nil {
+		return err
+	}
+
+	if err = secondMoment.requireShape("second moment", m.rows, m.cols); err != nil {
+		return err
+	}
+
+	if m == gradient || m == firstMoment || m == secondMoment ||
+		gradient == firstMoment || gradient == secondMoment || firstMoment == secondMoment {
+		err = errors.New("matrix: adam update matrices must not alias")
+		return err
+	}
+
+	if firstCorrection == 0 {
+		err = errors.New("matrix: adam first correction must be nonzero")
+		return err
+	}
+
+	if secondCorrection == 0 {
+		err = errors.New("matrix: adam second correction must be nonzero")
+		return err
+	}
+
+	for index = range m.data {
+		gradientValue = gradient.data[index]
+		firstMoment.data[index] = beta1*firstMoment.data[index] + (1-beta1)*gradientValue
+		secondMoment.data[index] = beta2*secondMoment.data[index] + (1-beta2)*gradientValue*gradientValue
+
+		firstEstimate = firstMoment.data[index] / firstCorrection
+		secondEstimate = secondMoment.data[index] / secondCorrection
+		m.data[index] -= learningRate * firstEstimate / (math.Sqrt(secondEstimate) + epsilon)
+	}
+
+	return nil
+}
+
 // MultiplyScalarInPlace multiplies every element of m by value.
 func (m *Matrix) MultiplyScalarInPlace(value float64) (err error) {
 	if err = m.validate(); err != nil {

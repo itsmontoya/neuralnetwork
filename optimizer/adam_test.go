@@ -120,6 +120,47 @@ func Test_Adam_Update_Repeated(t *testing.T) {
 	requireMatrixValues(t, parameter.Gradient(), []float64{0})
 }
 
+func Test_Adam_Update_MultiStepMatrixMatchesReference(t *testing.T) {
+	var (
+		parameter     *optimizer.Parameter
+		adam          *optimizer.Adam
+		values        []float64
+		firstMoments  []float64
+		secondMoments []float64
+		gradientSteps [][]float64
+		gradients     []float64
+		err           error
+		step          int
+	)
+
+	values = []float64{1, -2, 0.5, 3}
+	firstMoments = make([]float64, len(values))
+	secondMoments = make([]float64, len(values))
+	gradientSteps = [][]float64{
+		{0.25, -0.5, 0.75, -1},
+		{0.5, 0.25, -0.25, 0.125},
+		{-0.75, 1, 0.5, -0.375},
+	}
+
+	parameter = mustParameter(t, 2, 2, values)
+	adam, err = optimizer.NewAdamWithConfig(0.05, 0.8, 0.9, 1e-6)
+	if err != nil {
+		t.Fatalf("NewAdamWithConfig returned error: %v", err)
+	}
+
+	for step, gradients = range gradientSteps {
+		accumulateGradient(t, parameter, gradients)
+		err = adam.Update([]*optimizer.Parameter{parameter})
+		if err != nil {
+			t.Fatalf("Update returned error: %v", err)
+		}
+
+		applyAdamReferenceStep(values, firstMoments, secondMoments, gradients, step+1, 0.05, 0.8, 0.9, 1e-6)
+		requireMatrixValues(t, parameter.Values(), values)
+		requireMatrixValues(t, parameter.Gradient(), []float64{0, 0, 0, 0})
+	}
+}
+
 func Test_Adam_StateIsolation(t *testing.T) {
 	var (
 		first      *optimizer.Parameter
@@ -195,4 +236,36 @@ func Test_Adam_Setters(t *testing.T) {
 func adamStep(learningRate, epsilon, firstEstimate, secondEstimate float64) (step float64) {
 	step = learningRate * firstEstimate / (math.Sqrt(secondEstimate) + epsilon)
 	return step
+}
+
+func applyAdamReferenceStep(
+	values []float64,
+	firstMoments []float64,
+	secondMoments []float64,
+	gradients []float64,
+	step int,
+	learningRate float64,
+	beta1 float64,
+	beta2 float64,
+	epsilon float64,
+) {
+	var (
+		firstCorrection  float64
+		secondCorrection float64
+		firstEstimate    float64
+		secondEstimate   float64
+		gradient         float64
+		index            int
+	)
+
+	firstCorrection = 1 - math.Pow(beta1, float64(step))
+	secondCorrection = 1 - math.Pow(beta2, float64(step))
+	for index = range values {
+		gradient = gradients[index]
+		firstMoments[index] = beta1*firstMoments[index] + (1-beta1)*gradient
+		secondMoments[index] = beta2*secondMoments[index] + (1-beta2)*gradient*gradient
+		firstEstimate = firstMoments[index] / firstCorrection
+		secondEstimate = secondMoments[index] / secondCorrection
+		values[index] -= learningRate * firstEstimate / (math.Sqrt(secondEstimate) + epsilon)
+	}
 }

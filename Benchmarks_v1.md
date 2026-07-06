@@ -547,3 +547,84 @@ copies without changing loss validation, clamping, or the public loss API.
 Model benchmarks that exercise losses improved allocation counts materially:
 `SequentialTrainBatch_XOR` dropped from the v1 baseline of 102 allocs/op to 58,
 and `SequentialTrainBatch_SyntheticDense` dropped from 50 allocs/op to 10.
+
+## V2 Adam Allocation Reduction
+
+Captured on July 6, 2026.
+
+### Commands
+
+```sh
+go test ./optimizer -run '^$' -bench=Update -benchmem
+go test ./...
+go test ./model -run '^$' -bench='(XOR|Sequential)' -benchmem
+```
+
+### Allocation Audit
+
+Adam's steady-state allocation sources were direct code paths:
+
+| Package | Path | Finding | Change |
+| --- | --- | --- | --- |
+| `optimizer` | `parameterValues` | Copied parameter values and gradients through `Matrix.Values` on every Adam update. | Removed the helper from the Adam path and read owned matrices directly through a narrow matrix update helper. |
+| `optimizer` | `matrixValues` | Copied first and second moment matrices through `Matrix.Values` before every update. | Adam now passes owned moment matrices to the matrix helper, which updates moment storage in place. |
+| `optimizer` | `copyMatrixValues` | Rebuilt each updated values, first-moment, and second-moment matrix through `matrix.FromSlice`, then copied it back with `CopyFrom`. | Removed the helper from the Adam path; no temporary result matrices are created during steady-state updates. |
+| `optimizer` | `stateFor` | The local `adamState` value escaped before the cache-hit return, causing one small heap allocation per parameter even when state was reused. | Moved state construction behind the map miss so cache hits return without allocation. |
+| `matrix` | Adam elementwise loop | Existing public operations could not express the four-matrix Adam update without copies or per-element `At`/`Set` validation. | Added `AdamUpdateInPlace`, which validates shapes once, rejects aliasing, keeps matrix storage private, and updates values plus moment matrices in one matrix-owned loop. |
+
+The optimizer API is unchanged. The only new public surface is the narrow
+matrix-owned Adam update helper; it does not expose mutable matrix storage.
+
+### Optimizer Before
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/optimizer
+cpu: Apple M3
+Benchmark_SGDUpdate_SteadyState-8        	  266364	      4310 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MomentumUpdate_SteadyState-8   	  169041	      7106 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AdamUpdate_SteadyState-8       	   54945	     21987 ns/op	  177184 B/op	      44 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/optimizer	5.163s
+```
+
+### Optimizer After
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/optimizer
+cpu: Apple M3
+Benchmark_SGDUpdate_SteadyState-8        	  279056	      4302 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MomentumUpdate_SteadyState-8   	  168210	      7088 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AdamUpdate_SteadyState-8       	  136090	      9056 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/optimizer	4.987s
+```
+
+### Model Adam Re-run
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialTrainBatch_XOR-8              	  711825	      2554 ns/op	     672 B/op	      14 allocs/op
+Benchmark_SequentialFit_XOR-8                     	  370011	      2762 ns/op	    2136 B/op	      44 allocs/op
+Benchmark_SequentialTrainBatch_SyntheticDense-8   	    1477	    816951 ns/op	  147930 B/op	      10 allocs/op
+Benchmark_SequentialFit_SyntheticDense-8          	    1018	   1139725 ns/op	 1015718 B/op	     141 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/model	7.288s
+```
+
+### Interpretation
+
+Adam steady-state updates now meet the v2 allocation target with zero `B/op`
+and zero `allocs/op`, down from 177184 `B/op` and 44 `allocs/op` before the
+change. Adam update time also improved from 21987 ns/op to 9056 ns/op in the
+focused optimizer benchmark.
+
+SGD and Momentum remain allocation-free. The model benchmarks that use Adam
+also retain the lower post-loss allocation profile while improving the XOR fit
+and training paths.

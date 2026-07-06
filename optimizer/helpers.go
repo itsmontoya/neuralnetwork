@@ -55,23 +55,6 @@ func validateParameters(parameters []*Parameter) (err error) {
 	return nil
 }
 
-func parameterValues(parameter *Parameter) (rows, cols int, values, gradients []float64, err error) {
-	if err = parameter.validate(); err != nil {
-		return 0, 0, nil, nil, err
-	}
-
-	if values, err = parameter.Values().Values(); err != nil {
-		return 0, 0, nil, nil, err
-	}
-
-	if gradients, err = parameter.Gradient().Values(); err != nil {
-		return 0, 0, nil, nil, err
-	}
-
-	rows, cols = parameter.Values().Shape()
-	return rows, cols, values, gradients, nil
-}
-
 func matrixValues(source *matrix.Matrix) (rows, cols int, values []float64, err error) {
 	if values, err = source.Values(); err != nil {
 		return 0, 0, nil, err
@@ -79,17 +62,6 @@ func matrixValues(source *matrix.Matrix) (rows, cols int, values []float64, err 
 
 	rows, cols = source.Shape()
 	return rows, cols, values, nil
-}
-
-func copyMatrixValues(destination *matrix.Matrix, rows, cols int, values []float64) (err error) {
-	var next *matrix.Matrix
-
-	if next, err = matrix.FromSlice(rows, cols, values); err != nil {
-		return err
-	}
-
-	err = destination.CopyFrom(next)
-	return err
 }
 
 func resetGradients(parameters []*Parameter) (err error) {
