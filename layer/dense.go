@@ -66,19 +66,19 @@ func NewDense(inputSize, outputSize int, initializer WeightInitializer) (out *De
 // parameters. Loss implementations can control mean scaling through the
 // output gradients they pass into Backward.
 type Dense struct {
-	inputSize  int
-	outputSize int
-	weights    *optimizer.Parameter
-	biases     *optimizer.Parameter
-	inputCache *matrix.Matrix
+	inputSize            int
+	outputSize           int
+	weights              *optimizer.Parameter
+	biases               *optimizer.Parameter
+	inputCache           *matrix.Matrix
+	outputScratch        *matrix.Matrix
+	weightGradient       *matrix.Matrix
+	inputGradientScratch *matrix.Matrix
 }
 
 // Forward computes input*weights + biases for a batched input matrix.
 func (d *Dense) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error) {
-	var (
-		product     *matrix.Matrix
-		cachedInput *matrix.Matrix
-	)
+	var batchRows int
 
 	if err = d.validate(); err != nil {
 		return nil, err
@@ -88,31 +88,40 @@ func (d *Dense) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error)
 		return nil, err
 	}
 
-	if product, err = input.MatMul(d.weights.Values()); err != nil {
+	batchRows = input.Rows()
+	if d.outputScratch, err = denseScratch(d.outputScratch, batchRows, d.outputSize); err != nil {
 		return nil, err
 	}
 
-	if err = product.AddRowVectorInPlace(d.biases.Values()); err != nil {
-		return nil, err
-	}
-	output = product
-
-	if cachedInput, err = input.Clone(); err != nil {
-		return nil, err
+	if d.outputScratch == input {
+		if d.outputScratch, err = matrix.New(batchRows, d.outputSize); err != nil {
+			return nil, err
+		}
 	}
 
-	d.inputCache = cachedInput
+	if d.inputCache, err = denseScratch(d.inputCache, batchRows, d.inputSize); err != nil {
+		return nil, err
+	}
+
+	if err = input.MatMulInto(d.weights.Values(), d.outputScratch); err != nil {
+		return nil, err
+	}
+
+	if err = d.outputScratch.AddRowVectorInPlace(d.biases.Values()); err != nil {
+		return nil, err
+	}
+
+	if err = d.inputCache.CopyFrom(input); err != nil {
+		return nil, err
+	}
+
+	output = d.outputScratch
 	return output, nil
 }
 
 // Backward accumulates parameter gradients and returns the input gradient.
 func (d *Dense) Backward(outputGradient *matrix.Matrix) (inputGradient *matrix.Matrix, err error) {
-	var (
-		inputTranspose  *matrix.Matrix
-		weightGradient  *matrix.Matrix
-		biasGradient    *matrix.Matrix
-		weightTranspose *matrix.Matrix
-	)
+	var batchRows int
 
 	if err = d.validate(); err != nil {
 		return nil, err
@@ -127,34 +136,38 @@ func (d *Dense) Backward(outputGradient *matrix.Matrix) (inputGradient *matrix.M
 		return nil, err
 	}
 
-	if inputTranspose, err = d.inputCache.Transpose(); err != nil {
+	batchRows = outputGradient.Rows()
+	if d.weightGradient, err = denseScratch(d.weightGradient, d.inputSize, d.outputSize); err != nil {
 		return nil, err
 	}
 
-	if weightGradient, err = inputTranspose.MatMul(outputGradient); err != nil {
+	if d.inputGradientScratch, err = denseScratch(d.inputGradientScratch, batchRows, d.inputSize); err != nil {
 		return nil, err
 	}
 
-	if biasGradient, err = columnSumsMatrix(outputGradient); err != nil {
+	if d.inputGradientScratch == outputGradient {
+		if d.inputGradientScratch, err = matrix.New(batchRows, d.inputSize); err != nil {
+			return nil, err
+		}
+	}
+
+	if err = d.inputCache.MatMulLeftTransposeInto(outputGradient, d.weightGradient); err != nil {
 		return nil, err
 	}
 
-	if weightTranspose, err = d.weights.Values().Transpose(); err != nil {
+	if err = outputGradient.MatMulRightTransposeInto(d.weights.Values(), d.inputGradientScratch); err != nil {
 		return nil, err
 	}
 
-	if inputGradient, err = outputGradient.MatMul(weightTranspose); err != nil {
+	if err = d.weights.AccumulateGradient(d.weightGradient); err != nil {
 		return nil, err
 	}
 
-	if err = d.weights.AccumulateGradient(weightGradient); err != nil {
+	if err = outputGradient.AccumulateColumnSumsInto(d.biases.Gradient()); err != nil {
 		return nil, err
 	}
 
-	if err = d.biases.AccumulateGradient(biasGradient); err != nil {
-		return nil, err
-	}
-
+	inputGradient = d.inputGradientScratch
 	return inputGradient, nil
 }
 
@@ -350,11 +363,12 @@ func validateMatrixShape(name string, m *matrix.Matrix, rows, cols int) (err err
 	return nil
 }
 
-func columnSumsMatrix(input *matrix.Matrix) (output *matrix.Matrix, err error) {
-	if output, err = matrix.New(1, input.Cols()); err != nil {
-		return nil, err
+func denseScratch(current *matrix.Matrix, rows, cols int) (scratch *matrix.Matrix, err error) {
+	if current != nil && current.Rows() == rows && current.Cols() == cols {
+		scratch = current
+		return scratch, nil
 	}
 
-	err = input.ColumnSumsInto(output)
-	return output, err
+	scratch, err = matrix.New(rows, cols)
+	return scratch, err
 }

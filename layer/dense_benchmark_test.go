@@ -20,6 +20,10 @@ func Benchmark_DenseForward_XOR(b *testing.B) {
 
 	dense = benchmarkDense(b, 2, 4)
 	input = benchmarkLayerMatrix(b, 4, 2)
+	output, err = dense.Forward(input)
+	if err != nil {
+		b.Fatalf("Forward returned error: %v", err)
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -45,6 +49,10 @@ func Benchmark_DenseForward_MediumBatch(b *testing.B) {
 
 	dense = benchmarkDense(b, 32, 64)
 	input = benchmarkLayerMatrix(b, 128, 32)
+	output, err = dense.Forward(input)
+	if err != nil {
+		b.Fatalf("Forward returned error: %v", err)
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -75,6 +83,14 @@ func Benchmark_DenseBackward_XOR(b *testing.B) {
 	if _, err = dense.Forward(input); err != nil {
 		b.Fatalf("Forward returned error: %v", err)
 	}
+	inputGradient, err = dense.Backward(outputGradient)
+	if err != nil {
+		b.Fatalf("Backward returned error: %v", err)
+	}
+	err = dense.ResetGradients()
+	if err != nil {
+		b.Fatalf("ResetGradients returned error: %v", err)
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -104,6 +120,14 @@ func Benchmark_DenseBackward_MediumBatch(b *testing.B) {
 	outputGradient = benchmarkLayerMatrix(b, 128, 64)
 	if _, err = dense.Forward(input); err != nil {
 		b.Fatalf("Forward returned error: %v", err)
+	}
+	inputGradient, err = dense.Backward(outputGradient)
+	if err != nil {
+		b.Fatalf("Backward returned error: %v", err)
+	}
+	err = dense.ResetGradients()
+	if err != nil {
+		b.Fatalf("ResetGradients returned error: %v", err)
 	}
 
 	b.ReportAllocs()
