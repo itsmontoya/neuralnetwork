@@ -1,6 +1,7 @@
 package loss_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/itsmontoya/neuralnetwork/internal/testutil"
@@ -75,6 +76,7 @@ func Test_CategoricalCrossEntropy_StableAroundZeroAndOne(t *testing.T) {
 		targets     *matrix.Matrix
 		gradient    *matrix.Matrix
 		value       float64
+		lower       float64
 		err         error
 	)
 
@@ -93,6 +95,8 @@ func Test_CategoricalCrossEntropy_StableAroundZeroAndOne(t *testing.T) {
 	}
 
 	requireFinite(t, value)
+	lower = clampEpsilon
+	testutil.RequireAlmostEqual(t, value, -math.Log(lower), epsilon)
 
 	gradient, err = loss.CategoricalCrossEntropy{}.Gradient(predictions, targets)
 	if err != nil {
@@ -100,6 +104,10 @@ func Test_CategoricalCrossEntropy_StableAroundZeroAndOne(t *testing.T) {
 	}
 
 	requireFiniteMatrix(t, gradient)
+	requireMatrixValues(t, gradient, []float64{
+		0, -1 / lower / 2, 0,
+		0, 0, -1 / lower / 2,
+	})
 }
 
 func Test_CategoricalCrossEntropy_ValidatesOneHotTargets(t *testing.T) {
@@ -141,5 +149,22 @@ func Test_CategoricalCrossEntropy_ValidatesOneHotTargets(t *testing.T) {
 				t.Fatalf("Value returned %g and nil error, want error", got)
 			}
 		})
+	}
+}
+
+func Test_CategoricalCrossEntropy_GradientValidatesOneHotTargets(t *testing.T) {
+	var (
+		predictions *matrix.Matrix
+		targets     *matrix.Matrix
+		gradient    *matrix.Matrix
+		err         error
+	)
+
+	predictions = mustMatrix(t, 1, 3, []float64{0.4, 0.4, 0.2})
+	targets = mustMatrix(t, 1, 3, []float64{0.5, 0.5, 0})
+
+	gradient, err = loss.CategoricalCrossEntropy{}.Gradient(predictions, targets)
+	if err == nil {
+		t.Fatalf("Gradient returned %#v and nil error, want error", gradient)
 	}
 }

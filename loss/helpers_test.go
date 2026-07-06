@@ -9,6 +9,7 @@ import (
 )
 
 const epsilon = 1e-12
+const clampEpsilon = 1e-15
 
 func mustMatrix(tb testing.TB, rows, cols int, values []float64) (m *matrix.Matrix) {
 	var err error

@@ -18,30 +18,52 @@ type CategoricalCrossEntropy struct{}
 // Value returns the mean categorical cross entropy over the batch.
 func (c CategoricalCrossEntropy) Value(predictions, targets *matrix.Matrix) (value float64, err error) {
 	var (
-		rows             int
-		cols             int
-		predictionValues []float64
-		targetValues     []float64
-		row              int
-		col              int
-		index            int
-		prediction       float64
+		rows       int
+		currentRow int
+		ones       int
+		prediction float64
+		target     float64
 	)
 
-	if rows, cols, predictionValues, targetValues, err = c.values(predictions, targets); err != nil {
+	if rows, _, err = matrixShapePair(predictions, targets); err != nil {
 		return 0, err
 	}
 
-	for row = 0; row < rows; row++ {
-		for col = 0; col < cols; col++ {
-			index = row*cols + col
-			if targetValues[index] == 0 {
-				continue
+	currentRow = -1
+	err = predictions.Pairwise(targets, func(row, col int, left, right float64) (err error) {
+		if row != currentRow {
+			if currentRow >= 0 && ones != 1 {
+				err = fmt.Errorf("loss: categorical target row %d must contain exactly one class: ones=%d", currentRow, ones)
+				return err
 			}
 
-			prediction = clampPrediction(predictionValues[index])
-			value -= math.Log(prediction)
+			currentRow = row
+			ones = 0
 		}
+
+		prediction = left
+		target = right
+		if target == 1 {
+			ones++
+			prediction = clampPrediction(prediction)
+			value -= math.Log(prediction)
+			return nil
+		}
+
+		if target != 0 {
+			err = fmt.Errorf("loss: categorical target at row %d column %d must be 0 or 1: value=%g", row, col, target)
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	if ones != 1 {
+		err = fmt.Errorf("loss: categorical target row %d must contain exactly one class: ones=%d", currentRow, ones)
+		return 0, err
 	}
 
 	value /= float64(rows)
@@ -51,78 +73,91 @@ func (c CategoricalCrossEntropy) Value(predictions, targets *matrix.Matrix) (val
 // Gradient returns the prediction gradient of the mean categorical cross entropy.
 func (c CategoricalCrossEntropy) Gradient(predictions, targets *matrix.Matrix) (gradient *matrix.Matrix, err error) {
 	var (
-		rows             int
-		cols             int
-		predictionValues []float64
-		targetValues     []float64
-		gradientValues   []float64
-		index            int
-		prediction       float64
-		scale            float64
+		rows       int
+		cols       int
+		prediction float64
+		target     float64
+		scale      float64
 	)
 
-	if rows, cols, predictionValues, targetValues, err = c.values(predictions, targets); err != nil {
+	if rows, cols, err = c.shape(predictions, targets); err != nil {
+		return nil, err
+	}
+
+	if gradient, err = matrix.New(rows, cols); err != nil {
 		return nil, err
 	}
 
 	scale = 1 / float64(rows)
-	gradientValues = make([]float64, len(predictionValues))
-	for index = range predictionValues {
-		if targetValues[index] == 0 {
-			continue
+	err = predictions.PairwiseInto(targets, gradient, func(row, col int, left, right float64) (value float64, err error) {
+		prediction = left
+		target = right
+		if target == 0 {
+			return 0, nil
 		}
 
-		prediction = clampPrediction(predictionValues[index])
-		gradientValues[index] = -targetValues[index] / prediction * scale
+		prediction = clampPrediction(prediction)
+		value = -target / prediction * scale
+		return value, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	gradient, err = matrix.FromSlice(rows, cols, gradientValues)
-	return gradient, err
+	return gradient, nil
 }
 
-func (c CategoricalCrossEntropy) values(predictions, targets *matrix.Matrix) (rows, cols int, predictionValues, targetValues []float64, err error) {
-	if rows, cols, predictionValues, targetValues, err = matrixValuePair(predictions, targets); err != nil {
-		return 0, 0, nil, nil, err
+func (c CategoricalCrossEntropy) shape(predictions, targets *matrix.Matrix) (rows, cols int, err error) {
+	if rows, cols, err = matrixShapePair(predictions, targets); err != nil {
+		return 0, 0, err
 	}
 
-	if err = validateOneHotTargets(rows, cols, targetValues); err != nil {
-		return 0, 0, nil, nil, err
+	if err = validateOneHotTargets(targets); err != nil {
+		return 0, 0, err
 	}
 
-	return rows, cols, predictionValues, targetValues, nil
+	return rows, cols, nil
 }
 
-func validateOneHotTargets(rows, cols int, targetValues []float64) (err error) {
+func validateOneHotTargets(targets *matrix.Matrix) (err error) {
 	var (
-		row   int
-		col   int
-		index int
-		ones  int
-		value float64
+		currentRow int
+		ones       int
+		value      float64
 	)
 
-	for row = 0; row < rows; row++ {
-		ones = 0
-		for col = 0; col < cols; col++ {
-			index = row*cols + col
-			value = targetValues[index]
-			if value == 1 {
-				ones++
-				continue
+	currentRow = -1
+	err = targets.Pairwise(targets, func(row, col int, left, right float64) (err error) {
+		if row != currentRow {
+			if currentRow >= 0 && ones != 1 {
+				err = fmt.Errorf("loss: categorical target row %d must contain exactly one class: ones=%d", currentRow, ones)
+				return err
 			}
 
-			if value == 0 {
-				continue
-			}
+			currentRow = row
+			ones = 0
+		}
 
+		value = left
+		if value == 1 {
+			ones++
+			return nil
+		}
+
+		if value != 0 {
 			err = fmt.Errorf("loss: categorical target at row %d column %d must be 0 or 1: value=%g", row, col, value)
 			return err
 		}
 
-		if ones != 1 {
-			err = fmt.Errorf("loss: categorical target row %d must contain exactly one class: ones=%d", row, ones)
-			return err
-		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if currentRow >= 0 && ones != 1 {
+		err = fmt.Errorf("loss: categorical target row %d must contain exactly one class: ones=%d", currentRow, ones)
+		return err
 	}
 
 	return nil

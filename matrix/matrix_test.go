@@ -373,6 +373,111 @@ func Test_CopyFrom_ValidatesShape(t *testing.T) {
 	}
 }
 
+func Test_Pairwise(t *testing.T) {
+	var (
+		left   *matrix.Matrix
+		right  *matrix.Matrix
+		sum    float64
+		visits int
+		err    error
+	)
+
+	left = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
+	right = mustMatrix(t, 2, 2, []float64{10, 20, 30, 40})
+
+	err = left.Pairwise(right, func(row, col int, leftValue, rightValue float64) (err error) {
+		sum += float64(row+col) + leftValue + rightValue
+		visits++
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("Pairwise returned error: %v", err)
+	}
+
+	testutil.RequireAlmostEqual(t, sum, 114, epsilon)
+	if visits != 4 {
+		t.Fatalf("Pairwise visits = %d, want 4", visits)
+	}
+}
+
+func Test_Pairwise_ValidatesInputs(t *testing.T) {
+	var (
+		left  *matrix.Matrix
+		right *matrix.Matrix
+		err   error
+	)
+
+	left = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
+	right = mustMatrix(t, 1, 4, []float64{1, 2, 3, 4})
+
+	err = left.Pairwise(right, nil)
+	if err == nil {
+		t.Fatal("Pairwise nil function error = nil, want error")
+	}
+
+	err = left.Pairwise(right, func(row, col int, leftValue, rightValue float64) (err error) {
+		return nil
+	})
+	if err == nil {
+		t.Fatal("Pairwise shape error = nil, want error")
+	}
+}
+
+func Test_PairwiseInto(t *testing.T) {
+	var (
+		left        *matrix.Matrix
+		right       *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	left = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
+	right = mustMatrix(t, 2, 2, []float64{10, 20, 30, 40})
+	destination = mustMatrix(t, 2, 2, []float64{0, 0, 0, 0})
+
+	err = left.PairwiseInto(right, destination, func(row, col int, leftValue, rightValue float64) (value float64, err error) {
+		value = float64(row+col) + leftValue + rightValue
+		return value, nil
+	})
+	if err != nil {
+		t.Fatalf("PairwiseInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, []float64{11, 23, 34, 46})
+}
+
+func Test_PairwiseInto_ValidatesInputs(t *testing.T) {
+	var (
+		left        *matrix.Matrix
+		right       *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	left = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
+	right = mustMatrix(t, 1, 4, []float64{1, 2, 3, 4})
+	destination = mustMatrix(t, 1, 4, []float64{0, 0, 0, 0})
+
+	err = left.PairwiseInto(left, left, nil)
+	if err == nil {
+		t.Fatal("PairwiseInto nil function error = nil, want error")
+	}
+
+	err = left.PairwiseInto(right, left, func(row, col int, leftValue, rightValue float64) (value float64, err error) {
+		return 0, nil
+	})
+	if err == nil {
+		t.Fatal("PairwiseInto input shape error = nil, want error")
+	}
+
+	err = left.PairwiseInto(left, destination, func(row, col int, leftValue, rightValue float64) (value float64, err error) {
+		return 0, nil
+	})
+	if err == nil {
+		t.Fatal("PairwiseInto destination shape error = nil, want error")
+	}
+}
+
 func Test_ElementwiseOperations(t *testing.T) {
 	var (
 		left     *matrix.Matrix

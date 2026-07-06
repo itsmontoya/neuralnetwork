@@ -8,21 +8,22 @@ type MeanSquaredError struct{}
 // Value returns the mean squared error for predictions and targets with equal shape.
 func (m MeanSquaredError) Value(predictions, targets *matrix.Matrix) (value float64, err error) {
 	var (
-		rows             int
-		cols             int
-		predictionValues []float64
-		targetValues     []float64
-		index            int
-		difference       float64
+		rows       int
+		cols       int
+		difference float64
 	)
 
-	if rows, cols, predictionValues, targetValues, err = matrixValuePair(predictions, targets); err != nil {
+	if rows, cols, err = matrixShapePair(predictions, targets); err != nil {
 		return 0, err
 	}
 
-	for index = range predictionValues {
-		difference = predictionValues[index] - targetValues[index]
+	err = predictions.Pairwise(targets, func(row, col int, prediction, target float64) (err error) {
+		difference = prediction - target
 		value += difference * difference
+		return nil
+	})
+	if err != nil {
+		return 0, err
 	}
 
 	value /= float64(rows * cols)
@@ -32,25 +33,27 @@ func (m MeanSquaredError) Value(predictions, targets *matrix.Matrix) (value floa
 // Gradient returns the prediction gradient of the mean squared error.
 func (m MeanSquaredError) Gradient(predictions, targets *matrix.Matrix) (gradient *matrix.Matrix, err error) {
 	var (
-		rows             int
-		cols             int
-		predictionValues []float64
-		targetValues     []float64
-		gradientValues   []float64
-		index            int
-		scale            float64
+		rows  int
+		cols  int
+		scale float64
 	)
 
-	if rows, cols, predictionValues, targetValues, err = matrixValuePair(predictions, targets); err != nil {
+	if rows, cols, err = matrixShapePair(predictions, targets); err != nil {
+		return nil, err
+	}
+
+	if gradient, err = matrix.New(rows, cols); err != nil {
+		return nil, err
+	}
+
+	if err = predictions.SubtractInto(targets, gradient); err != nil {
 		return nil, err
 	}
 
 	scale = 2 / float64(rows*cols)
-	gradientValues = make([]float64, len(predictionValues))
-	for index = range predictionValues {
-		gradientValues[index] = (predictionValues[index] - targetValues[index]) * scale
+	if err = gradient.MultiplyScalarInPlace(scale); err != nil {
+		return nil, err
 	}
 
-	gradient, err = matrix.FromSlice(rows, cols, gradientValues)
-	return gradient, err
+	return gradient, nil
 }
