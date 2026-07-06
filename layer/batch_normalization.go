@@ -108,104 +108,108 @@ type BatchNormalization struct {
 	runningMean     *matrix.Matrix
 	runningVariance *matrix.Matrix
 	training        bool
-	normalizedCache *matrix.Matrix
+	outputScratch   *matrix.Matrix
+	inputValues     []float64
+	gammaValues     []float64
+	betaValues      []float64
+	meanValues      []float64
+	varianceValues  []float64
+	normalizedCache []float64
 	inverseStdCache []float64
-	forwardRows     int
-	forwardCols     int
-	forwardCalled   bool
-	forwardTraining bool
+	outputValues    []float64
+
+	gradientValues        []float64
+	gammaGradientValues   []float64
+	betaGradientValues    []float64
+	inputGradientValues   []float64
+	runningMeanValues     []float64
+	runningVarianceValues []float64
+	inputGradientScratch  *matrix.Matrix
+	gammaGradientScratch  *matrix.Matrix
+	betaGradientScratch   *matrix.Matrix
+	forwardRows           int
+	forwardCols           int
+	forwardCalled         bool
+	forwardTraining       bool
 }
 
 // Forward normalizes input features and applies trainable scale and offset.
 func (b *BatchNormalization) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error) {
 	var (
-		rows           int
-		cols           int
-		inputValues    []float64
-		gammaValues    []float64
-		betaValues     []float64
-		meanValues     []float64
-		varianceValues []float64
-		inverseStd     []float64
-		normalized     []float64
-		outputValues   []float64
-		index          int
-		col            int
+		rows       int
+		cols       int
+		index      int
+		col        int
+		valueCount int
 	)
 
 	if err = b.validate(); err != nil {
 		return nil, err
 	}
 
-	if rows, cols, inputValues, err = b.inputValues(input); err != nil {
+	if rows, cols, err = b.validateInput(input); err != nil {
 		return nil, err
 	}
 
-	if gammaValues, err = b.gamma.Values().Values(); err != nil {
+	valueCount = rows * cols
+	if err = b.ensureForwardScratch(rows, cols, valueCount); err != nil {
 		return nil, err
 	}
 
-	if betaValues, err = b.beta.Values().Values(); err != nil {
+	if err = input.ValuesInto(b.inputValues); err != nil {
+		return nil, err
+	}
+
+	if err = b.gamma.Values().ValuesInto(b.gammaValues); err != nil {
+		return nil, err
+	}
+
+	if err = b.beta.Values().ValuesInto(b.betaValues); err != nil {
 		return nil, err
 	}
 
 	if b.training {
-		meanValues = batchNormalizationMeans(rows, cols, inputValues)
-		varianceValues = batchNormalizationVariances(rows, cols, inputValues, meanValues)
-		if err = b.updateRunningStatistics(meanValues, varianceValues); err != nil {
+		batchNormalizationMeansInto(rows, cols, b.inputValues, b.meanValues)
+		batchNormalizationVariancesInto(rows, cols, b.inputValues, b.meanValues, b.varianceValues)
+		if err = b.updateRunningStatistics(b.meanValues, b.varianceValues); err != nil {
 			return nil, err
 		}
 	} else {
-		if meanValues, err = b.runningMean.Values(); err != nil {
+		if err = b.runningMean.ValuesInto(b.meanValues); err != nil {
 			return nil, err
 		}
 
-		if varianceValues, err = b.runningVariance.Values(); err != nil {
+		if err = b.runningVariance.ValuesInto(b.varianceValues); err != nil {
 			return nil, err
 		}
 	}
 
-	inverseStd = batchNormalizationInverseStd(varianceValues, b.epsilon)
-	normalized = make([]float64, len(inputValues))
-	outputValues = make([]float64, len(inputValues))
-	for index = range inputValues {
+	batchNormalizationInverseStdInto(b.varianceValues, b.epsilon, b.inverseStdCache)
+	for index = range b.inputValues {
 		col = index % cols
-		normalized[index] = (inputValues[index] - meanValues[col]) * inverseStd[col]
-		outputValues[index] = normalized[index]*gammaValues[col] + betaValues[col]
+		b.normalizedCache[index] = (b.inputValues[index] - b.meanValues[col]) * b.inverseStdCache[col]
+		b.outputValues[index] = b.normalizedCache[index]*b.gammaValues[col] + b.betaValues[col]
 	}
 
-	if output, err = matrix.FromSlice(rows, cols, outputValues); err != nil {
+	if err = b.outputScratch.CopyValuesFrom(b.outputValues); err != nil {
 		return nil, err
 	}
 
-	if b.normalizedCache, err = matrix.FromSlice(rows, cols, normalized); err != nil {
-		return nil, err
-	}
-
-	b.inverseStdCache = make([]float64, len(inverseStd))
-	copy(b.inverseStdCache, inverseStd)
 	b.forwardRows = rows
 	b.forwardCols = cols
 	b.forwardCalled = true
 	b.forwardTraining = b.training
+	output = b.outputScratch
 	return output, nil
 }
 
 // Backward accumulates gamma and beta gradients and returns input gradients.
 func (b *BatchNormalization) Backward(outputGradient *matrix.Matrix) (inputGradient *matrix.Matrix, err error) {
 	var (
-		gradientValues   []float64
-		normalizedValues []float64
-		gammaValues      []float64
-		gammaGradient    []float64
-		betaGradient     []float64
-		inputGradientRaw []float64
-		rows             int
-		cols             int
-		index            int
-		col              int
-		gammaGradientM   *matrix.Matrix
-		betaGradientM    *matrix.Matrix
+		rows  int
+		cols  int
+		index int
+		col   int
 	)
 
 	if err = b.validate(); err != nil {
@@ -217,50 +221,61 @@ func (b *BatchNormalization) Backward(outputGradient *matrix.Matrix) (inputGradi
 		return nil, err
 	}
 
-	if rows, cols, gradientValues, err = b.outputGradientValues(outputGradient); err != nil {
+	if rows, cols, err = b.validateOutputGradient(outputGradient); err != nil {
 		return nil, err
 	}
 
-	if normalizedValues, err = b.normalizedCache.Values(); err != nil {
+	if err = b.ensureBackwardScratch(rows, cols, rows*cols); err != nil {
 		return nil, err
 	}
 
-	if gammaValues, err = b.gamma.Values().Values(); err != nil {
+	if err = outputGradient.ValuesInto(b.gradientValues); err != nil {
 		return nil, err
 	}
 
-	gammaGradient = make([]float64, cols)
-	betaGradient = make([]float64, cols)
-	for index = range gradientValues {
+	if err = b.gamma.Values().ValuesInto(b.gammaValues); err != nil {
+		return nil, err
+	}
+
+	for col = range b.gammaGradientValues {
+		b.gammaGradientValues[col] = 0
+		b.betaGradientValues[col] = 0
+	}
+
+	for index = range b.gradientValues {
 		col = index % cols
-		betaGradient[col] += gradientValues[index]
-		gammaGradient[col] += gradientValues[index] * normalizedValues[index]
+		b.betaGradientValues[col] += b.gradientValues[index]
+		b.gammaGradientValues[col] += b.gradientValues[index] * b.normalizedCache[index]
 	}
 
-	if gammaGradientM, err = matrix.FromSlice(1, cols, gammaGradient); err != nil {
+	if err = b.gammaGradientScratch.CopyValuesFrom(b.gammaGradientValues); err != nil {
 		return nil, err
 	}
 
-	if betaGradientM, err = matrix.FromSlice(1, cols, betaGradient); err != nil {
+	if err = b.betaGradientScratch.CopyValuesFrom(b.betaGradientValues); err != nil {
 		return nil, err
 	}
 
-	if err = b.gamma.AccumulateGradient(gammaGradientM); err != nil {
+	if err = b.gamma.AccumulateGradient(b.gammaGradientScratch); err != nil {
 		return nil, err
 	}
 
-	if err = b.beta.AccumulateGradient(betaGradientM); err != nil {
+	if err = b.beta.AccumulateGradient(b.betaGradientScratch); err != nil {
 		return nil, err
 	}
 
 	if b.forwardTraining {
-		inputGradientRaw = b.trainingInputGradient(rows, cols, gradientValues, normalizedValues, gammaValues, betaGradient, gammaGradient)
+		b.trainingInputGradientInto(rows, cols)
 	} else {
-		inputGradientRaw = b.evaluationInputGradient(cols, gradientValues, gammaValues)
+		b.evaluationInputGradientInto(cols)
 	}
 
-	inputGradient, err = matrix.FromSlice(rows, cols, inputGradientRaw)
-	return inputGradient, err
+	if err = b.inputGradientScratch.CopyValuesFrom(b.inputGradientValues); err != nil {
+		return nil, err
+	}
+
+	inputGradient = b.inputGradientScratch
+	return inputGradient, nil
 }
 
 // FeatureSize returns the number of features normalized by the layer.
@@ -376,39 +391,35 @@ func (b *BatchNormalization) Training() (training bool) {
 	return training
 }
 
-func (b *BatchNormalization) inputValues(input *matrix.Matrix) (rows, cols int, values []float64, err error) {
+func (b *BatchNormalization) validateInput(input *matrix.Matrix) (rows, cols int, err error) {
 	if input == nil {
 		err = errors.New("layer: batch normalization input is nil")
-		return 0, 0, nil, err
+		return 0, 0, err
 	}
 
 	if err = input.Validate(); err != nil {
 		err = fmt.Errorf("layer: batch normalization input invalid: %w", err)
-		return 0, 0, nil, err
+		return 0, 0, err
 	}
 
 	rows, cols = input.Shape()
 	if cols != b.featureSize {
 		err = fmt.Errorf("layer: batch normalization input shape mismatch: got %dx%d, want batch rows x %d", rows, cols, b.featureSize)
-		return 0, 0, nil, err
+		return 0, 0, err
 	}
 
-	if values, err = input.Values(); err != nil {
-		return 0, 0, nil, err
-	}
-
-	return rows, cols, values, nil
+	return rows, cols, nil
 }
 
-func (b *BatchNormalization) outputGradientValues(outputGradient *matrix.Matrix) (rows, cols int, values []float64, err error) {
+func (b *BatchNormalization) validateOutputGradient(outputGradient *matrix.Matrix) (rows, cols int, err error) {
 	if outputGradient == nil {
 		err = errors.New("layer: batch normalization output gradient is nil")
-		return 0, 0, nil, err
+		return 0, 0, err
 	}
 
 	if err = outputGradient.Validate(); err != nil {
 		err = fmt.Errorf("layer: batch normalization output gradient invalid: %w", err)
-		return 0, 0, nil, err
+		return 0, 0, err
 	}
 
 	rows, cols = outputGradient.Shape()
@@ -420,27 +431,23 @@ func (b *BatchNormalization) outputGradientValues(outputGradient *matrix.Matrix)
 			b.forwardRows,
 			b.forwardCols,
 		)
-		return 0, 0, nil, err
+		return 0, 0, err
 	}
 
 	if b.normalizedCache == nil {
 		err = errors.New("layer: batch normalization normalized cache is nil")
-		return 0, 0, nil, err
+		return 0, 0, err
 	}
 
 	if len(b.inverseStdCache) != cols {
 		err = fmt.Errorf("layer: batch normalization inverse std cache length mismatch: got %d, want %d", len(b.inverseStdCache), cols)
-		return 0, 0, nil, err
+		return 0, 0, err
 	}
 
-	if values, err = outputGradient.Values(); err != nil {
-		return 0, 0, nil, err
-	}
-
-	return rows, cols, values, nil
+	return rows, cols, nil
 }
 
-func (b *BatchNormalization) trainingInputGradient(rows, cols int, gradientValues, normalizedValues, gammaValues, betaGradient, gammaGradient []float64) (values []float64) {
+func (b *BatchNormalization) trainingInputGradientInto(rows, cols int) {
 	var (
 		row        int
 		col        int
@@ -449,75 +456,56 @@ func (b *BatchNormalization) trainingInputGradient(rows, cols int, gradientValue
 		multiplier float64
 	)
 
-	values = make([]float64, len(gradientValues))
 	rowCount = float64(rows)
 	for row = 0; row < rows; row++ {
 		for col = 0; col < cols; col++ {
 			index = row*cols + col
-			multiplier = gammaValues[col] * b.inverseStdCache[col] / rowCount
-			values[index] = multiplier * (rowCount*gradientValues[index] - betaGradient[col] - normalizedValues[index]*gammaGradient[col])
+			multiplier = b.gammaValues[col] * b.inverseStdCache[col] / rowCount
+			b.inputGradientValues[index] = multiplier * (rowCount*b.gradientValues[index] - b.betaGradientValues[col] - b.normalizedCache[index]*b.gammaGradientValues[col])
 		}
 	}
-
-	return values
 }
 
-func (b *BatchNormalization) evaluationInputGradient(cols int, gradientValues, gammaValues []float64) (values []float64) {
+func (b *BatchNormalization) evaluationInputGradientInto(cols int) {
 	var (
 		index int
 		col   int
 	)
 
-	values = make([]float64, len(gradientValues))
-	for index = range gradientValues {
+	for index = range b.gradientValues {
 		col = index % cols
-		values[index] = gradientValues[index] * gammaValues[col] * b.inverseStdCache[col]
+		b.inputGradientValues[index] = b.gradientValues[index] * b.gammaValues[col] * b.inverseStdCache[col]
 	}
-
-	return values
 }
 
 func (b *BatchNormalization) updateRunningStatistics(meanValues, varianceValues []float64) (err error) {
 	var (
-		currentMeanValues     []float64
-		currentVarianceValues []float64
-		nextMeanValues        []float64
-		nextVarianceValues    []float64
-		nextMean              *matrix.Matrix
-		nextVariance          *matrix.Matrix
-		index                 int
-		updateScale           float64
+		index       int
+		updateScale float64
 	)
 
-	if currentMeanValues, err = b.runningMean.Values(); err != nil {
+	b.runningMeanValues = floatScratch(b.runningMeanValues, b.featureSize)
+	b.runningVarianceValues = floatScratch(b.runningVarianceValues, b.featureSize)
+
+	if err = b.runningMean.ValuesInto(b.runningMeanValues); err != nil {
 		return err
 	}
 
-	if currentVarianceValues, err = b.runningVariance.Values(); err != nil {
+	if err = b.runningVariance.ValuesInto(b.runningVarianceValues); err != nil {
 		return err
 	}
 
 	updateScale = 1 - b.momentum
-	nextMeanValues = make([]float64, len(meanValues))
-	nextVarianceValues = make([]float64, len(varianceValues))
 	for index = range meanValues {
-		nextMeanValues[index] = b.momentum*currentMeanValues[index] + updateScale*meanValues[index]
-		nextVarianceValues[index] = b.momentum*currentVarianceValues[index] + updateScale*varianceValues[index]
+		b.runningMeanValues[index] = b.momentum*b.runningMeanValues[index] + updateScale*meanValues[index]
+		b.runningVarianceValues[index] = b.momentum*b.runningVarianceValues[index] + updateScale*varianceValues[index]
 	}
 
-	if nextMean, err = matrix.FromSlice(1, b.featureSize, nextMeanValues); err != nil {
+	if err = b.runningMean.CopyValuesFrom(b.runningMeanValues); err != nil {
 		return err
 	}
 
-	if nextVariance, err = matrix.FromSlice(1, b.featureSize, nextVarianceValues); err != nil {
-		return err
-	}
-
-	if err = b.runningMean.CopyFrom(nextMean); err != nil {
-		return err
-	}
-
-	err = b.runningVariance.CopyFrom(nextVariance)
+	err = b.runningVariance.CopyValuesFrom(b.runningVarianceValues)
 	return err
 }
 
@@ -577,14 +565,55 @@ func (b *BatchNormalization) validate() (err error) {
 	return nil
 }
 
-func batchNormalizationMeans(rows, cols int, values []float64) (means []float64) {
+func (b *BatchNormalization) ensureForwardScratch(rows, cols, valueCount int) (err error) {
+	if b.outputScratch, err = matrixScratch(b.outputScratch, rows, cols); err != nil {
+		return err
+	}
+
+	b.inputValues = floatScratch(b.inputValues, valueCount)
+	b.gammaValues = floatScratch(b.gammaValues, cols)
+	b.betaValues = floatScratch(b.betaValues, cols)
+	b.meanValues = floatScratch(b.meanValues, cols)
+	b.varianceValues = floatScratch(b.varianceValues, cols)
+	b.normalizedCache = floatScratch(b.normalizedCache, valueCount)
+	b.inverseStdCache = floatScratch(b.inverseStdCache, cols)
+	b.outputValues = floatScratch(b.outputValues, valueCount)
+	return nil
+}
+
+func (b *BatchNormalization) ensureBackwardScratch(rows, cols, valueCount int) (err error) {
+	b.gradientValues = floatScratch(b.gradientValues, valueCount)
+	b.gammaValues = floatScratch(b.gammaValues, cols)
+	b.gammaGradientValues = floatScratch(b.gammaGradientValues, cols)
+	b.betaGradientValues = floatScratch(b.betaGradientValues, cols)
+	b.inputGradientValues = floatScratch(b.inputGradientValues, valueCount)
+
+	if b.inputGradientScratch, err = matrixScratch(b.inputGradientScratch, rows, cols); err != nil {
+		return err
+	}
+
+	if b.gammaGradientScratch, err = matrixScratch(b.gammaGradientScratch, 1, cols); err != nil {
+		return err
+	}
+
+	if b.betaGradientScratch, err = matrixScratch(b.betaGradientScratch, 1, cols); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func batchNormalizationMeansInto(rows, cols int, values, means []float64) {
 	var (
 		index int
 		col   int
 		scale float64
 	)
 
-	means = make([]float64, cols)
+	for col = range means {
+		means[col] = 0
+	}
+
 	for index = range values {
 		col = index % cols
 		means[col] += values[index]
@@ -594,11 +623,9 @@ func batchNormalizationMeans(rows, cols int, values []float64) (means []float64)
 	for col = range means {
 		means[col] *= scale
 	}
-
-	return means
 }
 
-func batchNormalizationVariances(rows, cols int, values, means []float64) (variances []float64) {
+func batchNormalizationVariancesInto(rows, cols int, values, means, variances []float64) {
 	var (
 		index      int
 		col        int
@@ -606,7 +633,10 @@ func batchNormalizationVariances(rows, cols int, values, means []float64) (varia
 		scale      float64
 	)
 
-	variances = make([]float64, cols)
+	for col = range variances {
+		variances[col] = 0
+	}
+
 	for index = range values {
 		col = index % cols
 		difference = values[index] - means[col]
@@ -617,19 +647,14 @@ func batchNormalizationVariances(rows, cols int, values, means []float64) (varia
 	for col = range variances {
 		variances[col] *= scale
 	}
-
-	return variances
 }
 
-func batchNormalizationInverseStd(variances []float64, epsilon float64) (inverseStd []float64) {
+func batchNormalizationInverseStdInto(variances []float64, epsilon float64, inverseStd []float64) {
 	var index int
 
-	inverseStd = make([]float64, len(variances))
 	for index = range variances {
 		inverseStd[index] = 1 / math.Sqrt(variances[index]+epsilon)
 	}
-
-	return inverseStd
 }
 
 func validateBatchNormalizationMomentum(momentum float64) (err error) {

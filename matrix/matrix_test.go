@@ -286,6 +286,78 @@ func Test_CloneAndCopyFrom(t *testing.T) {
 	testutil.RequireAlmostEqual(t, value, 1, epsilon)
 }
 
+func Test_ValuesInto(t *testing.T) {
+	var (
+		source *matrix.Matrix
+		values []float64
+		value  float64
+		err    error
+	)
+
+	source = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
+	values = make([]float64, 4)
+
+	err = source.ValuesInto(values)
+	if err != nil {
+		t.Fatalf("ValuesInto returned error: %v", err)
+	}
+
+	testutil.RequireSliceAlmostEqual(t, values, []float64{1, 2, 3, 4}, epsilon)
+
+	values[0] = -1
+	value, err = source.At(0, 0)
+	if err != nil {
+		t.Fatalf("At returned error: %v", err)
+	}
+
+	testutil.RequireAlmostEqual(t, value, 1, epsilon)
+}
+
+func Test_ValuesInto_ValidatesLength(t *testing.T) {
+	var (
+		source *matrix.Matrix
+		err    error
+	)
+
+	source = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
+	err = source.ValuesInto(make([]float64, 3))
+	if err == nil {
+		t.Fatal("ValuesInto length error = nil, want error")
+	}
+}
+
+func Test_CopyValuesFrom(t *testing.T) {
+	var (
+		target *matrix.Matrix
+		values []float64
+		err    error
+	)
+
+	target = mustMatrix(t, 2, 2, []float64{0, 0, 0, 0})
+	values = []float64{1, 2, 3, 4}
+
+	err = target.CopyValuesFrom(values)
+	if err != nil {
+		t.Fatalf("CopyValuesFrom returned error: %v", err)
+	}
+
+	values[0] = -1
+	requireMatrixValues(t, target, []float64{1, 2, 3, 4})
+}
+
+func Test_CopyValuesFrom_ValidatesLength(t *testing.T) {
+	var (
+		target *matrix.Matrix
+		err    error
+	)
+
+	target = mustMatrix(t, 2, 2, []float64{0, 0, 0, 0})
+	err = target.CopyValuesFrom([]float64{1, 2, 3})
+	if err == nil {
+		t.Fatal("CopyValuesFrom length error = nil, want error")
+	}
+}
+
 func Test_CopyFrom_ValidatesShape(t *testing.T) {
 	var (
 		target *matrix.Matrix

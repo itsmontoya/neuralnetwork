@@ -196,6 +196,24 @@ func (m *Matrix) Values() (values []float64, err error) {
 	return values, nil
 }
 
+// ValuesInto copies row-major matrix values into destination.
+//
+// The destination length must match the matrix storage length. Values are
+// copied, so later destination mutations do not affect m.
+func (m *Matrix) ValuesInto(destination []float64) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if len(destination) != len(m.data) {
+		err = fmt.Errorf("matrix: destination length mismatch: got %d, want %d", len(destination), len(m.data))
+		return err
+	}
+
+	copy(destination, m.data)
+	return nil
+}
+
 // At returns the value at row and col.
 func (m *Matrix) At(row, col int) (value float64, err error) {
 	if err = m.validate(); err != nil {
@@ -256,6 +274,24 @@ func (m *Matrix) CopyFrom(source *Matrix) (err error) {
 	}
 
 	copy(m.data, source.data)
+	return nil
+}
+
+// CopyValuesFrom copies row-major values into m.
+//
+// The values length must match the matrix storage length. Values are copied, so
+// later source-slice mutations do not affect m.
+func (m *Matrix) CopyValuesFrom(values []float64) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if len(values) != len(m.data) {
+		err = fmt.Errorf("matrix: values length mismatch: got %d, want %d", len(values), len(m.data))
+		return err
+	}
+
+	copy(m.data, values)
 	return nil
 }
 
