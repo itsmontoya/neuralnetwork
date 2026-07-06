@@ -63,6 +63,64 @@ func Benchmark_MatMulInto(b *testing.B) {
 	benchmarkResult = result
 }
 
+func Benchmark_MatMulLeftTransposeInto(b *testing.B) {
+	var (
+		left   *matrix.Matrix
+		right  *matrix.Matrix
+		result *matrix.Matrix
+		err    error
+		index  int
+	)
+
+	left = benchmarkMatrix(b, 128, 32)
+	right = benchmarkMatrix(b, 128, 64)
+	result, err = matrix.New(32, 64)
+	if err != nil {
+		b.Fatalf("New returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		err = left.MatMulLeftTransposeInto(right, result)
+		if err != nil {
+			b.Fatalf("MatMulLeftTransposeInto returned error: %v", err)
+		}
+	}
+
+	benchmarkResult = result
+}
+
+func Benchmark_MatMulRightTransposeInto(b *testing.B) {
+	var (
+		left   *matrix.Matrix
+		right  *matrix.Matrix
+		result *matrix.Matrix
+		err    error
+		index  int
+	)
+
+	left = benchmarkMatrix(b, 128, 64)
+	right = benchmarkMatrix(b, 32, 64)
+	result, err = matrix.New(128, 32)
+	if err != nil {
+		b.Fatalf("New returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		err = left.MatMulRightTransposeInto(right, result)
+		if err != nil {
+			b.Fatalf("MatMulRightTransposeInto returned error: %v", err)
+		}
+	}
+
+	benchmarkResult = result
+}
+
 func Benchmark_Clone(b *testing.B) {
 	var (
 		source *matrix.Matrix
@@ -689,6 +747,33 @@ func Benchmark_ColumnSumsInto(b *testing.B) {
 		err = source.ColumnSumsInto(result)
 		if err != nil {
 			b.Fatalf("ColumnSumsInto returned error: %v", err)
+		}
+	}
+
+	benchmarkResult = result
+}
+
+func Benchmark_AccumulateColumnSumsInto(b *testing.B) {
+	var (
+		source *matrix.Matrix
+		result *matrix.Matrix
+		err    error
+		index  int
+	)
+
+	source = benchmarkMatrix(b, 256, 256)
+	result, err = matrix.New(1, 256)
+	if err != nil {
+		b.Fatalf("New returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		err = source.AccumulateColumnSumsInto(result)
+		if err != nil {
+			b.Fatalf("AccumulateColumnSumsInto returned error: %v", err)
 		}
 	}
 
