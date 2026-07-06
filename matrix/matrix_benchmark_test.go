@@ -236,6 +236,35 @@ func Benchmark_Subtract(b *testing.B) {
 	benchmarkResult = result
 }
 
+func Benchmark_SubtractInto(b *testing.B) {
+	var (
+		left   *matrix.Matrix
+		right  *matrix.Matrix
+		result *matrix.Matrix
+		err    error
+		index  int
+	)
+
+	left = benchmarkMatrix(b, 256, 256)
+	right = benchmarkMatrix(b, 256, 256)
+	result, err = matrix.New(256, 256)
+	if err != nil {
+		b.Fatalf("New returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		err = left.SubtractInto(right, result)
+		if err != nil {
+			b.Fatalf("SubtractInto returned error: %v", err)
+		}
+	}
+
+	benchmarkResult = result
+}
+
 func Benchmark_MultiplyElements(b *testing.B) {
 	var (
 		left   *matrix.Matrix
@@ -255,6 +284,35 @@ func Benchmark_MultiplyElements(b *testing.B) {
 		result, err = left.MultiplyElements(right)
 		if err != nil {
 			b.Fatalf("MultiplyElements returned error: %v", err)
+		}
+	}
+
+	benchmarkResult = result
+}
+
+func Benchmark_MultiplyElementsInto(b *testing.B) {
+	var (
+		left   *matrix.Matrix
+		right  *matrix.Matrix
+		result *matrix.Matrix
+		err    error
+		index  int
+	)
+
+	left = benchmarkMatrix(b, 256, 256)
+	right = benchmarkMatrix(b, 256, 256)
+	result, err = matrix.New(256, 256)
+	if err != nil {
+		b.Fatalf("New returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		err = left.MultiplyElementsInto(right, result)
+		if err != nil {
+			b.Fatalf("MultiplyElementsInto returned error: %v", err)
 		}
 	}
 
@@ -286,6 +344,35 @@ func Benchmark_DivideElements(b *testing.B) {
 	benchmarkResult = result
 }
 
+func Benchmark_DivideElementsInto(b *testing.B) {
+	var (
+		left   *matrix.Matrix
+		right  *matrix.Matrix
+		result *matrix.Matrix
+		err    error
+		index  int
+	)
+
+	left = benchmarkPositiveMatrix(b, 256, 256)
+	right = benchmarkPositiveMatrix(b, 256, 256)
+	result, err = matrix.New(256, 256)
+	if err != nil {
+		b.Fatalf("New returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		err = left.DivideElementsInto(right, result)
+		if err != nil {
+			b.Fatalf("DivideElementsInto returned error: %v", err)
+		}
+	}
+
+	benchmarkResult = result
+}
+
 func Benchmark_AddScalar(b *testing.B) {
 	var (
 		source *matrix.Matrix
@@ -309,6 +396,33 @@ func Benchmark_AddScalar(b *testing.B) {
 	benchmarkResult = result
 }
 
+func Benchmark_AddScalarInto(b *testing.B) {
+	var (
+		source *matrix.Matrix
+		result *matrix.Matrix
+		err    error
+		index  int
+	)
+
+	source = benchmarkMatrix(b, 256, 256)
+	result, err = matrix.New(256, 256)
+	if err != nil {
+		b.Fatalf("New returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		err = source.AddScalarInto(0.125, result)
+		if err != nil {
+			b.Fatalf("AddScalarInto returned error: %v", err)
+		}
+	}
+
+	benchmarkResult = result
+}
+
 func Benchmark_MultiplyScalar(b *testing.B) {
 	var (
 		source *matrix.Matrix
@@ -326,6 +440,33 @@ func Benchmark_MultiplyScalar(b *testing.B) {
 		result, err = source.MultiplyScalar(1.125)
 		if err != nil {
 			b.Fatalf("MultiplyScalar returned error: %v", err)
+		}
+	}
+
+	benchmarkResult = result
+}
+
+func Benchmark_MultiplyScalarInto(b *testing.B) {
+	var (
+		source *matrix.Matrix
+		result *matrix.Matrix
+		err    error
+		index  int
+	)
+
+	source = benchmarkMatrix(b, 256, 256)
+	result, err = matrix.New(256, 256)
+	if err != nil {
+		b.Fatalf("New returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		err = source.MultiplyScalarInto(1.125, result)
+		if err != nil {
+			b.Fatalf("MultiplyScalarInto returned error: %v", err)
 		}
 	}
 
@@ -371,6 +512,33 @@ func Benchmark_DivideScalar(b *testing.B) {
 		result, err = source.DivideScalar(1.125)
 		if err != nil {
 			b.Fatalf("DivideScalar returned error: %v", err)
+		}
+	}
+
+	benchmarkResult = result
+}
+
+func Benchmark_DivideScalarInto(b *testing.B) {
+	var (
+		source *matrix.Matrix
+		result *matrix.Matrix
+		err    error
+		index  int
+	)
+
+	source = benchmarkMatrix(b, 256, 256)
+	result, err = matrix.New(256, 256)
+	if err != nil {
+		b.Fatalf("New returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		err = source.DivideScalarInto(1.125, result)
+		if err != nil {
+			b.Fatalf("DivideScalarInto returned error: %v", err)
 		}
 	}
 
@@ -448,6 +616,33 @@ func Benchmark_RowSums(b *testing.B) {
 	}
 
 	benchmarkValues = values
+}
+
+func Benchmark_RowSumsInto(b *testing.B) {
+	var (
+		source *matrix.Matrix
+		result *matrix.Matrix
+		err    error
+		index  int
+	)
+
+	source = benchmarkMatrix(b, 256, 256)
+	result, err = matrix.New(256, 1)
+	if err != nil {
+		b.Fatalf("New returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		err = source.RowSumsInto(result)
+		if err != nil {
+			b.Fatalf("RowSumsInto returned error: %v", err)
+		}
+	}
+
+	benchmarkResult = result
 }
 
 func Benchmark_ColumnSums(b *testing.B) {
@@ -541,6 +736,33 @@ func Benchmark_Apply(b *testing.B) {
 		result, err = source.Apply(benchmarkApply)
 		if err != nil {
 			b.Fatalf("Apply returned error: %v", err)
+		}
+	}
+
+	benchmarkResult = result
+}
+
+func Benchmark_ApplyInto(b *testing.B) {
+	var (
+		source *matrix.Matrix
+		result *matrix.Matrix
+		err    error
+		index  int
+	)
+
+	source = benchmarkMatrix(b, 256, 256)
+	result, err = matrix.New(256, 256)
+	if err != nil {
+		b.Fatalf("New returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		err = source.ApplyInto(benchmarkApply, result)
+		if err != nil {
+			b.Fatalf("ApplyInto returned error: %v", err)
 		}
 	}
 
