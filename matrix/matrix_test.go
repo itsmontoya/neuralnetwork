@@ -584,6 +584,72 @@ func Test_ElementwiseDestinationOperations(t *testing.T) {
 	requireMatrixValues(t, left, []float64{5, 10, 15, 20})
 }
 
+func Test_AdamUpdateInPlace(t *testing.T) {
+	var (
+		values       *matrix.Matrix
+		gradients    *matrix.Matrix
+		firstMoment  *matrix.Matrix
+		secondMoment *matrix.Matrix
+		err          error
+	)
+
+	values = mustMatrix(t, 1, 2, []float64{1, -2})
+	gradients = mustMatrix(t, 1, 2, []float64{2, -4})
+	firstMoment = mustMatrix(t, 1, 2, []float64{0, 0})
+	secondMoment = mustMatrix(t, 1, 2, []float64{0, 0})
+
+	err = values.AdamUpdateInPlace(gradients, firstMoment, secondMoment, 0.1, 0.5, 0.25, 0.1, 0.5, 0.75)
+	if err != nil {
+		t.Fatalf("AdamUpdateInPlace returned error: %v", err)
+	}
+
+	requireMatrixValues(t, firstMoment, []float64{1, -2})
+	requireMatrixValues(t, secondMoment, []float64{3, 12})
+	requireMatrixValues(t, values, []float64{0.9047619047619048, -1.902439024390244})
+}
+
+func Test_AdamUpdateInPlace_ValidatesInputs(t *testing.T) {
+	var (
+		values       *matrix.Matrix
+		gradients    *matrix.Matrix
+		firstMoment  *matrix.Matrix
+		secondMoment *matrix.Matrix
+		mismatched   *matrix.Matrix
+		err          error
+	)
+
+	values = mustMatrix(t, 1, 2, []float64{1, 2})
+	gradients = mustMatrix(t, 1, 2, []float64{0.1, 0.2})
+	firstMoment = mustMatrix(t, 1, 2, []float64{0, 0})
+	secondMoment = mustMatrix(t, 1, 2, []float64{0, 0})
+	mismatched = mustMatrix(t, 2, 1, []float64{0.1, 0.2})
+
+	err = values.AdamUpdateInPlace(mismatched, firstMoment, secondMoment, 0.1, 0.5, 0.25, 0.1, 0.5, 0.75)
+	if err == nil {
+		t.Fatal("AdamUpdateInPlace gradient shape error = nil, want error")
+	}
+
+	err = values.AdamUpdateInPlace(gradients, mismatched, secondMoment, 0.1, 0.5, 0.25, 0.1, 0.5, 0.75)
+	if err == nil {
+		t.Fatal("AdamUpdateInPlace first moment shape error = nil, want error")
+	}
+
+	err = values.AdamUpdateInPlace(values, firstMoment, secondMoment, 0.1, 0.5, 0.25, 0.1, 0.5, 0.75)
+	if err == nil {
+		t.Fatal("AdamUpdateInPlace alias error = nil, want error")
+	}
+
+	err = values.AdamUpdateInPlace(gradients, firstMoment, secondMoment, 0.1, 0.5, 0.25, 0.1, 0, 0.75)
+	if err == nil {
+		t.Fatal("AdamUpdateInPlace first correction error = nil, want error")
+	}
+
+	err = values.AdamUpdateInPlace(gradients, firstMoment, secondMoment, 0.1, 0.5, 0.25, 0.1, 0.5, 0)
+	if err == nil {
+		t.Fatal("AdamUpdateInPlace second correction error = nil, want error")
+	}
+}
+
 func Test_ElementwiseDestinationOperations_ValidateShape(t *testing.T) {
 	var (
 		left        *matrix.Matrix

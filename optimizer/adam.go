@@ -2,7 +2,6 @@ package optimizer
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
@@ -185,41 +184,33 @@ func (a *Adam) SetEpsilon(epsilon float64) (err error) {
 
 func (a *Adam) updateParameter(parameter *Parameter) (err error) {
 	var (
-		state              *adamState
-		rows               int
-		cols               int
-		values             []float64
-		gradients          []float64
-		firstRows          int
-		firstCols          int
-		firstMomentValues  []float64
-		secondRows         int
-		secondCols         int
-		secondMomentValues []float64
-		nextStep           int
-		firstCorrection    float64
-		secondCorrection   float64
-		firstEstimate      float64
-		secondEstimate     float64
-		index              int
+		state            *adamState
+		values           *matrix.Matrix
+		gradients        *matrix.Matrix
+		rows             int
+		cols             int
+		firstRows        int
+		firstCols        int
+		secondRows       int
+		secondCols       int
+		nextStep         int
+		firstCorrection  float64
+		secondCorrection float64
 	)
+
+	if err = parameter.validate(); err != nil {
+		return err
+	}
 
 	if state, err = a.stateFor(parameter); err != nil {
 		return err
 	}
 
-	if rows, cols, values, gradients, err = parameterValues(parameter); err != nil {
-		return err
-	}
-
-	if firstRows, firstCols, firstMomentValues, err = matrixValues(state.firstMoment); err != nil {
-		return err
-	}
-
-	if secondRows, secondCols, secondMomentValues, err = matrixValues(state.secondMoment); err != nil {
-		return err
-	}
-
+	values = parameter.Values()
+	gradients = parameter.Gradient()
+	rows, cols = values.Shape()
+	firstRows, firstCols = state.firstMoment.Shape()
+	secondRows, secondCols = state.secondMoment.Shape()
 	if rows != firstRows || cols != firstCols || rows != secondRows || cols != secondCols {
 		err = fmt.Errorf(
 			"optimizer: adam state shape mismatch: parameter %dx%d, first moment %dx%d, second moment %dx%d",
@@ -234,27 +225,21 @@ func (a *Adam) updateParameter(parameter *Parameter) (err error) {
 	}
 
 	nextStep = state.step + 1
-	firstCorrection = 1 - math.Pow(a.beta1, float64(nextStep))
-	secondCorrection = 1 - math.Pow(a.beta2, float64(nextStep))
+	firstCorrection = 1 - powUnitCoefficient(a.beta1, nextStep)
+	secondCorrection = 1 - powUnitCoefficient(a.beta2, nextStep)
 
-	for index = range values {
-		firstMomentValues[index] = a.beta1*firstMomentValues[index] + (1-a.beta1)*gradients[index]
-		secondMomentValues[index] = a.beta2*secondMomentValues[index] + (1-a.beta2)*gradients[index]*gradients[index]
-
-		firstEstimate = firstMomentValues[index] / firstCorrection
-		secondEstimate = secondMomentValues[index] / secondCorrection
-		values[index] -= a.learningRate * firstEstimate / (math.Sqrt(secondEstimate) + a.epsilon)
-	}
-
-	if err = copyMatrixValues(state.firstMoment, rows, cols, firstMomentValues); err != nil {
-		return err
-	}
-
-	if err = copyMatrixValues(state.secondMoment, rows, cols, secondMomentValues); err != nil {
-		return err
-	}
-
-	if err = copyMatrixValues(parameter.Values(), rows, cols, values); err != nil {
+	err = values.AdamUpdateInPlace(
+		gradients,
+		state.firstMoment,
+		state.secondMoment,
+		a.learningRate,
+		a.beta1,
+		a.beta2,
+		a.epsilon,
+		firstCorrection,
+		secondCorrection,
+	)
+	if err != nil {
 		return err
 	}
 
@@ -266,13 +251,13 @@ func (a *Adam) stateFor(parameter *Parameter) (state *adamState, err error) {
 	var (
 		rows int
 		cols int
-		next adamState
 	)
 
 	if state = a.states[parameter]; state != nil {
 		return state, nil
 	}
 
+	var next adamState
 	rows, cols = parameter.Values().Shape()
 	state = &next
 	if state.firstMoment, err = matrix.New(rows, cols); err != nil {
@@ -314,4 +299,18 @@ func (a *Adam) validate() (err error) {
 	}
 
 	return nil
+}
+
+func powUnitCoefficient(base float64, exponent int) (result float64) {
+	result = 1
+	for exponent > 0 {
+		if exponent%2 == 1 {
+			result *= base
+		}
+
+		base *= base
+		exponent /= 2
+	}
+
+	return result
 }
