@@ -8,6 +8,8 @@ import (
 	"math/rand"
 )
 
+const columnReductionAddMinCols = 16
+
 // New constructs a zero-filled Matrix with the provided shape.
 func New(rows, cols int) (out *Matrix, err error) {
 	var (
@@ -928,12 +930,22 @@ func (m *Matrix) ColumnSumsInto(result *Matrix) (err error) {
 	}
 
 	var (
-		row int
-		col int
+		row      int
+		col      int
+		rowStart int
 	)
 
 	for col = range result.data {
 		result.data[col] = 0
+	}
+
+	if m.cols >= columnReductionAddMinCols {
+		for row = 0; row < m.rows; row++ {
+			rowStart = row * m.cols
+			addInto(result.data, m.data[rowStart:rowStart+m.cols], result.data)
+		}
+
+		return nil
 	}
 
 	for row = 0; row < m.rows; row++ {
@@ -961,9 +973,19 @@ func (m *Matrix) AccumulateColumnSumsInto(result *Matrix) (err error) {
 	}
 
 	var (
-		row int
-		col int
+		row      int
+		col      int
+		rowStart int
 	)
+
+	if m.cols >= columnReductionAddMinCols {
+		for row = 0; row < m.rows; row++ {
+			rowStart = row * m.cols
+			addInto(result.data, m.data[rowStart:rowStart+m.cols], result.data)
+		}
+
+		return nil
+	}
 
 	for row = 0; row < m.rows; row++ {
 		for col = 0; col < m.cols; col++ {

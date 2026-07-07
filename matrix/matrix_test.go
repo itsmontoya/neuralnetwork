@@ -1206,6 +1206,72 @@ func Test_ColumnSumsInto(t *testing.T) {
 	}
 
 	requireMatrixValues(t, destination, []float64{5, 7, 9})
+
+	input = mustMatrix(t, 1, 3, []float64{1, 2, 3})
+	err = input.ColumnSumsInto(input)
+	if err == nil {
+		t.Fatal("ColumnSumsInto alias error = nil, want error")
+	}
+}
+
+func Test_ColumnSumsIntoWideShape(t *testing.T) {
+	var (
+		inputValues       []float64
+		destinationValues []float64
+		want              []float64
+		input             *matrix.Matrix
+		destination       *matrix.Matrix
+		err               error
+		col               int
+	)
+
+	inputValues = make([]float64, 34)
+	destinationValues = make([]float64, 17)
+	want = make([]float64, 17)
+	for col = 0; col < 17; col++ {
+		inputValues[col] = float64(col + 1)
+		inputValues[17+col] = float64(-2 * (col + 1))
+		destinationValues[col] = 100
+		want[col] = inputValues[col] + inputValues[17+col]
+	}
+
+	input = mustMatrix(t, 2, 17, inputValues)
+	destination = mustMatrix(t, 1, 17, destinationValues)
+
+	err = input.ColumnSumsInto(destination)
+	if err != nil {
+		t.Fatalf("ColumnSumsInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, want)
+}
+
+func Test_ReductionDestinationOperations_ValidateShape(t *testing.T) {
+	var (
+		input             *matrix.Matrix
+		rowDestination    *matrix.Matrix
+		columnDestination *matrix.Matrix
+		err               error
+	)
+
+	input = mustMatrix(t, 2, 3, []float64{1, 2, 3, 4, 5, 6})
+	rowDestination = mustMatrix(t, 1, 2, []float64{0, 0})
+	columnDestination = mustMatrix(t, 3, 1, []float64{0, 0, 0})
+
+	err = input.RowSumsInto(rowDestination)
+	if err == nil {
+		t.Fatal("RowSumsInto destination shape error = nil, want error")
+	}
+
+	err = input.ColumnSumsInto(columnDestination)
+	if err == nil {
+		t.Fatal("ColumnSumsInto destination shape error = nil, want error")
+	}
+
+	err = input.AccumulateColumnSumsInto(columnDestination)
+	if err == nil {
+		t.Fatal("AccumulateColumnSumsInto destination shape error = nil, want error")
+	}
 }
 
 func Test_AccumulateColumnSumsInto(t *testing.T) {
@@ -1229,6 +1295,38 @@ func Test_AccumulateColumnSumsInto(t *testing.T) {
 	if err == nil {
 		t.Fatal("AccumulateColumnSumsInto alias error = nil, want error")
 	}
+}
+
+func Test_AccumulateColumnSumsIntoWideShape(t *testing.T) {
+	var (
+		inputValues       []float64
+		destinationValues []float64
+		want              []float64
+		input             *matrix.Matrix
+		destination       *matrix.Matrix
+		err               error
+		col               int
+	)
+
+	inputValues = make([]float64, 34)
+	destinationValues = make([]float64, 17)
+	want = make([]float64, 17)
+	for col = 0; col < 17; col++ {
+		inputValues[col] = float64(col + 1)
+		inputValues[17+col] = float64(-2 * (col + 1))
+		destinationValues[col] = float64(100 + col)
+		want[col] = destinationValues[col] + inputValues[col] + inputValues[17+col]
+	}
+
+	input = mustMatrix(t, 2, 17, inputValues)
+	destination = mustMatrix(t, 1, 17, destinationValues)
+
+	err = input.AccumulateColumnSumsInto(destination)
+	if err != nil {
+		t.Fatalf("AccumulateColumnSumsInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, want)
 }
 
 func Test_AddRowVectorInPlace(t *testing.T) {

@@ -1425,3 +1425,255 @@ and the focused after benchmark shows no allocation regression. Direct SIMD
 multiply should wait for direct vector multiply support or an approved generated
 kernel so the implementation does not rely on fused multiply-add as a substitute
 for plain multiplication.
+
+## V2 SIMD Reduction Session
+
+Captured on July 7, 2026.
+
+This session measured reduction paths after the allocation and elementwise SIMD
+work. A dense-backward CPU profile was captured, but the local Go toolchain does
+not include `go tool pprof` and no standalone `pprof` binary is installed, so
+the decision uses focused benchmark evidence.
+
+`ColumnSumsInto` and `AccumulateColumnSumsInto` now reuse the existing private
+`addInto` boundary row-by-row when the source has at least 16 columns. On
+`arm64 && !purego` and `amd64 && !purego`, that boundary uses the existing
+SIMD-backed add kernel; pure Go builds use the scalar helper. Small column
+counts keep the previous scalar nested loop.
+
+`RowSumsInto` remains scalar. It has no dense-layer consumer in the current hot
+path, and adding a horizontal reduction assembly kernel would be a separate
+maintenance cost without enough release-relevant evidence in this pass.
+
+### Commands
+
+```sh
+go test ./matrix -run '^$' -bench='(RowSums|ColumnSums|AccumulateColumnSums)' -benchmem
+go test ./layer -run '^$' -bench=DenseBackward_MediumBatch -benchmem -cpuprofile=/private/tmp/neuralnetwork-dense-backward.prof
+go test ./matrix -run '^$' -bench=ReductionCandidates -benchmem
+go test ./matrix -run 'Test_ColumnSumsInto|Test_AccumulateColumnSumsInto|Test_ReductionDestinationOperations'
+go test ./matrix -tags=purego -run '^$' -bench=ReductionCandidates -benchmem
+go test ./matrix -tags=purego
+go test ./layer -run '^$' -bench=Dense -benchmem
+go test ./...
+```
+
+### Before Focused Reduction Benchmark
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_RowSums-8                    	   22201	     54088 ns/op	    2048 B/op	       1 allocs/op
+Benchmark_RowSumsInto-8                	   27279	     43888 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ColumnSums-8                 	   41964	     28674 ns/op	    2048 B/op	       1 allocs/op
+Benchmark_ColumnSumsInto-8             	   36470	     32822 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AccumulateColumnSumsInto-8   	   36388	     32801 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	8.194s
+```
+
+### Before Dense-Backward Benchmark
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/layer
+cpu: Apple M3
+Benchmark_DenseBackward_MediumBatch-8   	    3655	    326578 ns/op	       4 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/layer	1.773s
+```
+
+### Before Reduction Shape Benchmark
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_ReductionCandidates/Small1x1/RowSumsInto-8         	172540635	         6.854 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x1/ColumnSumsInto-8      	162663248	         7.382 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x1/AccumulateColumnSumsInto-8         	174018852	         6.872 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x3/RowSumsInto-8                      	149960463	         8.034 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x3/ColumnSumsInto-8                   	122424801	        10.10 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x3/AccumulateColumnSumsInto-8         	147843334	         8.124 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small3x1/RowSumsInto-8                      	131577190	         9.117 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small3x1/ColumnSumsInto-8                   	100000000	        10.31 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small3x1/AccumulateColumnSumsInto-8         	130602768	         9.263 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium64x64/RowSumsInto-8                   	  524268	      2301 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium64x64/ColumnSumsInto-8                	  525543	      2288 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium64x64/AccumulateColumnSumsInto-8      	  608148	      1973 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium128x256/RowSumsInto-8                 	   56005	     21402 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium128x256/ColumnSumsInto-8              	   72969	     16452 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium128x256/AccumulateColumnSumsInto-8    	   72916	     16474 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/DenseBias128x64/RowSumsInto-8               	  236342	      4585 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/DenseBias128x64/ColumnSumsInto-8            	  263276	      4583 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/DenseBias128x64/AccumulateColumnSumsInto-8  	  304788	      3934 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Large512x512/RowSumsInto-8                  	    6888	    173487 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Large512x512/ColumnSumsInto-8               	    9276	    131657 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Large512x512/AccumulateColumnSumsInto-8     	    9309	    129327 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven17x257/RowSumsInto-8                  	  419443	      2958 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven17x257/ColumnSumsInto-8               	  544620	      2210 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven17x257/AccumulateColumnSumsInto-8     	  547801	      2192 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven257x17/RowSumsInto-8                  	  541345	      2215 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven257x17/ColumnSumsInto-8               	  553198	      2149 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven257x17/AccumulateColumnSumsInto-8     	  559137	      2143 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	40.069s
+```
+
+### After Focused Reduction Benchmark
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_RowSums-8                    	   18403	     55042 ns/op	    2048 B/op	       1 allocs/op
+Benchmark_RowSumsInto-8                	   27550	     43419 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ColumnSums-8                 	   41030	     29193 ns/op	    2048 B/op	       1 allocs/op
+Benchmark_ColumnSumsInto-8             	  122601	      9545 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AccumulateColumnSumsInto-8   	  126411	      9527 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	7.587s
+```
+
+### After Reduction Shape Benchmark
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_ReductionCandidates/Small1x1/RowSumsInto-8         	169099635	         7.052 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x1/ColumnSumsInto-8      	158332886	         7.584 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x1/AccumulateColumnSumsInto-8         	170201479	         7.053 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x3/RowSumsInto-8                      	145454221	         8.180 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x3/ColumnSumsInto-8                   	122225205	        10.12 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x3/AccumulateColumnSumsInto-8         	146460081	         8.176 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small3x1/RowSumsInto-8                      	131702719	         9.089 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small3x1/ColumnSumsInto-8                   	124763030	         9.617 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small3x1/AccumulateColumnSumsInto-8         	132372315	         9.062 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium64x64/RowSumsInto-8                   	  522244	      2294 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium64x64/ColumnSumsInto-8                	 1638116	       714.8 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium64x64/AccumulateColumnSumsInto-8      	 1675592	       710.0 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium128x256/RowSumsInto-8                 	   56031	     22092 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium128x256/ColumnSumsInto-8              	  254808	      4699 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium128x256/AccumulateColumnSumsInto-8    	  256627	      4682 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/DenseBias128x64/RowSumsInto-8               	  261828	      4589 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/DenseBias128x64/ColumnSumsInto-8            	  846627	      1410 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/DenseBias128x64/AccumulateColumnSumsInto-8  	  845128	      1420 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Large512x512/RowSumsInto-8                  	    6746	    184234 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Large512x512/ColumnSumsInto-8               	   33021	     36183 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Large512x512/AccumulateColumnSumsInto-8     	   33175	     36048 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven17x257/RowSumsInto-8                  	  418369	      2994 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven17x257/ColumnSumsInto-8               	 2221549	       540.0 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven17x257/AccumulateColumnSumsInto-8     	 2289291	       524.0 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven257x17/RowSumsInto-8                  	  542145	      2219 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven257x17/ColumnSumsInto-8               	  815371	      1486 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven257x17/AccumulateColumnSumsInto-8     	  826794	      1467 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	44.320s
+```
+
+### Pure Go Reduction Shape Benchmark
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_ReductionCandidates/Small1x1/RowSumsInto-8         	168585546	         7.036 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x1/ColumnSumsInto-8      	154568272	         7.729 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x1/AccumulateColumnSumsInto-8         	166357624	         7.214 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x3/RowSumsInto-8                      	149150107	         8.085 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x3/ColumnSumsInto-8                   	100000000	        10.01 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small1x3/AccumulateColumnSumsInto-8         	141571698	         8.452 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small3x1/RowSumsInto-8                      	131057655	         9.111 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small3x1/ColumnSumsInto-8                   	121296528	         9.910 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Small3x1/AccumulateColumnSumsInto-8         	128348400	         9.373 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium64x64/RowSumsInto-8                   	  522816	      2303 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium64x64/ColumnSumsInto-8                	  809532	      1314 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium64x64/AccumulateColumnSumsInto-8      	  990337	      1220 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium128x256/RowSumsInto-8                 	   56022	     21599 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium128x256/ColumnSumsInto-8              	  114962	     10334 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Medium128x256/AccumulateColumnSumsInto-8    	  116137	     10329 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/DenseBias128x64/RowSumsInto-8               	  261612	      4584 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/DenseBias128x64/ColumnSumsInto-8            	  408775	      2471 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/DenseBias128x64/AccumulateColumnSumsInto-8  	  501016	      2412 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Large512x512/RowSumsInto-8                  	    6907	    173458 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Large512x512/ColumnSumsInto-8               	   15715	     76715 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Large512x512/AccumulateColumnSumsInto-8     	   14742	     76421 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven17x257/RowSumsInto-8                  	  418024	      2868 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven17x257/ColumnSumsInto-8               	  857472	      1398 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven17x257/AccumulateColumnSumsInto-8     	  861189	      1383 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven257x17/RowSumsInto-8                  	  540672	      2215 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven257x17/ColumnSumsInto-8               	  508123	      2524 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ReductionCandidates/Uneven257x17/AccumulateColumnSumsInto-8     	  489586	      2605 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	41.263s
+```
+
+### Dense After
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/layer
+cpu: Apple M3
+Benchmark_DenseForward_XOR-8            	12974270	        95.59 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DenseForward_MediumBatch-8    	    7038	    169038 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DenseBackward_XOR-8           	 8105649	       146.2 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DenseBackward_MediumBatch-8   	    3831	    313755 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/layer	5.521s
+```
+
+### Test Output
+
+```text
+ok  	github.com/itsmontoya/neuralnetwork/matrix	0.235s
+```
+
+```text
+ok  	github.com/itsmontoya/neuralnetwork/matrix	0.314s
+```
+
+```text
+ok  	github.com/itsmontoya/neuralnetwork/activation	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/data	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/heart	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/multiclass	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/regression	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/toycode	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/xor	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/internal/testutil	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/layer	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/loss	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/matrix	0.166s
+ok  	github.com/itsmontoya/neuralnetwork/metric	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/model	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/optimizer	(cached)
+```
+
+### Interpretation
+
+The integrated candidate preserves reduction allocation behavior: all
+destination reduction benchmarks still report zero allocations. The 256x256
+focused `ColumnSumsInto` benchmark improved from 32.822 us to 9.545 us, and
+`AccumulateColumnSumsInto` improved from 32.801 us to 9.527 us.
+
+The shape benchmarks show the column-reduction candidate wins on the relevant
+medium, large, and uneven shapes. The dense bias shape used by
+`Dense.Backward` improves from 4.583 us to 1.410 us for `ColumnSumsInto` and
+from 3.934 us to 1.420 us for `AccumulateColumnSumsInto`. The pure Go build is
+also faster than the pre-change nested loop because it reuses the package-local
+row add helper, but the active arm64 path is still materially faster than
+`purego` on medium, large, and wide uneven shapes.
+
+Small shapes stay on the scalar nested loop and remain effectively unchanged.
+`RowSumsInto` remains scalar and benchmark-only for future SIMD consideration.
+The dense backward medium benchmark improved from the immediate before run of
+326.578 us to 313.755 us after this change, with zero allocations.
