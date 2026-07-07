@@ -1076,3 +1076,352 @@ for `2x2`, `4x4`, and `17x33 * 33x19`, approximately even for `64x64` and
 result is not stable enough to integrate without real arm64 SIMD evidence, so
 the existing pure Go multiplication loops remain the fallback for all public
 matrix methods.
+
+## V2 SIMD Elementwise Session
+
+Captured on July 7, 2026.
+
+This session added private elementwise kernel boundaries for the candidate
+operations defined in [`docs/simd.md`](docs/simd.md). On `arm64 && !purego`
+and `amd64 && !purego`, `AddInto`, `SubtractInto`, `AddScaledInPlace`, and
+`AddScalarInto` use small Go assembly kernels. The arm64 kernels are built from
+`VFMLA`; the amd64 kernels use baseline SSE2 instructions. Small inputs below
+16 elements use the pure Go helper to avoid assembly call overhead. Other
+architectures and `purego` builds use the pure Go helpers.
+
+`MultiplyElementsInto`, `MultiplyScalarInto`, and `MultiplyScalarInPlace` remain
+pure Go on every architecture. The current Go arm64 assembler has `VFMLA`
+support, but direct vector float multiply is still marked TODO in the assembler
+testdata. Baseline amd64 has packed multiply, but the standalone multiply
+candidates remain pure Go so arm64 and amd64 expose the same integrated
+operation set for v2. Using fused multiply-add with a zero accumulator would
+not be a direct multiply kernel, so the multiply candidates were rejected for
+v2 SIMD integration until direct vector multiply support or an approved
+generated kernel is available.
+
+### Commands
+
+```sh
+go test ./matrix -run 'Test_Elementwise|Test_Scalar|Test_Divide|Test_NilMatrixValidation'
+go test ./matrix -run '^$' -bench='(AddInto|SubtractInto|MultiplyElementsInto|AddScaledInPlace|AddScalarInto|MultiplyScalarInto|MultiplyScalarInPlace)' -benchmem
+go test ./matrix
+go test ./matrix -run '^$' -bench='ElementwiseCandidates' -benchmem
+go test ./matrix -run '^$' -bench='(AddInto|SubtractInto|MultiplyElementsInto|AddScaledInPlace|AddScalarInto|MultiplyScalarInto|MultiplyScalarInPlace)' -benchmem
+env GOOS=darwin GOARCH=amd64 go test ./matrix
+env GOOS=darwin GOARCH=amd64 go test ./matrix -run '^$' -bench='ElementwiseCandidates/.*/(AddInto|SubtractInto|AddScaledInPlace|AddScalarInto)' -benchmem
+go test ./...
+go test ./matrix -tags=purego
+go fmt ./...
+go vet ./...
+go test ./... -race
+```
+
+### Before Focused Elementwise Benchmark
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_AddInto-8                 	   29370	     36470 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AddScaledInPlace-8        	   39426	     30043 ns/op	       0 B/op	       0 allocs/op
+Benchmark_SubtractInto-8            	   32694	     36648 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MultiplyElementsInto-8    	   32392	     36755 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AddScalarInto-8           	   45784	     26178 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MultiplyScalarInto-8      	   45817	     26162 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MultiplyScalarInPlace-8   	   67922	     17724 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	10.679s
+```
+
+### Candidate Benchmark Output
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_ElementwiseCandidates/Small1x1/AddInto/Pure-8         	615545736	         1.824 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/AddInto/Active-8       	757675608	         1.589 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/SubtractInto/Pure-8    	752978580	         1.594 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/SubtractInto/Active-8  	752052477	         1.592 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/MultiplyElementsInto/Pure-8         	745339683	         1.594 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/MultiplyElementsInto/Active-8       	749353878	         1.597 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/AddScaledInPlace/Pure-8             	709598876	         1.633 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/AddScaledInPlace/Active-8           	724579705	         1.738 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/AddScalarInto/Pure-8                	751727408	         1.595 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/AddScalarInto/Active-8              	751051861	         1.596 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/MultiplyScalarInto/Pure-8           	749190134	         1.599 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/MultiplyScalarInto/Active-8         	750656434	         1.598 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/MultiplyScalarInPlace/Pure-8        	894146409	         1.324 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/MultiplyScalarInPlace/Active-8      	903404422	         1.326 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/AddInto/Pure-8                      	452782275	         2.650 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/AddInto/Active-8                    	463658509	         2.390 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/SubtractInto/Pure-8                 	500419970	         2.399 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/SubtractInto/Active-8               	501463558	         2.395 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/MultiplyElementsInto/Pure-8         	500520420	         2.395 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/MultiplyElementsInto/Active-8       	500342072	         2.395 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/AddScaledInPlace/Pure-8             	501331662	         2.392 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/AddScaledInPlace/Active-8           	501243100	         2.400 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/AddScalarInto/Pure-8                	500894304	         2.500 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/AddScalarInto/Active-8              	478873608	         2.412 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/MultiplyScalarInto/Pure-8           	496693450	         2.402 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/MultiplyScalarInto/Active-8         	499393876	         2.402 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/MultiplyScalarInPlace/Pure-8        	461753426	         2.572 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/MultiplyScalarInPlace/Active-8      	467450815	         2.561 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/AddInto/Pure-8                      	393563271	         3.093 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/AddInto/Active-8                    	446951371	         2.716 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/SubtractInto/Pure-8                 	406995460	         2.799 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/SubtractInto/Active-8               	441594861	         2.723 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/MultiplyElementsInto/Pure-8         	441342784	         2.783 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/MultiplyElementsInto/Active-8       	437653986	         2.795 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/AddScaledInPlace/Pure-8             	432388867	         2.795 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/AddScaledInPlace/Active-8           	436857681	         2.792 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/AddScalarInto/Pure-8                	431382282	         2.903 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/AddScalarInto/Active-8              	426077038	         2.801 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/MultiplyScalarInto/Pure-8           	429000493	         2.908 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/MultiplyScalarInto/Active-8         	423744897	         2.817 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/MultiplyScalarInPlace/Pure-8        	425879388	         2.815 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/MultiplyScalarInPlace/Active-8      	426082838	         2.809 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/AddInto/Pure-8                      	357109201	         3.614 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/AddInto/Active-8                    	405730035	         3.192 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/SubtractInto/Pure-8                 	381151123	         3.264 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/SubtractInto/Active-8               	392952559	         3.265 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/MultiplyElementsInto/Pure-8         	373300801	         3.363 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/MultiplyElementsInto/Active-8       	369831792	         3.416 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/AddScaledInPlace/Pure-8             	387603366	         3.210 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/AddScaledInPlace/Active-8           	365183274	         3.348 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/AddScalarInto/Pure-8                	356842743	         3.539 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/AddScalarInto/Active-8              	373940599	         3.272 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/MultiplyScalarInto/Pure-8           	352139368	         3.524 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/MultiplyScalarInto/Active-8         	398618454	         3.340 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/MultiplyScalarInPlace/Pure-8        	386750517	         3.117 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/MultiplyScalarInPlace/Active-8      	387089125	         3.107 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/AddInto/Pure-8                 	   45559	     26314 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/AddInto/Active-8               	  105346	     10454 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/SubtractInto/Pure-8            	   45468	     26306 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/SubtractInto/Active-8          	  104346	     10446 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/MultiplyElementsInto/Pure-8    	   45652	     26327 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/MultiplyElementsInto/Active-8  	   45676	     26270 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/AddScaledInPlace/Pure-8        	   65707	     18093 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/AddScaledInPlace/Active-8      	  103530	     11544 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/AddScalarInto/Pure-8           	   68457	     17521 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/AddScalarInto/Active-8         	  191715	      6609 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/MultiplyScalarInto/Pure-8      	   68037	     17896 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/MultiplyScalarInto/Active-8    	   68194	     17513 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/MultiplyScalarInPlace/Pure-8   	   68451	     17535 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/MultiplyScalarInPlace/Active-8 	   68590	     17477 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddInto/Pure-8                	    2760	    429025 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddInto/Active-8              	    5049	    236039 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/SubtractInto/Pure-8           	    2812	    431848 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/SubtractInto/Active-8         	    4940	    234843 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyElementsInto/Pure-8   	    2802	    432028 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyElementsInto/Active-8 	    2775	    432660 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddScaledInPlace/Pure-8       	    3885	    310177 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddScaledInPlace/Active-8     	    6115	    190881 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddScalarInto/Pure-8          	    4154	    282672 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddScalarInto/Active-8        	    7560	    142029 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyScalarInto/Pure-8     	    4203	    284781 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyScalarInto/Active-8   	    4246	    283002 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyScalarInPlace/Pure-8  	    4228	    280827 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyScalarInPlace/Active-8         	    4261	    286578 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/AddInto/Pure-8                            	 8831820	       135.4 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/AddInto/Active-8                          	33554466	        35.76 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/SubtractInto/Pure-8                       	 8865679	       135.0 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/SubtractInto/Active-8                     	33563773	        35.84 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/MultiplyElementsInto/Pure-8               	 8887275	       134.8 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/MultiplyElementsInto/Active-8             	 8871367	       134.7 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/AddScaledInPlace/Pure-8                   	12132230	        97.47 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/AddScaledInPlace/Active-8                 	32692796	        37.24 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/AddScalarInto/Pure-8                      	12326745	        98.16 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/AddScalarInto/Active-8                    	38978860	        31.32 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/MultiplyScalarInto/Pure-8                 	12294776	        97.33 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/MultiplyScalarInto/Active-8               	12339891	        97.23 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/MultiplyScalarInPlace/Pure-8              	12608738	        94.46 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/MultiplyScalarInPlace/Active-8            	12580406	        94.48 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/AddInto/Pure-8                          	   45667	     26266 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/AddInto/Active-8                        	  107318	     11802 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/SubtractInto/Pure-8                     	   45504	     26286 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/SubtractInto/Active-8                   	  105236	     10426 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/MultiplyElementsInto/Pure-8             	   45624	     26295 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/MultiplyElementsInto/Active-8           	   45574	     26272 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/AddScaledInPlace/Pure-8                 	   65479	     18208 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/AddScaledInPlace/Active-8               	  103299	     11594 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/AddScalarInto/Pure-8                    	   68505	     17488 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/AddScalarInto/Active-8                  	  150526	      8021 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/MultiplyScalarInto/Pure-8               	   68566	     17716 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/MultiplyScalarInto/Active-8             	   62533	     19241 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/MultiplyScalarInPlace/Pure-8            	   68670	     17467 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/MultiplyScalarInPlace/Active-8          	   68382	     17516 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	159.057s
+```
+
+### After Focused Elementwise Benchmark
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_AddInto-8                 	  101328	     12311 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AddScaledInPlace-8        	  104262	     11583 ns/op	       0 B/op	       0 allocs/op
+Benchmark_SubtractInto-8            	  116160	     10230 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MultiplyElementsInto-8    	   45560	     26166 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AddScalarInto-8           	  175576	      9310 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MultiplyScalarInto-8      	   68827	     17407 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MultiplyScalarInPlace-8   	   68882	     17353 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	11.859s
+```
+
+### AMD64 Focused Candidate Benchmark
+
+```text
+goos: darwin
+goarch: amd64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: VirtualApple @ 2.50GHz
+Benchmark_ElementwiseCandidates/Small1x1/AddInto/Pure-8         	561513948	         2.134 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/AddInto/Active-8       	558361473	         2.138 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/SubtractInto/Pure-8    	563063944	         2.132 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/SubtractInto/Active-8  	252130546	         4.756 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/AddScaledInPlace/Pure-8         	373203712	         3.210 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/AddScaledInPlace/Active-8       	373074633	         3.224 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/AddScalarInto/Pure-8            	562193974	         2.136 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x1/AddScalarInto/Active-8          	191898369	         6.242 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/AddInto/Pure-8                  	407978355	         2.936 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/AddInto/Active-8                	407988296	         2.941 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/SubtractInto/Pure-8             	408856746	         2.933 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/SubtractInto/Active-8           	218041082	         5.503 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/AddScaledInPlace/Pure-8         	367857669	         3.257 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/AddScaledInPlace/Active-8       	345961113	         3.466 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/AddScalarInto/Pure-8            	408663088	         2.936 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x2/AddScalarInto/Active-8          	168325471	         7.126 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/AddInto/Pure-8                  	364422770	         3.369 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/AddInto/Active-8                	367110470	         3.351 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/SubtractInto/Pure-8             	357921637	         3.450 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/SubtractInto/Active-8           	201060384	         5.980 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/AddScaledInPlace/Pure-8         	338700481	         3.556 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/AddScaledInPlace/Active-8       	312850123	         3.816 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/AddScalarInto/Pure-8            	352677014	         3.397 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small1x3/AddScalarInto/Active-8          	159259566	         7.644 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/AddInto/Pure-8                  	310303164	         3.945 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/AddInto/Active-8                	315202098	         4.213 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/SubtractInto/Pure-8             	311403328	         3.957 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/SubtractInto/Active-8           	181326721	         6.677 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/AddScaledInPlace/Pure-8         	304981845	         3.933 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/AddScaledInPlace/Active-8       	264542755	         4.553 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/AddScalarInto/Pure-8            	335155000	         3.824 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Small2x2/AddScalarInto/Active-8          	145533478	         8.353 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/AddInto/Pure-8             	   37687	     31828 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/AddInto/Active-8           	   80376	     14905 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/SubtractInto/Pure-8        	   37716	     31870 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/SubtractInto/Active-8      	   80121	     14895 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/AddScaledInPlace/Pure-8    	   58813	     20344 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/AddScaledInPlace/Active-8  	   99526	     11982 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/AddScalarInto/Pure-8       	   63614	     19406 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Medium256x256/AddScalarInto/Active-8     	  111032	     11104 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddInto/Pure-8            	    2205	    524313 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddInto/Active-8          	    4263	    272603 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/SubtractInto/Pure-8       	    2287	    524728 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/SubtractInto/Active-8     	    4203	    277864 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddScaledInPlace/Pure-8   	    3666	    329640 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddScaledInPlace/Active-8 	    5956	    203988 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddScalarInto/Pure-8      	    3878	    314137 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddScalarInto/Active-8    	    6549	    179994 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/AddInto/Pure-8               	 8801661	       135.9 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/AddInto/Active-8             	29873937	        39.30 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/SubtractInto/Pure-8          	 8858367	       135.5 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/SubtractInto/Active-8        	28904286	        41.13 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/AddScaledInPlace/Pure-8      	12100423	        98.99 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/AddScaledInPlace/Active-8    	24485610	        48.81 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/AddScalarInto/Pure-8         	12120462	        98.95 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven17x19/AddScalarInto/Active-8       	35498974	        33.63 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/AddInto/Pure-8             	   37356	     31780 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/AddInto/Active-8           	   79959	     14946 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/SubtractInto/Pure-8        	   37656	     31808 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/SubtractInto/Active-8      	   80200	     14869 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/AddScaledInPlace/Pure-8    	   59012	     20367 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/AddScaledInPlace/Active-8  	   99830	     12880 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/AddScalarInto/Pure-8       	   63374	     18953 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ElementwiseCandidates/Uneven255x257/AddScalarInto/Active-8     	  112591	     10645 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	94.922s
+```
+
+### Test Output
+
+```text
+ok  	github.com/itsmontoya/neuralnetwork/activation	0.159s
+ok  	github.com/itsmontoya/neuralnetwork/data	0.262s
+ok  	github.com/itsmontoya/neuralnetwork/examples/heart	0.329s
+ok  	github.com/itsmontoya/neuralnetwork/examples/multiclass	0.422s
+ok  	github.com/itsmontoya/neuralnetwork/examples/regression	0.538s
+ok  	github.com/itsmontoya/neuralnetwork/examples/toycode	0.659s
+ok  	github.com/itsmontoya/neuralnetwork/examples/xor	0.772s
+ok  	github.com/itsmontoya/neuralnetwork/internal/testutil	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/layer	0.864s
+ok  	github.com/itsmontoya/neuralnetwork/loss	0.937s
+ok  	github.com/itsmontoya/neuralnetwork/matrix	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/metric	1.046s
+ok  	github.com/itsmontoya/neuralnetwork/model	0.939s
+ok  	github.com/itsmontoya/neuralnetwork/optimizer	0.895s
+```
+
+```text
+ok  	github.com/itsmontoya/neuralnetwork/matrix	0.473s
+```
+
+```text
+ok  	github.com/itsmontoya/neuralnetwork/matrix	0.199s
+```
+
+### Race Test Output
+
+```text
+ok  	github.com/itsmontoya/neuralnetwork/activation	1.206s
+ok  	github.com/itsmontoya/neuralnetwork/data	1.330s
+ok  	github.com/itsmontoya/neuralnetwork/examples/heart	1.455s
+ok  	github.com/itsmontoya/neuralnetwork/examples/multiclass	1.479s
+ok  	github.com/itsmontoya/neuralnetwork/examples/regression	1.596s
+ok  	github.com/itsmontoya/neuralnetwork/examples/toycode	1.657s
+ok  	github.com/itsmontoya/neuralnetwork/examples/xor	1.771s
+ok  	github.com/itsmontoya/neuralnetwork/internal/testutil	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/layer	1.926s
+ok  	github.com/itsmontoya/neuralnetwork/loss	1.166s
+ok  	github.com/itsmontoya/neuralnetwork/matrix	1.151s
+ok  	github.com/itsmontoya/neuralnetwork/metric	1.237s
+ok  	github.com/itsmontoya/neuralnetwork/model	1.156s
+ok  	github.com/itsmontoya/neuralnetwork/optimizer	1.231s
+```
+
+### Interpretation
+
+The integrated arm64 and amd64 elementwise kernels preserve validation and
+ownership because public methods still validate matrix shape before passing
+package-owned storage to private helpers. Correctness tests compare the active
+helpers with the pure Go references for empty input, sizes below and at the
+vector width, multi-vector lengths, scalar tails, uneven lengths, negative
+values, zeros, `Inf`, and `NaN`. The `purego` build also passes.
+
+`AddInto`, `SubtractInto`, `AddScaledInPlace`, and `AddScalarInto` showed stable
+wins on medium, large, and uneven shapes and are integrated for
+`arm64 && !purego` and `amd64 && !purego`. The public arm64 256x256 focused
+benchmarks improved from 36.470 us to 12.311 us for `AddInto`, 36.648 us to
+10.230 us for `SubtractInto`, 30.043 us to 11.583 us for `AddScaledInPlace`,
+and 26.178 us to 9.310 us for `AddScalarInto`, all with zero allocations.
+
+The local darwin/amd64 benchmark ran as an amd64 binary on Apple silicon and
+reported `VirtualApple @ 2.50GHz`. It still showed the same integrated set
+winning on candidate shapes: 256x256 improved from 31.828 us to 14.905 us for
+`AddInto`, 31.870 us to 14.895 us for `SubtractInto`, 20.344 us to 11.982 us
+for `AddScaledInPlace`, and 19.406 us to 11.104 us for `AddScalarInto`, all
+with zero allocations.
+
+The multiply candidates remain pure Go. `MultiplyElementsInto`,
+`MultiplyScalarInto`, and `MultiplyScalarInPlace` still report zero allocations,
+and the focused after benchmark shows no allocation regression. Direct SIMD
+multiply should wait for direct vector multiply support or an approved generated
+kernel so the implementation does not rely on fused multiply-add as a substitute
+for plain multiplication.
