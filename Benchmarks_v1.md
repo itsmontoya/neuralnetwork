@@ -954,3 +954,125 @@ owned results as part of their mutation-protection contracts.
 The remaining model and activation allocation counts are documented as
 benchmark-only. They should continue to be watched in the benchmark history
 rather than enforced through narrow allocation assertions.
+
+## V2 SIMD Dot-Product Session
+
+Captured on July 7, 2026.
+
+The SIMD implementation approach is documented in [`docs/simd.md`](docs/simd.md).
+This session added a private dot-product kernel boundary and benchmark coverage.
+The active `arm64 && !purego` and `amd64 && !purego` entry points currently
+route to the scalar reference until architecture-specific assembly can be
+implemented and benchmarked. `arm64` is the primary development and measurement
+path; `amd64` is also a supported target. Other architectures use the pure Go
+fallback.
+
+### Commands
+
+```sh
+go test ./matrix -run '^$' -bench=MatMul -benchmem
+go test ./...
+go test ./matrix -run '^$' -bench='(DotProduct|MatMul)' -benchmem
+```
+
+### Before Matrix Multiplication Benchmark
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_MatMul-8                     	    7984	    151200 ns/op	   32817 B/op	       2 allocs/op
+Benchmark_MatMulInto-8                 	    8124	    147964 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulLeftTransposeInto-8    	    8020	    148776 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeInto-8   	    7540	    161584 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	6.072s
+```
+
+### Test Output
+
+```text
+ok  	github.com/itsmontoya/neuralnetwork/activation	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/data	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/heart	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/multiclass	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/regression	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/toycode	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/xor	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/internal/testutil	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/layer	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/loss	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/matrix	0.231s
+ok  	github.com/itsmontoya/neuralnetwork/metric	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/model	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/optimizer	(cached)
+```
+
+### Dot Product and Matrix Shape Benchmark Output
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_DotProduct/Length1-8                 	1000000000	         0.7463 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DotProduct/Length2-8                 	802354690	         1.493 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DotProduct/Length3-8                 	638188676	         1.865 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DotProduct/Length4-8                 	575595699	         2.171 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DotProduct/Length5-8                 	523495780	         2.316 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DotProduct/Length31-8                	95975046	        12.55 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DotProduct/Length33-8                	90624741	        13.13 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DotProduct/Length64-8                	33879961	        35.32 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DotProduct/Length257-8               	 5999739	       200.0 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DotProduct/Length4096-8              	  298564	      4020 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DotProduct/Length4099-8              	  298164	      4029 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DotProduct/Length65537-8             	   18268	     65323 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeDotCandidate/Small2x2-8         	100000000	        12.25 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeDotCandidate/Small4x4-8         	21444686	        56.73 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeDotCandidate/Medium64x64-8      	    7672	    155951 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeDotCandidate/Large128x256x128-8 	     332	   3606813 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeDotCandidate/Uneven17x33x19-8   	  234943	      5050 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeDotCandidate/Uneven63x65x31-8   	   15837	     75506 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMul-8                                            	    7910	    150485 ns/op	   32816 B/op	       2 allocs/op
+Benchmark_MatMulInto-8                                        	    8012	    149653 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulLeftTransposeInto-8                           	    7983	    149943 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeInto-8                          	    7430	    161655 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulShapes/Small2x2-8                             	27131545	        41.81 ns/op	      80 B/op	       2 allocs/op
+Benchmark_MatMulShapes/Small4x4-8                             	11417338	       103.7 ns/op	     176 B/op	       2 allocs/op
+Benchmark_MatMulShapes/Medium64x64-8                          	    7906	    157169 ns/op	   32816 B/op	       2 allocs/op
+Benchmark_MatMulShapes/Large128x256x128-8                     	     471	   2501597 ns/op	  131120 B/op	       2 allocs/op
+Benchmark_MatMulShapes/Uneven17x33x19-8                       	  171226	      6976 ns/op	    2736 B/op	       2 allocs/op
+Benchmark_MatMulShapes/Uneven63x65x31-8                       	   15445	     77652 ns/op	   16432 B/op	       2 allocs/op
+Benchmark_MatMulRightTransposeIntoShapes/Small2x2-8           	54865818	        21.65 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeIntoShapes/Small4x4-8           	14661009	        80.94 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeIntoShapes/Medium64x64-8        	    7676	    158114 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeIntoShapes/Large128x256x128-8   	     354	   3363504 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeIntoShapes/Uneven17x33x19-8     	  173622	      6894 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeIntoShapes/Uneven63x65x31-8     	   15408	     77961 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	46.314s
+```
+
+### Interpretation
+
+The private dot-product boundary reports zero allocations across the small,
+medium, large, and uneven lengths defined in `docs/simd.md`. Correctness tests
+compare the active kernel to the pure Go reference for empty input, sizes below
+and at the expected vector width, multi-vector lengths, scalar tails, uneven
+lengths, and `Inf`/`NaN` inputs.
+
+No SIMD assembly was integrated in this session. The checked-in `arm64` and
+`amd64` architecture entry points deliberately use the scalar reference until
+each architecture has benchmark evidence proving an assembly kernel is stable.
+The arm64 path is no longer treated as fallback-only; it is the first target for
+future kernel implementation because this repository's current evidence is
+captured on `darwin/arm64`.
+
+Production matrix multiplication remains unchanged. A test-only
+right-transpose candidate that calls the scalar dot-product kernel was faster
+for `2x2`, `4x4`, and `17x33 * 33x19`, approximately even for `64x64` and
+`63x65 * 65x31`, and slower for `128x256 * 256x128`. That mixed scalar-fallback
+result is not stable enough to integrate without real arm64 SIMD evidence, so
+the existing pure Go multiplication loops remain the fallback for all public
+matrix methods.
