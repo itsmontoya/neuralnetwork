@@ -716,3 +716,78 @@ matrices does not mutate stored samples.
 The fit re-run reflects the lower batching cost: `SequentialFit_XOR` reports
 1784 B/op and 37 allocs/op, and `SequentialFit_SyntheticDense` reports
 720420 B/op and 109 allocs/op.
+
+## V2 Sequential Fit Allocation Reduction
+
+Captured on July 7, 2026.
+
+### Commands
+
+```sh
+go test ./model -run '^$' -bench=Sequential -benchmem
+go test ./data ./model
+go test ./...
+go test ./model -run '^$' -bench=Sequential -benchmem
+```
+
+### Allocation Audit
+
+The fit allocation sources were direct copy paths in model orchestration:
+
+| Package | Path | Finding | Change |
+| --- | --- | --- | --- |
+| `model` | `validateFitDataset` | Fit validation cloned full dataset inputs and targets through `Dataset.Inputs` and `Dataset.Targets` before every fit call. | Added `Dataset.Validate` and changed fit validation to validate dataset-owned matrices without copying them. |
+| `model` | `trainFitEpoch` | Each mini-batch already owned copied row-selected matrices, then `Batch.Inputs` and `Batch.Targets` cloned those matrices again before `TrainBatch`. | Added `Batch.InputsInto` and `Batch.TargetsInto`, then reused fit-owned scratch matrices for batch training inputs and targets. |
+| `model` | `evaluateFitDataset` | Each training and validation evaluation cloned full dataset inputs and targets every epoch. | Added `Dataset.InputsInto` and `Dataset.TargetsInto`, then reused separate fit-owned scratch matrices for training and validation evaluation. |
+| `data` | Copy-into accessors | Existing public accessors intentionally returned defensive copies, with no destination form available for repeated copy-protected reads. | Added destination accessors that copy into caller-owned matrices and keep dataset and batch storage private. |
+
+Remaining allocations are inherited from batch construction, activation output
+matrices, loss gradient matrices, optimizer/model bookkeeping, history growth,
+and user callback or accuracy paths. `Dataset.Batches` still creates owned
+mini-batch matrices each epoch so training order, shuffle behavior, and mutation
+protection remain unchanged.
+
+### Model Before
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialTrainBatch_XOR-8              	  734689	      1564 ns/op	     672 B/op	      14 allocs/op
+Benchmark_SequentialFit_XOR-8                     	  505905	      2404 ns/op	    1784 B/op	      37 allocs/op
+Benchmark_SequentialTrainBatch_SyntheticDense-8   	    1543	    783709 ns/op	  147919 B/op	      10 allocs/op
+Benchmark_SequentialFit_SyntheticDense-8          	    1118	   1065715 ns/op	  720413 B/op	     109 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/model	5.856s
+```
+
+### Model After
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialTrainBatch_XOR-8              	  764514	      1551 ns/op	     672 B/op	      14 allocs/op
+Benchmark_SequentialFit_XOR-8                     	  512886	      2345 ns/op	    1592 B/op	      33 allocs/op
+Benchmark_SequentialTrainBatch_SyntheticDense-8   	    1560	    765376 ns/op	  147916 B/op	      10 allocs/op
+Benchmark_SequentialFit_SyntheticDense-8          	    1144	   1044033 ns/op	  634013 B/op	      93 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/model	5.943s
+```
+
+### Interpretation
+
+The fit-only scratch reuse leaves `SequentialTrainBatch` allocation counts
+unchanged, as expected. `SequentialFit_XOR` drops from 1784 B/op and 37
+allocs/op to 1592 B/op and 33 allocs/op. `SequentialFit_SyntheticDense` drops
+from 720413 B/op and 109 allocs/op to 634013 B/op and 93 allocs/op.
+
+The public copy-protection contracts remain intact: `Dataset.Inputs`,
+`Dataset.Targets`, `Batch.Inputs`, and `Batch.Targets` still return defensive
+copies. The new destination accessors copy into caller-owned matrices and do
+not expose dataset or batch storage. Tests cover copy-into behavior, wrong-shape
+errors, validation data, callback errors, early stopping, shuffle
+reproducibility, and training-mode restoration after evaluation prediction,
+loss, and accuracy errors.

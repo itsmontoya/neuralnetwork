@@ -787,6 +787,142 @@ func Test_Sequential_FitRestoresTrainingModeAfterBatchFailure(t *testing.T) {
 	}
 }
 
+func Test_Sequential_FitRestoresTrainingModeAfterEvaluationPredictionFailure(t *testing.T) {
+	var (
+		predictErr    error
+		mode          *evaluationErrorLayer
+		network       *model.Sequential
+		dataset       *data.Dataset
+		optimizerRule *recordingOptimizer
+		history       model.TrainingHistory
+		err           error
+	)
+
+	predictErr = errors.New("evaluation prediction failed")
+	mode = &evaluationErrorLayer{err: predictErr}
+	network, err = model.NewSequential(mode)
+	if err != nil {
+		t.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	if err = network.SetTraining(false); err != nil {
+		t.Fatalf("SetTraining returned error: %v", err)
+	}
+
+	dataset = mustSequenceDataset(t)
+	optimizerRule = &recordingOptimizer{}
+	history, err = network.Fit(dataset, model.FitConfig{
+		Epochs:    1,
+		BatchSize: 2,
+		Optimizer: optimizerRule,
+		Loss:      loss.MeanSquaredError{},
+	})
+	if !errors.Is(err, predictErr) {
+		t.Fatalf("Fit error = %v, want %v", err, predictErr)
+	}
+
+	requireEpochCount(t, history, 0)
+	if network.Training() {
+		t.Fatal("Training = true, want restored false")
+	}
+
+	if mode.modes[len(mode.modes)-1] {
+		t.Fatal("mode layer final training mode = true, want false")
+	}
+}
+
+func Test_Sequential_FitRestoresTrainingModeAfterEvaluationLossFailure(t *testing.T) {
+	var (
+		mode          *modeLayer
+		network       *model.Sequential
+		dataset       *data.Dataset
+		optimizerRule *recordingOptimizer
+		lossFunc      *sequenceLoss
+		history       model.TrainingHistory
+		err           error
+	)
+
+	mode = &modeLayer{}
+	network, err = model.NewSequential(mode)
+	if err != nil {
+		t.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	if err = network.SetTraining(false); err != nil {
+		t.Fatalf("SetTraining returned error: %v", err)
+	}
+
+	dataset = mustSequenceDataset(t)
+	optimizerRule = &recordingOptimizer{}
+	lossFunc = &sequenceLoss{values: []float64{0}}
+	history, err = network.Fit(dataset, model.FitConfig{
+		Epochs:    1,
+		BatchSize: 2,
+		Optimizer: optimizerRule,
+		Loss:      lossFunc,
+	})
+	if err == nil {
+		t.Fatal("Fit error = nil, want error")
+	}
+
+	requireEpochCount(t, history, 0)
+	if network.Training() {
+		t.Fatal("Training = true, want restored false")
+	}
+
+	if mode.modes[len(mode.modes)-1] {
+		t.Fatal("mode layer final training mode = true, want false")
+	}
+}
+
+func Test_Sequential_FitRestoresTrainingModeAfterAccuracyFailure(t *testing.T) {
+	var (
+		accuracyErr   error
+		mode          *modeLayer
+		network       *model.Sequential
+		dataset       *data.Dataset
+		optimizerRule *recordingOptimizer
+		history       model.TrainingHistory
+		err           error
+	)
+
+	accuracyErr = errors.New("accuracy failed")
+	mode = &modeLayer{}
+	network, err = model.NewSequential(mode)
+	if err != nil {
+		t.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	if err = network.SetTraining(false); err != nil {
+		t.Fatalf("SetTraining returned error: %v", err)
+	}
+
+	dataset = mustSequenceDataset(t)
+	optimizerRule = &recordingOptimizer{}
+	history, err = network.Fit(dataset, model.FitConfig{
+		Epochs:    1,
+		BatchSize: 2,
+		Optimizer: optimizerRule,
+		Loss:      loss.MeanSquaredError{},
+		Accuracy: func(predictions, targets *matrix.Matrix) (accuracy float64, err error) {
+			err = accuracyErr
+			return 0, err
+		},
+	})
+	if !errors.Is(err, accuracyErr) {
+		t.Fatalf("Fit error = %v, want %v", err, accuracyErr)
+	}
+
+	requireEpochCount(t, history, 0)
+	if network.Training() {
+		t.Fatal("Training = true, want restored false")
+	}
+
+	if mode.modes[len(mode.modes)-1] {
+		t.Fatal("mode layer final training mode = true, want false")
+	}
+}
+
 func Test_Sequential_TrainBatchUsesTrainingModeAndRestoresPreviousMode(t *testing.T) {
 	var (
 		dropout *layer.Dropout
@@ -1233,6 +1369,32 @@ type modeLayer struct {
 
 func (m *modeLayer) SetTraining(training bool) {
 	m.modes = append(m.modes, training)
+}
+
+type evaluationErrorLayer struct {
+	training bool
+	modes    []bool
+	err      error
+}
+
+func (e *evaluationErrorLayer) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error) {
+	if !e.training {
+		err = e.err
+		return nil, err
+	}
+
+	output = input
+	return output, nil
+}
+
+func (e *evaluationErrorLayer) Backward(outputGradient *matrix.Matrix) (inputGradient *matrix.Matrix, err error) {
+	inputGradient = outputGradient
+	return inputGradient, nil
+}
+
+func (e *evaluationErrorLayer) SetTraining(training bool) {
+	e.training = training
+	e.modes = append(e.modes, training)
 }
 
 type sequenceLoss struct {

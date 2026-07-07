@@ -1,6 +1,10 @@
 package data
 
-import "github.com/itsmontoya/neuralnetwork/matrix"
+import (
+	"fmt"
+
+	"github.com/itsmontoya/neuralnetwork/matrix"
+)
 
 // newBatch stores matrices that are already owned by the data package.
 func newBatch(inputs, targets *matrix.Matrix) (out *Batch, err error) {
@@ -39,6 +43,40 @@ func (b *Batch) Targets() (targets *matrix.Matrix, err error) {
 
 	targets, err = b.targets.Clone()
 	return targets, err
+}
+
+// InputsInto copies batch inputs into inputs.
+//
+// The destination must match the batch input shape. Values are copied, so
+// mutating the destination does not mutate the batch.
+func (b *Batch) InputsInto(inputs *matrix.Matrix) (err error) {
+	if err = b.validate(); err != nil {
+		return err
+	}
+
+	if err = inputs.CopyFrom(b.inputs); err != nil {
+		err = fmt.Errorf("data: copy batch inputs into destination: %w", err)
+		return err
+	}
+
+	return nil
+}
+
+// TargetsInto copies batch targets into targets.
+//
+// The destination must match the batch target shape. Values are copied, so
+// mutating the destination does not mutate the batch.
+func (b *Batch) TargetsInto(targets *matrix.Matrix) (err error) {
+	if err = b.validate(); err != nil {
+		return err
+	}
+
+	if err = targets.CopyFrom(b.targets); err != nil {
+		err = fmt.Errorf("data: copy batch targets into destination: %w", err)
+		return err
+	}
+
+	return nil
 }
 
 // SampleCount returns the number of paired samples in the batch.
