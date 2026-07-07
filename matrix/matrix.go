@@ -346,11 +346,7 @@ func (m *Matrix) Add(other *Matrix) (result *Matrix, err error) {
 
 	result = m.newLike()
 
-	var index int
-	for index = range result.data {
-		result.data[index] = m.data[index] + other.data[index]
-	}
-
+	addInto(m.data, other.data, result.data)
 	return result, nil
 }
 
@@ -364,11 +360,7 @@ func (m *Matrix) AddInto(other, result *Matrix) (err error) {
 		return err
 	}
 
-	var index int
-	for index = range result.data {
-		result.data[index] = m.data[index] + other.data[index]
-	}
-
+	addInto(m.data, other.data, result.data)
 	return nil
 }
 
@@ -384,11 +376,7 @@ func (m *Matrix) AddScaledInPlace(other *Matrix, scale float64) (err error) {
 		return err
 	}
 
-	var index int
-	for index = range m.data {
-		m.data[index] += scale * other.data[index]
-	}
-
+	addScaledInPlace(m.data, other.data, scale)
 	return nil
 }
 
@@ -463,11 +451,7 @@ func (m *Matrix) MultiplyScalarInPlace(value float64) (err error) {
 		return err
 	}
 
-	var index int
-	for index = range m.data {
-		m.data[index] *= value
-	}
-
+	multiplyScalarInPlace(m.data, value)
 	return nil
 }
 
@@ -479,11 +463,7 @@ func (m *Matrix) Subtract(other *Matrix) (result *Matrix, err error) {
 
 	result = m.newLike()
 
-	var index int
-	for index = range result.data {
-		result.data[index] = m.data[index] - other.data[index]
-	}
-
+	subtractInto(m.data, other.data, result.data)
 	return result, nil
 }
 
@@ -497,11 +477,7 @@ func (m *Matrix) SubtractInto(other, result *Matrix) (err error) {
 		return err
 	}
 
-	var index int
-	for index = range result.data {
-		result.data[index] = m.data[index] - other.data[index]
-	}
-
+	subtractInto(m.data, other.data, result.data)
 	return nil
 }
 
@@ -513,11 +489,7 @@ func (m *Matrix) MultiplyElements(other *Matrix) (result *Matrix, err error) {
 
 	result = m.newLike()
 
-	var index int
-	for index = range result.data {
-		result.data[index] = m.data[index] * other.data[index]
-	}
-
+	multiplyElementsInto(m.data, other.data, result.data)
 	return result, nil
 }
 
@@ -531,11 +503,7 @@ func (m *Matrix) MultiplyElementsInto(other, result *Matrix) (err error) {
 		return err
 	}
 
-	var index int
-	for index = range result.data {
-		result.data[index] = m.data[index] * other.data[index]
-	}
-
+	multiplyElementsInto(m.data, other.data, result.data)
 	return nil
 }
 
@@ -591,11 +559,7 @@ func (m *Matrix) AddScalar(value float64) (result *Matrix, err error) {
 
 	result = m.newLike()
 
-	var index int
-	for index = range result.data {
-		result.data[index] = m.data[index] + value
-	}
-
+	addScalarInto(m.data, value, result.data)
 	return result, nil
 }
 
@@ -609,11 +573,7 @@ func (m *Matrix) AddScalarInto(value float64, result *Matrix) (err error) {
 		return err
 	}
 
-	var index int
-	for index = range result.data {
-		result.data[index] = m.data[index] + value
-	}
-
+	addScalarInto(m.data, value, result.data)
 	return nil
 }
 
@@ -625,11 +585,7 @@ func (m *Matrix) MultiplyScalar(value float64) (result *Matrix, err error) {
 
 	result = m.newLike()
 
-	var index int
-	for index = range result.data {
-		result.data[index] = m.data[index] * value
-	}
-
+	multiplyScalarInto(m.data, value, result.data)
 	return result, nil
 }
 
@@ -643,11 +599,7 @@ func (m *Matrix) MultiplyScalarInto(value float64, result *Matrix) (err error) {
 		return err
 	}
 
-	var index int
-	for index = range result.data {
-		result.data[index] = m.data[index] * value
-	}
-
+	multiplyScalarInto(m.data, value, result.data)
 	return nil
 }
 
