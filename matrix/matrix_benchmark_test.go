@@ -854,6 +854,110 @@ func Benchmark_ApplyInto(b *testing.B) {
 	benchmarkResult = result
 }
 
+func Benchmark_MatMulShapes(b *testing.B) {
+	type testcase struct {
+		name      string
+		leftRows  int
+		leftCols  int
+		rightCols int
+	}
+
+	tests := []testcase{
+		{name: "Small2x2", leftRows: 2, leftCols: 2, rightCols: 2},
+		{name: "Small4x4", leftRows: 4, leftCols: 4, rightCols: 4},
+		{name: "Medium64x64", leftRows: 64, leftCols: 64, rightCols: 64},
+		{name: "Large128x256x128", leftRows: 128, leftCols: 256, rightCols: 128},
+		{name: "Uneven17x33x19", leftRows: 17, leftCols: 33, rightCols: 19},
+		{name: "Uneven63x65x31", leftRows: 63, leftCols: 65, rightCols: 31},
+	}
+
+	var tt testcase
+	for _, tt = range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			benchmarkMatMulShape(b, tt.leftRows, tt.leftCols, tt.rightCols)
+		})
+	}
+}
+
+func Benchmark_MatMulRightTransposeIntoShapes(b *testing.B) {
+	type testcase struct {
+		name      string
+		leftRows  int
+		leftCols  int
+		rightRows int
+	}
+
+	tests := []testcase{
+		{name: "Small2x2", leftRows: 2, leftCols: 2, rightRows: 2},
+		{name: "Small4x4", leftRows: 4, leftCols: 4, rightRows: 4},
+		{name: "Medium64x64", leftRows: 64, leftCols: 64, rightRows: 64},
+		{name: "Large128x256x128", leftRows: 128, leftCols: 256, rightRows: 128},
+		{name: "Uneven17x33x19", leftRows: 17, leftCols: 33, rightRows: 19},
+		{name: "Uneven63x65x31", leftRows: 63, leftCols: 65, rightRows: 31},
+	}
+
+	var tt testcase
+	for _, tt = range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			benchmarkMatMulRightTransposeShape(b, tt.leftRows, tt.leftCols, tt.rightRows)
+		})
+	}
+}
+
+func benchmarkMatMulShape(b *testing.B, leftRows, leftCols, rightCols int) {
+	var (
+		left   *matrix.Matrix
+		right  *matrix.Matrix
+		result *matrix.Matrix
+		err    error
+		index  int
+	)
+
+	left = benchmarkMatrix(b, leftRows, leftCols)
+	right = benchmarkMatrix(b, leftCols, rightCols)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		result, err = left.MatMul(right)
+		if err != nil {
+			b.Fatalf("MatMul returned error: %v", err)
+		}
+	}
+
+	benchmarkResult = result
+}
+
+func benchmarkMatMulRightTransposeShape(b *testing.B, leftRows, leftCols, rightRows int) {
+	var (
+		left   *matrix.Matrix
+		right  *matrix.Matrix
+		result *matrix.Matrix
+		err    error
+		index  int
+	)
+
+	left = benchmarkMatrix(b, leftRows, leftCols)
+	right = benchmarkMatrix(b, rightRows, leftCols)
+	result, err = matrix.New(leftRows, rightRows)
+	if err != nil {
+		b.Fatalf("New returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		err = left.MatMulRightTransposeInto(right, result)
+		if err != nil {
+			b.Fatalf("MatMulRightTransposeInto returned error: %v", err)
+		}
+	}
+
+	benchmarkResult = result
+}
+
 func benchmarkMatrix(tb testing.TB, rows, cols int) (m *matrix.Matrix) {
 	tb.Helper()
 
