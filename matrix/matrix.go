@@ -353,6 +353,9 @@ func (m *Matrix) Add(other *Matrix) (result *Matrix, err error) {
 }
 
 // AddInto writes the elementwise sum of m and other into result.
+//
+// The destination must match the input shape. The destination is caller-owned
+// and may alias either input because each element is read before it is written.
 func (m *Matrix) AddInto(other, result *Matrix) (err error) {
 	if err = m.sameShape(other); err != nil {
 		return err
@@ -373,6 +376,8 @@ func (m *Matrix) AddInPlace(other *Matrix) (err error) {
 }
 
 // AddScaledInPlace adds scale*other to m elementwise.
+//
+// The receiver is updated in place. The other matrix is read but not retained.
 func (m *Matrix) AddScaledInPlace(other *Matrix, scale float64) (err error) {
 	if err = m.sameShape(other); err != nil {
 		return err
@@ -387,7 +392,8 @@ func (m *Matrix) AddScaledInPlace(other *Matrix, scale float64) (err error) {
 // The gradient, firstMoment, and secondMoment matrices must match m's shape and
 // must not alias each other or m. Moment matrices are updated in place before m
 // is updated. Correction values are the precomputed bias-correction
-// denominators for the current Adam step and must be nonzero.
+// denominators for the current Adam step and must be nonzero. No matrix storage
+// is exposed or retained.
 func (m *Matrix) AdamUpdateInPlace(
 	gradient *Matrix,
 	firstMoment *Matrix,
@@ -448,6 +454,8 @@ func (m *Matrix) AdamUpdateInPlace(
 }
 
 // MultiplyScalarInPlace multiplies every element of m by value.
+//
+// The receiver is updated in place and keeps owning its storage.
 func (m *Matrix) MultiplyScalarInPlace(value float64) (err error) {
 	if err = m.validate(); err != nil {
 		return err
@@ -470,6 +478,9 @@ func (m *Matrix) Subtract(other *Matrix) (result *Matrix, err error) {
 }
 
 // SubtractInto writes the elementwise difference of m and other into result.
+//
+// The destination must match the input shape. The destination is caller-owned
+// and may alias either input because each element is read before it is written.
 func (m *Matrix) SubtractInto(other, result *Matrix) (err error) {
 	if err = m.sameShape(other); err != nil {
 		return err
@@ -496,6 +507,9 @@ func (m *Matrix) MultiplyElements(other *Matrix) (result *Matrix, err error) {
 }
 
 // MultiplyElementsInto writes the elementwise product of m and other into result.
+//
+// The destination must match the input shape. The destination is caller-owned
+// and may alias either input because each element is read before it is written.
 func (m *Matrix) MultiplyElementsInto(other, result *Matrix) (err error) {
 	if err = m.sameShape(other); err != nil {
 		return err
@@ -531,6 +545,9 @@ func (m *Matrix) DivideElements(other *Matrix) (result *Matrix, err error) {
 }
 
 // DivideElementsInto writes the elementwise quotient of m and other into result.
+//
+// The destination must match the input shape. The destination is caller-owned
+// and may alias either input because each element is read before it is written.
 func (m *Matrix) DivideElementsInto(other, result *Matrix) (err error) {
 	if err = m.sameShape(other); err != nil {
 		return err
@@ -566,6 +583,9 @@ func (m *Matrix) AddScalar(value float64) (result *Matrix, err error) {
 }
 
 // AddScalarInto writes m plus value into result.
+//
+// The destination must match m's shape. The destination is caller-owned and may
+// alias m because each element is read before it is written.
 func (m *Matrix) AddScalarInto(value float64, result *Matrix) (err error) {
 	if err = m.validate(); err != nil {
 		return err
@@ -592,6 +612,9 @@ func (m *Matrix) MultiplyScalar(value float64) (result *Matrix, err error) {
 }
 
 // MultiplyScalarInto writes m multiplied by value into result.
+//
+// The destination must match m's shape. The destination is caller-owned and may
+// alias m because each element is read before it is written.
 func (m *Matrix) MultiplyScalarInto(value float64, result *Matrix) (err error) {
 	if err = m.validate(); err != nil {
 		return err
@@ -627,6 +650,9 @@ func (m *Matrix) DivideScalar(value float64) (result *Matrix, err error) {
 }
 
 // DivideScalarInto writes m divided by value into result.
+//
+// The destination must match m's shape. The destination is caller-owned and may
+// alias m because each element is read before it is written.
 func (m *Matrix) DivideScalarInto(value float64, result *Matrix) (err error) {
 	if err = m.validate(); err != nil {
 		return err
@@ -863,6 +889,8 @@ func (m *Matrix) RowSums() (sums []float64, err error) {
 }
 
 // RowSumsInto writes row sums into a [m.Rows(), 1] destination matrix.
+//
+// The destination is caller-owned and must not alias m.
 func (m *Matrix) RowSumsInto(result *Matrix) (err error) {
 	if err = m.validate(); err != nil {
 		return err
@@ -915,6 +943,8 @@ func (m *Matrix) ColumnSums() (sums []float64, err error) {
 }
 
 // ColumnSumsInto writes column sums into a [1, m.Cols()] destination matrix.
+//
+// The destination is caller-owned and must not alias m.
 func (m *Matrix) ColumnSumsInto(result *Matrix) (err error) {
 	if err = m.validate(); err != nil {
 		return err
@@ -958,6 +988,8 @@ func (m *Matrix) ColumnSumsInto(result *Matrix) (err error) {
 }
 
 // AccumulateColumnSumsInto adds column sums to a [1, m.Cols()] destination matrix.
+//
+// The destination is caller-owned and must not alias m.
 func (m *Matrix) AccumulateColumnSumsInto(result *Matrix) (err error) {
 	if err = m.validate(); err != nil {
 		return err
@@ -997,6 +1029,8 @@ func (m *Matrix) AccumulateColumnSumsInto(result *Matrix) (err error) {
 }
 
 // AddRowVectorInPlace adds a [1, m.Cols()] row vector to every row of m.
+//
+// The receiver is updated in place. The row vector is read but not retained.
 func (m *Matrix) AddRowVectorInPlace(rowVector *Matrix) (err error) {
 	if err = m.validate(); err != nil {
 		return err
@@ -1044,6 +1078,9 @@ func (m *Matrix) Apply(fn func(float64) float64) (result *Matrix, err error) {
 }
 
 // ApplyInto writes fn applied to every element of m into result.
+//
+// The destination must match m's shape. The destination is caller-owned and may
+// alias m because each element is read before it is written.
 func (m *Matrix) ApplyInto(fn func(float64) float64, result *Matrix) (err error) {
 	if fn == nil {
 		err = errors.New("matrix: apply function is nil")
@@ -1101,7 +1138,8 @@ func (m *Matrix) Pairwise(other *Matrix, fn func(row, col int, left, right float
 // PairwiseInto writes callback results for matching elements of m and other into result.
 //
 // The destination must have the same shape as both inputs. Matrix storage is not
-// exposed to the callback.
+// exposed to the callback. The destination is caller-owned and may alias either
+// input because each element is read before it is written.
 func (m *Matrix) PairwiseInto(
 	other, result *Matrix,
 	fn func(row, col int, left, right float64) (value float64, err error),
