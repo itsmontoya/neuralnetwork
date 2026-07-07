@@ -791,3 +791,166 @@ not expose dataset or batch storage. Tests cover copy-into behavior, wrong-shape
 errors, validation data, callback errors, early stopping, shuffle
 reproducibility, and training-mode restoration after evaluation prediction,
 loss, and accuracy errors.
+
+## V2 Allocation Regression Checks
+
+Captured on July 7, 2026.
+
+### Commands
+
+```sh
+go test ./matrix ./layer ./loss ./optimizer ./data
+go test ./...
+go test ./matrix ./layer ./loss ./optimizer ./data ./model -run '^$' -bench=. -benchmem
+```
+
+### AllocsPerRun Coverage
+
+Focused allocation tests were added only for counts tied to stable ownership or
+steady-state scratch behavior:
+
+| Package | Covered allocation count | Rationale |
+| --- | --- | --- |
+| `matrix` | Destination and in-place matrix operations, reduction destinations, `ValuesInto`, `CopyValuesFrom`, `Pairwise`, `PairwiseInto`, and `AdamUpdateInPlace` assert zero allocations. `Values` asserts at most 1 allocation. `Clone` and `SelectRows` assert at most 2 allocations. | Destination helpers mutate caller-owned storage. Copy-returning methods allocate owned results by contract. |
+| `layer` | Dense forward/backward, dropout training forward/backward, and batch-normalization training forward/backward assert zero steady-state allocations after warm-up. | These paths intentionally retain stable-shape scratch storage. |
+| `loss` | Mean squared error, binary cross entropy, and categorical cross entropy value paths assert zero allocations. Their gradient paths assert at most 2 allocations. | Value paths should not copy matrix values. Gradient paths allocate only the returned owned matrix. |
+| `optimizer` | SGD, Momentum, and Adam update paths assert zero steady-state allocations after state warm-up. | Optimizer updates operate on owned parameter and state matrices. |
+| `data` | `Dataset.Batches` asserts the small-shape batch construction ceiling, destination accessors assert zero allocations, and copy-returning accessors assert at most 2 allocations. | Batches still create owned mini-batch matrices, while destination accessors copy into caller-owned storage. |
+
+### Benchmark-Only Rationale
+
+Model-level `SequentialTrainBatch` and `SequentialFit` allocation counts remain
+benchmark-only. They are composite orchestration measurements that include layer
+outputs, activation-owned result matrices, loss gradients, data batching,
+history growth, optimizer bookkeeping, and optional user callback or metric
+paths. The current counts are deterministic enough for benchmark tracking, but
+too broad for stable `AllocsPerRun` assertions.
+
+Activation forward/backward allocation counts also remain benchmark-only. The
+current allocation count is the returned owned matrix, while the v2 scratch
+reuse work removed helper-copy allocations. A future activation destination API
+would need its own allocation contract before test assertions are useful.
+
+Allocating matrix arithmetic methods such as `Add`, `Subtract`, `MatMul`, and
+`Apply` remain benchmark-only because their public behavior is to return owned
+result matrices. The destination and in-place variants are the stable
+allocation-free contracts covered by tests.
+
+### Raw Benchmark Output
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_MatMul-8                     	    8061	    146352 ns/op	   32816 B/op	       2 allocs/op
+Benchmark_MatMulInto-8                 	    8179	    147650 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulLeftTransposeInto-8    	    8378	    147563 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MatMulRightTransposeInto-8   	    7489	    160210 ns/op	       0 B/op	       0 allocs/op
+Benchmark_Clone-8                      	   41601	     30140 ns/op	  524340 B/op	       2 allocs/op
+Benchmark_Values-8                     	   37743	     28721 ns/op	  524288 B/op	       1 allocs/op
+Benchmark_Add-8                        	   21734	     55032 ns/op	  524336 B/op	       2 allocs/op
+Benchmark_AddInto-8                    	   32493	     36778 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AddInPlace-8                 	   32482	     37217 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AddScaledInPlace-8           	   39408	     31231 ns/op	       0 B/op	       0 allocs/op
+Benchmark_Subtract-8                   	   20536	     57162 ns/op	  524336 B/op	       2 allocs/op
+Benchmark_SubtractInto-8               	   32426	     36908 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MultiplyElements-8           	   21898	     56346 ns/op	  524336 B/op	       2 allocs/op
+Benchmark_MultiplyElementsInto-8       	   32445	     37004 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DivideElements-8             	   18868	     61161 ns/op	  524336 B/op	       2 allocs/op
+Benchmark_DivideElementsInto-8         	   27428	     43843 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AddScalar-8                  	   26308	     46909 ns/op	  524337 B/op	       2 allocs/op
+Benchmark_AddScalarInto-8              	   45715	     26249 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MultiplyScalar-8             	   24637	     48921 ns/op	  524337 B/op	       2 allocs/op
+Benchmark_MultiplyScalarInto-8         	   45423	     26243 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MultiplyScalarInPlace-8      	   67434	     18459 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DivideScalar-8               	   24734	     48439 ns/op	  524337 B/op	       2 allocs/op
+Benchmark_DivideScalarInto-8           	   45594	     26300 ns/op	       0 B/op	       0 allocs/op
+Benchmark_Transpose-8                  	   15792	     75702 ns/op	  262192 B/op	       2 allocs/op
+Benchmark_TransposeInto-8              	   16440	     72873 ns/op	       0 B/op	       0 allocs/op
+Benchmark_RowSums-8                    	   22066	     51427 ns/op	    2048 B/op	       1 allocs/op
+Benchmark_RowSumsInto-8                	   26503	     44660 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ColumnSums-8                 	   41713	     28746 ns/op	    2048 B/op	       1 allocs/op
+Benchmark_ColumnSumsInto-8             	   36286	     32906 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AccumulateColumnSumsInto-8   	   36218	     32838 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AddRowVectorInPlace-8        	   33300	     36190 ns/op	       0 B/op	       0 allocs/op
+Benchmark_Apply-8                      	   10000	    116544 ns/op	  524337 B/op	       2 allocs/op
+Benchmark_ApplyInto-8                  	   10000	    100434 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	51.752s
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/layer
+cpu: Apple M3
+Benchmark_DenseForward_XOR-8                                 	11374191	        90.71 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DenseForward_MediumBatch-8                         	    7696	    155500 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DenseBackward_XOR-8                                	 8020212	       147.8 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DenseBackward_MediumBatch-8                        	    3770	    317399 ns/op	       0 B/op	       0 allocs/op
+Benchmark_ActivationForward_MediumBatch-8                    	   23013	     51669 ns/op	   65584 B/op	       2 allocs/op
+Benchmark_ActivationBackward_MediumBatch-8                   	   19933	     60167 ns/op	   65584 B/op	       2 allocs/op
+Benchmark_DropoutForwardTraining_MediumBatch-8               	   14576	     79776 ns/op	       0 B/op	       0 allocs/op
+Benchmark_DropoutBackwardTraining_MediumBatch-8              	  258130	      4654 ns/op	       0 B/op	       0 allocs/op
+Benchmark_BatchNormalizationForwardTraining_MediumBatch-8    	   49881	     23894 ns/op	       0 B/op	       0 allocs/op
+Benchmark_BatchNormalizationBackwardTraining_MediumBatch-8   	   54536	     22727 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/layer	14.766s
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/loss
+cpu: Apple M3
+Benchmark_MeanSquaredErrorValue_Small-8                   	59971922	        19.71 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MeanSquaredErrorValue_MediumBatch-8             	  436986	      2751 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MeanSquaredErrorGradient_Small-8                	22806406	        50.69 ns/op	      80 B/op	       2 allocs/op
+Benchmark_MeanSquaredErrorGradient_MediumBatch-8          	  496056	      2387 ns/op	   16432 B/op	       2 allocs/op
+Benchmark_BinaryCrossEntropyValue_Small-8                 	19938950	        59.09 ns/op	       0 B/op	       0 allocs/op
+Benchmark_BinaryCrossEntropyValue_MediumBatch-8           	  927364	      1297 ns/op	       0 B/op	       0 allocs/op
+Benchmark_BinaryCrossEntropyGradient_Small-8              	16538521	        70.70 ns/op	      80 B/op	       2 allocs/op
+Benchmark_BinaryCrossEntropyGradient_MediumBatch-8        	 1575759	       752.6 ns/op	    1072 B/op	       2 allocs/op
+Benchmark_CategoricalCrossEntropyValue_Small-8            	18477705	        64.71 ns/op	       0 B/op	       0 allocs/op
+Benchmark_CategoricalCrossEntropyValue_MediumBatch-8      	  245866	      4873 ns/op	       0 B/op	       0 allocs/op
+Benchmark_CategoricalCrossEntropyGradient_Small-8         	10404255	       113.0 ns/op	     144 B/op	       2 allocs/op
+Benchmark_CategoricalCrossEntropyGradient_MediumBatch-8   	  132272	      8853 ns/op	   16432 B/op	       2 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/loss	16.547s
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/optimizer
+cpu: Apple M3
+Benchmark_SGDUpdate_SteadyState-8        	  283598	      4238 ns/op	       0 B/op	       0 allocs/op
+Benchmark_MomentumUpdate_SteadyState-8   	  169740	      6988 ns/op	       0 B/op	       0 allocs/op
+Benchmark_AdamUpdate_SteadyState-8       	  139032	      8632 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/optimizer	4.970s
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/data
+cpu: Apple M3
+Benchmark_DatasetBatches_Unshuffled-8   	   42610	     27545 ns/op	  337792 B/op	      82 allocs/op
+Benchmark_DatasetBatches_Shuffled-8     	   38046	     31541 ns/op	  337792 B/op	      82 allocs/op
+Benchmark_BatchInputs-8                 	 1000000	      1103 ns/op	   16432 B/op	       2 allocs/op
+Benchmark_BatchTargets-8                	 3591530	       338.0 ns/op	    4144 B/op	       2 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/data	5.818s
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialTrainBatch_XOR-8              	  727297	      1646 ns/op	     672 B/op	      14 allocs/op
+Benchmark_SequentialFit_XOR-8                     	  489129	      2480 ns/op	    1592 B/op	      33 allocs/op
+Benchmark_SequentialTrainBatch_SyntheticDense-8   	    1504	    786640 ns/op	  147925 B/op	      10 allocs/op
+Benchmark_SequentialFit_SyntheticDense-8          	    1088	   1141725 ns/op	  634016 B/op	      93 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/model	6.026s
+```
+
+### Interpretation
+
+The stable allocation contracts now have focused package-local
+`testing.AllocsPerRun` coverage. Matrix destination operations, dense/dropout/
+batch-normalization steady-state paths, loss value paths, and optimizer updates
+continue to report zero allocations. Copy-returning APIs continue to allocate
+owned results as part of their mutation-protection contracts.
+
+The remaining model and activation allocation counts are documented as
+benchmark-only. They should continue to be watched in the benchmark history
+rather than enforced through narrow allocation assertions.
