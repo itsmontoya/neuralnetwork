@@ -2,27 +2,16 @@ package data
 
 import "github.com/itsmontoya/neuralnetwork/matrix"
 
+// newBatch stores matrices that are already owned by the data package.
 func newBatch(inputs, targets *matrix.Matrix) (out *Batch, err error) {
-	var (
-		clonedInputs  *matrix.Matrix
-		clonedTargets *matrix.Matrix
-		b             Batch
-	)
+	var b Batch
 
 	if err = validateMatrixPair("batch inputs", inputs, "batch targets", targets); err != nil {
 		return nil, err
 	}
 
-	if clonedInputs, err = inputs.Clone(); err != nil {
-		return nil, err
-	}
-
-	if clonedTargets, err = targets.Clone(); err != nil {
-		return nil, err
-	}
-
-	b.inputs = clonedInputs
-	b.targets = clonedTargets
+	b.inputs = inputs
+	b.targets = targets
 	return &b, nil
 }
 

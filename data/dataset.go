@@ -99,6 +99,7 @@ func (d *Dataset) Batches(batchSize int, random *rand.Rand) (batches []*Batch, e
 		indexes      []int
 		start        int
 		end          int
+		batchCount   int
 		batchInputs  *matrix.Matrix
 		batchTargets *matrix.Matrix
 		batch        *Batch
@@ -115,6 +116,8 @@ func (d *Dataset) Batches(batchSize int, random *rand.Rand) (batches []*Batch, e
 
 	indexes = rowIndexes(d.inputs.Rows())
 	shuffleIndexes(indexes, random)
+	batchCount = (len(indexes) + batchSize - 1) / batchSize
+	batches = make([]*Batch, 0, batchCount)
 
 	for start = 0; start < len(indexes); start += batchSize {
 		end = start + batchSize

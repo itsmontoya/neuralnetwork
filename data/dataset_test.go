@@ -34,12 +34,14 @@ func Test_NewDataset_ValidatesSampleCount(t *testing.T) {
 
 func Test_Dataset_CopiesMatrices(t *testing.T) {
 	var (
-		inputs         *matrix.Matrix
-		targets        *matrix.Matrix
-		dataset        *data.Dataset
-		datasetInputs  *matrix.Matrix
-		returnedInputs *matrix.Matrix
-		err            error
+		inputs          *matrix.Matrix
+		targets         *matrix.Matrix
+		dataset         *data.Dataset
+		datasetInputs   *matrix.Matrix
+		datasetTargets  *matrix.Matrix
+		returnedInputs  *matrix.Matrix
+		returnedTargets *matrix.Matrix
+		err             error
 	)
 
 	inputs = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
@@ -55,14 +57,30 @@ func Test_Dataset_CopiesMatrices(t *testing.T) {
 		t.Fatalf("Set returned error: %v", err)
 	}
 
+	err = targets.Set(0, 0, 99)
+	if err != nil {
+		t.Fatalf("Set returned error: %v", err)
+	}
+
 	datasetInputs, err = dataset.Inputs()
 	if err != nil {
 		t.Fatalf("Inputs returned error: %v", err)
 	}
 
+	datasetTargets, err = dataset.Targets()
+	if err != nil {
+		t.Fatalf("Targets returned error: %v", err)
+	}
+
 	requireMatrixValues(t, datasetInputs, []float64{1, 2, 3, 4})
+	requireMatrixValues(t, datasetTargets, []float64{10, 20})
 
 	err = datasetInputs.Set(0, 0, 77)
+	if err != nil {
+		t.Fatalf("Set returned error: %v", err)
+	}
+
+	err = datasetTargets.Set(0, 0, 77)
 	if err != nil {
 		t.Fatalf("Set returned error: %v", err)
 	}
@@ -72,7 +90,13 @@ func Test_Dataset_CopiesMatrices(t *testing.T) {
 		t.Fatalf("Inputs returned error: %v", err)
 	}
 
+	returnedTargets, err = dataset.Targets()
+	if err != nil {
+		t.Fatalf("Targets returned error: %v", err)
+	}
+
 	requireMatrixValues(t, returnedInputs, []float64{1, 2, 3, 4})
+	requireMatrixValues(t, returnedTargets, []float64{10, 20})
 }
 
 func Test_Dataset_BatchesReturnsExpectedCounts(t *testing.T) {
@@ -183,6 +207,70 @@ func Test_Dataset_BatchesReturnsLastPartialBatchValues(t *testing.T) {
 
 	requireMatrixValues(t, inputs, []float64{5, 50})
 	requireMatrixValues(t, targets, []float64{105})
+}
+
+func Test_Dataset_BatchesCopiesReturnedMatrices(t *testing.T) {
+	var (
+		dataset         *data.Dataset
+		batches         []*data.Batch
+		batchInputs     *matrix.Matrix
+		batchTargets    *matrix.Matrix
+		returnedInputs  *matrix.Matrix
+		returnedTargets *matrix.Matrix
+		err             error
+	)
+
+	dataset = mustDataset(t,
+		2,
+		2,
+		[]float64{
+			1, 10,
+			2, 20,
+		},
+		1,
+		[]float64{101, 102},
+	)
+
+	batches, err = dataset.Batches(2, nil)
+	if err != nil {
+		t.Fatalf("Batches returned error: %v", err)
+	}
+
+	batchInputs, err = batches[0].Inputs()
+	if err != nil {
+		t.Fatalf("Inputs returned error: %v", err)
+	}
+
+	batchTargets, err = batches[0].Targets()
+	if err != nil {
+		t.Fatalf("Targets returned error: %v", err)
+	}
+
+	err = batchInputs.Set(0, 0, 99)
+	if err != nil {
+		t.Fatalf("Set returned error: %v", err)
+	}
+
+	err = batchTargets.Set(0, 0, 99)
+	if err != nil {
+		t.Fatalf("Set returned error: %v", err)
+	}
+
+	returnedInputs, err = batches[0].Inputs()
+	if err != nil {
+		t.Fatalf("Inputs returned error: %v", err)
+	}
+
+	returnedTargets, err = batches[0].Targets()
+	if err != nil {
+		t.Fatalf("Targets returned error: %v", err)
+	}
+
+	requireMatrixValues(t, returnedInputs, []float64{
+		1, 10,
+		2, 20,
+	})
+	requireMatrixValues(t, returnedTargets, []float64{101, 102})
 }
 
 func Test_Dataset_BatchesShufflesDeterministicallyAndKeepsRowsAligned(t *testing.T) {

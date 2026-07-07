@@ -358,6 +358,84 @@ func Test_CopyValuesFrom_ValidatesLength(t *testing.T) {
 	}
 }
 
+func Test_SelectRows(t *testing.T) {
+	var (
+		source *matrix.Matrix
+		got    *matrix.Matrix
+		err    error
+	)
+
+	source = mustMatrix(t, 3, 2, []float64{
+		1, 2,
+		3, 4,
+		5, 6,
+	})
+
+	got, err = source.SelectRows([]int{2, 0, 2})
+	if err != nil {
+		t.Fatalf("SelectRows returned error: %v", err)
+	}
+
+	requireMatrixValues(t, got, []float64{
+		5, 6,
+		1, 2,
+		5, 6,
+	})
+
+	err = source.Set(2, 0, 99)
+	if err != nil {
+		t.Fatalf("Set returned error: %v", err)
+	}
+
+	requireMatrixValues(t, got, []float64{
+		5, 6,
+		1, 2,
+		5, 6,
+	})
+}
+
+func Test_SelectRows_ValidatesIndexes(t *testing.T) {
+	type testcase struct {
+		name    string
+		indexes []int
+	}
+
+	tests := []testcase{
+		{
+			name:    "empty",
+			indexes: []int{},
+		},
+		{
+			name:    "negative",
+			indexes: []int{-1},
+		},
+		{
+			name:    "too large",
+			indexes: []int{2},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				source *matrix.Matrix
+				got    *matrix.Matrix
+				err    error
+			)
+
+			source = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
+			got, err = source.SelectRows(tt.indexes)
+			if err == nil {
+				t.Fatal("SelectRows error = nil, want error")
+			}
+
+			if got != nil {
+				t.Fatal("SelectRows returned matrix on error")
+			}
+		})
+	}
+}
+
 func Test_CopyFrom_ValidatesShape(t *testing.T) {
 	var (
 		target *matrix.Matrix
