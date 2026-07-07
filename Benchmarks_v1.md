@@ -628,3 +628,91 @@ focused optimizer benchmark.
 SGD and Momentum remain allocation-free. The model benchmarks that use Adam
 also retain the lower post-loss allocation profile while improving the XOR fit
 and training paths.
+
+## V2 Data Batch Allocation Reduction
+
+Captured on July 7, 2026.
+
+### Commands
+
+```sh
+go test ./data
+go test ./data -run '^$' -bench='(DatasetBatches|BatchInputs|BatchTargets)' -benchmem
+go test ./...
+go test ./model -run '^$' -bench=SequentialFit -benchmem
+```
+
+### Allocation Audit
+
+The data allocation sources were direct copy paths:
+
+| Package | Path | Finding | Change |
+| --- | --- | --- | --- |
+| `data` | `Dataset.Batches` | The result slice grew through append even though the batch count is known after batch-size validation. | Preallocated the batch slice to the exact expected capacity. |
+| `data` | `matrixRows` | Each batch row selection copied the full source matrix through `Values`, allocated a row result slice, then copied again through `matrix.FromSlice`. | Replaced the helper with `Matrix.SelectRows`, which validates once and copies selected rows directly into the returned owned matrix without exposing storage. |
+| `data` | `newBatch` | `Dataset.Batches` created owned row-selected matrices, then `newBatch` cloned both matrices again before storing them. | Narrowed the unexported batch constructor to store data-package-owned row-selected matrices directly. |
+| `data` | `Batch.Inputs`, `Batch.Targets` | Accessors clone stored matrices on every call. | Kept unchanged because returning copies is the public copy-protection contract. |
+
+`Matrix.SelectRows` is the only new public API. It returns copied row data in
+the requested order, supports repeated indexes, and does not expose mutable
+matrix storage. The helper is used by data row selection for both batching and
+splitting.
+
+### Data Before
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/data
+cpu: Apple M3
+Benchmark_DatasetBatches_Unshuffled-8   	    2514	    398742 ns/op	 6237646 B/op	     211 allocs/op
+Benchmark_DatasetBatches_Shuffled-8     	    3048	    421041 ns/op	 6237673 B/op	     211 allocs/op
+Benchmark_BatchInputs-8                 	 1000000	      1159 ns/op	   16432 B/op	       2 allocs/op
+Benchmark_BatchTargets-8                	 3371464	       349.6 ns/op	    4144 B/op	       2 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/data	5.374s
+```
+
+### Data After
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/data
+cpu: Apple M3
+Benchmark_DatasetBatches_Unshuffled-8   	   41972	     42755 ns/op	  337796 B/op	      82 allocs/op
+Benchmark_DatasetBatches_Shuffled-8     	   31246	     35303 ns/op	  337795 B/op	      82 allocs/op
+Benchmark_BatchInputs-8                 	 1000000	      1296 ns/op	   16432 B/op	       2 allocs/op
+Benchmark_BatchTargets-8                	 3455426	       360.7 ns/op	    4144 B/op	       2 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/data	7.184s
+```
+
+### Fit Re-run
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialFit_XOR-8              	  447300	      2600 ns/op	    1784 B/op	      37 allocs/op
+Benchmark_SequentialFit_SyntheticDense-8   	    1015	   1137451 ns/op	  720420 B/op	     109 allocs/op
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/model	3.571s
+```
+
+### Interpretation
+
+`Dataset.Batches` now avoids the repeated full-matrix source copies and the
+second batch-storage clone. The unshuffled benchmark drops from 6237646 B/op
+and 211 allocs/op to 337796 B/op and 82 allocs/op. The shuffled benchmark drops
+from 6237673 B/op and 211 allocs/op to 337795 B/op and 82 allocs/op.
+
+Batch accessor benchmarks remain at 2 allocations per call because those
+methods intentionally return defensive matrix copies. Additional tests cover
+`SelectRows` copy behavior and verify that mutating returned dataset or batch
+matrices does not mutate stored samples.
+
+The fit re-run reflects the lower batching cost: `SequentialFit_XOR` reports
+1784 B/op and 37 allocs/op, and `SequentialFit_SyntheticDense` reports
+720420 B/op and 109 allocs/op.
