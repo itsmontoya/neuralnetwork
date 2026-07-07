@@ -99,6 +99,79 @@ func Test_Dataset_CopiesMatrices(t *testing.T) {
 	requireMatrixValues(t, returnedTargets, []float64{10, 20})
 }
 
+func Test_Dataset_InputsIntoAndTargetsIntoCopyMatrices(t *testing.T) {
+	var (
+		inputs          *matrix.Matrix
+		targets         *matrix.Matrix
+		dataset         *data.Dataset
+		inputsCopy      *matrix.Matrix
+		targetsCopy     *matrix.Matrix
+		returnedInputs  *matrix.Matrix
+		returnedTargets *matrix.Matrix
+		err             error
+	)
+
+	inputs = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
+	targets = mustMatrix(t, 2, 1, []float64{10, 20})
+	dataset, err = data.NewDataset(inputs, targets)
+	if err != nil {
+		t.Fatalf("NewDataset returned error: %v", err)
+	}
+
+	inputsCopy = mustMatrix(t, 2, 2, []float64{0, 0, 0, 0})
+	targetsCopy = mustMatrix(t, 2, 1, []float64{0, 0})
+	if err = dataset.InputsInto(inputsCopy); err != nil {
+		t.Fatalf("InputsInto returned error: %v", err)
+	}
+
+	if err = dataset.TargetsInto(targetsCopy); err != nil {
+		t.Fatalf("TargetsInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, inputsCopy, []float64{1, 2, 3, 4})
+	requireMatrixValues(t, targetsCopy, []float64{10, 20})
+
+	if err = inputsCopy.Set(0, 0, 99); err != nil {
+		t.Fatalf("Set returned error: %v", err)
+	}
+
+	if err = targetsCopy.Set(0, 0, 99); err != nil {
+		t.Fatalf("Set returned error: %v", err)
+	}
+
+	if returnedInputs, err = dataset.Inputs(); err != nil {
+		t.Fatalf("Inputs returned error: %v", err)
+	}
+
+	if returnedTargets, err = dataset.Targets(); err != nil {
+		t.Fatalf("Targets returned error: %v", err)
+	}
+
+	requireMatrixValues(t, returnedInputs, []float64{1, 2, 3, 4})
+	requireMatrixValues(t, returnedTargets, []float64{10, 20})
+}
+
+func Test_Dataset_InputsIntoAndTargetsIntoRejectWrongShape(t *testing.T) {
+	var (
+		dataset     *data.Dataset
+		wrongInputs *matrix.Matrix
+		err         error
+	)
+
+	dataset = mustDatasetWithSamples(t, 2)
+	wrongInputs = mustMatrix(t, 1, 2, []float64{0, 0})
+
+	err = dataset.InputsInto(wrongInputs)
+	if err == nil {
+		t.Fatal("InputsInto error = nil, want error")
+	}
+
+	err = dataset.TargetsInto(wrongInputs)
+	if err == nil {
+		t.Fatal("TargetsInto error = nil, want error")
+	}
+}
+
 func Test_Dataset_BatchesReturnsExpectedCounts(t *testing.T) {
 	type testcase struct {
 		name        string
@@ -271,6 +344,98 @@ func Test_Dataset_BatchesCopiesReturnedMatrices(t *testing.T) {
 		2, 20,
 	})
 	requireMatrixValues(t, returnedTargets, []float64{101, 102})
+}
+
+func Test_Batch_InputsIntoAndTargetsIntoCopyMatrices(t *testing.T) {
+	var (
+		dataset         *data.Dataset
+		batches         []*data.Batch
+		batchInputs     *matrix.Matrix
+		batchTargets    *matrix.Matrix
+		returnedInputs  *matrix.Matrix
+		returnedTargets *matrix.Matrix
+		err             error
+	)
+
+	dataset = mustDataset(t,
+		2,
+		2,
+		[]float64{
+			1, 10,
+			2, 20,
+		},
+		1,
+		[]float64{101, 102},
+	)
+
+	batches, err = dataset.Batches(2, nil)
+	if err != nil {
+		t.Fatalf("Batches returned error: %v", err)
+	}
+
+	batchInputs = mustMatrix(t, 2, 2, []float64{0, 0, 0, 0})
+	batchTargets = mustMatrix(t, 2, 1, []float64{0, 0})
+	if err = batches[0].InputsInto(batchInputs); err != nil {
+		t.Fatalf("InputsInto returned error: %v", err)
+	}
+
+	if err = batches[0].TargetsInto(batchTargets); err != nil {
+		t.Fatalf("TargetsInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, batchInputs, []float64{
+		1, 10,
+		2, 20,
+	})
+	requireMatrixValues(t, batchTargets, []float64{101, 102})
+
+	if err = batchInputs.Set(0, 0, 99); err != nil {
+		t.Fatalf("Set returned error: %v", err)
+	}
+
+	if err = batchTargets.Set(0, 0, 99); err != nil {
+		t.Fatalf("Set returned error: %v", err)
+	}
+
+	if returnedInputs, err = batches[0].Inputs(); err != nil {
+		t.Fatalf("Inputs returned error: %v", err)
+	}
+
+	if returnedTargets, err = batches[0].Targets(); err != nil {
+		t.Fatalf("Targets returned error: %v", err)
+	}
+
+	requireMatrixValues(t, returnedInputs, []float64{
+		1, 10,
+		2, 20,
+	})
+	requireMatrixValues(t, returnedTargets, []float64{101, 102})
+}
+
+func Test_Batch_InputsIntoAndTargetsIntoRejectWrongShape(t *testing.T) {
+	var (
+		dataset     *data.Dataset
+		batches     []*data.Batch
+		wrongInputs *matrix.Matrix
+		err         error
+	)
+
+	dataset = mustDatasetWithSamples(t, 2)
+	batches, err = dataset.Batches(2, nil)
+	if err != nil {
+		t.Fatalf("Batches returned error: %v", err)
+	}
+
+	wrongInputs = mustMatrix(t, 1, 2, []float64{0, 0})
+	err = batches[0].InputsInto(wrongInputs)
+	if err == nil {
+		t.Fatal("InputsInto error = nil, want error")
+	}
+
+	err = batches[0].TargetsInto(wrongInputs)
+	if err == nil {
+		t.Fatal("TargetsInto error = nil, want error")
+	}
 }
 
 func Test_Dataset_BatchesShufflesDeterministicallyAndKeepsRowsAligned(t *testing.T) {

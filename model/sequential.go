@@ -270,6 +270,7 @@ func (s *Sequential) Fit(trainingData *data.Dataset, config FitConfig) (history 
 		epoch              int
 		metrics            EpochMetrics
 		earlyStoppingState earlyStoppingState
+		scratch            fitScratch
 	)
 
 	if err = s.validateReady(); err != nil {
@@ -296,11 +297,11 @@ func (s *Sequential) Fit(trainingData *data.Dataset, config FitConfig) (history 
 			return history, err
 		}
 
-		if err = s.trainFitEpoch(trainingData, config, epoch); err != nil {
+		if err = s.trainFitEpoch(trainingData, config, epoch, &scratch); err != nil {
 			return history, err
 		}
 
-		if metrics, err = s.fitEpochMetrics(epoch, trainingData, config); err != nil {
+		if metrics, err = s.fitEpochMetrics(epoch, trainingData, config, &scratch); err != nil {
 			return history, err
 		}
 
@@ -348,7 +349,7 @@ func (s *Sequential) Save(writer io.Writer) (err error) {
 	return nil
 }
 
-func (s *Sequential) trainFitEpoch(trainingData *data.Dataset, config FitConfig, epoch int) (err error) {
+func (s *Sequential) trainFitEpoch(trainingData *data.Dataset, config FitConfig, epoch int, scratch *fitScratch) (err error) {
 	var (
 		batches []*data.Batch
 		batch   *data.Batch
@@ -367,13 +368,8 @@ func (s *Sequential) trainFitEpoch(trainingData *data.Dataset, config FitConfig,
 	}
 
 	for _, batch = range batches {
-		if inputs, err = batch.Inputs(); err != nil {
-			err = fmt.Errorf("model: epoch %d batch inputs failed: %w", epoch, err)
-			return err
-		}
-
-		if targets, err = batch.Targets(); err != nil {
-			err = fmt.Errorf("model: epoch %d batch targets failed: %w", epoch, err)
+		if inputs, targets, err = scratch.batchMatrices(batch, trainingData.InputSize(), trainingData.TargetSize()); err != nil {
+			err = fmt.Errorf("model: epoch %d batch matrix copy failed: %w", epoch, err)
 			return err
 		}
 
@@ -386,14 +382,14 @@ func (s *Sequential) trainFitEpoch(trainingData *data.Dataset, config FitConfig,
 	return nil
 }
 
-func (s *Sequential) fitEpochMetrics(epoch int, trainingData *data.Dataset, config FitConfig) (metrics EpochMetrics, err error) {
+func (s *Sequential) fitEpochMetrics(epoch int, trainingData *data.Dataset, config FitConfig, scratch *fitScratch) (metrics EpochMetrics, err error) {
 	var (
 		accuracy    float64
 		hasAccuracy bool
 	)
 
 	metrics.Epoch = epoch
-	if metrics.Loss, accuracy, hasAccuracy, err = s.evaluateFitDataset(trainingData, config.Loss, config.Accuracy); err != nil {
+	if metrics.Loss, accuracy, hasAccuracy, err = s.evaluateFitDataset(trainingData, config.Loss, config.Accuracy, &scratch.trainingEvaluation); err != nil {
 		err = fmt.Errorf("model: epoch %d training evaluation failed: %w", epoch, err)
 		return metrics, err
 	}
@@ -407,7 +403,7 @@ func (s *Sequential) fitEpochMetrics(epoch int, trainingData *data.Dataset, conf
 		return metrics, nil
 	}
 
-	if metrics.ValidationLoss, accuracy, hasAccuracy, err = s.evaluateFitDataset(config.ValidationData, config.Loss, config.Accuracy); err != nil {
+	if metrics.ValidationLoss, accuracy, hasAccuracy, err = s.evaluateFitDataset(config.ValidationData, config.Loss, config.Accuracy, &scratch.validationEvaluation); err != nil {
 		err = fmt.Errorf("model: epoch %d validation evaluation failed: %w", epoch, err)
 		return metrics, err
 	}
@@ -421,7 +417,12 @@ func (s *Sequential) fitEpochMetrics(epoch int, trainingData *data.Dataset, conf
 	return metrics, nil
 }
 
-func (s *Sequential) evaluateFitDataset(dataset *data.Dataset, lossFunc loss.Loss, accuracyFunc AccuracyFunc) (lossValue, accuracyValue float64, hasAccuracy bool, err error) {
+func (s *Sequential) evaluateFitDataset(
+	dataset *data.Dataset,
+	lossFunc loss.Loss,
+	accuracyFunc AccuracyFunc,
+	matrices *fitMatrixPair,
+) (lossValue, accuracyValue float64, hasAccuracy bool, err error) {
 	var (
 		previousTraining bool
 		inputs           *matrix.Matrix
@@ -429,11 +430,7 @@ func (s *Sequential) evaluateFitDataset(dataset *data.Dataset, lossFunc loss.Los
 		predictions      *matrix.Matrix
 	)
 
-	if inputs, err = dataset.Inputs(); err != nil {
-		return 0, 0, false, err
-	}
-
-	if targets, err = dataset.Targets(); err != nil {
+	if inputs, targets, err = matrices.datasetMatrices(dataset); err != nil {
 		return 0, 0, false, err
 	}
 
@@ -496,17 +493,87 @@ func validateFitDataset(name string, dataset *data.Dataset) (err error) {
 		return err
 	}
 
-	if _, err = dataset.Inputs(); err != nil {
-		err = fmt.Errorf("model: %s dataset inputs invalid: %w", name, err)
-		return err
-	}
-
-	if _, err = dataset.Targets(); err != nil {
-		err = fmt.Errorf("model: %s dataset targets invalid: %w", name, err)
+	if err = dataset.Validate(); err != nil {
+		err = fmt.Errorf("model: %s dataset invalid: %w", name, err)
 		return err
 	}
 
 	return nil
+}
+
+type fitScratch struct {
+	batch                fitMatrixPair
+	trainingEvaluation   fitMatrixPair
+	validationEvaluation fitMatrixPair
+}
+
+type fitMatrixPair struct {
+	inputs  *matrix.Matrix
+	targets *matrix.Matrix
+}
+
+func (s *fitScratch) batchMatrices(batch *data.Batch, inputSize, targetSize int) (inputs, targets *matrix.Matrix, err error) {
+	if inputs, err = ensureFitMatrix(s.batch.inputs, batch.SampleCount(), inputSize); err != nil {
+		return nil, nil, err
+	}
+	s.batch.inputs = inputs
+
+	if targets, err = ensureFitMatrix(s.batch.targets, batch.SampleCount(), targetSize); err != nil {
+		return nil, nil, err
+	}
+	s.batch.targets = targets
+
+	if err = batch.InputsInto(inputs); err != nil {
+		return nil, nil, err
+	}
+
+	if err = batch.TargetsInto(targets); err != nil {
+		return nil, nil, err
+	}
+
+	return inputs, targets, nil
+}
+
+func (p *fitMatrixPair) datasetMatrices(dataset *data.Dataset) (inputs, targets *matrix.Matrix, err error) {
+	if inputs, err = ensureFitMatrix(p.inputs, dataset.SampleCount(), dataset.InputSize()); err != nil {
+		return nil, nil, err
+	}
+	p.inputs = inputs
+
+	if targets, err = ensureFitMatrix(p.targets, dataset.SampleCount(), dataset.TargetSize()); err != nil {
+		return nil, nil, err
+	}
+	p.targets = targets
+
+	if err = dataset.InputsInto(inputs); err != nil {
+		return nil, nil, err
+	}
+
+	if err = dataset.TargetsInto(targets); err != nil {
+		return nil, nil, err
+	}
+
+	return inputs, targets, nil
+}
+
+func ensureFitMatrix(current *matrix.Matrix, rows, cols int) (out *matrix.Matrix, err error) {
+	var (
+		currentRows int
+		currentCols int
+	)
+
+	if current != nil {
+		currentRows, currentCols = current.Shape()
+		if currentRows == rows && currentCols == cols {
+			return current, nil
+		}
+	}
+
+	if out, err = matrix.New(rows, cols); err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func applyLearningRateSchedule(config FitConfig, epoch int) (err error) {

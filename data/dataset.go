@@ -39,6 +39,12 @@ type Dataset struct {
 	targets *matrix.Matrix
 }
 
+// Validate reports whether the dataset has valid paired input and target matrices.
+func (d *Dataset) Validate() (err error) {
+	err = d.validate()
+	return err
+}
+
 // Inputs returns a copy of the dataset inputs.
 func (d *Dataset) Inputs() (inputs *matrix.Matrix, err error) {
 	if err = d.validate(); err != nil {
@@ -57,6 +63,40 @@ func (d *Dataset) Targets() (targets *matrix.Matrix, err error) {
 
 	targets, err = d.targets.Clone()
 	return targets, err
+}
+
+// InputsInto copies dataset inputs into inputs.
+//
+// The destination must match the dataset input shape. Values are copied, so
+// mutating the destination does not mutate the dataset.
+func (d *Dataset) InputsInto(inputs *matrix.Matrix) (err error) {
+	if err = d.validate(); err != nil {
+		return err
+	}
+
+	if err = inputs.CopyFrom(d.inputs); err != nil {
+		err = fmt.Errorf("data: copy inputs into destination: %w", err)
+		return err
+	}
+
+	return nil
+}
+
+// TargetsInto copies dataset targets into targets.
+//
+// The destination must match the dataset target shape. Values are copied, so
+// mutating the destination does not mutate the dataset.
+func (d *Dataset) TargetsInto(targets *matrix.Matrix) (err error) {
+	if err = d.validate(); err != nil {
+		return err
+	}
+
+	if err = targets.CopyFrom(d.targets); err != nil {
+		err = fmt.Errorf("data: copy targets into destination: %w", err)
+		return err
+	}
+
+	return nil
 }
 
 // SampleCount returns the number of paired samples in the dataset.
