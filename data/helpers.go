@@ -47,43 +47,11 @@ func validateMatrix(name string, m *matrix.Matrix) (err error) {
 }
 
 func matrixRows(source *matrix.Matrix, indexes []int) (result *matrix.Matrix, err error) {
-	var (
-		sourceValues []float64
-		resultValues []float64
-		sourceRows   int
-		cols         int
-		index        int
-		row          int
-		sourceStart  int
-		resultStart  int
-	)
-
-	if len(indexes) == 0 {
-		err = errors.New("data: row indexes are empty")
+	if result, err = source.SelectRows(indexes); err != nil {
+		err = fmt.Errorf("data: select matrix rows: %w", err)
 		return nil, err
 	}
 
-	if sourceValues, err = source.Values(); err != nil {
-		err = fmt.Errorf("data: source matrix is invalid: %w", err)
-		return nil, err
-	}
-
-	sourceRows = source.Rows()
-	cols = source.Cols()
-	resultValues = make([]float64, len(indexes)*cols)
-
-	for index, row = range indexes {
-		if row < 0 || row >= sourceRows {
-			err = fmt.Errorf("data: row index out of range: row=%d rows=%d", row, sourceRows)
-			return nil, err
-		}
-
-		sourceStart = row * cols
-		resultStart = index * cols
-		copy(resultValues[resultStart:resultStart+cols], sourceValues[sourceStart:sourceStart+cols])
-	}
-
-	result, err = matrix.FromSlice(len(indexes), cols, resultValues)
 	return result, err
 }
 

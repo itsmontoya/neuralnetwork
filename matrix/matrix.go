@@ -295,6 +295,49 @@ func (m *Matrix) CopyValuesFrom(values []float64) (err error) {
 	return nil
 }
 
+// SelectRows returns a copy of the rows identified by indexes.
+//
+// Rows are copied in index order, and repeated indexes duplicate rows in the
+// returned matrix. The returned matrix owns its storage.
+func (m *Matrix) SelectRows(indexes []int) (result *Matrix, err error) {
+	var (
+		next        Matrix
+		outputRow   int
+		sourceRow   int
+		sourceStart int
+		resultStart int
+	)
+
+	if err = m.validate(); err != nil {
+		return nil, err
+	}
+
+	if len(indexes) == 0 {
+		err = errors.New("matrix: row indexes are empty")
+		return nil, err
+	}
+
+	for _, sourceRow = range indexes {
+		if sourceRow < 0 || sourceRow >= m.rows {
+			err = fmt.Errorf("matrix: row index out of range: row=%d rows=%d", sourceRow, m.rows)
+			return nil, err
+		}
+	}
+
+	next.rows = len(indexes)
+	next.cols = m.cols
+	next.data = make([]float64, len(indexes)*m.cols)
+	result = &next
+
+	for outputRow, sourceRow = range indexes {
+		sourceStart = sourceRow * m.cols
+		resultStart = outputRow * m.cols
+		copy(result.data[resultStart:resultStart+m.cols], m.data[sourceStart:sourceStart+m.cols])
+	}
+
+	return result, nil
+}
+
 // Add returns the elementwise sum of m and other.
 func (m *Matrix) Add(other *Matrix) (result *Matrix, err error) {
 	if err = m.sameShape(other); err != nil {
