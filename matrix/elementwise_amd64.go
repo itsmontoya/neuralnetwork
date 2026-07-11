@@ -2,6 +2,8 @@
 
 package matrix
 
+import simd64 "github.com/tphakala/simd/f64"
+
 const elementwiseSIMDMinLength = 16
 
 //go:noescape
@@ -44,7 +46,7 @@ func subtractInto(left, right, result []float64) {
 }
 
 func multiplyElementsInto(left, right, result []float64) {
-	multiplyElementsIntoPure(left, right, result)
+	simd64.Mul(result, left, right)
 }
 
 func addScalarInto(source []float64, value float64, result []float64) {
@@ -57,9 +59,9 @@ func addScalarInto(source []float64, value float64, result []float64) {
 }
 
 func multiplyScalarInto(source []float64, value float64, result []float64) {
-	multiplyScalarIntoPure(source, value, result)
+	simd64.Scale(result, source, value)
 }
 
 func multiplyScalarInPlace(source []float64, value float64) {
-	multiplyScalarInPlacePure(source, value)
+	simd64.Scale(source, source, value)
 }
