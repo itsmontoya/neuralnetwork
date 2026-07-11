@@ -1,26 +1,25 @@
 # SIMD Design
 
 Captured on July 7, 2026.
+Updated on July 11, 2026 for hybrid local assembly and `github.com/tphakala/simd` integration.
 
 ## Decision
 
-v2 SIMD work will use private architecture-specific Go assembly kernels for
-`arm64` and `amd64` where benchmarks prove a stable win. `arm64` is the primary
-development and measurement path because current benchmark evidence is captured
-on Apple silicon. `amd64` remains a supported target and needs matching
-architecture-specific evidence before kernels are integrated there. Pure Go
-matrix kernels remain the portable baseline for every platform.
+v2 SIMD work uses local architecture-specific assembly for add-style contiguous
+`float64` slice kernels on `arm64` and `amd64`, and delegates dot product and
+multiply-style kernels to `github.com/tphakala/simd/f64`. That dependency
+provides runtime CPU feature dispatch and pure Go fallbacks behind its API. Pure
+Go matrix kernels remain the local portable baseline for unsupported platforms
+and for builds using this repository's `purego` opt-out tag.
 
 The SIMD boundary stays inside the `matrix` package. Public matrix methods keep
 owning validation, destination shape checks, alias checks, and ownership
 contracts. Private kernels receive already-validated `[]float64` storage and do
 not expose mutable matrix data outside the package.
 
-Generated assembly may be used when the generator is architecture-appropriate.
-For example, `avo` may be used for amd64 kernels, while arm64 should use either
-hand-written Go assembly or an arm64-capable generator approved by maintainers.
-No architecture-specific kernel should be wired into public matrix methods until
-that architecture has raw benchmark evidence showing a stable win.
+Checked-in architecture-specific assembly should be kept only where benchmark
+evidence shows it beats the external SIMD dependency or the dependency cannot
+cover the operation cleanly.
 
 ## Supported GOARCH Values
 
@@ -37,8 +36,9 @@ execute the instructions.
 
 ## Maintenance Cost
 
-Architecture-specific assembly increases review and release cost. Each kernel
-must include:
+Architecture-specific assembly increases review and release cost. Prefer the
+existing `tphakala/simd` boundary for operations where it performs well and
+matches the required semantics. Any new in-repo assembly kernel must include:
 
 * A checked-in generator with a pinned tool dependency when generated assembly
   is used.
@@ -57,9 +57,9 @@ Each SIMD candidate has a pure Go implementation that remains available on all
 architectures. The public method validates inputs before calling the private
 kernel, so fallback and SIMD paths share the same public error behavior.
 
-The active private kernel may choose the pure Go loop for small inputs when
-benchmark evidence shows vector setup overhead is not worthwhile. That cutoff
-must stay private and benchmark-backed.
+The active private kernel may choose a scalar fallback for small inputs or
+unsupported CPU features. Local add-style assembly keeps a private length cutoff.
+When using `tphakala/simd`, runtime CPU dispatch stays inside the dependency.
 
 Floating-point reductions such as dot products and sums may not be bit-for-bit
 identical if SIMD changes accumulation order. Correctness tests should compare
@@ -68,30 +68,35 @@ order exactly.
 
 ## Build Tags and File Layout
 
-Use `purego` as the explicit opt-out tag for architecture-specific assembly.
+Use `purego` as this repository's explicit opt-out tag for external or
+architecture-specific SIMD wrappers.
 
 ```go
 //go:build arm64 && !purego
 //go:build amd64 && !purego
+//go:build (amd64 || arm64) && !purego
 ```
 
-Architecture-specific SIMD files use `arm64 && !purego` or
-`amd64 && !purego`. Pure Go fallback files use:
+Architecture-specific SIMD wrapper files use `arm64 && !purego` or
+`amd64 && !purego`. Shared SIMD wrapper files use `(amd64 || arm64) && !purego`.
+Pure Go fallback files use:
 
 ```go
 //go:build (!arm64 && !amd64) || purego
 ```
 
-Recommended layout for the first kernel:
+Current layout:
 
 ```text
-matrix/simd.go                    shared private declarations and go:generate
-matrix/simd_pure.go               pure Go helpers available to tests
-matrix/simd_arm64.go              arm64 private wrappers
-matrix/simd_arm64.s               arm64 assembly when integrated
-matrix/simd_amd64.go              amd64 private wrappers
-matrix/simd_amd64.s               amd64 assembly when integrated
-matrix/asm_amd64.go               build-ignore avo generator
+matrix/elementwise_pure.go        pure Go helpers available to tests
+matrix/elementwise_arm64.go       local add assembly wrappers, f64 multiply wrappers
+matrix/elementwise_arm64.s        local arm64 add assembly kernels
+matrix/elementwise_amd64.go       local add assembly wrappers, f64 multiply wrappers
+matrix/elementwise_amd64.s        local amd64 add assembly kernels
+matrix/elementwise_default.go     local pure Go fallback wrappers
+matrix/dot_product.go             pure Go dot product helper
+matrix/dot_product_simd.go        f64 SIMD dot product wrapper
+matrix/dot_product_default.go     local pure Go dot product wrapper
 ```
 
 Generator files should use `//go:build ignore` and stay out of normal package
