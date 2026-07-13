@@ -1,4 +1,4 @@
-//go:build purego || (!metal && !arm64 && !amd64) || (metal && (!darwin || !cgo))
+//go:build darwin && cgo && metal && !purego
 
 package matrix
 
