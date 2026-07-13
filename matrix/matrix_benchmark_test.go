@@ -20,6 +20,10 @@ func Benchmark_MatMul(b *testing.B) {
 
 	left = benchmarkMatrix(b, 64, 64)
 	right = benchmarkMatrix(b, 64, 64)
+	result, err = left.MatMul(right)
+	if err != nil {
+		b.Fatalf("MatMul returned error: %v", err)
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -48,6 +52,10 @@ func Benchmark_MatMulInto(b *testing.B) {
 	result, err = matrix.New(64, 64)
 	if err != nil {
 		b.Fatalf("New returned error: %v", err)
+	}
+	err = left.MatMulInto(right, result)
+	if err != nil {
+		b.Fatalf("MatMulInto returned error: %v", err)
 	}
 
 	b.ReportAllocs()
@@ -78,6 +86,10 @@ func Benchmark_MatMulLeftTransposeInto(b *testing.B) {
 	if err != nil {
 		b.Fatalf("New returned error: %v", err)
 	}
+	err = left.MatMulLeftTransposeInto(right, result)
+	if err != nil {
+		b.Fatalf("MatMulLeftTransposeInto returned error: %v", err)
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -106,6 +118,10 @@ func Benchmark_MatMulRightTransposeInto(b *testing.B) {
 	result, err = matrix.New(128, 32)
 	if err != nil {
 		b.Fatalf("New returned error: %v", err)
+	}
+	err = left.MatMulRightTransposeInto(right, result)
+	if err != nil {
+		b.Fatalf("MatMulRightTransposeInto returned error: %v", err)
 	}
 
 	b.ReportAllocs()
@@ -915,6 +931,10 @@ func benchmarkMatMulShape(b *testing.B, leftRows, leftCols, rightCols int) {
 
 	left = benchmarkMatrix(b, leftRows, leftCols)
 	right = benchmarkMatrix(b, leftCols, rightCols)
+	result, err = left.MatMul(right)
+	if err != nil {
+		b.Fatalf("MatMul returned error: %v", err)
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -943,6 +963,10 @@ func benchmarkMatMulRightTransposeShape(b *testing.B, leftRows, leftCols, rightR
 	result, err = matrix.New(leftRows, rightRows)
 	if err != nil {
 		b.Fatalf("New returned error: %v", err)
+	}
+	err = left.MatMulRightTransposeInto(right, result)
+	if err != nil {
+		b.Fatalf("MatMulRightTransposeInto returned error: %v", err)
 	}
 
 	b.ReportAllocs()
