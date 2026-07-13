@@ -29,7 +29,7 @@ The following features should remain out of scope until the dense-network core i
 
 * Convolutional layers.
 * Recurrent layers.
-* GPU acceleration.
+* Additional accelerator backends beyond the optional Metal build tag.
 * Automatic differentiation graphs.
 * Distributed training.
 
@@ -80,9 +80,10 @@ The exact function signatures should be finalized alongside the first implementa
 
 ## Numeric Type
 
-The v1 implementation uses `float32` as its numeric type. Matrix storage,
-layers, losses, metrics, optimizers, training metrics, data loading, and
-serialized model values share one precision boundary.
+The v1 implementation uses `float32` as its numeric type. This matches the
+Metal compute path directly and keeps matrix storage, layers, losses, metrics,
+optimizers, training metrics, data loading, and serialized model values on one
+precision boundary.
 
 Gradient checks and floating-point assertions should use f32-sized finite
 difference steps and tolerances rather than float64 precision assumptions.
