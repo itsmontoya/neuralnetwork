@@ -9,12 +9,12 @@ import "github.com/itsmontoya/neuralnetwork/matrix"
 type CategoricalAccuracy struct{}
 
 // Value returns categorical accuracy for one-hot classification targets.
-func (c CategoricalAccuracy) Value(predictions, targets *matrix.Matrix) (value float64, err error) {
+func (c CategoricalAccuracy) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
 	var (
 		rows             int
 		cols             int
-		predictionValues []float64
-		targetValues     []float64
+		predictionValues []float32
+		targetValues     []float32
 		row              int
 		predictedClass   int
 		targetClass      int
@@ -35,11 +35,11 @@ func (c CategoricalAccuracy) Value(predictions, targets *matrix.Matrix) (value f
 		correct++
 	}
 
-	value = float64(correct) / float64(rows)
+	value = float32(correct) / float32(rows)
 	return value, nil
 }
 
-func (c CategoricalAccuracy) values(predictions, targets *matrix.Matrix) (rows, cols int, predictionValues, targetValues []float64, err error) {
+func (c CategoricalAccuracy) values(predictions, targets *matrix.Matrix) (rows, cols int, predictionValues, targetValues []float32, err error) {
 	if rows, cols, predictionValues, targetValues, err = matrixValuePair(predictions, targets); err != nil {
 		return 0, 0, nil, nil, err
 	}

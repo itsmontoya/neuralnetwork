@@ -16,7 +16,7 @@ func Test_BatchNormalization_BackwardValidatesNormalizedCache(t *testing.T) {
 	batchNorm = mustInternalBatchNormalization(t)
 	batchNorm.normalizedCache = nil
 
-	_, err = batchNorm.Backward(mustInternalMatrix(t, 2, 2, []float64{
+	_, err = batchNorm.Backward(mustInternalMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 4,
 	}))
@@ -36,9 +36,9 @@ func Test_BatchNormalization_BackwardValidatesInverseStdCache(t *testing.T) {
 	)
 
 	batchNorm = mustInternalBatchNormalization(t)
-	batchNorm.inverseStdCache = []float64{1}
+	batchNorm.inverseStdCache = []float32{1}
 
-	_, err = batchNorm.Backward(mustInternalMatrix(t, 2, 2, []float64{
+	_, err = batchNorm.Backward(mustInternalMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 4,
 	}))
@@ -61,7 +61,7 @@ func mustInternalBatchNormalization(tb testing.TB) (batchNorm *BatchNormalizatio
 		tb.Fatalf("NewBatchNormalization returned error: %v", err)
 	}
 
-	_, err = batchNorm.Forward(mustInternalMatrix(tb, 2, 2, []float64{
+	_, err = batchNorm.Forward(mustInternalMatrix(tb, 2, 2, []float32{
 		1, 2,
 		3, 6,
 	}))
@@ -72,7 +72,7 @@ func mustInternalBatchNormalization(tb testing.TB) (batchNorm *BatchNormalizatio
 	return batchNorm
 }
 
-func mustInternalMatrix(tb testing.TB, rows, cols int, values []float64) (m *matrix.Matrix) {
+func mustInternalMatrix(tb testing.TB, rows, cols int, values []float32) (m *matrix.Matrix) {
 	var err error
 
 	tb.Helper()

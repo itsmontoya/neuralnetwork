@@ -1,9 +1,9 @@
 package loss_test
 
 import (
-	"math"
 	"testing"
 
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/internal/testutil"
 	"github.com/itsmontoya/neuralnetwork/loss"
 	"github.com/itsmontoya/neuralnetwork/matrix"
@@ -13,15 +13,15 @@ func Test_CategoricalCrossEntropy_Value(t *testing.T) {
 	var (
 		predictions *matrix.Matrix
 		targets     *matrix.Matrix
-		got         float64
+		got         float32
 		err         error
 	)
 
-	predictions = mustMatrix(t, 2, 3, []float64{
+	predictions = mustMatrix(t, 2, 3, []float32{
 		0.7, 0.2, 0.1,
 		0.1, 0.6, 0.3,
 	})
-	targets = mustMatrix(t, 2, 3, []float64{
+	targets = mustMatrix(t, 2, 3, []float32{
 		1, 0, 0,
 		0, 1, 0,
 	})
@@ -42,11 +42,11 @@ func Test_CategoricalCrossEntropy_Gradient(t *testing.T) {
 		err         error
 	)
 
-	predictions = mustMatrix(t, 2, 3, []float64{
+	predictions = mustMatrix(t, 2, 3, []float32{
 		0.7, 0.2, 0.1,
 		0.1, 0.6, 0.3,
 	})
-	targets = mustMatrix(t, 2, 3, []float64{
+	targets = mustMatrix(t, 2, 3, []float32{
 		1, 0, 0,
 		0, 1, 0,
 	})
@@ -64,7 +64,7 @@ func Test_CategoricalCrossEntropy_Gradient(t *testing.T) {
 		t.Fatalf("Gradient cols = %d, want 3", gradient.Cols())
 	}
 
-	requireMatrixValues(t, gradient, []float64{
+	requireMatrixValues(t, gradient, []float32{
 		-0.7142857142857143, 0, 0,
 		0, -0.8333333333333334, 0,
 	})
@@ -75,16 +75,16 @@ func Test_CategoricalCrossEntropy_StableAroundZeroAndOne(t *testing.T) {
 		predictions *matrix.Matrix
 		targets     *matrix.Matrix
 		gradient    *matrix.Matrix
-		value       float64
-		lower       float64
+		value       float32
+		lower       float32
 		err         error
 	)
 
-	predictions = mustMatrix(t, 2, 3, []float64{
+	predictions = mustMatrix(t, 2, 3, []float32{
 		1, 0, 0,
 		0, 1, 0,
 	})
-	targets = mustMatrix(t, 2, 3, []float64{
+	targets = mustMatrix(t, 2, 3, []float32{
 		0, 1, 0,
 		0, 0, 1,
 	})
@@ -96,7 +96,7 @@ func Test_CategoricalCrossEntropy_StableAroundZeroAndOne(t *testing.T) {
 
 	requireFinite(t, value)
 	lower = clampEpsilon
-	testutil.RequireAlmostEqual(t, value, -math.Log(lower), epsilon)
+	testutil.RequireAlmostEqual(t, value, -f32.Log(lower), epsilon)
 
 	gradient, err = loss.CategoricalCrossEntropy{}.Gradient(predictions, targets)
 	if err != nil {
@@ -104,7 +104,7 @@ func Test_CategoricalCrossEntropy_StableAroundZeroAndOne(t *testing.T) {
 	}
 
 	requireFiniteMatrix(t, gradient)
-	requireMatrixValues(t, gradient, []float64{
+	requireMatrixValues(t, gradient, []float32{
 		0, -1 / lower / 2, 0,
 		0, 0, -1 / lower / 2,
 	})
@@ -113,22 +113,22 @@ func Test_CategoricalCrossEntropy_StableAroundZeroAndOne(t *testing.T) {
 func Test_CategoricalCrossEntropy_ValidatesOneHotTargets(t *testing.T) {
 	type testcase struct {
 		name   string
-		values []float64
+		values []float32
 	}
 
 	var tests []testcase
 	tests = []testcase{
 		{
 			name:   "no class",
-			values: []float64{0, 0, 0},
+			values: []float32{0, 0, 0},
 		},
 		{
 			name:   "multiple classes",
-			values: []float64{1, 1, 0},
+			values: []float32{1, 1, 0},
 		},
 		{
 			name:   "fractional class",
-			values: []float64{0.5, 0.5, 0},
+			values: []float32{0.5, 0.5, 0},
 		},
 	}
 
@@ -137,11 +137,11 @@ func Test_CategoricalCrossEntropy_ValidatesOneHotTargets(t *testing.T) {
 			var (
 				predictions *matrix.Matrix
 				targets     *matrix.Matrix
-				got         float64
+				got         float32
 				err         error
 			)
 
-			predictions = mustMatrix(t, 1, 3, []float64{0.4, 0.4, 0.2})
+			predictions = mustMatrix(t, 1, 3, []float32{0.4, 0.4, 0.2})
 			targets = mustMatrix(t, 1, 3, tt.values)
 
 			got, err = loss.CategoricalCrossEntropy{}.Value(predictions, targets)
@@ -160,8 +160,8 @@ func Test_CategoricalCrossEntropy_GradientValidatesOneHotTargets(t *testing.T) {
 		err         error
 	)
 
-	predictions = mustMatrix(t, 1, 3, []float64{0.4, 0.4, 0.2})
-	targets = mustMatrix(t, 1, 3, []float64{0.5, 0.5, 0})
+	predictions = mustMatrix(t, 1, 3, []float32{0.4, 0.4, 0.2})
+	targets = mustMatrix(t, 1, 3, []float32{0.5, 0.5, 0})
 
 	gradient, err = loss.CategoricalCrossEntropy{}.Gradient(predictions, targets)
 	if err == nil {

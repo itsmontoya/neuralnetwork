@@ -6,7 +6,7 @@ import "github.com/itsmontoya/neuralnetwork/matrix"
 type CategoricalMacroF1 struct{}
 
 // Value returns macro-averaged F1 across classes.
-func (c CategoricalMacroF1) Value(predictions, targets *matrix.Matrix) (value float64, err error) {
+func (c CategoricalMacroF1) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
 	var confusionMatrix *ConfusionMatrix
 
 	if confusionMatrix, err = NewCategoricalConfusionMatrix(predictions, targets); err != nil {

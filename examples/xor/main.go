@@ -33,9 +33,9 @@ func run() (err error) {
 		optimizerRule    optimizer.Optimizer
 		history          model.TrainingHistory
 		inputs           *matrix.Matrix
-		inputValues      []float64
+		inputValues      []float32
 		predictions      *matrix.Matrix
-		predictionValues []float64
+		predictionValues []float32
 		index            int
 	)
 
@@ -97,7 +97,7 @@ func newXORDataset() (dataset *data.Dataset, err error) {
 		targets *matrix.Matrix
 	)
 
-	if inputs, err = matrix.FromSlice(4, 2, []float64{
+	if inputs, err = matrix.FromSlice(4, 2, []float32{
 		0, 0,
 		0, 1,
 		1, 0,
@@ -106,7 +106,7 @@ func newXORDataset() (dataset *data.Dataset, err error) {
 		return nil, err
 	}
 
-	if targets, err = matrix.FromSlice(4, 1, []float64{
+	if targets, err = matrix.FromSlice(4, 1, []float32{
 		0,
 		1,
 		1,

@@ -51,7 +51,7 @@ func (r *Regularized) Update(parameters []*Parameter) (err error) {
 }
 
 // LearningRate returns the wrapped optimizer learning rate.
-func (r *Regularized) LearningRate() (learningRate float64) {
+func (r *Regularized) LearningRate() (learningRate float32) {
 	if r == nil || r.base == nil {
 		return 0
 	}
@@ -61,7 +61,7 @@ func (r *Regularized) LearningRate() (learningRate float64) {
 }
 
 // SetLearningRate updates the wrapped optimizer learning rate.
-func (r *Regularized) SetLearningRate(learningRate float64) (err error) {
+func (r *Regularized) SetLearningRate(learningRate float32) (err error) {
 	if r == nil {
 		err = nilOptimizerError("regularized")
 		return err

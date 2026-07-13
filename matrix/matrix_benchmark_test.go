@@ -7,7 +7,7 @@ import (
 )
 
 var benchmarkResult *matrix.Matrix
-var benchmarkValues []float64
+var benchmarkValues []float32
 
 func Benchmark_MatMul(b *testing.B) {
 	var (
@@ -147,7 +147,7 @@ func Benchmark_Clone(b *testing.B) {
 func Benchmark_Values(b *testing.B) {
 	var (
 		source *matrix.Matrix
-		values []float64
+		values []float32
 		err    error
 		index  int
 	)
@@ -656,7 +656,7 @@ func Benchmark_TransposeInto(b *testing.B) {
 func Benchmark_RowSums(b *testing.B) {
 	var (
 		source *matrix.Matrix
-		values []float64
+		values []float32
 		err    error
 		index  int
 	)
@@ -706,7 +706,7 @@ func Benchmark_RowSumsInto(b *testing.B) {
 func Benchmark_ColumnSums(b *testing.B) {
 	var (
 		source *matrix.Matrix
-		values []float64
+		values []float32
 		err    error
 		index  int
 	)
@@ -962,14 +962,14 @@ func benchmarkMatrix(tb testing.TB, rows, cols int) (m *matrix.Matrix) {
 	tb.Helper()
 
 	var (
-		values []float64
+		values []float32
 		err    error
 		index  int
 	)
 
-	values = make([]float64, rows*cols)
+	values = make([]float32, rows*cols)
 	for index = range values {
-		values[index] = float64(index%31) / 31
+		values[index] = float32(index%31) / 31
 	}
 
 	m, err = matrix.FromSlice(rows, cols, values)
@@ -984,14 +984,14 @@ func benchmarkPositiveMatrix(tb testing.TB, rows, cols int) (m *matrix.Matrix) {
 	tb.Helper()
 
 	var (
-		values []float64
+		values []float32
 		err    error
 		index  int
 	)
 
-	values = make([]float64, rows*cols)
+	values = make([]float32, rows*cols)
 	for index = range values {
-		values[index] = 1 + float64(index%31)/31
+		values[index] = 1 + float32(index%31)/31
 	}
 
 	m, err = matrix.FromSlice(rows, cols, values)
@@ -1002,7 +1002,7 @@ func benchmarkPositiveMatrix(tb testing.TB, rows, cols int) (m *matrix.Matrix) {
 	return m
 }
 
-func benchmarkApply(value float64) (out float64) {
+func benchmarkApply(value float32) (out float32) {
 	out = value * 1.125
 	return out
 }

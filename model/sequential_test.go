@@ -15,7 +15,7 @@ import (
 	"github.com/itsmontoya/neuralnetwork/optimizer"
 )
 
-const epsilon = 1e-12
+const epsilon = 1e-5
 
 func Test_NewSequential_ConstructsTrainingModel(t *testing.T) {
 	var (
@@ -59,7 +59,7 @@ func Test_Sequential_PredictCallsLayersInOrder(t *testing.T) {
 		err     error
 	)
 
-	input = mustMatrix(t, 1, 1, []float64{1})
+	input = mustMatrix(t, 1, 1, []float32{1})
 	network, err = model.NewSequential(
 		&recordingLayer{name: "first", calls: &calls, forwardDelta: 2},
 		&recordingLayer{name: "second", calls: &calls, forwardDelta: 3},
@@ -74,7 +74,7 @@ func Test_Sequential_PredictCallsLayersInOrder(t *testing.T) {
 	}
 
 	requireStrings(t, calls, []string{"forward first", "forward second"})
-	requireMatrixValues(t, output, []float64{6})
+	requireMatrixValues(t, output, []float32{6})
 }
 
 func Test_Sequential_BackwardCallsLayersInReverseOrder(t *testing.T) {
@@ -86,7 +86,7 @@ func Test_Sequential_BackwardCallsLayersInReverseOrder(t *testing.T) {
 		err            error
 	)
 
-	outputGradient = mustMatrix(t, 1, 1, []float64{1})
+	outputGradient = mustMatrix(t, 1, 1, []float32{1})
 	network, err = model.NewSequential(
 		&recordingLayer{name: "first", calls: &calls, backwardDelta: 10},
 		&recordingLayer{name: "second", calls: &calls, backwardDelta: 20},
@@ -101,7 +101,7 @@ func Test_Sequential_BackwardCallsLayersInReverseOrder(t *testing.T) {
 	}
 
 	requireStrings(t, calls, []string{"backward second", "backward first"})
-	requireMatrixValues(t, inputGradient, []float64{31})
+	requireMatrixValues(t, inputGradient, []float32{31})
 }
 
 func Test_Sequential_ParametersCollectsTrainableLayersInOrder(t *testing.T) {
@@ -114,9 +114,9 @@ func Test_Sequential_ParametersCollectsTrainableLayersInOrder(t *testing.T) {
 		err            error
 	)
 
-	parameterOne = mustParameter(t, []float64{1})
-	parameterTwo = mustParameter(t, []float64{2})
-	parameterThree = mustParameter(t, []float64{3})
+	parameterOne = mustParameter(t, []float32{1})
+	parameterTwo = mustParameter(t, []float32{2})
+	parameterThree = mustParameter(t, []float32{3})
 
 	network, err = model.NewSequential(
 		&parameterLayer{parameters: []*optimizer.Parameter{parameterOne, parameterTwo}},
@@ -194,8 +194,8 @@ func Test_Sequential_TrainBatchUpdatesParameters(t *testing.T) {
 		t.Fatalf("NewSequential returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 1, 2, []float64{1, 2})
-	targets = mustMatrix(t, 1, 1, []float64{0})
+	input = mustMatrix(t, 1, 2, []float32{1, 2})
+	targets = mustMatrix(t, 1, 1, []float32{0})
 	sgd, err = optimizer.NewSGD(0.1)
 	if err != nil {
 		t.Fatalf("NewSGD returned error: %v", err)
@@ -207,10 +207,10 @@ func Test_Sequential_TrainBatchUpdatesParameters(t *testing.T) {
 	}
 
 	testutil.RequireAlmostEqual(t, metrics.Loss, 0.25, epsilon)
-	requireMatrixValues(t, dense.Weights().Values(), []float64{1.1, -0.8})
-	requireMatrixValues(t, dense.Biases().Values(), []float64{0.6})
-	requireMatrixValues(t, dense.Weights().Gradient(), []float64{0, 0})
-	requireMatrixValues(t, dense.Biases().Gradient(), []float64{0})
+	requireMatrixValues(t, dense.Weights().Values(), []float32{1.1, -0.8})
+	requireMatrixValues(t, dense.Biases().Values(), []float32{0.6})
+	requireMatrixValues(t, dense.Weights().Gradient(), []float32{0, 0})
+	requireMatrixValues(t, dense.Biases().Gradient(), []float32{0})
 }
 
 func Test_Sequential_TrainBatchRejectsNilDependencies(t *testing.T) {
@@ -228,8 +228,8 @@ func Test_Sequential_TrainBatchRejectsNilDependencies(t *testing.T) {
 		err     error
 	)
 
-	input = mustMatrix(t, 1, 1, []float64{1})
-	targets = mustMatrix(t, 1, 1, []float64{1})
+	input = mustMatrix(t, 1, 1, []float32{1})
+	targets = mustMatrix(t, 1, 1, []float32{1})
 	sgd, err = optimizer.NewSGD(0.1)
 	if err != nil {
 		t.Fatalf("NewSGD returned error: %v", err)
@@ -292,8 +292,8 @@ func Test_Sequential_TrainBatchRestoresPreviousModeAfterLossError(t *testing.T) 
 		t.Fatalf("SetTraining returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 1, 1, []float64{1})
-	targets = mustMatrix(t, 1, 1, []float64{1})
+	input = mustMatrix(t, 1, 1, []float32{1})
+	targets = mustMatrix(t, 1, 1, []float32{1})
 	optimizerRule = &recordingOptimizer{}
 	_, err = network.TrainBatch(input, targets, &errorLoss{valueErr: lossErr}, optimizerRule)
 	if !errors.Is(err, lossErr) {
@@ -342,7 +342,7 @@ func Test_Sequential_FitDecreasesLossAndRecordsHistory(t *testing.T) {
 		Optimizer:      sgd,
 		Loss:           loss.MeanSquaredError{},
 		ValidationData: dataset,
-		Accuracy: func(predictions, targets *matrix.Matrix) (accuracy float64, err error) {
+		Accuracy: func(predictions, targets *matrix.Matrix) (accuracy float32, err error) {
 			return 0.75, nil
 		},
 		Callback: func(metrics model.EpochMetrics) (err error) {
@@ -468,7 +468,7 @@ func Test_Sequential_FitAppliesLearningRateScheduleBeforeEachEpoch(t *testing.T)
 		sgd         *optimizer.SGD
 		schedule    *optimizer.StepDecay
 		history     model.TrainingHistory
-		epochRates  []float64
+		epochRates  []float32
 		callbackErr error
 		err         error
 	)
@@ -506,7 +506,7 @@ func Test_Sequential_FitAppliesLearningRateScheduleBeforeEachEpoch(t *testing.T)
 	}
 
 	requireEpochCount(t, history, 3)
-	testutil.RequireSliceAlmostEqual(t, epochRates, []float64{0.2, 0.1, 0.05}, epsilon)
+	testutil.RequireSliceAlmostEqual(t, epochRates, []float32{0.2, 0.1, 0.05}, epsilon)
 }
 
 func Test_Sequential_FitReturnsLearningRateScheduleErrors(t *testing.T) {
@@ -534,7 +534,7 @@ func Test_Sequential_FitReturnsLearningRateScheduleErrors(t *testing.T) {
 		},
 		{
 			name:          "optimizer set learning rate error",
-			schedule:      &recordingSchedule{rates: []float64{0.2}},
+			schedule:      &recordingSchedule{rates: []float32{0.2}},
 			optimizerRule: &recordingOptimizer{setLearningRateErr: updateErr},
 			wantErr:       updateErr,
 		},
@@ -592,11 +592,11 @@ func Test_Sequential_FitStopsEarlyOnTrainingLoss(t *testing.T) {
 		t.Fatalf("NewSequential returned error: %v", err)
 	}
 
-	inputs = mustMatrix(t, 2, 2, []float64{
+	inputs = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 4,
 	})
-	targets = mustMatrix(t, 2, 2, []float64{
+	targets = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 4,
 	})
@@ -660,7 +660,7 @@ func Test_Sequential_FitEarlyStoppingUsesValidationLossWhenAvailable(t *testing.
 	}
 
 	lossFunc = &sequenceLoss{
-		values: []float64{
+		values: []float32{
 			0, 10, 1,
 			0, 9, 1,
 			0, 8, 1,
@@ -854,7 +854,7 @@ func Test_Sequential_FitRestoresTrainingModeAfterEvaluationLossFailure(t *testin
 
 	dataset = mustSequenceDataset(t)
 	optimizerRule = &recordingOptimizer{}
-	lossFunc = &sequenceLoss{values: []float64{0}}
+	lossFunc = &sequenceLoss{values: []float32{0}}
 	history, err = network.Fit(dataset, model.FitConfig{
 		Epochs:    1,
 		BatchSize: 2,
@@ -904,7 +904,7 @@ func Test_Sequential_FitRestoresTrainingModeAfterAccuracyFailure(t *testing.T) {
 		BatchSize: 2,
 		Optimizer: optimizerRule,
 		Loss:      loss.MeanSquaredError{},
-		Accuracy: func(predictions, targets *matrix.Matrix) (accuracy float64, err error) {
+		Accuracy: func(predictions, targets *matrix.Matrix) (accuracy float32, err error) {
 			err = accuracyErr
 			return 0, err
 		},
@@ -949,8 +949,8 @@ func Test_Sequential_TrainBatchUsesTrainingModeAndRestoresPreviousMode(t *testin
 		t.Fatalf("SetTraining returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 1, 1, []float64{1})
-	targets = mustMatrix(t, 1, 1, []float64{1})
+	input = mustMatrix(t, 1, 1, []float32{1})
+	targets = mustMatrix(t, 1, 1, []float32{1})
 	sgd, err = optimizer.NewSGD(0.1)
 	if err != nil {
 		t.Fatalf("NewSGD returned error: %v", err)
@@ -994,11 +994,11 @@ func Test_Sequential_FitEvaluatesWithTrainingDisabled(t *testing.T) {
 		t.Fatalf("SetTraining returned error: %v", err)
 	}
 
-	inputs = mustMatrix(t, 2, 2, []float64{
+	inputs = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 4,
 	})
-	targets = mustMatrix(t, 2, 2, []float64{
+	targets = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 4,
 	})
@@ -1038,14 +1038,14 @@ func mustDense(tb testing.TB) (dense *layer.Dense) {
 	tb.Helper()
 
 	dense, err = layer.NewDense(2, 1, func(inputSize, outputSize int) (weights *matrix.Matrix, err error) {
-		weights, err = matrix.FromSlice(inputSize, outputSize, []float64{1, -1})
+		weights, err = matrix.FromSlice(inputSize, outputSize, []float32{1, -1})
 		return weights, err
 	})
 	if err != nil {
 		tb.Fatalf("NewDense returned error: %v", err)
 	}
 
-	biases = mustMatrix(tb, 1, 1, []float64{0.5})
+	biases = mustMatrix(tb, 1, 1, []float32{0.5})
 	err = dense.Biases().Values().CopyFrom(biases)
 	if err != nil {
 		tb.Fatalf("CopyFrom returned error: %v", err)
@@ -1063,13 +1063,13 @@ func mustFitDataset(tb testing.TB) (dataset *data.Dataset) {
 
 	tb.Helper()
 
-	inputs = mustMatrix(tb, 4, 2, []float64{
+	inputs = mustMatrix(tb, 4, 2, []float32{
 		0, 0,
 		1, 0,
 		0, 1,
 		1, 1,
 	})
-	targets = mustMatrix(tb, 4, 1, []float64{
+	targets = mustMatrix(tb, 4, 1, []float32{
 		1,
 		3,
 		-2,
@@ -1093,8 +1093,8 @@ func mustSequenceDataset(tb testing.TB) (dataset *data.Dataset) {
 
 	tb.Helper()
 
-	inputs = mustMatrix(tb, 2, 1, []float64{1, 2})
-	targets = mustMatrix(tb, 2, 1, []float64{1, 2})
+	inputs = mustMatrix(tb, 2, 1, []float32{1, 2})
+	targets = mustMatrix(tb, 2, 1, []float32{1, 2})
 	dataset, err = data.NewDataset(inputs, targets)
 	if err != nil {
 		tb.Fatalf("NewDataset returned error: %v", err)
@@ -1154,7 +1154,7 @@ func fitSeededModel(tb testing.TB, seed int64) (history model.TrainingHistory, p
 	return history, predictions
 }
 
-func mustMatrix(tb testing.TB, rows, cols int, values []float64) (m *matrix.Matrix) {
+func mustMatrix(tb testing.TB, rows, cols int, values []float32) (m *matrix.Matrix) {
 	var err error
 
 	tb.Helper()
@@ -1167,7 +1167,7 @@ func mustMatrix(tb testing.TB, rows, cols int, values []float64) (m *matrix.Matr
 	return m
 }
 
-func mustParameter(tb testing.TB, values []float64) (parameter *optimizer.Parameter) {
+func mustParameter(tb testing.TB, values []float32) (parameter *optimizer.Parameter) {
 	var (
 		valueMatrix *matrix.Matrix
 		err         error
@@ -1184,7 +1184,7 @@ func mustParameter(tb testing.TB, values []float64) (parameter *optimizer.Parame
 	return parameter
 }
 
-func mustValues(tb testing.TB, m *matrix.Matrix) (values []float64) {
+func mustValues(tb testing.TB, m *matrix.Matrix) (values []float32) {
 	var err error
 
 	tb.Helper()
@@ -1197,9 +1197,9 @@ func mustValues(tb testing.TB, m *matrix.Matrix) (values []float64) {
 	return values
 }
 
-func requireMatrixValues(tb testing.TB, got *matrix.Matrix, want []float64) {
+func requireMatrixValues(tb testing.TB, got *matrix.Matrix, want []float32) {
 	var (
-		values []float64
+		values []float32
 		err    error
 	)
 
@@ -1330,8 +1330,8 @@ func requireBools(tb testing.TB, got, want []bool) {
 type recordingLayer struct {
 	name          string
 	calls         *[]string
-	forwardDelta  float64
-	backwardDelta float64
+	forwardDelta  float32
+	backwardDelta float32
 }
 
 func (r *recordingLayer) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error) {
@@ -1398,11 +1398,11 @@ func (e *evaluationErrorLayer) SetTraining(training bool) {
 }
 
 type sequenceLoss struct {
-	values []float64
+	values []float32
 	index  int
 }
 
-func (s *sequenceLoss) Value(predictions, targets *matrix.Matrix) (value float64, err error) {
+func (s *sequenceLoss) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
 	if s.index >= len(s.values) {
 		err = fmt.Errorf("sequence loss exhausted at index %d", s.index)
 		return 0, err
@@ -1429,7 +1429,7 @@ type errorLoss struct {
 	gradientErr error
 }
 
-func (e *errorLoss) Value(predictions, targets *matrix.Matrix) (value float64, err error) {
+func (e *errorLoss) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
 	var mse loss.MeanSquaredError
 
 	if e.valueErr != nil {
@@ -1454,12 +1454,12 @@ func (e *errorLoss) Gradient(predictions, targets *matrix.Matrix) (gradient *mat
 }
 
 type recordingSchedule struct {
-	rates  []float64
+	rates  []float32
 	err    error
 	epochs []int
 }
 
-func (r *recordingSchedule) LearningRate(epoch int) (learningRate float64, err error) {
+func (r *recordingSchedule) LearningRate(epoch int) (learningRate float32, err error) {
 	var index int
 
 	r.epochs = append(r.epochs, epoch)
@@ -1482,11 +1482,11 @@ func (r *recordingSchedule) LearningRate(epoch int) (learningRate float64, err e
 }
 
 type recordingOptimizer struct {
-	learningRate       float64
+	learningRate       float32
 	setLearningRateErr error
 	updateErr          error
 	updateCalls        int
-	setRates           []float64
+	setRates           []float32
 }
 
 func (r *recordingOptimizer) Update(parameters []*optimizer.Parameter) (err error) {
@@ -1499,12 +1499,12 @@ func (r *recordingOptimizer) Update(parameters []*optimizer.Parameter) (err erro
 	return nil
 }
 
-func (r *recordingOptimizer) LearningRate() (learningRate float64) {
+func (r *recordingOptimizer) LearningRate() (learningRate float32) {
 	learningRate = r.learningRate
 	return learningRate
 }
 
-func (r *recordingOptimizer) SetLearningRate(learningRate float64) (err error) {
+func (r *recordingOptimizer) SetLearningRate(learningRate float32) (err error) {
 	r.setRates = append(r.setRates, learningRate)
 	if r.setLearningRateErr != nil {
 		err = r.setLearningRateErr

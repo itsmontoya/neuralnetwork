@@ -3,8 +3,8 @@ package layer
 import (
 	"errors"
 	"fmt"
-	"math"
 
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 	"github.com/itsmontoya/neuralnetwork/optimizer"
 )
@@ -26,7 +26,7 @@ func NewBatchNormalization(featureSize int) (out *BatchNormalization, err error)
 
 // NewBatchNormalizationWithConfig constructs a batch normalization layer with
 // explicit running-statistic momentum and numerical epsilon values.
-func NewBatchNormalizationWithConfig(featureSize int, momentum, epsilon float64) (out *BatchNormalization, err error) {
+func NewBatchNormalizationWithConfig(featureSize int, momentum, epsilon float32) (out *BatchNormalization, err error) {
 	var (
 		gammaMatrix     *matrix.Matrix
 		betaMatrix      *matrix.Matrix
@@ -101,29 +101,29 @@ func NewBatchNormalizationWithConfig(featureSize int, momentum, epsilon float64)
 // parameters.
 type BatchNormalization struct {
 	featureSize     int
-	momentum        float64
-	epsilon         float64
+	momentum        float32
+	epsilon         float32
 	gamma           *optimizer.Parameter
 	beta            *optimizer.Parameter
 	runningMean     *matrix.Matrix
 	runningVariance *matrix.Matrix
 	training        bool
 	outputScratch   *matrix.Matrix
-	inputValues     []float64
-	gammaValues     []float64
-	betaValues      []float64
-	meanValues      []float64
-	varianceValues  []float64
-	normalizedCache []float64
-	inverseStdCache []float64
-	outputValues    []float64
+	inputValues     []float32
+	gammaValues     []float32
+	betaValues      []float32
+	meanValues      []float32
+	varianceValues  []float32
+	normalizedCache []float32
+	inverseStdCache []float32
+	outputValues    []float32
 
-	gradientValues        []float64
-	gammaGradientValues   []float64
-	betaGradientValues    []float64
-	inputGradientValues   []float64
-	runningMeanValues     []float64
-	runningVarianceValues []float64
+	gradientValues        []float32
+	gammaGradientValues   []float32
+	betaGradientValues    []float32
+	inputGradientValues   []float32
+	runningMeanValues     []float32
+	runningVarianceValues []float32
 	inputGradientScratch  *matrix.Matrix
 	gammaGradientScratch  *matrix.Matrix
 	betaGradientScratch   *matrix.Matrix
@@ -289,7 +289,7 @@ func (b *BatchNormalization) FeatureSize() (featureSize int) {
 }
 
 // Momentum returns the running-statistic update momentum.
-func (b *BatchNormalization) Momentum() (momentum float64) {
+func (b *BatchNormalization) Momentum() (momentum float32) {
 	if b == nil {
 		return 0
 	}
@@ -299,7 +299,7 @@ func (b *BatchNormalization) Momentum() (momentum float64) {
 }
 
 // Epsilon returns the numerical stability value added to variances.
-func (b *BatchNormalization) Epsilon() (epsilon float64) {
+func (b *BatchNormalization) Epsilon() (epsilon float32) {
 	if b == nil {
 		return 0
 	}
@@ -452,11 +452,11 @@ func (b *BatchNormalization) trainingInputGradientInto(rows, cols int) {
 		row        int
 		col        int
 		index      int
-		rowCount   float64
-		multiplier float64
+		rowCount   float32
+		multiplier float32
 	)
 
-	rowCount = float64(rows)
+	rowCount = float32(rows)
 	for row = 0; row < rows; row++ {
 		for col = 0; col < cols; col++ {
 			index = row*cols + col
@@ -478,10 +478,10 @@ func (b *BatchNormalization) evaluationInputGradientInto(cols int) {
 	}
 }
 
-func (b *BatchNormalization) updateRunningStatistics(meanValues, varianceValues []float64) (err error) {
+func (b *BatchNormalization) updateRunningStatistics(meanValues, varianceValues []float32) (err error) {
 	var (
 		index       int
-		updateScale float64
+		updateScale float32
 	)
 
 	b.runningMeanValues = floatScratch(b.runningMeanValues, b.featureSize)
@@ -603,11 +603,11 @@ func (b *BatchNormalization) ensureBackwardScratch(rows, cols, valueCount int) (
 	return nil
 }
 
-func batchNormalizationMeansInto(rows, cols int, values, means []float64) {
+func batchNormalizationMeansInto(rows, cols int, values, means []float32) {
 	var (
 		index int
 		col   int
-		scale float64
+		scale float32
 	)
 
 	for col = range means {
@@ -619,18 +619,18 @@ func batchNormalizationMeansInto(rows, cols int, values, means []float64) {
 		means[col] += values[index]
 	}
 
-	scale = 1 / float64(rows)
+	scale = 1 / float32(rows)
 	for col = range means {
 		means[col] *= scale
 	}
 }
 
-func batchNormalizationVariancesInto(rows, cols int, values, means, variances []float64) {
+func batchNormalizationVariancesInto(rows, cols int, values, means, variances []float32) {
 	var (
 		index      int
 		col        int
-		difference float64
-		scale      float64
+		difference float32
+		scale      float32
 	)
 
 	for col = range variances {
@@ -643,22 +643,22 @@ func batchNormalizationVariancesInto(rows, cols int, values, means, variances []
 		variances[col] += difference * difference
 	}
 
-	scale = 1 / float64(rows)
+	scale = 1 / float32(rows)
 	for col = range variances {
 		variances[col] *= scale
 	}
 }
 
-func batchNormalizationInverseStdInto(variances []float64, epsilon float64, inverseStd []float64) {
+func batchNormalizationInverseStdInto(variances []float32, epsilon float32, inverseStd []float32) {
 	var index int
 
 	for index = range variances {
-		inverseStd[index] = 1 / math.Sqrt(variances[index]+epsilon)
+		inverseStd[index] = 1 / f32.Sqrt(variances[index]+epsilon)
 	}
 }
 
-func validateBatchNormalizationMomentum(momentum float64) (err error) {
-	if momentum < 0 || momentum >= 1 || math.IsNaN(momentum) || math.IsInf(momentum, 0) {
+func validateBatchNormalizationMomentum(momentum float32) (err error) {
+	if momentum < 0 || momentum >= 1 || f32.IsNaN(momentum) || f32.IsInf(momentum, 0) {
 		err = fmt.Errorf("layer: batch normalization momentum must be greater than or equal to 0 and less than 1: momentum=%g", momentum)
 		return err
 	}
@@ -666,8 +666,8 @@ func validateBatchNormalizationMomentum(momentum float64) (err error) {
 	return nil
 }
 
-func validateBatchNormalizationEpsilon(epsilon float64) (err error) {
-	if epsilon <= 0 || math.IsNaN(epsilon) || math.IsInf(epsilon, 0) {
+func validateBatchNormalizationEpsilon(epsilon float32) (err error) {
+	if epsilon <= 0 || f32.IsNaN(epsilon) || f32.IsInf(epsilon, 0) {
 		err = fmt.Errorf("layer: batch normalization epsilon must be positive and finite: epsilon=%g", epsilon)
 		return err
 	}

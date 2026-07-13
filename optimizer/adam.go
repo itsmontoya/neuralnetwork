@@ -16,13 +16,13 @@ const (
 )
 
 // NewAdam constructs Adam with default beta and epsilon values.
-func NewAdam(learningRate float64) (out *Adam, err error) {
+func NewAdam(learningRate float32) (out *Adam, err error) {
 	out, err = NewAdamWithConfig(learningRate, DefaultAdamBeta1, DefaultAdamBeta2, DefaultAdamEpsilon)
 	return out, err
 }
 
 // NewAdamWithConfig constructs Adam with explicit beta and epsilon values.
-func NewAdamWithConfig(learningRate, beta1, beta2, epsilon float64) (out *Adam, err error) {
+func NewAdamWithConfig(learningRate, beta1, beta2, epsilon float32) (out *Adam, err error) {
 	if err = validateLearningRate(learningRate); err != nil {
 		return nil, err
 	}
@@ -53,10 +53,10 @@ func NewAdamWithConfig(learningRate, beta1, beta2, epsilon float64) (out *Adam, 
 // First and second moment state is isolated per parameter. Gradients are reset
 // after a successful update.
 type Adam struct {
-	learningRate float64
-	beta1        float64
-	beta2        float64
-	epsilon      float64
+	learningRate float32
+	beta1        float32
+	beta2        float32
+	epsilon      float32
 	states       map[*Parameter]*adamState
 }
 
@@ -83,7 +83,7 @@ func (a *Adam) Update(parameters []*Parameter) (err error) {
 }
 
 // LearningRate returns the current learning rate.
-func (a *Adam) LearningRate() (learningRate float64) {
+func (a *Adam) LearningRate() (learningRate float32) {
 	if a == nil {
 		return 0
 	}
@@ -93,7 +93,7 @@ func (a *Adam) LearningRate() (learningRate float64) {
 }
 
 // SetLearningRate updates the learning rate.
-func (a *Adam) SetLearningRate(learningRate float64) (err error) {
+func (a *Adam) SetLearningRate(learningRate float32) (err error) {
 	if a == nil {
 		err = nilOptimizerError("adam")
 		return err
@@ -108,7 +108,7 @@ func (a *Adam) SetLearningRate(learningRate float64) (err error) {
 }
 
 // Beta1 returns the first moment decay rate.
-func (a *Adam) Beta1() (beta1 float64) {
+func (a *Adam) Beta1() (beta1 float32) {
 	if a == nil {
 		return 0
 	}
@@ -118,7 +118,7 @@ func (a *Adam) Beta1() (beta1 float64) {
 }
 
 // SetBeta1 updates the first moment decay rate.
-func (a *Adam) SetBeta1(beta1 float64) (err error) {
+func (a *Adam) SetBeta1(beta1 float32) (err error) {
 	if a == nil {
 		err = nilOptimizerError("adam")
 		return err
@@ -133,7 +133,7 @@ func (a *Adam) SetBeta1(beta1 float64) (err error) {
 }
 
 // Beta2 returns the second moment decay rate.
-func (a *Adam) Beta2() (beta2 float64) {
+func (a *Adam) Beta2() (beta2 float32) {
 	if a == nil {
 		return 0
 	}
@@ -143,7 +143,7 @@ func (a *Adam) Beta2() (beta2 float64) {
 }
 
 // SetBeta2 updates the second moment decay rate.
-func (a *Adam) SetBeta2(beta2 float64) (err error) {
+func (a *Adam) SetBeta2(beta2 float32) (err error) {
 	if a == nil {
 		err = nilOptimizerError("adam")
 		return err
@@ -158,7 +158,7 @@ func (a *Adam) SetBeta2(beta2 float64) (err error) {
 }
 
 // Epsilon returns the denominator stabilizer.
-func (a *Adam) Epsilon() (epsilon float64) {
+func (a *Adam) Epsilon() (epsilon float32) {
 	if a == nil {
 		return 0
 	}
@@ -168,7 +168,7 @@ func (a *Adam) Epsilon() (epsilon float64) {
 }
 
 // SetEpsilon updates the denominator stabilizer.
-func (a *Adam) SetEpsilon(epsilon float64) (err error) {
+func (a *Adam) SetEpsilon(epsilon float32) (err error) {
 	if a == nil {
 		err = nilOptimizerError("adam")
 		return err
@@ -194,8 +194,8 @@ func (a *Adam) updateParameter(parameter *Parameter) (err error) {
 		secondRows       int
 		secondCols       int
 		nextStep         int
-		firstCorrection  float64
-		secondCorrection float64
+		firstCorrection  float32
+		secondCorrection float32
 	)
 
 	if err = parameter.validate(); err != nil {
@@ -301,7 +301,7 @@ func (a *Adam) validate() (err error) {
 	return nil
 }
 
-func powUnitCoefficient(base float64, exponent int) (result float64) {
+func powUnitCoefficient(base float32, exponent int) (result float32) {
 	result = 1
 	for exponent > 0 {
 		if exponent%2 == 1 {

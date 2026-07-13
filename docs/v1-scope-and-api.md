@@ -32,7 +32,6 @@ The following features should remain out of scope until the dense-network core i
 * GPU acceleration.
 * Automatic differentiation graphs.
 * Distributed training.
-* `float32` support, unless a measured need appears after v1.
 
 ## Package Boundaries
 
@@ -81,19 +80,12 @@ The exact function signatures should be finalized alongside the first implementa
 
 ## Numeric Type
 
-The v1 implementation should use `float64` as its default numeric type. This
-keeps the API simple while preserving enough precision for deterministic tests
-and gradient checking.
+The v1 implementation uses `float32` as its numeric type. Matrix storage,
+layers, losses, metrics, optimizers, training metrics, data loading, and
+serialized model values share one precision boundary.
 
-`float32` support is deferred until a measured need justifies the additional API
-and test surface.
-
-A later complexity pass confirmed that numeric precision is part of the public
-API across matrix storage, layer inputs and outputs, losses, metrics,
-optimizers, training metrics, data loading, and serialized model values.
-Supporting `float32` would require either a parallel type family or generics
-through those package boundaries, so it remains deferred until benchmarks or
-real workloads justify the broader surface.
+Gradient checks and floating-point assertions should use f32-sized finite
+difference steps and tolerances rather than float64 precision assumptions.
 
 ## Convolutional Layers
 

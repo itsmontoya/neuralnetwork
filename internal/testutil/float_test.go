@@ -8,9 +8,9 @@ import (
 func Test_AlmostEqual(t *testing.T) {
 	type testcase struct {
 		name    string
-		a       float64
-		b       float64
-		epsilon float64
+		a       float32
+		b       float32
+		epsilon float32
 		want    bool
 	}
 
@@ -45,22 +45,22 @@ func Test_AlmostEqual(t *testing.T) {
 		},
 		{
 			name:    "nan is not equal",
-			a:       math.NaN(),
-			b:       math.NaN(),
+			a:       float32(math.NaN()),
+			b:       float32(math.NaN()),
 			epsilon: 0.0001,
 			want:    false,
 		},
 		{
 			name:    "matching infinity",
-			a:       math.Inf(1),
-			b:       math.Inf(1),
+			a:       float32(math.Inf(1)),
+			b:       float32(math.Inf(1)),
 			epsilon: 0,
 			want:    true,
 		},
 		{
 			name:    "opposite infinity",
-			a:       math.Inf(1),
-			b:       math.Inf(-1),
+			a:       float32(math.Inf(1)),
+			b:       float32(math.Inf(-1)),
 			epsilon: 0.0001,
 			want:    false,
 		},
@@ -85,22 +85,22 @@ func Test_RequireAlmostEqual(t *testing.T) {
 func Test_RequireSliceAlmostEqual(t *testing.T) {
 	type testcase struct {
 		name    string
-		got     []float64
-		want    []float64
-		epsilon float64
+		got     []float32
+		want    []float32
+		epsilon float32
 	}
 
 	tests := []testcase{
 		{
 			name:    "empty slices",
-			got:     []float64{},
-			want:    []float64{},
+			got:     []float32{},
+			want:    []float32{},
 			epsilon: 0,
 		},
 		{
 			name:    "matching slices",
-			got:     []float64{1, 2.00001, 3},
-			want:    []float64{1, 2, 3},
+			got:     []float32{1, 2.00001, 3},
+			want:    []float32{1, 2, 3},
 			epsilon: 0.0001,
 		},
 	}

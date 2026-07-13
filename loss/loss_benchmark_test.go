@@ -7,7 +7,7 @@ import (
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
-var benchmarkLossValue float64
+var benchmarkLossValue float32
 var benchmarkLossGradient *matrix.Matrix
 
 func Benchmark_MeanSquaredErrorValue_Small(b *testing.B) {
@@ -132,7 +132,7 @@ func Benchmark_CategoricalCrossEntropyGradient_MediumBatch(b *testing.B) {
 
 func benchmarkLossValueMethod(b *testing.B, lossFunc loss.Loss, predictions, targets *matrix.Matrix) {
 	var (
-		value float64
+		value float32
 		err   error
 		index int
 	)
@@ -174,8 +174,8 @@ func benchmarkLossGradientMethod(b *testing.B, lossFunc loss.Loss, predictions, 
 
 func benchmarkRegressionMatrices(tb testing.TB, rows, cols int) (predictions, targets *matrix.Matrix) {
 	var (
-		predictionValues []float64
-		targetValues     []float64
+		predictionValues []float32
+		targetValues     []float32
 		size             int
 		index            int
 		err              error
@@ -184,11 +184,11 @@ func benchmarkRegressionMatrices(tb testing.TB, rows, cols int) (predictions, ta
 	tb.Helper()
 
 	size = rows * cols
-	predictionValues = make([]float64, size)
-	targetValues = make([]float64, size)
+	predictionValues = make([]float32, size)
+	targetValues = make([]float32, size)
 	for index = 0; index < size; index++ {
-		predictionValues[index] = float64((index%17)+1) / 20
-		targetValues[index] = float64((index%13)+2) / 18
+		predictionValues[index] = float32((index%17)+1) / 20
+		targetValues[index] = float32((index%13)+2) / 18
 	}
 
 	predictions, err = matrix.FromSlice(rows, cols, predictionValues)
@@ -206,18 +206,18 @@ func benchmarkRegressionMatrices(tb testing.TB, rows, cols int) (predictions, ta
 
 func benchmarkBinaryMatrices(tb testing.TB, rows int) (predictions, targets *matrix.Matrix) {
 	var (
-		predictionValues []float64
-		targetValues     []float64
+		predictionValues []float32
+		targetValues     []float32
 		index            int
 		err              error
 	)
 
 	tb.Helper()
 
-	predictionValues = make([]float64, rows)
-	targetValues = make([]float64, rows)
+	predictionValues = make([]float32, rows)
+	targetValues = make([]float32, rows)
 	for index = 0; index < rows; index++ {
-		predictionValues[index] = 0.1 + float64(index%9)/10
+		predictionValues[index] = 0.1 + float32(index%9)/10
 		if index%2 == 0 {
 			targetValues[index] = 1
 			continue
@@ -241,8 +241,8 @@ func benchmarkBinaryMatrices(tb testing.TB, rows int) (predictions, targets *mat
 
 func benchmarkCategoricalMatrices(tb testing.TB, rows, cols int) (predictions, targets *matrix.Matrix) {
 	var (
-		predictionValues []float64
-		targetValues     []float64
+		predictionValues []float32
+		targetValues     []float32
 		row              int
 		col              int
 		index            int
@@ -252,8 +252,8 @@ func benchmarkCategoricalMatrices(tb testing.TB, rows, cols int) (predictions, t
 
 	tb.Helper()
 
-	predictionValues = make([]float64, rows*cols)
-	targetValues = make([]float64, rows*cols)
+	predictionValues = make([]float32, rows*cols)
+	targetValues = make([]float32, rows*cols)
 	for row = 0; row < rows; row++ {
 		selected = row % cols
 		for col = 0; col < cols; col++ {

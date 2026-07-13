@@ -34,23 +34,23 @@ func Test_Sequential_SaveLoadRoundTrip(t *testing.T) {
 		t,
 		2,
 		3,
-		[]float64{
+		[]float32{
 			0.5, -0.25, 0.75,
 			-1, 0.4, 0.2,
 		},
-		[]float64{0.1, -0.2, 0.3},
+		[]float32{0.1, -0.2, 0.3},
 	)
 	hiddenActivation = mustActivationLayer(t, activation.Tanh{})
 	output = mustSerializationDense(
 		t,
 		3,
 		1,
-		[]float64{
+		[]float32{
 			0.8,
 			-0.6,
 			0.25,
 		},
-		[]float64{-0.1},
+		[]float32{-0.1},
 	)
 	outputActivation = mustActivationLayer(t, activation.Sigmoid{})
 
@@ -59,7 +59,7 @@ func Test_Sequential_SaveLoadRoundTrip(t *testing.T) {
 		t.Fatalf("NewSequential returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 3, 2, []float64{
+	input = mustMatrix(t, 3, 2, []float32{
 		0, 0,
 		1, 0,
 		0, 1,
@@ -112,22 +112,22 @@ func Test_Sequential_SaveLoadRoundTripWithBatchNormalization(t *testing.T) {
 		t.Fatalf("NewBatchNormalizationWithConfig returned error: %v", err)
 	}
 
-	err = batchNorm.Gamma().Values().CopyFrom(mustMatrix(t, 1, 2, []float64{2, 3}))
+	err = batchNorm.Gamma().Values().CopyFrom(mustMatrix(t, 1, 2, []float32{2, 3}))
 	if err != nil {
 		t.Fatalf("gamma CopyFrom returned error: %v", err)
 	}
 
-	err = batchNorm.Beta().Values().CopyFrom(mustMatrix(t, 1, 2, []float64{0.5, -1}))
+	err = batchNorm.Beta().Values().CopyFrom(mustMatrix(t, 1, 2, []float32{0.5, -1}))
 	if err != nil {
 		t.Fatalf("beta CopyFrom returned error: %v", err)
 	}
 
-	err = batchNorm.RunningMean().CopyFrom(mustMatrix(t, 1, 2, []float64{1, 2}))
+	err = batchNorm.RunningMean().CopyFrom(mustMatrix(t, 1, 2, []float32{1, 2}))
 	if err != nil {
 		t.Fatalf("running mean CopyFrom returned error: %v", err)
 	}
 
-	err = batchNorm.RunningVariance().CopyFrom(mustMatrix(t, 1, 2, []float64{4, 9}))
+	err = batchNorm.RunningVariance().CopyFrom(mustMatrix(t, 1, 2, []float32{4, 9}))
 	if err != nil {
 		t.Fatalf("running variance CopyFrom returned error: %v", err)
 	}
@@ -142,7 +142,7 @@ func Test_Sequential_SaveLoadRoundTripWithBatchNormalization(t *testing.T) {
 		t.Fatalf("SetTraining returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 2, 2, []float64{
+	input = mustMatrix(t, 2, 2, []float32{
 		3, 8,
 		5, 11,
 	})
@@ -209,7 +209,7 @@ func Test_Sequential_SaveLoadRoundTripWithDropout(t *testing.T) {
 		t.Fatalf("SetTraining returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 2, 2, []float64{
+	input = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 4,
 	})
@@ -748,7 +748,7 @@ func mustSerializationDense(
 	inputSize,
 	outputSize int,
 	weightValues,
-	biasValues []float64,
+	biasValues []float32,
 ) (dense *layer.Dense) {
 	var (
 		biases *matrix.Matrix

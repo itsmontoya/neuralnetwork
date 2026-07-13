@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/layer"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 	"github.com/itsmontoya/neuralnetwork/optimizer"
@@ -40,10 +41,10 @@ func Test_NewBatchNormalization_InitializesState(t *testing.T) {
 		t.Fatal("Training = false, want true")
 	}
 
-	requireMatrixValues(t, batchNorm.Gamma().Values(), []float64{1, 1, 1})
-	requireMatrixValues(t, batchNorm.Beta().Values(), []float64{0, 0, 0})
-	requireMatrixValues(t, batchNorm.RunningMean(), []float64{0, 0, 0})
-	requireMatrixValues(t, batchNorm.RunningVariance(), []float64{1, 1, 1})
+	requireMatrixValues(t, batchNorm.Gamma().Values(), []float32{1, 1, 1})
+	requireMatrixValues(t, batchNorm.Beta().Values(), []float32{0, 0, 0})
+	requireMatrixValues(t, batchNorm.RunningMean(), []float32{0, 0, 0})
+	requireMatrixValues(t, batchNorm.RunningVariance(), []float32{1, 1, 1})
 }
 
 func Test_BatchNormalization_NilReceiverAccessors(t *testing.T) {
@@ -95,8 +96,8 @@ func Test_NewBatchNormalizationWithConfig_ValidatesConfig(t *testing.T) {
 	type testcase struct {
 		name        string
 		featureSize int
-		momentum    float64
-		epsilon     float64
+		momentum    float32
+		epsilon     float32
 	}
 
 	tests := []testcase{
@@ -121,7 +122,7 @@ func Test_NewBatchNormalizationWithConfig_ValidatesConfig(t *testing.T) {
 		{
 			name:        "nan momentum",
 			featureSize: 1,
-			momentum:    math.NaN(),
+			momentum:    float32(math.NaN()),
 			epsilon:     1e-5,
 		},
 		{
@@ -134,7 +135,7 @@ func Test_NewBatchNormalizationWithConfig_ValidatesConfig(t *testing.T) {
 			name:        "nan epsilon",
 			featureSize: 1,
 			momentum:    0.9,
-			epsilon:     math.NaN(),
+			epsilon:     float32(math.NaN()),
 		},
 	}
 
@@ -164,8 +165,8 @@ func Test_BatchNormalization_ForwardTrainingUpdatesRunningStatistics(t *testing.
 		output          *matrix.Matrix
 		runningMean     *matrix.Matrix
 		runningVariance *matrix.Matrix
-		inverse0        float64
-		inverse1        float64
+		inverse0        float32
+		inverse1        float32
 		err             error
 	)
 
@@ -174,17 +175,17 @@ func Test_BatchNormalization_ForwardTrainingUpdatesRunningStatistics(t *testing.
 		t.Fatalf("NewBatchNormalizationWithConfig returned error: %v", err)
 	}
 
-	err = batchNorm.Gamma().Values().CopyFrom(mustMatrix(t, 1, 2, []float64{2, 3}))
+	err = batchNorm.Gamma().Values().CopyFrom(mustMatrix(t, 1, 2, []float32{2, 3}))
 	if err != nil {
 		t.Fatalf("gamma CopyFrom returned error: %v", err)
 	}
 
-	err = batchNorm.Beta().Values().CopyFrom(mustMatrix(t, 1, 2, []float64{0.5, -1}))
+	err = batchNorm.Beta().Values().CopyFrom(mustMatrix(t, 1, 2, []float32{0.5, -1}))
 	if err != nil {
 		t.Fatalf("beta CopyFrom returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 2, 2, []float64{
+	input = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 6,
 	})
@@ -196,14 +197,14 @@ func Test_BatchNormalization_ForwardTrainingUpdatesRunningStatistics(t *testing.
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
-	inverse0 = 1 / math.Sqrt(1+batchNorm.Epsilon())
-	inverse1 = 1 / math.Sqrt(4+batchNorm.Epsilon())
-	requireMatrixValues(t, output, []float64{
+	inverse0 = 1 / f32.Sqrt(1+batchNorm.Epsilon())
+	inverse1 = 1 / f32.Sqrt(4+batchNorm.Epsilon())
+	requireMatrixValues(t, output, []float32{
 		-1*inverse0*2 + 0.5, -2*inverse1*3 - 1,
 		inverse0*2 + 0.5, 2*inverse1*3 - 1,
 	})
-	requireMatrixValues(t, batchNorm.RunningMean(), []float64{0.4, 0.8})
-	requireMatrixValues(t, batchNorm.RunningVariance(), []float64{1, 1.6})
+	requireMatrixValues(t, batchNorm.RunningMean(), []float32{0.4, 0.8})
+	requireMatrixValues(t, batchNorm.RunningVariance(), []float32{1, 1.6})
 
 	if batchNorm.RunningMean() != runningMean {
 		t.Fatal("Forward replaced running mean matrix, want CopyFrom into existing matrix")
@@ -219,8 +220,8 @@ func Test_BatchNormalization_ForwardEvaluationUsesRunningStatistics(t *testing.T
 		batchNorm *layer.BatchNormalization
 		input     *matrix.Matrix
 		output    *matrix.Matrix
-		inverse0  float64
-		inverse1  float64
+		inverse0  float32
+		inverse1  float32
 		err       error
 	)
 
@@ -229,41 +230,41 @@ func Test_BatchNormalization_ForwardEvaluationUsesRunningStatistics(t *testing.T
 		t.Fatalf("NewBatchNormalizationWithConfig returned error: %v", err)
 	}
 
-	err = batchNorm.Gamma().Values().CopyFrom(mustMatrix(t, 1, 2, []float64{2, 3}))
+	err = batchNorm.Gamma().Values().CopyFrom(mustMatrix(t, 1, 2, []float32{2, 3}))
 	if err != nil {
 		t.Fatalf("gamma CopyFrom returned error: %v", err)
 	}
 
-	err = batchNorm.Beta().Values().CopyFrom(mustMatrix(t, 1, 2, []float64{0.5, -1}))
+	err = batchNorm.Beta().Values().CopyFrom(mustMatrix(t, 1, 2, []float32{0.5, -1}))
 	if err != nil {
 		t.Fatalf("beta CopyFrom returned error: %v", err)
 	}
 
-	err = batchNorm.RunningMean().CopyFrom(mustMatrix(t, 1, 2, []float64{1, 2}))
+	err = batchNorm.RunningMean().CopyFrom(mustMatrix(t, 1, 2, []float32{1, 2}))
 	if err != nil {
 		t.Fatalf("running mean CopyFrom returned error: %v", err)
 	}
 
-	err = batchNorm.RunningVariance().CopyFrom(mustMatrix(t, 1, 2, []float64{4, 9}))
+	err = batchNorm.RunningVariance().CopyFrom(mustMatrix(t, 1, 2, []float32{4, 9}))
 	if err != nil {
 		t.Fatalf("running variance CopyFrom returned error: %v", err)
 	}
 
 	batchNorm.SetTraining(false)
-	input = mustMatrix(t, 1, 2, []float64{3, 8})
+	input = mustMatrix(t, 1, 2, []float32{3, 8})
 	output, err = batchNorm.Forward(input)
 	if err != nil {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
-	inverse0 = 1 / math.Sqrt(4+batchNorm.Epsilon())
-	inverse1 = 1 / math.Sqrt(9+batchNorm.Epsilon())
-	requireMatrixValues(t, output, []float64{
+	inverse0 = 1 / f32.Sqrt(4+batchNorm.Epsilon())
+	inverse1 = 1 / f32.Sqrt(9+batchNorm.Epsilon())
+	requireMatrixValues(t, output, []float32{
 		(3-1)*inverse0*2 + 0.5,
 		(8-2)*inverse1*3 - 1,
 	})
-	requireMatrixValues(t, batchNorm.RunningMean(), []float64{1, 2})
-	requireMatrixValues(t, batchNorm.RunningVariance(), []float64{4, 9})
+	requireMatrixValues(t, batchNorm.RunningMean(), []float32{1, 2})
+	requireMatrixValues(t, batchNorm.RunningVariance(), []float32{4, 9})
 }
 
 func Test_BatchNormalization_BackwardTraining(t *testing.T) {
@@ -272,12 +273,12 @@ func Test_BatchNormalization_BackwardTraining(t *testing.T) {
 		input          *matrix.Matrix
 		outputGradient *matrix.Matrix
 		inputGradient  *matrix.Matrix
-		inverse0       float64
-		inverse1       float64
-		normalized0    float64
-		normalized1    float64
-		gammaGradient0 float64
-		gammaGradient1 float64
+		inverse0       float32
+		inverse1       float32
+		normalized0    float32
+		normalized1    float32
+		gammaGradient0 float32
+		gammaGradient1 float32
 		err            error
 	)
 
@@ -286,7 +287,7 @@ func Test_BatchNormalization_BackwardTraining(t *testing.T) {
 		t.Fatalf("NewBatchNormalization returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 2, 2, []float64{
+	input = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 6,
 	})
@@ -295,7 +296,7 @@ func Test_BatchNormalization_BackwardTraining(t *testing.T) {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
-	outputGradient = mustMatrix(t, 2, 2, []float64{
+	outputGradient = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 4,
 	})
@@ -304,16 +305,16 @@ func Test_BatchNormalization_BackwardTraining(t *testing.T) {
 		t.Fatalf("Backward returned error: %v", err)
 	}
 
-	inverse0 = 1 / math.Sqrt(1+batchNorm.Epsilon())
-	inverse1 = 1 / math.Sqrt(4+batchNorm.Epsilon())
+	inverse0 = 1 / f32.Sqrt(1+batchNorm.Epsilon())
+	inverse1 = 1 / f32.Sqrt(4+batchNorm.Epsilon())
 	normalized0 = inverse0
 	normalized1 = 2 * inverse1
 	gammaGradient0 = 2 * normalized0
 	gammaGradient1 = 2 * normalized1
 
-	requireMatrixValues(t, batchNorm.Beta().Gradient(), []float64{4, 6})
-	requireMatrixValues(t, batchNorm.Gamma().Gradient(), []float64{gammaGradient0, gammaGradient1})
-	requireMatrixValues(t, inputGradient, []float64{
+	requireMatrixValues(t, batchNorm.Beta().Gradient(), []float32{4, 6})
+	requireMatrixValues(t, batchNorm.Gamma().Gradient(), []float32{gammaGradient0, gammaGradient1})
+	requireMatrixValues(t, inputGradient, []float32{
 		inverse0 / 2 * (-2 + normalized0*gammaGradient0),
 		inverse1 / 2 * (-2 + normalized1*gammaGradient1),
 		inverse0 / 2 * (2 - normalized0*gammaGradient0),
@@ -327,8 +328,8 @@ func Test_BatchNormalization_BackwardEvaluation(t *testing.T) {
 		input          *matrix.Matrix
 		outputGradient *matrix.Matrix
 		inputGradient  *matrix.Matrix
-		inverse0       float64
-		inverse1       float64
+		inverse0       float32
+		inverse1       float32
 		err            error
 	)
 
@@ -337,23 +338,23 @@ func Test_BatchNormalization_BackwardEvaluation(t *testing.T) {
 		t.Fatalf("NewBatchNormalization returned error: %v", err)
 	}
 
-	err = batchNorm.Gamma().Values().CopyFrom(mustMatrix(t, 1, 2, []float64{2, 3}))
+	err = batchNorm.Gamma().Values().CopyFrom(mustMatrix(t, 1, 2, []float32{2, 3}))
 	if err != nil {
 		t.Fatalf("gamma CopyFrom returned error: %v", err)
 	}
 
-	err = batchNorm.RunningMean().CopyFrom(mustMatrix(t, 1, 2, []float64{1, 2}))
+	err = batchNorm.RunningMean().CopyFrom(mustMatrix(t, 1, 2, []float32{1, 2}))
 	if err != nil {
 		t.Fatalf("running mean CopyFrom returned error: %v", err)
 	}
 
-	err = batchNorm.RunningVariance().CopyFrom(mustMatrix(t, 1, 2, []float64{4, 9}))
+	err = batchNorm.RunningVariance().CopyFrom(mustMatrix(t, 1, 2, []float32{4, 9}))
 	if err != nil {
 		t.Fatalf("running variance CopyFrom returned error: %v", err)
 	}
 
 	batchNorm.SetTraining(false)
-	input = mustMatrix(t, 2, 2, []float64{
+	input = mustMatrix(t, 2, 2, []float32{
 		3, 8,
 		5, -1,
 	})
@@ -362,7 +363,7 @@ func Test_BatchNormalization_BackwardEvaluation(t *testing.T) {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
-	outputGradient = mustMatrix(t, 2, 2, []float64{
+	outputGradient = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 4,
 	})
@@ -371,11 +372,11 @@ func Test_BatchNormalization_BackwardEvaluation(t *testing.T) {
 		t.Fatalf("Backward returned error: %v", err)
 	}
 
-	inverse0 = 1 / math.Sqrt(4+batchNorm.Epsilon())
-	inverse1 = 1 / math.Sqrt(9+batchNorm.Epsilon())
-	requireMatrixValues(t, batchNorm.Beta().Gradient(), []float64{4, 6})
-	requireMatrixValues(t, batchNorm.Gamma().Gradient(), []float64{14 * inverse0, 0})
-	requireMatrixValues(t, inputGradient, []float64{
+	inverse0 = 1 / f32.Sqrt(4+batchNorm.Epsilon())
+	inverse1 = 1 / f32.Sqrt(9+batchNorm.Epsilon())
+	requireMatrixValues(t, batchNorm.Beta().Gradient(), []float32{4, 6})
+	requireMatrixValues(t, batchNorm.Gamma().Gradient(), []float32{14 * inverse0, 0})
+	requireMatrixValues(t, inputGradient, []float32{
 		2 * inverse0,
 		6 * inverse1,
 		6 * inverse0,
@@ -410,7 +411,7 @@ func Test_BatchNormalization_ParametersAndResetGradients(t *testing.T) {
 		t.Fatal("Parameters[1] did not match beta")
 	}
 
-	input = mustMatrix(t, 2, 2, []float64{
+	input = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 6,
 	})
@@ -419,7 +420,7 @@ func Test_BatchNormalization_ParametersAndResetGradients(t *testing.T) {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
-	outputGradient = mustMatrix(t, 2, 2, []float64{
+	outputGradient = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 4,
 	})
@@ -433,8 +434,8 @@ func Test_BatchNormalization_ParametersAndResetGradients(t *testing.T) {
 		t.Fatalf("ResetGradients returned error: %v", err)
 	}
 
-	requireMatrixValues(t, batchNorm.Gamma().Gradient(), []float64{0, 0})
-	requireMatrixValues(t, batchNorm.Beta().Gradient(), []float64{0, 0})
+	requireMatrixValues(t, batchNorm.Gamma().Gradient(), []float32{0, 0})
+	requireMatrixValues(t, batchNorm.Beta().Gradient(), []float32{0, 0})
 }
 
 func Test_BatchNormalization_BackwardRequiresForward(t *testing.T) {
@@ -449,7 +450,7 @@ func Test_BatchNormalization_BackwardRequiresForward(t *testing.T) {
 		t.Fatalf("NewBatchNormalization returned error: %v", err)
 	}
 
-	inputGradient, err = batchNorm.Backward(mustMatrix(t, 1, 2, []float64{1, 2}))
+	inputGradient, err = batchNorm.Backward(mustMatrix(t, 1, 2, []float32{1, 2}))
 	if err == nil {
 		t.Fatalf("Backward returned gradient %v and nil error, want error", inputGradient)
 	}
@@ -467,7 +468,7 @@ func Test_BatchNormalization_BackwardReportsShapeMismatch(t *testing.T) {
 		t.Fatalf("NewBatchNormalization returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 2, 2, []float64{
+	input = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 6,
 	})
@@ -476,7 +477,7 @@ func Test_BatchNormalization_BackwardReportsShapeMismatch(t *testing.T) {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
-	_, err = batchNorm.Backward(mustMatrix(t, 1, 2, []float64{1, 2}))
+	_, err = batchNorm.Backward(mustMatrix(t, 1, 2, []float32{1, 2}))
 	if err == nil {
 		t.Fatal("Backward error = nil, want shape error")
 	}

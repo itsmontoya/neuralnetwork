@@ -2,13 +2,14 @@ package optimizer
 
 import (
 	"fmt"
-	"math"
+
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 )
 
 // LearningRateSchedule computes the optimizer learning rate for a Fit epoch.
 type LearningRateSchedule interface {
 	// LearningRate returns the learning rate for a one-based epoch.
-	LearningRate(epoch int) (learningRate float64, err error)
+	LearningRate(epoch int) (learningRate float32, err error)
 }
 
 func validateScheduleEpoch(epoch int) (err error) {
@@ -20,8 +21,8 @@ func validateScheduleEpoch(epoch int) (err error) {
 	return nil
 }
 
-func validateDecayRate(name string, rate float64) (err error) {
-	if rate <= 0 || rate > 1 || math.IsNaN(rate) || math.IsInf(rate, 0) {
+func validateDecayRate(name string, rate float32) (err error) {
+	if rate <= 0 || rate > 1 || f32.IsNaN(rate) || f32.IsInf(rate, 0) {
 		err = fmt.Errorf("optimizer: %s must be greater than 0 and less than or equal to 1: %s=%g", name, name, rate)
 		return err
 	}

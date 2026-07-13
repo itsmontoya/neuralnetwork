@@ -25,8 +25,8 @@ const (
 )
 
 type point struct {
-	x float64
-	y float64
+	x float32
+	y float32
 }
 
 func main() {
@@ -88,26 +88,26 @@ func run() (err error) {
 func newClusterDataset(random *rand.Rand) (dataset *data.Dataset, err error) {
 	var (
 		centers      []point
-		inputValues  []float64
-		targetValues []float64
+		inputValues  []float32
+		targetValues []float32
 		inputs       *matrix.Matrix
 		targets      *matrix.Matrix
 		classIndex   int
 		sample       int
 		col          int
-		x            float64
-		y            float64
+		x            float32
+		y            float32
 		center       point
 	)
 
 	centers = clusterCenters()
-	inputValues = make([]float64, 0, len(centers)*samplesPerClass*2)
-	targetValues = make([]float64, 0, len(centers)*samplesPerClass*classCount)
+	inputValues = make([]float32, 0, len(centers)*samplesPerClass*2)
+	targetValues = make([]float32, 0, len(centers)*samplesPerClass*classCount)
 
 	for classIndex, center = range centers {
 		for sample = 0; sample < samplesPerClass; sample++ {
-			x = center.x + random.NormFloat64()*clusterStddev
-			y = center.y + random.NormFloat64()*clusterStddev
+			x = center.x + float32(random.NormFloat64())*clusterStddev
+			y = center.y + float32(random.NormFloat64())*clusterStddev
 
 			inputValues = append(inputValues, x, y)
 			for col = 0; col < classCount; col++ {
@@ -172,17 +172,17 @@ func printEpochMetrics(metrics model.EpochMetrics) (err error) {
 func printClassPredictions(network *model.Sequential) (err error) {
 	var (
 		centers          []point
-		inputValues      []float64
+		inputValues      []float32
 		inputs           *matrix.Matrix
 		predictions      *matrix.Matrix
-		predictionValues []float64
+		predictionValues []float32
 		index            int
 		center           point
 		classIndex       int
 	)
 
 	centers = clusterCenters()
-	inputValues = make([]float64, 0, len(centers)*2)
+	inputValues = make([]float32, 0, len(centers)*2)
 	for _, center = range centers {
 		inputValues = append(inputValues, center.x, center.y)
 	}
@@ -232,11 +232,11 @@ func className(index int) (name string) {
 	return name
 }
 
-func argmax(values []float64) (index int) {
+func argmax(values []float32) (index int) {
 	var (
 		col   int
-		value float64
-		best  float64
+		value float32
+		best  float32
 	)
 
 	best = values[0]

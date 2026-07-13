@@ -12,7 +12,7 @@ import (
 func Test_NewSGD_ValidatesLearningRate(t *testing.T) {
 	type testcase struct {
 		name         string
-		learningRate float64
+		learningRate float32
 	}
 
 	tests := []testcase{
@@ -26,11 +26,11 @@ func Test_NewSGD_ValidatesLearningRate(t *testing.T) {
 		},
 		{
 			name:         "nan",
-			learningRate: math.NaN(),
+			learningRate: float32(math.NaN()),
 		},
 		{
 			name:         "infinite",
-			learningRate: math.Inf(1),
+			learningRate: float32(math.Inf(1)),
 		},
 	}
 
@@ -61,8 +61,8 @@ func Test_SGD_Update(t *testing.T) {
 		err       error
 	)
 
-	parameter = mustParameter(t, 1, 3, []float64{1, -2, 3})
-	gradient = mustMatrix(t, 1, 3, []float64{0.5, -1, 2})
+	parameter = mustParameter(t, 1, 3, []float32{1, -2, 3})
+	gradient = mustMatrix(t, 1, 3, []float32{0.5, -1, 2})
 
 	err = parameter.AccumulateGradient(gradient)
 	if err != nil {
@@ -79,8 +79,8 @@ func Test_SGD_Update(t *testing.T) {
 		t.Fatalf("Update returned error: %v", err)
 	}
 
-	requireMatrixValues(t, parameter.Values(), []float64{0.95, -1.9, 2.8})
-	requireMatrixValues(t, parameter.Gradient(), []float64{0, 0, 0})
+	requireMatrixValues(t, parameter.Values(), []float32{0.95, -1.9, 2.8})
+	requireMatrixValues(t, parameter.Gradient(), []float32{0, 0, 0})
 }
 
 func Test_SGD_Update_Repeated(t *testing.T) {
@@ -90,26 +90,26 @@ func Test_SGD_Update_Repeated(t *testing.T) {
 		err       error
 	)
 
-	parameter = mustParameter(t, 1, 2, []float64{1, 2})
+	parameter = mustParameter(t, 1, 2, []float32{1, 2})
 	sgd, err = optimizer.NewSGD(0.25)
 	if err != nil {
 		t.Fatalf("NewSGD returned error: %v", err)
 	}
 
-	accumulateGradient(t, parameter, []float64{0.4, -0.8})
+	accumulateGradient(t, parameter, []float32{0.4, -0.8})
 	err = sgd.Update([]*optimizer.Parameter{parameter})
 	if err != nil {
 		t.Fatalf("Update returned error: %v", err)
 	}
 
-	accumulateGradient(t, parameter, []float64{0.2, 0.4})
+	accumulateGradient(t, parameter, []float32{0.2, 0.4})
 	err = sgd.Update([]*optimizer.Parameter{parameter})
 	if err != nil {
 		t.Fatalf("Update returned error: %v", err)
 	}
 
-	requireMatrixValues(t, parameter.Values(), []float64{0.85, 2.1})
-	requireMatrixValues(t, parameter.Gradient(), []float64{0, 0})
+	requireMatrixValues(t, parameter.Values(), []float32{0.85, 2.1})
+	requireMatrixValues(t, parameter.Gradient(), []float32{0, 0})
 }
 
 func Test_SGD_SetLearningRate(t *testing.T) {
@@ -119,7 +119,7 @@ func Test_SGD_SetLearningRate(t *testing.T) {
 		err       error
 	)
 
-	parameter = mustParameter(t, 1, 1, []float64{1})
+	parameter = mustParameter(t, 1, 1, []float32{1})
 	sgd, err = optimizer.NewSGD(0.1)
 	if err != nil {
 		t.Fatalf("NewSGD returned error: %v", err)
@@ -129,13 +129,13 @@ func Test_SGD_SetLearningRate(t *testing.T) {
 		t.Fatalf("SetLearningRate returned error: %v", err)
 	}
 
-	accumulateGradient(t, parameter, []float64{0.2})
+	accumulateGradient(t, parameter, []float32{0.2})
 	if err = sgd.Update([]*optimizer.Parameter{parameter}); err != nil {
 		t.Fatalf("Update returned error: %v", err)
 	}
 
 	testutil.RequireAlmostEqual(t, sgd.LearningRate(), 0.5, epsilon)
-	requireMatrixValues(t, parameter.Values(), []float64{0.9})
+	requireMatrixValues(t, parameter.Values(), []float32{0.9})
 }
 
 func Test_SGD_Update_ValidatesParameters(t *testing.T) {
@@ -155,7 +155,7 @@ func Test_SGD_Update_ValidatesParameters(t *testing.T) {
 	}
 }
 
-func accumulateGradient(tb testing.TB, parameter *optimizer.Parameter, values []float64) {
+func accumulateGradient(tb testing.TB, parameter *optimizer.Parameter, values []float32) {
 	var (
 		rows     int
 		cols     int
@@ -173,9 +173,9 @@ func accumulateGradient(tb testing.TB, parameter *optimizer.Parameter, values []
 	}
 }
 
-func requireMatrixValues(tb testing.TB, actual *matrix.Matrix, want []float64) {
+func requireMatrixValues(tb testing.TB, actual *matrix.Matrix, want []float32) {
 	var (
-		values []float64
+		values []float32
 		err    error
 	)
 

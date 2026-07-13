@@ -53,8 +53,8 @@ func Test_LoadCSV_ReadsDatasetWithHeader(t *testing.T) {
 		t.Fatalf("Targets returned error: %v", err)
 	}
 
-	requireMatrixValues(t, inputs, []float64{1, 2, 3.5, 4.5})
-	requireMatrixValues(t, targets, []float64{0, 1})
+	requireMatrixValues(t, inputs, []float32{1, 2, 3.5, 4.5})
+	requireMatrixValues(t, targets, []float32{0, 1})
 }
 
 func Test_LoadCSV_ReadsMultipleTargetsWithoutHeader(t *testing.T) {
@@ -88,8 +88,8 @@ func Test_LoadCSV_ReadsMultipleTargetsWithoutHeader(t *testing.T) {
 		t.Fatalf("Targets returned error: %v", err)
 	}
 
-	requireMatrixValues(t, inputs, []float64{1, 2, 3, 4})
-	requireMatrixValues(t, targets, []float64{10, 20, 30, 40})
+	requireMatrixValues(t, inputs, []float32{1, 2, 3, 4})
+	requireMatrixValues(t, targets, []float32{10, 20, 30, 40})
 }
 
 func Test_LoadCSV_TrimsWhitespaceAndSkipsBlankRecords(t *testing.T) {
@@ -124,8 +124,8 @@ func Test_LoadCSV_TrimsWhitespaceAndSkipsBlankRecords(t *testing.T) {
 		t.Fatalf("Targets returned error: %v", err)
 	}
 
-	requireMatrixValues(t, inputs, []float64{1, 2})
-	requireMatrixValues(t, targets, []float64{10, 20})
+	requireMatrixValues(t, inputs, []float32{1, 2})
+	requireMatrixValues(t, targets, []float32{10, 20})
 }
 
 func Test_LoadCSV_RejectsInvalidInput(t *testing.T) {

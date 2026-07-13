@@ -167,7 +167,7 @@ func benchmarkXORMatrices(tb testing.TB) (inputs, targets *matrix.Matrix) {
 
 	tb.Helper()
 
-	if inputs, err = matrix.FromSlice(4, 2, []float64{
+	if inputs, err = matrix.FromSlice(4, 2, []float32{
 		0, 0,
 		0, 1,
 		1, 0,
@@ -176,7 +176,7 @@ func benchmarkXORMatrices(tb testing.TB) (inputs, targets *matrix.Matrix) {
 		tb.Fatalf("FromSlice returned error: %v", err)
 	}
 
-	if targets, err = matrix.FromSlice(4, 1, []float64{
+	if targets, err = matrix.FromSlice(4, 1, []float32{
 		0,
 		1,
 		1,
@@ -226,8 +226,8 @@ func benchmarkXORModel(tb testing.TB) (network *model.Sequential) {
 
 func benchmarkSyntheticMatrices(tb testing.TB, samples, inputSize, targetSize int) (inputs, targets *matrix.Matrix) {
 	var (
-		inputValues  []float64
-		targetValues []float64
+		inputValues  []float32
+		targetValues []float32
 		row          int
 		col          int
 		err          error
@@ -235,17 +235,17 @@ func benchmarkSyntheticMatrices(tb testing.TB, samples, inputSize, targetSize in
 
 	tb.Helper()
 
-	inputValues = make([]float64, samples*inputSize)
+	inputValues = make([]float32, samples*inputSize)
 	for row = 0; row < samples; row++ {
 		for col = 0; col < inputSize; col++ {
-			inputValues[row*inputSize+col] = float64((row+1)*(col+3)%17) / 17
+			inputValues[row*inputSize+col] = float32((row+1)*(col+3)%17) / 17
 		}
 	}
 
-	targetValues = make([]float64, samples*targetSize)
+	targetValues = make([]float32, samples*targetSize)
 	for row = 0; row < samples; row++ {
 		for col = 0; col < targetSize; col++ {
-			targetValues[row*targetSize+col] = float64((row+col*2)%11) / 11
+			targetValues[row*targetSize+col] = float32((row+col*2)%11) / 11
 		}
 	}
 

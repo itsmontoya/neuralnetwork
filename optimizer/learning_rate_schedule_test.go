@@ -17,7 +17,7 @@ func Test_LearningRateSchedule_Interface(t *testing.T) {
 func Test_ConstantLearningRate(t *testing.T) {
 	var (
 		schedule *optimizer.ConstantLearningRate
-		rate     float64
+		rate     float32
 		err      error
 	)
 
@@ -38,8 +38,8 @@ func Test_ConstantLearningRate(t *testing.T) {
 func Test_StepDecay(t *testing.T) {
 	var (
 		schedule *optimizer.StepDecay
-		rates    []float64
-		rate     float64
+		rates    []float32
+		rate     float32
 		epoch    int
 		err      error
 	)
@@ -63,14 +63,14 @@ func Test_StepDecay(t *testing.T) {
 		t.Fatalf("StepSize = %d, want 2", schedule.StepSize())
 	}
 
-	testutil.RequireSliceAlmostEqual(t, rates, []float64{0.1, 0.1, 0.05, 0.05, 0.025}, epsilon)
+	testutil.RequireSliceAlmostEqual(t, rates, []float32{0.1, 0.1, 0.05, 0.05, 0.025}, epsilon)
 }
 
 func Test_ExponentialDecay(t *testing.T) {
 	var (
 		schedule *optimizer.ExponentialDecay
-		rates    []float64
-		rate     float64
+		rates    []float32
+		rate     float32
 		epoch    int
 		err      error
 	)
@@ -90,7 +90,7 @@ func Test_ExponentialDecay(t *testing.T) {
 
 	testutil.RequireAlmostEqual(t, schedule.InitialLearningRate(), 0.1, epsilon)
 	testutil.RequireAlmostEqual(t, schedule.DecayRate(), 0.5, epsilon)
-	testutil.RequireSliceAlmostEqual(t, rates, []float64{0.1, 0.05, 0.025, 0.0125}, epsilon)
+	testutil.RequireSliceAlmostEqual(t, rates, []float32{0.1, 0.05, 0.025, 0.0125}, epsilon)
 }
 
 func Test_NewLearningRateSchedule_ValidatesConfig(t *testing.T) {
@@ -131,7 +131,7 @@ func Test_NewLearningRateSchedule_ValidatesConfig(t *testing.T) {
 			construct: func() (schedule optimizer.LearningRateSchedule, err error) {
 				var step *optimizer.StepDecay
 
-				if step, err = optimizer.NewStepDecay(0.1, math.NaN(), 2); step == nil {
+				if step, err = optimizer.NewStepDecay(0.1, float32(math.NaN()), 2); step == nil {
 					return nil, err
 				}
 
@@ -230,7 +230,7 @@ func Test_LearningRateSchedule_DecayRateBoundaries(t *testing.T) {
 		name      string
 		construct func() (schedule optimizer.LearningRateSchedule, err error)
 		epochs    int
-		want      []float64
+		want      []float32
 	}
 
 	tests := []testcase{
@@ -241,7 +241,7 @@ func Test_LearningRateSchedule_DecayRateBoundaries(t *testing.T) {
 				return schedule, err
 			},
 			epochs: 4,
-			want:   []float64{0.1, 0.1, 0.1, 0.1},
+			want:   []float32{0.1, 0.1, 0.1, 0.1},
 		},
 		{
 			name: "exponential decay rate one",
@@ -250,7 +250,7 @@ func Test_LearningRateSchedule_DecayRateBoundaries(t *testing.T) {
 				return schedule, err
 			},
 			epochs: 4,
-			want:   []float64{0.1, 0.1, 0.1, 0.1},
+			want:   []float32{0.1, 0.1, 0.1, 0.1},
 		},
 	}
 
@@ -258,8 +258,8 @@ func Test_LearningRateSchedule_DecayRateBoundaries(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var (
 				schedule optimizer.LearningRateSchedule
-				rates    []float64
-				rate     float64
+				rates    []float32
+				rate     float32
 				epoch    int
 				err      error
 			)

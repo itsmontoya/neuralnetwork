@@ -38,13 +38,13 @@ func (c CSVConfig) validate() (err error) {
 // LoadCSV reads a supervised dataset from CSV data.
 //
 // Each data row must contain InputColumns input values followed by
-// TargetColumns target values. Values are parsed as float64.
+// TargetColumns target values. Values are parsed as float32.
 func LoadCSV(reader io.Reader, config CSVConfig) (out *Dataset, err error) {
 	var (
 		csvReader    *csv.Reader
 		record       []string
-		inputValues  []float64
-		targetValues []float64
+		inputValues  []float32
+		targetValues []float32
 		inputs       *matrix.Matrix
 		targets      *matrix.Matrix
 		rows         int
@@ -120,16 +120,16 @@ func LoadCSV(reader io.Reader, config CSVConfig) (out *Dataset, err error) {
 }
 
 func appendCSVRecord(
-	inputValues []float64,
-	targetValues []float64,
+	inputValues []float32,
+	targetValues []float32,
 	record []string,
 	config CSVConfig,
 	recordNumber int,
-) (nextInputs, nextTargets []float64, err error) {
+) (nextInputs, nextTargets []float32, err error) {
 	var (
 		expectedColumns int
 		column          int
-		value           float64
+		value           float32
 	)
 
 	expectedColumns = config.InputColumns + config.TargetColumns
@@ -169,18 +169,21 @@ func appendCSVRecord(
 	return nextInputs, nextTargets, nil
 }
 
-func parseCSVFloat(field string, recordNumber, column int) (value float64, err error) {
+func parseCSVFloat(field string, recordNumber, column int) (value float32, err error) {
+	var parsed float64
+
 	field = strings.TrimSpace(field)
 	if field == "" {
 		err = fmt.Errorf("data: csv value is empty: record=%d column=%d", recordNumber, column)
 		return 0, err
 	}
 
-	if value, err = strconv.ParseFloat(field, 64); err != nil {
+	if parsed, err = strconv.ParseFloat(field, 32); err != nil {
 		err = fmt.Errorf("data: csv value parse failed: record=%d column=%d value=%q: %w", recordNumber, column, field, err)
 		return 0, err
 	}
 
+	value = float32(parsed)
 	return value, nil
 }
 

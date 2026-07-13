@@ -16,7 +16,7 @@ func ZeroWeights(inputSize, outputSize int) (weights *matrix.Matrix, err error) 
 }
 
 // UniformWeights returns a Dense weight initializer using a uniform distribution.
-func UniformWeights(min, max float64, random *rand.Rand) (initializer WeightInitializer) {
+func UniformWeights(min, max float32, random *rand.Rand) (initializer WeightInitializer) {
 	initializer = func(inputSize, outputSize int) (weights *matrix.Matrix, err error) {
 		weights, err = matrix.NewUniform(inputSize, outputSize, min, max, random)
 		return weights, err
@@ -25,7 +25,7 @@ func UniformWeights(min, max float64, random *rand.Rand) (initializer WeightInit
 }
 
 // NormalWeights returns a Dense weight initializer using a normal distribution.
-func NormalWeights(mean, stddev float64, random *rand.Rand) (initializer WeightInitializer) {
+func NormalWeights(mean, stddev float32, random *rand.Rand) (initializer WeightInitializer) {
 	initializer = func(inputSize, outputSize int) (weights *matrix.Matrix, err error) {
 		weights, err = matrix.NewNormal(inputSize, outputSize, mean, stddev, random)
 		return weights, err

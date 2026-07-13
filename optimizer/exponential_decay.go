@@ -1,9 +1,9 @@
 package optimizer
 
-import "math"
+import "github.com/itsmontoya/neuralnetwork/internal/f32"
 
 // NewExponentialDecay constructs a schedule that decays every epoch by decayRate.
-func NewExponentialDecay(initialLearningRate, decayRate float64) (out *ExponentialDecay, err error) {
+func NewExponentialDecay(initialLearningRate, decayRate float32) (out *ExponentialDecay, err error) {
 	if err = validateLearningRate(initialLearningRate); err != nil {
 		return nil, err
 	}
@@ -20,12 +20,12 @@ func NewExponentialDecay(initialLearningRate, decayRate float64) (out *Exponenti
 
 // ExponentialDecay returns initialLearningRate*decayRate^(epoch-1).
 type ExponentialDecay struct {
-	initialLearningRate float64
-	decayRate           float64
+	initialLearningRate float32
+	decayRate           float32
 }
 
 // LearningRate returns the exponentially decayed learning rate for a one-based epoch.
-func (e *ExponentialDecay) LearningRate(epoch int) (learningRate float64, err error) {
+func (e *ExponentialDecay) LearningRate(epoch int) (learningRate float32, err error) {
 	if err = e.validate(); err != nil {
 		return 0, err
 	}
@@ -34,7 +34,7 @@ func (e *ExponentialDecay) LearningRate(epoch int) (learningRate float64, err er
 		return 0, err
 	}
 
-	learningRate = e.initialLearningRate * math.Pow(e.decayRate, float64(epoch-1))
+	learningRate = e.initialLearningRate * f32.Pow(e.decayRate, float32(epoch-1))
 	if err = validateLearningRate(learningRate); err != nil {
 		return 0, err
 	}
@@ -43,7 +43,7 @@ func (e *ExponentialDecay) LearningRate(epoch int) (learningRate float64, err er
 }
 
 // InitialLearningRate returns the epoch-one learning rate.
-func (e *ExponentialDecay) InitialLearningRate() (learningRate float64) {
+func (e *ExponentialDecay) InitialLearningRate() (learningRate float32) {
 	if e == nil {
 		return 0
 	}
@@ -53,7 +53,7 @@ func (e *ExponentialDecay) InitialLearningRate() (learningRate float64) {
 }
 
 // DecayRate returns the per-epoch multiplicative decay rate.
-func (e *ExponentialDecay) DecayRate() (decayRate float64) {
+func (e *ExponentialDecay) DecayRate() (decayRate float32) {
 	if e == nil {
 		return 0
 	}

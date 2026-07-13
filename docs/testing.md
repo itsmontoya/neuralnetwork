@@ -18,9 +18,9 @@ Benchmarks should wait until the implementation under test has correctness
 coverage. Do not tune performance before the expected behavior is covered by
 unit tests.
 
-The v1 numeric type is `float64`. This keeps the initial implementation simple
-and gives gradient checks more stable precision. `float32` support is deferred
-until there is a measured need.
+The v1 numeric type is `float32`. Gradient checks use f32-sized finite
+difference steps and tolerances so tests validate behavior without depending on
+float64 precision.
 
 Example packages use package-local smoke tests for helper-level behavior rather
 than running the full training commands by default. These tests cover dataset

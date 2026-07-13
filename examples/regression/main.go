@@ -72,22 +72,22 @@ func run() (err error) {
 
 func newRegressionDataset(random *rand.Rand) (dataset *data.Dataset, err error) {
 	var (
-		inputValues  []float64
-		targetValues []float64
+		inputValues  []float32
+		targetValues []float32
 		inputs       *matrix.Matrix
 		targets      *matrix.Matrix
 		index        int
-		x            float64
-		y            float64
-		noise        float64
+		x            float32
+		y            float32
+		noise        float32
 	)
 
-	inputValues = make([]float64, 0, sampleCount)
-	targetValues = make([]float64, 0, sampleCount)
+	inputValues = make([]float32, 0, sampleCount)
+	targetValues = make([]float32, 0, sampleCount)
 
 	for index = 0; index < sampleCount; index++ {
-		x = -1 + 2*float64(index)/float64(sampleCount-1)
-		noise = random.NormFloat64() * noiseStddev
+		x = -1 + 2*float32(index)/float32(sampleCount-1)
+		noise = float32(random.NormFloat64()) * noiseStddev
 		y = 2*x + 1 + noise
 
 		inputValues = append(inputValues, x)
@@ -134,15 +134,15 @@ func printEpochLoss(metrics model.EpochMetrics) (err error) {
 
 func printRegressionPredictions(network *model.Sequential) (err error) {
 	var (
-		inputValues      []float64
+		inputValues      []float32
 		inputs           *matrix.Matrix
 		predictions      *matrix.Matrix
-		predictionValues []float64
+		predictionValues []float32
 		index            int
-		x                float64
+		x                float32
 	)
 
-	inputValues = []float64{-1, 0, 1}
+	inputValues = []float32{-1, 0, 1}
 	if inputs, err = matrix.FromSlice(len(inputValues), 1, inputValues); err != nil {
 		return err
 	}

@@ -16,7 +16,7 @@ func Test_Loss_Interface(t *testing.T) {
 
 type mockLoss struct{}
 
-func (m mockLoss) Value(predictions, targets *matrix.Matrix) (value float64, err error) {
+func (m mockLoss) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
 	value = 0
 	return value, nil
 }

@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
-	"math"
 	"math/rand"
 
 	"github.com/itsmontoya/neuralnetwork/activation"
 	"github.com/itsmontoya/neuralnetwork/data"
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/layer"
 	"github.com/itsmontoya/neuralnetwork/loss"
 	"github.com/itsmontoya/neuralnetwork/matrix"
@@ -89,22 +89,22 @@ func run() (err error) {
 
 func newHeartDataset(random *rand.Rand) (dataset *data.Dataset, err error) {
 	var (
-		inputValues  []float64
-		targetValues []float64
+		inputValues  []float32
+		targetValues []float32
 		inputs       *matrix.Matrix
 		targets      *matrix.Matrix
 		index        int
-		x            float64
-		y            float64
-		target       float64
+		x            float32
+		y            float32
+		target       float32
 	)
 
-	inputValues = make([]float64, 0, sampleCount*2)
-	targetValues = make([]float64, 0, sampleCount)
+	inputValues = make([]float32, 0, sampleCount*2)
+	targetValues = make([]float32, 0, sampleCount)
 
 	for index = 0; index < sampleCount; index++ {
-		x = minX + (maxX-minX)*random.Float64()
-		y = minY + (maxY-minY)*random.Float64()
+		x = minX + (maxX-minX)*float32(random.Float64())
+		y = minY + (maxY-minY)*float32(random.Float64())
 		target = 0
 		if insideHeart(x, y) {
 			target = 1
@@ -174,22 +174,22 @@ func printEpochMetrics(metrics model.EpochMetrics) (err error) {
 
 func renderHeart(network *model.Sequential) (err error) {
 	var (
-		inputValues      []float64
+		inputValues      []float32
 		inputs           *matrix.Matrix
 		predictions      *matrix.Matrix
-		predictionValues []float64
+		predictionValues []float32
 		row              int
 		col              int
-		x                float64
-		y                float64
+		x                float32
+		y                float32
 		index            int
 	)
 
-	inputValues = make([]float64, 0, renderRows*renderCols*2)
+	inputValues = make([]float32, 0, renderRows*renderCols*2)
 	for row = 0; row < renderRows; row++ {
-		y = maxY - (maxY-minY)*float64(row)/float64(renderRows-1)
+		y = maxY - (maxY-minY)*float32(row)/float32(renderRows-1)
 		for col = 0; col < renderCols; col++ {
-			x = minX + (maxX-minX)*float64(col)/float64(renderCols-1)
+			x = minX + (maxX-minX)*float32(col)/float32(renderCols-1)
 			inputValues = append(inputValues, x, y)
 		}
 	}
@@ -217,16 +217,16 @@ func renderHeart(network *model.Sequential) (err error) {
 	return nil
 }
 
-func insideHeart(x, y float64) (inside bool) {
-	var value float64
+func insideHeart(x, y float32) (inside bool) {
+	var value float32
 
 	y += 0.12
-	value = math.Pow(x*x+y*y-1, 3) - x*x*y*y*y
+	value = f32.Pow(x*x+y*y-1, 3) - x*x*y*y*y
 	inside = value <= 0
 	return inside
 }
 
-func shade(value float64) (char string) {
+func shade(value float32) (char string) {
 	switch {
 	case value >= 0.85:
 		char = "@"

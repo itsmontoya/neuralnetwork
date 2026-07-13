@@ -1,6 +1,6 @@
 package matrix
 
-func addIntoPure(left, right, result []float64) {
+func addIntoPure(left, right, result []float32) {
 	var index int
 
 	for index = range result {
@@ -8,7 +8,7 @@ func addIntoPure(left, right, result []float64) {
 	}
 }
 
-func addScaledInPlacePure(left, right []float64, scale float64) {
+func addScaledInPlacePure(left, right []float32, scale float32) {
 	var index int
 
 	for index = range left {
@@ -16,7 +16,7 @@ func addScaledInPlacePure(left, right []float64, scale float64) {
 	}
 }
 
-func subtractIntoPure(left, right, result []float64) {
+func subtractIntoPure(left, right, result []float32) {
 	var index int
 
 	for index = range result {
@@ -24,7 +24,7 @@ func subtractIntoPure(left, right, result []float64) {
 	}
 }
 
-func multiplyElementsIntoPure(left, right, result []float64) {
+func multiplyElementsIntoPure(left, right, result []float32) {
 	var index int
 
 	for index = range result {
@@ -32,7 +32,7 @@ func multiplyElementsIntoPure(left, right, result []float64) {
 	}
 }
 
-func addScalarIntoPure(source []float64, value float64, result []float64) {
+func addScalarIntoPure(source []float32, value float32, result []float32) {
 	var index int
 
 	for index = range result {
@@ -40,7 +40,7 @@ func addScalarIntoPure(source []float64, value float64, result []float64) {
 	}
 }
 
-func multiplyScalarIntoPure(source []float64, value float64, result []float64) {
+func multiplyScalarIntoPure(source []float32, value float32, result []float32) {
 	var index int
 
 	for index = range result {
@@ -48,7 +48,7 @@ func multiplyScalarIntoPure(source []float64, value float64, result []float64) {
 	}
 }
 
-func multiplyScalarInPlacePure(source []float64, value float64) {
+func multiplyScalarInPlacePure(source []float32, value float32) {
 	var index int
 
 	for index = range source {

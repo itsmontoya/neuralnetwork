@@ -74,8 +74,8 @@ func Test_Regularized_UpdateAppliesRegularizersBeforeBaseOptimizer(t *testing.T)
 		err         error
 	)
 
-	parameter = mustParameter(t, 1, 3, []float64{2, -4, 0})
-	accumulateGradient(t, parameter, []float64{0.5, 0.5, 0.5})
+	parameter = mustParameter(t, 1, 3, []float32{2, -4, 0})
+	accumulateGradient(t, parameter, []float32{0.5, 0.5, 0.5})
 
 	sgd, err = optimizer.NewSGD(0.1)
 	if err != nil {
@@ -102,8 +102,8 @@ func Test_Regularized_UpdateAppliesRegularizersBeforeBaseOptimizer(t *testing.T)
 		t.Fatalf("Update returned error: %v", err)
 	}
 
-	requireMatrixValues(t, parameter.Values(), []float64{1.875, -3.925, -0.05})
-	requireMatrixValues(t, parameter.Gradient(), []float64{0, 0, 0})
+	requireMatrixValues(t, parameter.Values(), []float32{1.875, -3.925, -0.05})
+	requireMatrixValues(t, parameter.Gradient(), []float32{0, 0, 0})
 }
 
 func Test_Regularized_UpdateRegularizesGradientsBeforeBaseUpdate(t *testing.T) {
@@ -115,8 +115,8 @@ func Test_Regularized_UpdateRegularizesGradientsBeforeBaseUpdate(t *testing.T) {
 		err         error
 	)
 
-	parameter = mustParameter(t, 1, 2, []float64{2, -3})
-	accumulateGradient(t, parameter, []float64{0.5, 0.5})
+	parameter = mustParameter(t, 1, 2, []float32{2, -3})
+	accumulateGradient(t, parameter, []float32{0.5, 0.5})
 
 	base = &mockOptimizer{
 		learningRate: 0.1,
@@ -126,8 +126,8 @@ func Test_Regularized_UpdateRegularizesGradientsBeforeBaseUpdate(t *testing.T) {
 				return nil
 			}
 
-			requireMatrixValues(t, parameters[0].Values(), []float64{2, -3})
-			requireMatrixValues(t, parameters[0].Gradient(), []float64{0.75, 0.25})
+			requireMatrixValues(t, parameters[0].Values(), []float32{2, -3})
+			requireMatrixValues(t, parameters[0].Gradient(), []float32{0.75, 0.25})
 
 			if err = parameters[0].Values().AddScaledInPlace(parameters[0].Gradient(), -0.1); err != nil {
 				return err
@@ -153,8 +153,8 @@ func Test_Regularized_UpdateRegularizesGradientsBeforeBaseUpdate(t *testing.T) {
 		t.Fatalf("Update returned error: %v", err)
 	}
 
-	requireMatrixValues(t, parameter.Values(), []float64{1.925, -3.025})
-	requireMatrixValues(t, parameter.Gradient(), []float64{0, 0})
+	requireMatrixValues(t, parameter.Values(), []float32{1.925, -3.025})
+	requireMatrixValues(t, parameter.Gradient(), []float32{0, 0})
 }
 
 func Test_Regularized_DelegatesLearningRate(t *testing.T) {

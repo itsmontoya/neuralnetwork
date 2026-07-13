@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/internal/testutil"
 	"github.com/itsmontoya/neuralnetwork/optimizer"
 )
@@ -28,10 +29,10 @@ func Test_NewAdam_UsesDefaults(t *testing.T) {
 func Test_NewAdamWithConfig_ValidatesConfig(t *testing.T) {
 	type testcase struct {
 		name         string
-		learningRate float64
-		beta1        float64
-		beta2        float64
-		epsilon      float64
+		learningRate float32
+		beta1        float32
+		beta2        float32
+		epsilon      float32
 	}
 
 	tests := []testcase{
@@ -53,7 +54,7 @@ func Test_NewAdamWithConfig_ValidatesConfig(t *testing.T) {
 			name:         "beta2",
 			learningRate: 0.1,
 			beta1:        0.9,
-			beta2:        math.NaN(),
+			beta2:        float32(math.NaN()),
 			epsilon:      1e-8,
 		},
 		{
@@ -88,55 +89,55 @@ func Test_Adam_Update_Repeated(t *testing.T) {
 	var (
 		parameter *optimizer.Parameter
 		adam      *optimizer.Adam
-		firstWant float64
-		want      float64
+		firstWant float32
+		want      float32
 		err       error
 	)
 
-	parameter = mustParameter(t, 1, 1, []float64{1})
+	parameter = mustParameter(t, 1, 1, []float32{1})
 	adam, err = optimizer.NewAdamWithConfig(0.1, 0.5, 0.25, 0.1)
 	if err != nil {
 		t.Fatalf("NewAdamWithConfig returned error: %v", err)
 	}
 
-	accumulateGradient(t, parameter, []float64{2})
+	accumulateGradient(t, parameter, []float32{2})
 	err = adam.Update([]*optimizer.Parameter{parameter})
 	if err != nil {
 		t.Fatalf("Update returned error: %v", err)
 	}
 
 	firstWant = 1 - adamStep(0.1, 0.1, 2, 4)
-	requireMatrixValues(t, parameter.Values(), []float64{firstWant})
-	requireMatrixValues(t, parameter.Gradient(), []float64{0})
+	requireMatrixValues(t, parameter.Values(), []float32{firstWant})
+	requireMatrixValues(t, parameter.Gradient(), []float32{0})
 
-	accumulateGradient(t, parameter, []float64{4})
+	accumulateGradient(t, parameter, []float32{4})
 	err = adam.Update([]*optimizer.Parameter{parameter})
 	if err != nil {
 		t.Fatalf("Update returned error: %v", err)
 	}
 
-	want = firstWant - adamStep(0.1, 0.1, 2.5/(1-math.Pow(0.5, 2)), 12.75/(1-math.Pow(0.25, 2)))
-	requireMatrixValues(t, parameter.Values(), []float64{want})
-	requireMatrixValues(t, parameter.Gradient(), []float64{0})
+	want = firstWant - adamStep(0.1, 0.1, 2.5/(1-f32.Pow(0.5, 2)), 12.75/(1-f32.Pow(0.25, 2)))
+	requireMatrixValues(t, parameter.Values(), []float32{want})
+	requireMatrixValues(t, parameter.Gradient(), []float32{0})
 }
 
 func Test_Adam_Update_MultiStepMatrixMatchesReference(t *testing.T) {
 	var (
 		parameter     *optimizer.Parameter
 		adam          *optimizer.Adam
-		values        []float64
-		firstMoments  []float64
-		secondMoments []float64
-		gradientSteps [][]float64
-		gradients     []float64
+		values        []float32
+		firstMoments  []float32
+		secondMoments []float32
+		gradientSteps [][]float32
+		gradients     []float32
 		err           error
 		step          int
 	)
 
-	values = []float64{1, -2, 0.5, 3}
-	firstMoments = make([]float64, len(values))
-	secondMoments = make([]float64, len(values))
-	gradientSteps = [][]float64{
+	values = []float32{1, -2, 0.5, 3}
+	firstMoments = make([]float32, len(values))
+	secondMoments = make([]float32, len(values))
+	gradientSteps = [][]float32{
 		{0.25, -0.5, 0.75, -1},
 		{0.5, 0.25, -0.25, 0.125},
 		{-0.75, 1, 0.5, -0.375},
@@ -157,7 +158,7 @@ func Test_Adam_Update_MultiStepMatrixMatchesReference(t *testing.T) {
 
 		applyAdamReferenceStep(values, firstMoments, secondMoments, gradients, step+1, 0.05, 0.8, 0.9, 1e-6)
 		requireMatrixValues(t, parameter.Values(), values)
-		requireMatrixValues(t, parameter.Gradient(), []float64{0, 0, 0, 0})
+		requireMatrixValues(t, parameter.Gradient(), []float32{0, 0, 0, 0})
 	}
 }
 
@@ -166,26 +167,26 @@ func Test_Adam_StateIsolation(t *testing.T) {
 		first      *optimizer.Parameter
 		second     *optimizer.Parameter
 		adam       *optimizer.Adam
-		firstWant  float64
-		secondWant float64
+		firstWant  float32
+		secondWant float32
 		err        error
 	)
 
-	first = mustParameter(t, 1, 1, []float64{1})
-	second = mustParameter(t, 1, 1, []float64{1})
+	first = mustParameter(t, 1, 1, []float32{1})
+	second = mustParameter(t, 1, 1, []float32{1})
 	adam, err = optimizer.NewAdamWithConfig(0.1, 0.5, 0.25, 0.1)
 	if err != nil {
 		t.Fatalf("NewAdamWithConfig returned error: %v", err)
 	}
 
-	accumulateGradient(t, first, []float64{2})
+	accumulateGradient(t, first, []float32{2})
 	err = adam.Update([]*optimizer.Parameter{first})
 	if err != nil {
 		t.Fatalf("Update returned error: %v", err)
 	}
 
-	accumulateGradient(t, first, []float64{4})
-	accumulateGradient(t, second, []float64{4})
+	accumulateGradient(t, first, []float32{4})
+	accumulateGradient(t, second, []float32{4})
 	err = adam.Update([]*optimizer.Parameter{first, second})
 	if err != nil {
 		t.Fatalf("Update returned error: %v", err)
@@ -193,11 +194,11 @@ func Test_Adam_StateIsolation(t *testing.T) {
 
 	firstWant = 1 -
 		adamStep(0.1, 0.1, 2, 4) -
-		adamStep(0.1, 0.1, 2.5/(1-math.Pow(0.5, 2)), 12.75/(1-math.Pow(0.25, 2)))
+		adamStep(0.1, 0.1, 2.5/(1-f32.Pow(0.5, 2)), 12.75/(1-f32.Pow(0.25, 2)))
 	secondWant = 1 - adamStep(0.1, 0.1, 4, 16)
 
-	requireMatrixValues(t, first.Values(), []float64{firstWant})
-	requireMatrixValues(t, second.Values(), []float64{secondWant})
+	requireMatrixValues(t, first.Values(), []float32{firstWant})
+	requireMatrixValues(t, second.Values(), []float32{secondWant})
 }
 
 func Test_Adam_Setters(t *testing.T) {
@@ -233,39 +234,39 @@ func Test_Adam_Setters(t *testing.T) {
 	testutil.RequireAlmostEqual(t, adam.Epsilon(), 1e-6, epsilon)
 }
 
-func adamStep(learningRate, epsilon, firstEstimate, secondEstimate float64) (step float64) {
-	step = learningRate * firstEstimate / (math.Sqrt(secondEstimate) + epsilon)
+func adamStep(learningRate, epsilon, firstEstimate, secondEstimate float32) (step float32) {
+	step = learningRate * firstEstimate / (f32.Sqrt(secondEstimate) + epsilon)
 	return step
 }
 
 func applyAdamReferenceStep(
-	values []float64,
-	firstMoments []float64,
-	secondMoments []float64,
-	gradients []float64,
+	values []float32,
+	firstMoments []float32,
+	secondMoments []float32,
+	gradients []float32,
 	step int,
-	learningRate float64,
-	beta1 float64,
-	beta2 float64,
-	epsilon float64,
+	learningRate float32,
+	beta1 float32,
+	beta2 float32,
+	epsilon float32,
 ) {
 	var (
-		firstCorrection  float64
-		secondCorrection float64
-		firstEstimate    float64
-		secondEstimate   float64
-		gradient         float64
+		firstCorrection  float32
+		secondCorrection float32
+		firstEstimate    float32
+		secondEstimate   float32
+		gradient         float32
 		index            int
 	)
 
-	firstCorrection = 1 - math.Pow(beta1, float64(step))
-	secondCorrection = 1 - math.Pow(beta2, float64(step))
+	firstCorrection = 1 - f32.Pow(beta1, float32(step))
+	secondCorrection = 1 - f32.Pow(beta2, float32(step))
 	for index = range values {
 		gradient = gradients[index]
 		firstMoments[index] = beta1*firstMoments[index] + (1-beta1)*gradient
 		secondMoments[index] = beta2*secondMoments[index] + (1-beta2)*gradient*gradient
 		firstEstimate = firstMoments[index] / firstCorrection
 		secondEstimate = secondMoments[index] / secondCorrection
-		values[index] -= learningRate * firstEstimate / (math.Sqrt(secondEstimate) + epsilon)
+		values[index] -= learningRate * firstEstimate / (f32.Sqrt(secondEstimate) + epsilon)
 	}
 }

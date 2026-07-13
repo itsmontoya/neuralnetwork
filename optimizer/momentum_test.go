@@ -11,8 +11,8 @@ import (
 func Test_NewMomentum_ValidatesConfig(t *testing.T) {
 	type testcase struct {
 		name         string
-		learningRate float64
-		coefficient  float64
+		learningRate float32
+		coefficient  float32
 	}
 
 	tests := []testcase{
@@ -34,7 +34,7 @@ func Test_NewMomentum_ValidatesConfig(t *testing.T) {
 		{
 			name:         "coefficient nan",
 			learningRate: 0.1,
-			coefficient:  math.NaN(),
+			coefficient:  float32(math.NaN()),
 		},
 	}
 
@@ -64,29 +64,29 @@ func Test_Momentum_Update_Repeated(t *testing.T) {
 		err       error
 	)
 
-	parameter = mustParameter(t, 1, 2, []float64{1, 2})
+	parameter = mustParameter(t, 1, 2, []float32{1, 2})
 	momentum, err = optimizer.NewMomentumWithCoefficient(0.1, 0.9)
 	if err != nil {
 		t.Fatalf("NewMomentumWithCoefficient returned error: %v", err)
 	}
 
-	accumulateGradient(t, parameter, []float64{0.5, -0.25})
+	accumulateGradient(t, parameter, []float32{0.5, -0.25})
 	err = momentum.Update([]*optimizer.Parameter{parameter})
 	if err != nil {
 		t.Fatalf("Update returned error: %v", err)
 	}
 
-	requireMatrixValues(t, parameter.Values(), []float64{0.95, 2.025})
-	requireMatrixValues(t, parameter.Gradient(), []float64{0, 0})
+	requireMatrixValues(t, parameter.Values(), []float32{0.95, 2.025})
+	requireMatrixValues(t, parameter.Gradient(), []float32{0, 0})
 
-	accumulateGradient(t, parameter, []float64{0.5, -0.25})
+	accumulateGradient(t, parameter, []float32{0.5, -0.25})
 	err = momentum.Update([]*optimizer.Parameter{parameter})
 	if err != nil {
 		t.Fatalf("Update returned error: %v", err)
 	}
 
-	requireMatrixValues(t, parameter.Values(), []float64{0.855, 2.0725})
-	requireMatrixValues(t, parameter.Gradient(), []float64{0, 0})
+	requireMatrixValues(t, parameter.Values(), []float32{0.855, 2.0725})
+	requireMatrixValues(t, parameter.Gradient(), []float32{0, 0})
 }
 
 func Test_Momentum_StateIsolation(t *testing.T) {
@@ -97,28 +97,28 @@ func Test_Momentum_StateIsolation(t *testing.T) {
 		err      error
 	)
 
-	first = mustParameter(t, 1, 2, []float64{1, 2})
-	second = mustParameter(t, 1, 2, []float64{1, 2})
+	first = mustParameter(t, 1, 2, []float32{1, 2})
+	second = mustParameter(t, 1, 2, []float32{1, 2})
 	momentum, err = optimizer.NewMomentumWithCoefficient(0.1, 0.9)
 	if err != nil {
 		t.Fatalf("NewMomentumWithCoefficient returned error: %v", err)
 	}
 
-	accumulateGradient(t, first, []float64{0.5, -0.25})
+	accumulateGradient(t, first, []float32{0.5, -0.25})
 	err = momentum.Update([]*optimizer.Parameter{first})
 	if err != nil {
 		t.Fatalf("Update returned error: %v", err)
 	}
 
-	accumulateGradient(t, first, []float64{0.5, -0.25})
-	accumulateGradient(t, second, []float64{0.5, -0.25})
+	accumulateGradient(t, first, []float32{0.5, -0.25})
+	accumulateGradient(t, second, []float32{0.5, -0.25})
 	err = momentum.Update([]*optimizer.Parameter{first, second})
 	if err != nil {
 		t.Fatalf("Update returned error: %v", err)
 	}
 
-	requireMatrixValues(t, first.Values(), []float64{0.855, 2.0725})
-	requireMatrixValues(t, second.Values(), []float64{0.95, 2.025})
+	requireMatrixValues(t, first.Values(), []float32{0.855, 2.0725})
+	requireMatrixValues(t, second.Values(), []float32{0.95, 2.025})
 }
 
 func Test_Momentum_Setters(t *testing.T) {

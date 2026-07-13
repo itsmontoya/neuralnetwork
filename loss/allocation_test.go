@@ -7,7 +7,7 @@ import (
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
-var allocationLossValue float64
+var allocationLossValue float32
 var allocationLossGradient *matrix.Matrix
 
 func Test_LossValueAllocations(t *testing.T) {
@@ -20,20 +20,20 @@ func Test_LossValueAllocations(t *testing.T) {
 		{
 			name:        "MeanSquaredError",
 			lossFunc:    loss.MeanSquaredError{},
-			predictions: mustMatrix(t, 2, 2, []float64{0.1, 0.2, 0.3, 0.4}),
-			targets:     mustMatrix(t, 2, 2, []float64{0, 0.25, 0.5, 0.75}),
+			predictions: mustMatrix(t, 2, 2, []float32{0.1, 0.2, 0.3, 0.4}),
+			targets:     mustMatrix(t, 2, 2, []float32{0, 0.25, 0.5, 0.75}),
 		},
 		{
 			name:        "BinaryCrossEntropy",
 			lossFunc:    loss.BinaryCrossEntropy{},
-			predictions: mustMatrix(t, 4, 1, []float64{0.1, 0.8, 0.25, 0.75}),
-			targets:     mustMatrix(t, 4, 1, []float64{0, 1, 0, 1}),
+			predictions: mustMatrix(t, 4, 1, []float32{0.1, 0.8, 0.25, 0.75}),
+			targets:     mustMatrix(t, 4, 1, []float32{0, 1, 0, 1}),
 		},
 		{
 			name:        "CategoricalCrossEntropy",
 			lossFunc:    loss.CategoricalCrossEntropy{},
-			predictions: mustMatrix(t, 2, 3, []float64{0.7, 0.2, 0.1, 0.1, 0.8, 0.1}),
-			targets:     mustMatrix(t, 2, 3, []float64{1, 0, 0, 0, 1, 0}),
+			predictions: mustMatrix(t, 2, 3, []float32{0.7, 0.2, 0.1, 0.1, 0.8, 0.1}),
+			targets:     mustMatrix(t, 2, 3, []float32{1, 0, 0, 0, 1, 0}),
 		},
 	}
 
@@ -61,20 +61,20 @@ func Test_LossGradientAllocationCeilings(t *testing.T) {
 		{
 			name:        "MeanSquaredError",
 			lossFunc:    loss.MeanSquaredError{},
-			predictions: mustMatrix(t, 2, 2, []float64{0.1, 0.2, 0.3, 0.4}),
-			targets:     mustMatrix(t, 2, 2, []float64{0, 0.25, 0.5, 0.75}),
+			predictions: mustMatrix(t, 2, 2, []float32{0.1, 0.2, 0.3, 0.4}),
+			targets:     mustMatrix(t, 2, 2, []float32{0, 0.25, 0.5, 0.75}),
 		},
 		{
 			name:        "BinaryCrossEntropy",
 			lossFunc:    loss.BinaryCrossEntropy{},
-			predictions: mustMatrix(t, 4, 1, []float64{0.1, 0.8, 0.25, 0.75}),
-			targets:     mustMatrix(t, 4, 1, []float64{0, 1, 0, 1}),
+			predictions: mustMatrix(t, 4, 1, []float32{0.1, 0.8, 0.25, 0.75}),
+			targets:     mustMatrix(t, 4, 1, []float32{0, 1, 0, 1}),
 		},
 		{
 			name:        "CategoricalCrossEntropy",
 			lossFunc:    loss.CategoricalCrossEntropy{},
-			predictions: mustMatrix(t, 2, 3, []float64{0.7, 0.2, 0.1, 0.1, 0.8, 0.1}),
-			targets:     mustMatrix(t, 2, 3, []float64{1, 0, 0, 0, 1, 0}),
+			predictions: mustMatrix(t, 2, 3, []float32{0.7, 0.2, 0.1, 0.1, 0.8, 0.1}),
+			targets:     mustMatrix(t, 2, 3, []float32{1, 0, 0, 0, 1, 0}),
 		},
 	}
 

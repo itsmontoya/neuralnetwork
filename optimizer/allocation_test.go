@@ -97,13 +97,13 @@ func allocationOptimizerParametersAndGradients(tb testing.TB) (parameters []*opt
 
 	tb.Helper()
 
-	parameter = mustParameter(tb, 2, 3, []float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6})
-	gradient = mustMatrix(tb, 2, 3, []float64{0.01, -0.02, 0.03, -0.04, 0.05, -0.06})
+	parameter = mustParameter(tb, 2, 3, []float32{0.1, 0.2, 0.3, 0.4, 0.5, 0.6})
+	gradient = mustMatrix(tb, 2, 3, []float32{0.01, -0.02, 0.03, -0.04, 0.05, -0.06})
 	parameters = append(parameters, parameter)
 	gradients = append(gradients, gradient)
 
-	parameter = mustParameter(tb, 1, 3, []float64{0.7, 0.8, 0.9})
-	gradient = mustMatrix(tb, 1, 3, []float64{-0.03, 0.02, -0.01})
+	parameter = mustParameter(tb, 1, 3, []float32{0.7, 0.8, 0.9})
+	gradient = mustMatrix(tb, 1, 3, []float32{-0.03, 0.02, -0.01})
 	parameters = append(parameters, parameter)
 	gradients = append(gradients, gradient)
 

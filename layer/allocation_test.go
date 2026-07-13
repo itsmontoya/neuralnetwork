@@ -176,27 +176,27 @@ func allocationDense(tb testing.TB) (dense *layer.Dense) {
 		tb,
 		3,
 		2,
-		[]float64{
+		[]float32{
 			0.5, -1,
 			1.5, 0,
 			-0.5, 2,
 		},
-		[]float64{0.1, -0.2},
+		[]float32{0.1, -0.2},
 	)
 	return dense
 }
 
 func allocationLayerMatrix(tb testing.TB, rows, cols int) (m *matrix.Matrix) {
 	var (
-		values []float64
+		values []float32
 		index  int
 	)
 
 	tb.Helper()
 
-	values = make([]float64, rows*cols)
+	values = make([]float32, rows*cols)
 	for index = range values {
-		values[index] = float64((index%11)+1) / 11
+		values[index] = float32((index%11)+1) / 11
 	}
 
 	m = mustMatrix(tb, rows, cols, values)

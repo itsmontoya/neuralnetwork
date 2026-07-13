@@ -2,7 +2,7 @@
 
 package matrix
 
-func dotProduct(left, right []float64) (sum float64) {
+func dotProduct(left, right []float32) (sum float32) {
 	sum = dotProductPure(left, right)
 	return sum
 }

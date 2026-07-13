@@ -6,7 +6,7 @@ import (
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
-func apply(input *matrix.Matrix, fn func(float64) float64) (output *matrix.Matrix, err error) {
+func apply(input *matrix.Matrix, fn func(float32) float32) (output *matrix.Matrix, err error) {
 	if _, _, err = matrixShape("input", input); err != nil {
 		return nil, err
 	}
@@ -19,7 +19,7 @@ func apply(input *matrix.Matrix, fn func(float64) float64) (output *matrix.Matri
 	return output, nil
 }
 
-func applyDerivative(input, outputGradient *matrix.Matrix, derivative func(float64) float64) (inputGradient *matrix.Matrix, err error) {
+func applyDerivative(input, outputGradient *matrix.Matrix, derivative func(float32) float32) (inputGradient *matrix.Matrix, err error) {
 	if _, _, err = matrixPairShape(input, outputGradient); err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func matrixShape(name string, input *matrix.Matrix) (rows, cols int, err error) 
 	return rows, cols, nil
 }
 
-func matrixValues(name string, input *matrix.Matrix) (rows, cols int, values []float64, err error) {
+func matrixValues(name string, input *matrix.Matrix) (rows, cols int, values []float32, err error) {
 	if rows, cols, err = matrixShape(name, input); err != nil {
 		return 0, 0, nil, err
 	}
@@ -88,7 +88,7 @@ func matrixPairShape(input, outputGradient *matrix.Matrix) (rows, cols int, err 
 	return rows, cols, nil
 }
 
-func matrixValuePair(input, outputGradient *matrix.Matrix) (rows, cols int, inputValues, gradientValues []float64, err error) {
+func matrixValuePair(input, outputGradient *matrix.Matrix) (rows, cols int, inputValues, gradientValues []float32, err error) {
 	if rows, cols, err = matrixPairShape(input, outputGradient); err != nil {
 		return 0, 0, nil, nil, err
 	}

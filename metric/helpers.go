@@ -6,7 +6,7 @@ import (
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
-func matrixValuePair(predictions, targets *matrix.Matrix) (rows, cols int, predictionValues, targetValues []float64, err error) {
+func matrixValuePair(predictions, targets *matrix.Matrix) (rows, cols int, predictionValues, targetValues []float32, err error) {
 	var (
 		targetRows int
 		targetCols int
@@ -38,10 +38,10 @@ func matrixValuePair(predictions, targets *matrix.Matrix) (rows, cols int, predi
 	return rows, cols, predictionValues, targetValues, nil
 }
 
-func validateBinaryTargets(targetValues []float64) (err error) {
+func validateBinaryTargets(targetValues []float32) (err error) {
 	var (
 		index int
-		value float64
+		value float32
 	)
 
 	for index, value = range targetValues {
@@ -56,13 +56,13 @@ func validateBinaryTargets(targetValues []float64) (err error) {
 	return nil
 }
 
-func validateOneHotTargets(rows, cols int, targetValues []float64) (err error) {
+func validateOneHotTargets(rows, cols int, targetValues []float32) (err error) {
 	var (
 		row   int
 		col   int
 		index int
 		ones  int
-		value float64
+		value float32
 	)
 
 	for row = 0; row < rows; row++ {
@@ -92,12 +92,12 @@ func validateOneHotTargets(rows, cols int, targetValues []float64) (err error) {
 	return nil
 }
 
-func rowArgmax(values []float64, row, cols int) (argmax int) {
+func rowArgmax(values []float32, row, cols int) (argmax int) {
 	var (
 		col   int
 		index int
-		max   float64
-		value float64
+		max   float32
+		value float32
 	)
 
 	index = row * cols

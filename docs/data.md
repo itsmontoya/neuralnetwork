@@ -32,7 +32,7 @@ record before reading data rows.
 
 Every non-blank data row must contain exactly
 `InputColumns + TargetColumns` values. Values are trimmed and parsed as
-`float64`. Blank records are skipped. Loading fails when there are no data rows,
+`float32`. Blank records are skipped. Loading fails when there are no data rows,
 when a row has the wrong column count, or when a value cannot be parsed.
 
 The returned dataset has shape:

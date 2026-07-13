@@ -1,8 +1,7 @@
 package activation
 
 import (
-	"math"
-
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
@@ -23,21 +22,21 @@ func (e ELU) Backward(input, outputGradient *matrix.Matrix) (inputGradient *matr
 	return inputGradient, err
 }
 
-func eluValue(value float64) (result float64) {
+func eluValue(value float32) (result float32) {
 	if value > 0 {
 		result = value
 		return result
 	}
 
-	result = eluAlpha * (math.Exp(value) - 1)
+	result = eluAlpha * (f32.Exp(value) - 1)
 	return result
 }
 
-func eluDerivative(value float64) (result float64) {
+func eluDerivative(value float32) (result float32) {
 	if value > 0 {
 		return 1
 	}
 
-	result = eluAlpha * math.Exp(value)
+	result = eluAlpha * f32.Exp(value)
 	return result
 }

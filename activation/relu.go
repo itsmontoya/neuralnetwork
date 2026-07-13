@@ -17,7 +17,7 @@ func (r ReLU) Backward(input, outputGradient *matrix.Matrix) (inputGradient *mat
 	return inputGradient, err
 }
 
-func reLUValue(value float64) (result float64) {
+func reLUValue(value float32) (result float32) {
 	if value > 0 {
 		result = value
 		return result
@@ -26,7 +26,7 @@ func reLUValue(value float64) (result float64) {
 	return 0
 }
 
-func reLUDerivative(value float64) (result float64) {
+func reLUDerivative(value float32) (result float32) {
 	if value > 0 {
 		return 1
 	}

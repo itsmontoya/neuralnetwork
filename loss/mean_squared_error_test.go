@@ -12,12 +12,12 @@ func Test_MeanSquaredError_Value(t *testing.T) {
 	var (
 		predictions *matrix.Matrix
 		targets     *matrix.Matrix
-		got         float64
+		got         float32
 		err         error
 	)
 
-	predictions = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
-	targets = mustMatrix(t, 2, 2, []float64{1.5, 1, 2, 5})
+	predictions = mustMatrix(t, 2, 2, []float32{1, 2, 3, 4})
+	targets = mustMatrix(t, 2, 2, []float32{1.5, 1, 2, 5})
 
 	got, err = loss.MeanSquaredError{}.Value(predictions, targets)
 	if err != nil {
@@ -35,8 +35,8 @@ func Test_MeanSquaredError_Gradient(t *testing.T) {
 		err         error
 	)
 
-	predictions = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
-	targets = mustMatrix(t, 2, 2, []float64{1.5, 1, 2, 5})
+	predictions = mustMatrix(t, 2, 2, []float32{1, 2, 3, 4})
+	targets = mustMatrix(t, 2, 2, []float32{1.5, 1, 2, 5})
 
 	gradient, err = loss.MeanSquaredError{}.Gradient(predictions, targets)
 	if err != nil {
@@ -51,19 +51,19 @@ func Test_MeanSquaredError_Gradient(t *testing.T) {
 		t.Fatalf("Gradient cols = %d, want 2", gradient.Cols())
 	}
 
-	requireMatrixValues(t, gradient, []float64{-0.25, 0.5, 0.5, -0.5})
+	requireMatrixValues(t, gradient, []float32{-0.25, 0.5, 0.5, -0.5})
 }
 
 func Test_MeanSquaredError_ValidatesShape(t *testing.T) {
 	var (
 		predictions *matrix.Matrix
 		targets     *matrix.Matrix
-		got         float64
+		got         float32
 		err         error
 	)
 
-	predictions = mustMatrix(t, 1, 2, []float64{1, 2})
-	targets = mustMatrix(t, 2, 1, []float64{1, 2})
+	predictions = mustMatrix(t, 1, 2, []float32{1, 2})
+	targets = mustMatrix(t, 2, 1, []float32{1, 2})
 
 	got, err = loss.MeanSquaredError{}.Value(predictions, targets)
 	if err == nil {
@@ -79,8 +79,8 @@ func Test_MeanSquaredError_GradientValidatesShape(t *testing.T) {
 		err         error
 	)
 
-	predictions = mustMatrix(t, 1, 2, []float64{1, 2})
-	targets = mustMatrix(t, 2, 1, []float64{1, 2})
+	predictions = mustMatrix(t, 1, 2, []float32{1, 2})
+	targets = mustMatrix(t, 2, 1, []float32{1, 2})
 
 	gradient, err = loss.MeanSquaredError{}.Gradient(predictions, targets)
 	if err == nil {

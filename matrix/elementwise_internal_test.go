@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-const elementwiseEpsilon = 1e-12
+const elementwiseEpsilon = 1e-5
 
 func Test_ElementwiseKernels(t *testing.T) {
 	type testcase struct {
@@ -26,18 +26,18 @@ func Test_ElementwiseKernels(t *testing.T) {
 	for _, tt = range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var (
-				left        []float64
-				right       []float64
-				got         []float64
-				want        []float64
-				gotInPlace  []float64
-				wantInPlace []float64
+				left        []float32
+				right       []float32
+				got         []float32
+				want        []float32
+				gotInPlace  []float32
+				wantInPlace []float32
 			)
 
 			left = elementwiseTestValues(tt.length, 0.25)
 			right = elementwiseTestValues(tt.length, -0.75)
-			got = make([]float64, tt.length)
-			want = make([]float64, tt.length)
+			got = make([]float32, tt.length)
+			want = make([]float32, tt.length)
 
 			addInto(left, right, got)
 			addIntoPure(left, right, want)
@@ -74,44 +74,46 @@ func Test_ElementwiseKernels(t *testing.T) {
 	}
 }
 
-func elementwiseTestValues(length int, offset float64) (values []float64) {
+func elementwiseTestValues(length int, offset float32) (values []float32) {
 	var (
 		index int
-		base  []float64
+		base  []float32
 	)
 
-	base = []float64{
+	base = []float32{
 		0,
-		math.Copysign(0, -1),
+		float32(math.Copysign(0, -1)),
 		1.5,
 		-2.25,
-		math.Inf(1),
-		math.Inf(-1),
-		math.NaN(),
+		float32(float32(math.Inf(1))),
+		float32(float32(math.Inf(-1))),
+		float32(float32(math.NaN())),
 		3.75,
 		-4.5,
 	}
 
-	values = make([]float64, length)
+	values = make([]float32, length)
 	for index = range values {
 		values[index] = base[index%len(base)]
-		if values[index] == 0 || math.IsInf(values[index], 0) || math.IsNaN(values[index]) {
+		if values[index] == 0 ||
+			math.IsInf(float64(values[index]), 0) ||
+			math.IsNaN(float64(values[index])) {
 			continue
 		}
 
-		values[index] += offset * float64(index%5)
+		values[index] += offset * float32(index%5)
 	}
 
 	return values
 }
 
-func cloneElementwiseValues(values []float64) (clone []float64) {
-	clone = make([]float64, len(values))
+func cloneElementwiseValues(values []float32) (clone []float32) {
+	clone = make([]float32, len(values))
 	copy(clone, values)
 	return clone
 }
 
-func requireElementwiseValues(tb testing.TB, got, want []float64) {
+func requireElementwiseValues(tb testing.TB, got, want []float32) {
 	tb.Helper()
 
 	if len(got) != len(want) {
@@ -120,8 +122,8 @@ func requireElementwiseValues(tb testing.TB, got, want []float64) {
 
 	var index int
 	for index = range want {
-		if math.IsNaN(want[index]) {
-			if !math.IsNaN(got[index]) {
+		if math.IsNaN(float64(want[index])) {
+			if !math.IsNaN(float64(got[index])) {
 				tb.Fatalf("values[%d] = %g, want NaN", index, got[index])
 			}
 
@@ -132,7 +134,7 @@ func requireElementwiseValues(tb testing.TB, got, want []float64) {
 			continue
 		}
 
-		if math.Abs(got[index]-want[index]) <= elementwiseEpsilon {
+		if float32(math.Abs(float64(got[index]-want[index]))) <= elementwiseEpsilon {
 			continue
 		}
 
@@ -142,7 +144,7 @@ func requireElementwiseValues(tb testing.TB, got, want []float64) {
 			got[index],
 			want[index],
 			elementwiseEpsilon,
-			math.Abs(got[index]-want[index]),
+			float32(math.Abs(float64(got[index]-want[index]))),
 		)
 	}
 }

@@ -384,7 +384,7 @@ func (s *Sequential) trainFitEpoch(trainingData *data.Dataset, config FitConfig,
 
 func (s *Sequential) fitEpochMetrics(epoch int, trainingData *data.Dataset, config FitConfig, scratch *fitScratch) (metrics EpochMetrics, err error) {
 	var (
-		accuracy    float64
+		accuracy    float32
 		hasAccuracy bool
 	)
 
@@ -422,7 +422,7 @@ func (s *Sequential) evaluateFitDataset(
 	lossFunc loss.Loss,
 	accuracyFunc AccuracyFunc,
 	matrices *fitMatrixPair,
-) (lossValue, accuracyValue float64, hasAccuracy bool, err error) {
+) (lossValue, accuracyValue float32, hasAccuracy bool, err error) {
 	var (
 		previousTraining bool
 		inputs           *matrix.Matrix
@@ -577,7 +577,7 @@ func ensureFitMatrix(current *matrix.Matrix, rows, cols int) (out *matrix.Matrix
 }
 
 func applyLearningRateSchedule(config FitConfig, epoch int) (err error) {
-	var learningRate float64
+	var learningRate float32
 
 	if config.LearningRateSchedule == nil {
 		return nil

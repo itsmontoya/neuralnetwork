@@ -3,7 +3,7 @@ package matrix
 import "testing"
 
 var benchmarkDotProductMatrixResult *Matrix
-var benchmarkDotProductResult float64
+var benchmarkDotProductResult float32
 
 func Benchmark_DotProduct(b *testing.B) {
 	type testcase struct {
@@ -61,9 +61,9 @@ func Benchmark_MatMulRightTransposeDotCandidate(b *testing.B) {
 
 func benchmarkDotProductLength(b *testing.B, length int) {
 	var (
-		left   []float64
-		right  []float64
-		result float64
+		left   []float32
+		right  []float32
+		result float32
 		index  int
 	)
 
@@ -130,14 +130,14 @@ func matMulRightTransposeDotCandidate(left, right, result *Matrix) {
 
 func benchmarkDotProductMatrix(b *testing.B, rows, cols int) (m *Matrix) {
 	var (
-		values []float64
+		values []float32
 		err    error
 		index  int
 	)
 
-	values = make([]float64, rows*cols)
+	values = make([]float32, rows*cols)
 	for index = range values {
-		values[index] = float64(index%31) / 31
+		values[index] = float32(index%31) / 31
 	}
 
 	m, err = FromSlice(rows, cols, values)
@@ -148,12 +148,12 @@ func benchmarkDotProductMatrix(b *testing.B, rows, cols int) (m *Matrix) {
 	return m
 }
 
-func benchmarkDotProductValues(length int, offset float64) (values []float64) {
+func benchmarkDotProductValues(length int, offset float32) (values []float32) {
 	var index int
 
-	values = make([]float64, length)
+	values = make([]float32, length)
 	for index = range values {
-		values[index] = offset + float64(index%31)/31
+		values[index] = offset + float32(index%31)/31
 	}
 
 	return values

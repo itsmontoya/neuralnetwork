@@ -6,7 +6,7 @@ import (
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
-const predictionEpsilon = 1e-15
+const predictionEpsilon = 1e-7
 
 func matrixShapePair(predictions, targets *matrix.Matrix) (rows, cols int, err error) {
 	var (
@@ -40,7 +40,7 @@ func matrixShapePair(predictions, targets *matrix.Matrix) (rows, cols int, err e
 	return rows, cols, nil
 }
 
-func clampPrediction(value float64) (clamped float64) {
+func clampPrediction(value float32) (clamped float32) {
 	if value < predictionEpsilon {
 		return predictionEpsilon
 	}

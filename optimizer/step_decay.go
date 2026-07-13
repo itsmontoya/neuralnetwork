@@ -1,9 +1,9 @@
 package optimizer
 
-import "math"
+import "github.com/itsmontoya/neuralnetwork/internal/f32"
 
 // NewStepDecay constructs a schedule that decays by factor every stepSize epochs.
-func NewStepDecay(initialLearningRate, factor float64, stepSize int) (out *StepDecay, err error) {
+func NewStepDecay(initialLearningRate, factor float32, stepSize int) (out *StepDecay, err error) {
 	if err = validateLearningRate(initialLearningRate); err != nil {
 		return nil, err
 	}
@@ -26,13 +26,13 @@ func NewStepDecay(initialLearningRate, factor float64, stepSize int) (out *StepD
 
 // StepDecay returns initialLearningRate*factor^k, where k advances every stepSize epochs.
 type StepDecay struct {
-	initialLearningRate float64
-	factor              float64
+	initialLearningRate float32
+	factor              float32
 	stepSize            int
 }
 
 // LearningRate returns the decayed learning rate for a one-based epoch.
-func (s *StepDecay) LearningRate(epoch int) (learningRate float64, err error) {
+func (s *StepDecay) LearningRate(epoch int) (learningRate float32, err error) {
 	var exponent int
 
 	if err = s.validate(); err != nil {
@@ -44,7 +44,7 @@ func (s *StepDecay) LearningRate(epoch int) (learningRate float64, err error) {
 	}
 
 	exponent = (epoch - 1) / s.stepSize
-	learningRate = s.initialLearningRate * math.Pow(s.factor, float64(exponent))
+	learningRate = s.initialLearningRate * f32.Pow(s.factor, float32(exponent))
 	if err = validateLearningRate(learningRate); err != nil {
 		return 0, err
 	}
@@ -53,7 +53,7 @@ func (s *StepDecay) LearningRate(epoch int) (learningRate float64, err error) {
 }
 
 // InitialLearningRate returns the epoch-one learning rate.
-func (s *StepDecay) InitialLearningRate() (learningRate float64) {
+func (s *StepDecay) InitialLearningRate() (learningRate float32) {
 	if s == nil {
 		return 0
 	}
@@ -63,7 +63,7 @@ func (s *StepDecay) InitialLearningRate() (learningRate float64) {
 }
 
 // Factor returns the multiplicative decay factor.
-func (s *StepDecay) Factor() (factor float64) {
+func (s *StepDecay) Factor() (factor float32) {
 	if s == nil {
 		return 0
 	}

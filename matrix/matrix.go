@@ -1,4 +1,4 @@
-// Package matrix provides dense row-major float64 matrix primitives.
+// Package matrix provides dense row-major float32 matrix primitives.
 package matrix
 
 import (
@@ -23,12 +23,12 @@ func New(rows, cols int) (out *Matrix, err error) {
 		return nil, err
 	}
 
-	m.data = make([]float64, size)
+	m.data = make([]float32, size)
 	return &m, nil
 }
 
 // FromSlice constructs a Matrix by copying values in row-major order.
-func FromSlice(rows, cols int, values []float64) (out *Matrix, err error) {
+func FromSlice(rows, cols int, values []float32) (out *Matrix, err error) {
 	var (
 		size int
 		m    Matrix
@@ -45,7 +45,7 @@ func FromSlice(rows, cols int, values []float64) (out *Matrix, err error) {
 		return nil, err
 	}
 
-	m.data = make([]float64, size)
+	m.data = make([]float32, size)
 	copy(m.data, values)
 	return &m, nil
 }
@@ -57,7 +57,7 @@ func NewRandom(rows, cols int, random *rand.Rand) (out *Matrix, err error) {
 }
 
 // NewUniform constructs a Matrix filled from a uniform distribution in [min, max).
-func NewUniform(rows, cols int, min, max float64, random *rand.Rand) (out *Matrix, err error) {
+func NewUniform(rows, cols int, min, max float32, random *rand.Rand) (out *Matrix, err error) {
 	if random == nil {
 		err = errors.New("matrix: random source is nil")
 		return nil, err
@@ -74,19 +74,19 @@ func NewUniform(rows, cols int, min, max float64, random *rand.Rand) (out *Matri
 
 	var (
 		index int
-		span  float64
+		span  float32
 	)
 
 	span = max - min
 	for index = range out.data {
-		out.data[index] = min + span*random.Float64()
+		out.data[index] = min + span*float32(random.Float64())
 	}
 
 	return out, nil
 }
 
 // NewNormal constructs a Matrix filled from a normal distribution with mean and stddev.
-func NewNormal(rows, cols int, mean, stddev float64, random *rand.Rand) (out *Matrix, err error) {
+func NewNormal(rows, cols int, mean, stddev float32, random *rand.Rand) (out *Matrix, err error) {
 	if random == nil {
 		err = errors.New("matrix: random source is nil")
 		return nil, err
@@ -103,7 +103,7 @@ func NewNormal(rows, cols int, mean, stddev float64, random *rand.Rand) (out *Ma
 
 	var index int
 	for index = range out.data {
-		out.data[index] = mean + stddev*random.NormFloat64()
+		out.data[index] = mean + stddev*float32(random.NormFloat64())
 	}
 
 	return out, nil
@@ -113,7 +113,7 @@ func NewNormal(rows, cols int, mean, stddev float64, random *rand.Rand) (out *Ma
 // Values are sampled from [-sqrt(6/(fanIn+fanOut)), sqrt(6/(fanIn+fanOut))).
 func NewXavierUniform(fanIn, fanOut int, random *rand.Rand) (out *Matrix, err error) {
 	var shape Matrix
-	var limit float64
+	var limit float32
 
 	shape.rows = fanIn
 	shape.cols = fanOut
@@ -121,7 +121,7 @@ func NewXavierUniform(fanIn, fanOut int, random *rand.Rand) (out *Matrix, err er
 		return nil, err
 	}
 
-	limit = math.Sqrt(6 / float64(fanIn+fanOut))
+	limit = float32(math.Sqrt(float64(6 / float32(fanIn+fanOut))))
 	out, err = NewUniform(fanIn, fanOut, -limit, limit, random)
 	return out, err
 }
@@ -130,7 +130,7 @@ func NewXavierUniform(fanIn, fanOut int, random *rand.Rand) (out *Matrix, err er
 // Values are sampled from a normal distribution with mean 0 and stddev sqrt(2/fanIn).
 func NewHeNormal(fanIn, fanOut int, random *rand.Rand) (out *Matrix, err error) {
 	var shape Matrix
-	var stddev float64
+	var stddev float32
 
 	shape.rows = fanIn
 	shape.cols = fanOut
@@ -138,16 +138,16 @@ func NewHeNormal(fanIn, fanOut int, random *rand.Rand) (out *Matrix, err error) 
 		return nil, err
 	}
 
-	stddev = math.Sqrt(2 / float64(fanIn))
+	stddev = float32(math.Sqrt(float64(2 / float32(fanIn))))
 	out, err = NewNormal(fanIn, fanOut, 0, stddev, random)
 	return out, err
 }
 
-// Matrix stores dense float64 values in row-major order.
+// Matrix stores dense float32 values in row-major order.
 type Matrix struct {
 	rows int
 	cols int
-	data []float64
+	data []float32
 }
 
 // Rows returns the matrix row count.
@@ -188,12 +188,12 @@ func (m *Matrix) Validate() (err error) {
 }
 
 // Values returns a copy of the row-major matrix values.
-func (m *Matrix) Values() (values []float64, err error) {
+func (m *Matrix) Values() (values []float32, err error) {
 	if err = m.validate(); err != nil {
 		return nil, err
 	}
 
-	values = make([]float64, len(m.data))
+	values = make([]float32, len(m.data))
 	copy(values, m.data)
 	return values, nil
 }
@@ -202,7 +202,7 @@ func (m *Matrix) Values() (values []float64, err error) {
 //
 // The destination length must match the matrix storage length. Values are
 // copied, so later destination mutations do not affect m.
-func (m *Matrix) ValuesInto(destination []float64) (err error) {
+func (m *Matrix) ValuesInto(destination []float32) (err error) {
 	if err = m.validate(); err != nil {
 		return err
 	}
@@ -217,7 +217,7 @@ func (m *Matrix) ValuesInto(destination []float64) (err error) {
 }
 
 // At returns the value at row and col.
-func (m *Matrix) At(row, col int) (value float64, err error) {
+func (m *Matrix) At(row, col int) (value float32, err error) {
 	if err = m.validate(); err != nil {
 		return 0, err
 	}
@@ -231,7 +231,7 @@ func (m *Matrix) At(row, col int) (value float64, err error) {
 }
 
 // Set updates the value at row and col.
-func (m *Matrix) Set(row, col int, value float64) (err error) {
+func (m *Matrix) Set(row, col int, value float32) (err error) {
 	if err = m.validate(); err != nil {
 		return err
 	}
@@ -245,7 +245,7 @@ func (m *Matrix) Set(row, col int, value float64) (err error) {
 }
 
 // Fill sets every matrix value to value.
-func (m *Matrix) Fill(value float64) (err error) {
+func (m *Matrix) Fill(value float32) (err error) {
 	if err = m.validate(); err != nil {
 		return err
 	}
@@ -283,7 +283,7 @@ func (m *Matrix) CopyFrom(source *Matrix) (err error) {
 //
 // The values length must match the matrix storage length. Values are copied, so
 // later source-slice mutations do not affect m.
-func (m *Matrix) CopyValuesFrom(values []float64) (err error) {
+func (m *Matrix) CopyValuesFrom(values []float32) (err error) {
 	if err = m.validate(); err != nil {
 		return err
 	}
@@ -328,7 +328,7 @@ func (m *Matrix) SelectRows(indexes []int) (result *Matrix, err error) {
 
 	next.rows = len(indexes)
 	next.cols = m.cols
-	next.data = make([]float64, len(indexes)*m.cols)
+	next.data = make([]float32, len(indexes)*m.cols)
 	result = &next
 
 	for outputRow, sourceRow = range indexes {
@@ -378,7 +378,7 @@ func (m *Matrix) AddInPlace(other *Matrix) (err error) {
 // AddScaledInPlace adds scale*other to m elementwise.
 //
 // The receiver is updated in place. The other matrix is read but not retained.
-func (m *Matrix) AddScaledInPlace(other *Matrix, scale float64) (err error) {
+func (m *Matrix) AddScaledInPlace(other *Matrix, scale float32) (err error) {
 	if err = m.sameShape(other); err != nil {
 		return err
 	}
@@ -398,17 +398,17 @@ func (m *Matrix) AdamUpdateInPlace(
 	gradient *Matrix,
 	firstMoment *Matrix,
 	secondMoment *Matrix,
-	learningRate float64,
-	beta1 float64,
-	beta2 float64,
-	epsilon float64,
-	firstCorrection float64,
-	secondCorrection float64,
+	learningRate float32,
+	beta1 float32,
+	beta2 float32,
+	epsilon float32,
+	firstCorrection float32,
+	secondCorrection float32,
 ) (err error) {
 	var (
-		gradientValue  float64
-		firstEstimate  float64
-		secondEstimate float64
+		gradientValue  float32
+		firstEstimate  float32
+		secondEstimate float32
 		index          int
 	)
 
@@ -447,7 +447,7 @@ func (m *Matrix) AdamUpdateInPlace(
 
 		firstEstimate = firstMoment.data[index] / firstCorrection
 		secondEstimate = secondMoment.data[index] / secondCorrection
-		m.data[index] -= learningRate * firstEstimate / (math.Sqrt(secondEstimate) + epsilon)
+		m.data[index] -= learningRate * firstEstimate / (float32(math.Sqrt(float64(secondEstimate))) + epsilon)
 	}
 
 	return nil
@@ -456,7 +456,7 @@ func (m *Matrix) AdamUpdateInPlace(
 // MultiplyScalarInPlace multiplies every element of m by value.
 //
 // The receiver is updated in place and keeps owning its storage.
-func (m *Matrix) MultiplyScalarInPlace(value float64) (err error) {
+func (m *Matrix) MultiplyScalarInPlace(value float32) (err error) {
 	if err = m.validate(); err != nil {
 		return err
 	}
@@ -571,7 +571,7 @@ func (m *Matrix) DivideElementsInto(other, result *Matrix) (err error) {
 }
 
 // AddScalar returns a matrix with value added to every element.
-func (m *Matrix) AddScalar(value float64) (result *Matrix, err error) {
+func (m *Matrix) AddScalar(value float32) (result *Matrix, err error) {
 	if err = m.validate(); err != nil {
 		return nil, err
 	}
@@ -586,7 +586,7 @@ func (m *Matrix) AddScalar(value float64) (result *Matrix, err error) {
 //
 // The destination must match m's shape. The destination is caller-owned and may
 // alias m because each element is read before it is written.
-func (m *Matrix) AddScalarInto(value float64, result *Matrix) (err error) {
+func (m *Matrix) AddScalarInto(value float32, result *Matrix) (err error) {
 	if err = m.validate(); err != nil {
 		return err
 	}
@@ -600,7 +600,7 @@ func (m *Matrix) AddScalarInto(value float64, result *Matrix) (err error) {
 }
 
 // MultiplyScalar returns a matrix with every element multiplied by value.
-func (m *Matrix) MultiplyScalar(value float64) (result *Matrix, err error) {
+func (m *Matrix) MultiplyScalar(value float32) (result *Matrix, err error) {
 	if err = m.validate(); err != nil {
 		return nil, err
 	}
@@ -615,7 +615,7 @@ func (m *Matrix) MultiplyScalar(value float64) (result *Matrix, err error) {
 //
 // The destination must match m's shape. The destination is caller-owned and may
 // alias m because each element is read before it is written.
-func (m *Matrix) MultiplyScalarInto(value float64, result *Matrix) (err error) {
+func (m *Matrix) MultiplyScalarInto(value float32, result *Matrix) (err error) {
 	if err = m.validate(); err != nil {
 		return err
 	}
@@ -629,7 +629,7 @@ func (m *Matrix) MultiplyScalarInto(value float64, result *Matrix) (err error) {
 }
 
 // DivideScalar returns a matrix with every element divided by value.
-func (m *Matrix) DivideScalar(value float64) (result *Matrix, err error) {
+func (m *Matrix) DivideScalar(value float32) (result *Matrix, err error) {
 	if err = m.validate(); err != nil {
 		return nil, err
 	}
@@ -653,7 +653,7 @@ func (m *Matrix) DivideScalar(value float64) (result *Matrix, err error) {
 //
 // The destination must match m's shape. The destination is caller-owned and may
 // alias m because each element is read before it is written.
-func (m *Matrix) DivideScalarInto(value float64, result *Matrix) (err error) {
+func (m *Matrix) DivideScalarInto(value float32, result *Matrix) (err error) {
 	if err = m.validate(); err != nil {
 		return err
 	}
@@ -700,7 +700,7 @@ func (m *Matrix) MatMul(other *Matrix) (result *Matrix, err error) {
 
 	next.rows = m.rows
 	next.cols = other.cols
-	next.data = make([]float64, m.rows*other.cols)
+	next.data = make([]float32, m.rows*other.cols)
 	result = &next
 
 	m.matMulInto(other, result)
@@ -828,7 +828,7 @@ func (m *Matrix) Transpose() (result *Matrix, err error) {
 
 	next.rows = m.cols
 	next.cols = m.rows
-	next.data = make([]float64, len(m.data))
+	next.data = make([]float32, len(m.data))
 	result = &next
 
 	err = m.TransposeInto(result)
@@ -867,12 +867,12 @@ func (m *Matrix) TransposeInto(result *Matrix) (err error) {
 }
 
 // RowSums returns one sum for each row.
-func (m *Matrix) RowSums() (sums []float64, err error) {
+func (m *Matrix) RowSums() (sums []float32, err error) {
 	if err = m.validate(); err != nil {
 		return nil, err
 	}
 
-	sums = make([]float64, m.rows)
+	sums = make([]float32, m.rows)
 
 	var (
 		row int
@@ -921,12 +921,12 @@ func (m *Matrix) RowSumsInto(result *Matrix) (err error) {
 }
 
 // ColumnSums returns one sum for each column.
-func (m *Matrix) ColumnSums() (sums []float64, err error) {
+func (m *Matrix) ColumnSums() (sums []float32, err error) {
 	if err = m.validate(); err != nil {
 		return nil, err
 	}
 
-	sums = make([]float64, m.cols)
+	sums = make([]float32, m.cols)
 
 	var (
 		row int
@@ -1057,7 +1057,7 @@ func (m *Matrix) AddRowVectorInPlace(rowVector *Matrix) (err error) {
 }
 
 // Apply returns a matrix with fn applied to every element.
-func (m *Matrix) Apply(fn func(float64) float64) (result *Matrix, err error) {
+func (m *Matrix) Apply(fn func(float32) float32) (result *Matrix, err error) {
 	if fn == nil {
 		err = errors.New("matrix: apply function is nil")
 		return nil, err
@@ -1081,7 +1081,7 @@ func (m *Matrix) Apply(fn func(float64) float64) (result *Matrix, err error) {
 //
 // The destination must match m's shape. The destination is caller-owned and may
 // alias m because each element is read before it is written.
-func (m *Matrix) ApplyInto(fn func(float64) float64, result *Matrix) (err error) {
+func (m *Matrix) ApplyInto(fn func(float32) float32, result *Matrix) (err error) {
 	if fn == nil {
 		err = errors.New("matrix: apply function is nil")
 		return err
@@ -1107,7 +1107,7 @@ func (m *Matrix) ApplyInto(fn func(float64) float64, result *Matrix) (err error)
 //
 // The callback receives element coordinates and values from each matrix. Matrix
 // storage is not exposed to the callback.
-func (m *Matrix) Pairwise(other *Matrix, fn func(row, col int, left, right float64) (err error)) (err error) {
+func (m *Matrix) Pairwise(other *Matrix, fn func(row, col int, left, right float32) (err error)) (err error) {
 	if fn == nil {
 		err = errors.New("matrix: pairwise function is nil")
 		return err
@@ -1142,7 +1142,7 @@ func (m *Matrix) Pairwise(other *Matrix, fn func(row, col int, left, right float
 // input because each element is read before it is written.
 func (m *Matrix) PairwiseInto(
 	other, result *Matrix,
-	fn func(row, col int, left, right float64) (value float64, err error),
+	fn func(row, col int, left, right float32) (value float32, err error),
 ) (err error) {
 	if fn == nil {
 		err = errors.New("matrix: pairwise function is nil")
@@ -1181,7 +1181,7 @@ func (m *Matrix) newLike() (result *Matrix) {
 
 	next.rows = m.rows
 	next.cols = m.cols
-	next.data = make([]float64, len(m.data))
+	next.data = make([]float32, len(m.data))
 	return &next
 }
 
@@ -1191,7 +1191,7 @@ func (m *Matrix) matMulInto(other, result *Matrix) {
 		row          int
 		col          int
 		inner        int
-		left         float64
+		left         float32
 		leftOffset   int
 		rightOffset  int
 		resultOffset int
@@ -1220,7 +1220,7 @@ func (m *Matrix) matMulLeftTransposeInto(other, result *Matrix) {
 		row          int
 		col          int
 		inner        int
-		left         float64
+		left         float32
 		leftOffset   int
 		rightOffset  int
 		resultOffset int
@@ -1249,7 +1249,7 @@ func (m *Matrix) matMulRightTransposeInto(other, result *Matrix) {
 		row          int
 		col          int
 		inner        int
-		left         float64
+		left         float32
 		leftOffset   int
 		rightOffset  int
 		resultOffset int

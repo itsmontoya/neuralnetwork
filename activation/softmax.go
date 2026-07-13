@@ -1,8 +1,7 @@
 package activation
 
 import (
-	"math"
-
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
@@ -14,8 +13,8 @@ func (s Softmax) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error
 	var (
 		rows   int
 		cols   int
-		values []float64
-		result []float64
+		values []float32
+		result []float32
 	)
 
 	if rows, cols, values, err = matrixValues("input", input); err != nil {
@@ -32,14 +31,14 @@ func (s Softmax) Backward(input, outputGradient *matrix.Matrix) (inputGradient *
 	var (
 		rows           int
 		cols           int
-		inputValues    []float64
-		gradientValues []float64
-		softmaxValues  []float64
-		result         []float64
+		inputValues    []float32
+		gradientValues []float32
+		softmaxValues  []float32
+		result         []float32
 		row            int
 		col            int
 		offset         int
-		dot            float64
+		dot            float32
 	)
 
 	if rows, cols, inputValues, gradientValues, err = matrixValuePair(input, outputGradient); err != nil {
@@ -47,7 +46,7 @@ func (s Softmax) Backward(input, outputGradient *matrix.Matrix) (inputGradient *
 	}
 
 	softmaxValues = softmaxRows(rows, cols, inputValues)
-	result = make([]float64, len(inputValues))
+	result = make([]float32, len(inputValues))
 
 	for row = 0; row < rows; row++ {
 		offset = row * cols
@@ -66,17 +65,17 @@ func (s Softmax) Backward(input, outputGradient *matrix.Matrix) (inputGradient *
 	return inputGradient, err
 }
 
-func softmaxRows(rows, cols int, values []float64) (result []float64) {
+func softmaxRows(rows, cols int, values []float32) (result []float32) {
 	var (
 		row      int
 		col      int
 		offset   int
-		maxValue float64
-		value    float64
-		sum      float64
+		maxValue float32
+		value    float32
+		sum      float32
 	)
 
-	result = make([]float64, len(values))
+	result = make([]float32, len(values))
 	for row = 0; row < rows; row++ {
 		offset = row * cols
 		maxValue = values[offset]
@@ -90,7 +89,7 @@ func softmaxRows(rows, cols int, values []float64) (result []float64) {
 
 		sum = 0
 		for col = 0; col < cols; col++ {
-			value = math.Exp(values[offset+col] - maxValue)
+			value = f32.Exp(values[offset+col] - maxValue)
 			result[offset+col] = value
 			sum += value
 		}

@@ -2,66 +2,49 @@
 
 package matrix
 
-import simd64 "github.com/tphakala/simd/f64"
+import simd32 "github.com/tphakala/simd/f32"
 
 const elementwiseSIMDMinLength = 16
 
-//go:noescape
-func addIntoArm64(left, right, result []float64)
-
-//go:noescape
-func addScaledInPlaceArm64(left, right []float64, scale float64)
-
-//go:noescape
-func subtractIntoArm64(left, right, result []float64)
-
-//go:noescape
-func addScalarIntoArm64(source []float64, value float64, result []float64)
-
-func addInto(left, right, result []float64) {
+func addInto(left, right, result []float32) {
 	if len(left) < elementwiseSIMDMinLength {
 		addIntoPure(left, right, result)
 		return
 	}
 
-	addIntoArm64(left, right, result)
+	simd32.Add(result, left, right)
 }
 
-func addScaledInPlace(left, right []float64, scale float64) {
-	if len(left) < elementwiseSIMDMinLength {
-		addScaledInPlacePure(left, right, scale)
-		return
-	}
-
-	addScaledInPlaceArm64(left, right, scale)
+func addScaledInPlace(left, right []float32, scale float32) {
+	addScaledInPlacePure(left, right, scale)
 }
 
-func subtractInto(left, right, result []float64) {
+func subtractInto(left, right, result []float32) {
 	if len(left) < elementwiseSIMDMinLength {
 		subtractIntoPure(left, right, result)
 		return
 	}
 
-	subtractIntoArm64(left, right, result)
+	simd32.Sub(result, left, right)
 }
 
-func multiplyElementsInto(left, right, result []float64) {
-	simd64.Mul(result, left, right)
+func multiplyElementsInto(left, right, result []float32) {
+	simd32.Mul(result, left, right)
 }
 
-func addScalarInto(source []float64, value float64, result []float64) {
+func addScalarInto(source []float32, value float32, result []float32) {
 	if len(source) < elementwiseSIMDMinLength {
 		addScalarIntoPure(source, value, result)
 		return
 	}
 
-	addScalarIntoArm64(source, value, result)
+	simd32.AddScalar(result, source, value)
 }
 
-func multiplyScalarInto(source []float64, value float64, result []float64) {
-	simd64.Scale(result, source, value)
+func multiplyScalarInto(source []float32, value float32, result []float32) {
+	simd32.Scale(result, source, value)
 }
 
-func multiplyScalarInPlace(source []float64, value float64) {
-	simd64.Scale(source, source, value)
+func multiplyScalarInPlace(source []float32, value float32) {
+	simd32.Scale(source, source, value)
 }

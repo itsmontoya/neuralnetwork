@@ -52,8 +52,8 @@ func Test_DataCopyAccessorAllocationCeilings(t *testing.T) {
 	}
 
 	batch = batches[0]
-	inputsDestination = mustMatrix(t, 4, 2, []float64{0, 0, 0, 0, 0, 0, 0, 0})
-	targetsDestination = mustMatrix(t, 4, 1, []float64{0, 0, 0, 0})
+	inputsDestination = mustMatrix(t, 4, 2, []float32{0, 0, 0, 0, 0, 0, 0, 0})
+	targetsDestination = mustMatrix(t, 4, 1, []float32{0, 0, 0, 0})
 	requireMaxAllocs(t, "Dataset.InputsInto", 0, func() {
 		if err = dataset.InputsInto(inputsDestination); err != nil {
 			panic(err)
@@ -80,8 +80,8 @@ func Test_DataCopyAccessorAllocationCeilings(t *testing.T) {
 		}
 	})
 
-	inputsDestination = mustMatrix(t, 2, 2, []float64{0, 0, 0, 0})
-	targetsDestination = mustMatrix(t, 2, 1, []float64{0, 0})
+	inputsDestination = mustMatrix(t, 2, 2, []float32{0, 0, 0, 0})
+	targetsDestination = mustMatrix(t, 2, 1, []float32{0, 0})
 	requireMaxAllocs(t, "Batch.InputsInto", 0, func() {
 		if err = batch.InputsInto(inputsDestination); err != nil {
 			panic(err)

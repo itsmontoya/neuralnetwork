@@ -3,8 +3,8 @@ package optimizer
 import (
 	"errors"
 	"fmt"
-	"math"
 
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
@@ -29,8 +29,8 @@ func validateRegularizers(regularizers []Regularizer) (err error) {
 	return nil
 }
 
-func validateRegularizationCoefficient(name string, coefficient float64) (err error) {
-	if coefficient < 0 || math.IsNaN(coefficient) || math.IsInf(coefficient, 0) {
+func validateRegularizationCoefficient(name string, coefficient float32) (err error) {
+	if coefficient < 0 || f32.IsNaN(coefficient) || f32.IsInf(coefficient, 0) {
 		err = fmt.Errorf("optimizer: %s coefficient must be non-negative and finite: coefficient=%g", name, coefficient)
 		return err
 	}
@@ -43,13 +43,13 @@ func nilRegularizerError(name string) (err error) {
 	return err
 }
 
-func applyRegularizationGradient(parameters []*Parameter, gradientForValue func(float64) float64) (err error) {
+func applyRegularizationGradient(parameters []*Parameter, gradientForValue func(float32) float32) (err error) {
 	var (
 		parameter      *Parameter
 		rows           int
 		cols           int
-		values         []float64
-		gradientValues []float64
+		values         []float32
+		gradientValues []float32
 		index          int
 		gradient       *matrix.Matrix
 	)
@@ -68,7 +68,7 @@ func applyRegularizationGradient(parameters []*Parameter, gradientForValue func(
 			return err
 		}
 
-		gradientValues = make([]float64, len(values))
+		gradientValues = make([]float32, len(values))
 		for index = range values {
 			gradientValues[index] = gradientForValue(values[index])
 		}

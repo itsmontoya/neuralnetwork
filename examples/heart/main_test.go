@@ -14,10 +14,10 @@ func Test_NewHeartDataset(t *testing.T) {
 		random       *rand.Rand
 		dataset      *data.Dataset
 		targets      *matrix.Matrix
-		targetValues []float64
+		targetValues []float32
 		zeros        int
 		ones         int
-		value        float64
+		value        float32
 		err          error
 	)
 
@@ -83,7 +83,7 @@ func Test_NewHeartModelPredictsInputShape(t *testing.T) {
 		t.Fatalf("newHeartModel returned error: %v", err)
 	}
 
-	inputs, err = matrix.FromSlice(3, 2, []float64{
+	inputs, err = matrix.FromSlice(3, 2, []float32{
 		0, 0,
 		minX, minY,
 		maxX, maxY,
@@ -109,13 +109,13 @@ func Test_NewHeartModelPredictsInputShape(t *testing.T) {
 func Test_HeartHelpers(t *testing.T) {
 	type heartCase struct {
 		name string
-		x    float64
-		y    float64
+		x    float32
+		y    float32
 		want bool
 	}
 
 	type shadeCase struct {
-		value float64
+		value float32
 		char  string
 	}
 

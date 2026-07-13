@@ -8,19 +8,19 @@ import (
 )
 
 // ScalarObjective computes a scalar value from the current test state.
-type ScalarObjective func() (value float64, err error)
+type ScalarObjective func() (value float32, err error)
 
 // FiniteDifferenceGradient approximates the gradient of objective with respect
 // to values using central finite differences.
-func FiniteDifferenceGradient(values *matrix.Matrix, epsilon float64, objective ScalarObjective) (gradient *matrix.Matrix, err error) {
+func FiniteDifferenceGradient(values *matrix.Matrix, epsilon float32, objective ScalarObjective) (gradient *matrix.Matrix, err error) {
 	var (
 		rows          int
 		cols          int
 		row           int
 		col           int
-		originalValue float64
-		forwardValue  float64
-		backwardValue float64
+		originalValue float32
+		forwardValue  float32
+		backwardValue float32
 	)
 
 	if values == nil {
@@ -83,14 +83,14 @@ func FiniteDifferenceGradient(values *matrix.Matrix, epsilon float64, objective 
 
 // WeightedMatrixSum returns sum(values[i] * weights[i]) for two matrices with
 // matching shapes.
-func WeightedMatrixSum(values, weights *matrix.Matrix) (sum float64, err error) {
+func WeightedMatrixSum(values, weights *matrix.Matrix) (sum float32, err error) {
 	var (
 		valueRows    int
 		valueCols    int
 		weightRows   int
 		weightCols   int
-		valueValues  []float64
-		weightValues []float64
+		valueValues  []float32
+		weightValues []float32
 		index        int
 	)
 
@@ -133,14 +133,14 @@ func WeightedMatrixSum(values, weights *matrix.Matrix) (sum float64, err error) 
 }
 
 // RequireMatrixAlmostEqual fails tb when got and want differ in shape or values.
-func RequireMatrixAlmostEqual(tb testing.TB, got, want *matrix.Matrix, epsilon float64) {
+func RequireMatrixAlmostEqual(tb testing.TB, got, want *matrix.Matrix, epsilon float32) {
 	var (
 		gotRows    int
 		gotCols    int
 		wantRows   int
 		wantCols   int
-		gotValues  []float64
-		wantValues []float64
+		gotValues  []float32
+		wantValues []float32
 		err        error
 	)
 
@@ -173,6 +173,6 @@ func RequireMatrixAlmostEqual(tb testing.TB, got, want *matrix.Matrix, epsilon f
 	RequireSliceAlmostEqual(tb, gotValues, wantValues, epsilon)
 }
 
-func restoreMatrixValue(values *matrix.Matrix, row, col int, value float64) {
+func restoreMatrixValue(values *matrix.Matrix, row, col int, value float32) {
 	_ = values.Set(row, col, value)
 }

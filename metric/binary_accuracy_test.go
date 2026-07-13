@@ -12,12 +12,12 @@ func Test_BinaryAccuracy_ValueUsesDefaultThreshold(t *testing.T) {
 	var (
 		predictions *matrix.Matrix
 		targets     *matrix.Matrix
-		got         float64
+		got         float32
 		err         error
 	)
 
-	predictions = mustMatrix(t, 4, 1, []float64{0.49, 0.5, 0.51, 0.1})
-	targets = mustMatrix(t, 4, 1, []float64{0, 1, 1, 1})
+	predictions = mustMatrix(t, 4, 1, []float32{0.49, 0.5, 0.51, 0.1})
+	targets = mustMatrix(t, 4, 1, []float32{0, 1, 1, 1})
 
 	got, err = metric.BinaryAccuracy{}.Value(predictions, targets)
 	if err != nil {
@@ -32,7 +32,7 @@ func Test_NewBinaryAccuracy_UsesCustomThreshold(t *testing.T) {
 		binaryAccuracy metric.BinaryAccuracy
 		predictions    *matrix.Matrix
 		targets        *matrix.Matrix
-		got            float64
+		got            float32
 		err            error
 	)
 
@@ -41,8 +41,8 @@ func Test_NewBinaryAccuracy_UsesCustomThreshold(t *testing.T) {
 		t.Fatalf("NewBinaryAccuracy returned error: %v", err)
 	}
 
-	predictions = mustMatrix(t, 3, 1, []float64{0.74, 0.75, 0.76})
-	targets = mustMatrix(t, 3, 1, []float64{0, 1, 1})
+	predictions = mustMatrix(t, 3, 1, []float32{0.74, 0.75, 0.76})
+	targets = mustMatrix(t, 3, 1, []float32{0, 1, 1})
 
 	got, err = binaryAccuracy.Value(predictions, targets)
 	if err != nil {
@@ -55,7 +55,7 @@ func Test_NewBinaryAccuracy_UsesCustomThreshold(t *testing.T) {
 func Test_NewBinaryAccuracy_RejectsNonFiniteThreshold(t *testing.T) {
 	var err error
 
-	_, err = metric.NewBinaryAccuracy(math.NaN())
+	_, err = metric.NewBinaryAccuracy(float32(math.NaN()))
 	if err == nil {
 		t.Fatal("NewBinaryAccuracy error = nil, want error")
 	}
@@ -65,12 +65,12 @@ func Test_BinaryAccuracy_ValidatesShape(t *testing.T) {
 	var (
 		predictions *matrix.Matrix
 		targets     *matrix.Matrix
-		got         float64
+		got         float32
 		err         error
 	)
 
-	predictions = mustMatrix(t, 1, 1, []float64{0.5})
-	targets = mustMatrix(t, 2, 1, []float64{1, 0})
+	predictions = mustMatrix(t, 1, 1, []float32{0.5})
+	targets = mustMatrix(t, 2, 1, []float32{1, 0})
 
 	got, err = metric.BinaryAccuracy{}.Value(predictions, targets)
 	if err == nil {
@@ -82,12 +82,12 @@ func Test_BinaryAccuracy_ValidatesTargetFormat(t *testing.T) {
 	var (
 		predictions *matrix.Matrix
 		targets     *matrix.Matrix
-		got         float64
+		got         float32
 		err         error
 	)
 
-	predictions = mustMatrix(t, 1, 1, []float64{0.5})
-	targets = mustMatrix(t, 1, 1, []float64{0.5})
+	predictions = mustMatrix(t, 1, 1, []float32{0.5})
+	targets = mustMatrix(t, 1, 1, []float32{0.5})
 
 	got, err = metric.BinaryAccuracy{}.Value(predictions, targets)
 	if err == nil {
@@ -99,12 +99,12 @@ func Test_BinaryAccuracy_ValidatesSingleOutput(t *testing.T) {
 	var (
 		predictions *matrix.Matrix
 		targets     *matrix.Matrix
-		got         float64
+		got         float32
 		err         error
 	)
 
-	predictions = mustMatrix(t, 1, 2, []float64{0.4, 0.6})
-	targets = mustMatrix(t, 1, 2, []float64{0, 1})
+	predictions = mustMatrix(t, 1, 2, []float32{0.4, 0.6})
+	targets = mustMatrix(t, 1, 2, []float32{0, 1})
 
 	got, err = metric.BinaryAccuracy{}.Value(predictions, targets)
 	if err == nil {

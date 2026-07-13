@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	denseGradientCheckStep      = 1e-5
-	denseGradientCheckTolerance = 1e-8
+	denseGradientCheckStep      = 1e-3
+	denseGradientCheckTolerance = 5e-3
 )
 
 func Test_Dense_GradientCheck_Weights(t *testing.T) {
@@ -35,7 +35,7 @@ func Test_Dense_GradientCheck_Weights(t *testing.T) {
 	numericalGradient, err = testutil.FiniteDifferenceGradient(
 		dense.Weights().Values(),
 		denseGradientCheckStep,
-		func() (value float64, err error) {
+		func() (value float32, err error) {
 			var output *matrix.Matrix
 
 			if output, err = dense.Forward(input); err != nil {
@@ -75,7 +75,7 @@ func Test_Dense_GradientCheck_Biases(t *testing.T) {
 	numericalGradient, err = testutil.FiniteDifferenceGradient(
 		dense.Biases().Values(),
 		denseGradientCheckStep,
-		func() (value float64, err error) {
+		func() (value float32, err error) {
 			var output *matrix.Matrix
 
 			if output, err = dense.Forward(input); err != nil {
@@ -116,7 +116,7 @@ func Test_Dense_GradientCheck_Input(t *testing.T) {
 	numericalGradient, err = testutil.FiniteDifferenceGradient(
 		input,
 		denseGradientCheckStep,
-		func() (value float64, err error) {
+		func() (value float32, err error) {
 			var output *matrix.Matrix
 
 			if output, err = dense.Forward(input); err != nil {
@@ -141,11 +141,11 @@ func mustGradientDense(tb testing.TB) (dense *layer.Dense) {
 		tb,
 		2,
 		2,
-		[]float64{
+		[]float32{
 			0.35, -0.2,
 			0.15, 0.4,
 		},
-		[]float64{0.05, -0.1},
+		[]float32{0.05, -0.1},
 	)
 	return dense
 }
@@ -153,7 +153,7 @@ func mustGradientDense(tb testing.TB) (dense *layer.Dense) {
 func mustGradientInput(tb testing.TB) (input *matrix.Matrix) {
 	tb.Helper()
 
-	input = mustMatrix(tb, 2, 2, []float64{
+	input = mustMatrix(tb, 2, 2, []float32{
 		0.6, -0.4,
 		1.2, 0.3,
 	})
@@ -163,7 +163,7 @@ func mustGradientInput(tb testing.TB) (input *matrix.Matrix) {
 func mustGradientOutput(tb testing.TB) (outputGradient *matrix.Matrix) {
 	tb.Helper()
 
-	outputGradient = mustMatrix(tb, 2, 2, []float64{
+	outputGradient = mustMatrix(tb, 2, 2, []float32{
 		0.7, -0.3,
 		-0.2, 0.5,
 	})
