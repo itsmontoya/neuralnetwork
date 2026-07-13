@@ -703,7 +703,7 @@ func (m *Matrix) MatMul(other *Matrix) (result *Matrix, err error) {
 	next.data = make([]float32, m.rows*other.cols)
 	result = &next
 
-	m.matMulInto(other, result)
+	matMulInto(m, other, result)
 	return result, nil
 }
 
@@ -740,7 +740,7 @@ func (m *Matrix) MatMulInto(other, result *Matrix) (err error) {
 		return err
 	}
 
-	m.matMulInto(other, result)
+	matMulInto(m, other, result)
 	return nil
 }
 
@@ -777,7 +777,7 @@ func (m *Matrix) MatMulLeftTransposeInto(other, result *Matrix) (err error) {
 		return err
 	}
 
-	m.matMulLeftTransposeInto(other, result)
+	matMulLeftTransposeInto(m, other, result)
 	return nil
 }
 
@@ -814,7 +814,7 @@ func (m *Matrix) MatMulRightTransposeInto(other, result *Matrix) (err error) {
 		return err
 	}
 
-	m.matMulRightTransposeInto(other, result)
+	matMulRightTransposeInto(m, other, result)
 	return nil
 }
 
@@ -1183,93 +1183,6 @@ func (m *Matrix) newLike() (result *Matrix) {
 	next.cols = m.cols
 	next.data = make([]float32, len(m.data))
 	return &next
-}
-
-func (m *Matrix) matMulInto(other, result *Matrix) {
-	var (
-		index        int
-		row          int
-		col          int
-		inner        int
-		left         float32
-		leftOffset   int
-		rightOffset  int
-		resultOffset int
-	)
-
-	for index = range result.data {
-		result.data[index] = 0
-	}
-
-	for row = 0; row < m.rows; row++ {
-		resultOffset = row * result.cols
-		leftOffset = row * m.cols
-		for inner = 0; inner < m.cols; inner++ {
-			left = m.data[leftOffset+inner]
-			rightOffset = inner * other.cols
-			for col = 0; col < other.cols; col++ {
-				result.data[resultOffset+col] += left * other.data[rightOffset+col]
-			}
-		}
-	}
-}
-
-func (m *Matrix) matMulLeftTransposeInto(other, result *Matrix) {
-	var (
-		index        int
-		row          int
-		col          int
-		inner        int
-		left         float32
-		leftOffset   int
-		rightOffset  int
-		resultOffset int
-	)
-
-	for index = range result.data {
-		result.data[index] = 0
-	}
-
-	for inner = 0; inner < m.rows; inner++ {
-		leftOffset = inner * m.cols
-		rightOffset = inner * other.cols
-		for row = 0; row < m.cols; row++ {
-			left = m.data[leftOffset+row]
-			resultOffset = row * result.cols
-			for col = 0; col < other.cols; col++ {
-				result.data[resultOffset+col] += left * other.data[rightOffset+col]
-			}
-		}
-	}
-}
-
-func (m *Matrix) matMulRightTransposeInto(other, result *Matrix) {
-	var (
-		index        int
-		row          int
-		col          int
-		inner        int
-		left         float32
-		leftOffset   int
-		rightOffset  int
-		resultOffset int
-	)
-
-	for index = range result.data {
-		result.data[index] = 0
-	}
-
-	for row = 0; row < m.rows; row++ {
-		resultOffset = row * result.cols
-		leftOffset = row * m.cols
-		for inner = 0; inner < m.cols; inner++ {
-			left = m.data[leftOffset+inner]
-			for col = 0; col < other.rows; col++ {
-				rightOffset = col * other.cols
-				result.data[resultOffset+col] += left * other.data[rightOffset+inner]
-			}
-		}
-	}
 }
 
 func (m *Matrix) validate() (err error) {

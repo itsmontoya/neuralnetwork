@@ -1,8 +1,8 @@
 # SIMD Design
 
 Captured on July 7, 2026.
-Updated on July 12, 2026 for `float32` matrix storage and
-`github.com/tphakala/simd` integration.
+Updated on July 12, 2026 for `float32` matrix storage,
+`github.com/tphakala/simd` integration, and `metal` tag interaction.
 
 ## Decision
 
@@ -11,6 +11,11 @@ elementwise kernels on `arm64` and `amd64`. That dependency provides runtime CPU
 feature dispatch and pure Go fallbacks behind its API. Pure Go matrix kernels
 remain the local portable baseline for unsupported platforms and for builds
 using this repository's `purego` opt-out tag.
+
+The optional `metal` tag excludes SIMD wrappers and is documented separately in
+[`docs/metal.md`](metal.md). In that mode, large matrix multiplication may use
+Metal on Darwin/cgo builds, while slice kernels use local scalar fallbacks
+instead of CPU SIMD.
 
 The SIMD boundary stays inside the `matrix` package. Public matrix methods keep
 owning validation, destination shape checks, alias checks, and ownership
@@ -68,21 +73,22 @@ order exactly.
 
 ## Build Tags and File Layout
 
-Use `purego` as this repository's explicit opt-out tag for external or
-architecture-specific SIMD wrappers.
+Use `purego` as this repository's explicit opt-out tag for external,
+architecture-specific SIMD wrappers, and Metal. Use `metal` as an opt-in tag
+that excludes SIMD wrappers.
 
 ```go
-//go:build arm64 && !purego
-//go:build amd64 && !purego
-//go:build (amd64 || arm64) && !purego
+//go:build arm64 && !purego && !metal
+//go:build amd64 && !purego && !metal
+//go:build (amd64 || arm64) && !purego && !metal
 ```
 
 Architecture-specific SIMD wrapper files use `arm64 && !purego` or
-`amd64 && !purego`. Shared SIMD wrapper files use `(amd64 || arm64) && !purego`.
-Pure Go fallback files use:
+`amd64 && !purego`, with `!metal` included. Shared SIMD wrapper files use
+`(amd64 || arm64) && !purego && !metal`. Pure Go fallback files use:
 
 ```go
-//go:build (!arm64 && !amd64) || purego
+//go:build purego || (!metal && !arm64 && !amd64) || (metal && (!darwin || !cgo))
 ```
 
 Current layout:
@@ -92,9 +98,11 @@ matrix/elementwise_pure.go        pure Go helpers available to tests
 matrix/elementwise_arm64.go       f32 SIMD elementwise wrappers
 matrix/elementwise_amd64.go       f32 SIMD elementwise wrappers
 matrix/elementwise_default.go     local pure Go fallback wrappers
+matrix/elementwise_metal.go       scalar wrappers for metal builds
 matrix/dot_product.go             pure Go dot product helper
 matrix/dot_product_simd.go        f32 SIMD dot product wrapper
 matrix/dot_product_default.go     local pure Go dot product wrapper
+matrix/dot_product_metal.go       scalar wrapper for metal builds
 ```
 
 Generator files should use `//go:build ignore` and stay out of normal package
