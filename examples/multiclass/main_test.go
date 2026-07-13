@@ -14,13 +14,13 @@ func Test_NewClusterDataset(t *testing.T) {
 		random       *rand.Rand
 		dataset      *data.Dataset
 		targets      *matrix.Matrix
-		targetValues []float64
+		targetValues []float32
 		wantSamples  int
 		classIndex   int
 		col          int
 		row          int
-		want         float64
-		got          float64
+		want         float32
+		got          float32
 		err          error
 	)
 
@@ -76,7 +76,7 @@ func Test_NewClusterModelPredictsClassShape(t *testing.T) {
 		random      *rand.Rand
 		network     *model.Sequential
 		centers     []point
-		inputValues []float64
+		inputValues []float32
 		inputs      *matrix.Matrix
 		predictions *matrix.Matrix
 		center      point
@@ -89,7 +89,7 @@ func Test_NewClusterModelPredictsClassShape(t *testing.T) {
 	}
 
 	centers = clusterCenters()
-	inputValues = make([]float64, 0, len(centers)*2)
+	inputValues = make([]float32, 0, len(centers)*2)
 	for _, center = range centers {
 		inputValues = append(inputValues, center.x, center.y)
 	}
@@ -121,7 +121,7 @@ func Test_ClassHelpers(t *testing.T) {
 
 	type argmaxCase struct {
 		name   string
-		values []float64
+		values []float32
 		want   int
 	}
 
@@ -149,8 +149,8 @@ func Test_ClassHelpers(t *testing.T) {
 	}
 
 	argmaxTests = []argmaxCase{
-		{name: "largest", values: []float64{0.1, 0.7, 0.2}, want: 1},
-		{name: "tie keeps first maximum", values: []float64{0.1, 0.7, 0.7}, want: 1},
+		{name: "largest", values: []float32{0.1, 0.7, 0.2}, want: 1},
+		{name: "tie keeps first maximum", values: []float32{0.1, 0.7, 0.7}, want: 1},
 	}
 
 	for _, argmaxTest = range argmaxTests {

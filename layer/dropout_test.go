@@ -17,7 +17,7 @@ func Test_Dropout_ImplementsLayer(t *testing.T) {
 func Test_NewDropout_ValidatesConfig(t *testing.T) {
 	type testcase struct {
 		name   string
-		rate   float64
+		rate   float32
 		random *rand.Rand
 	}
 
@@ -34,7 +34,7 @@ func Test_NewDropout_ValidatesConfig(t *testing.T) {
 		},
 		{
 			name:   "nan rate",
-			rate:   math.NaN(),
+			rate:   float32(math.NaN()),
 			random: rand.New(rand.NewSource(1)),
 		},
 		{
@@ -101,12 +101,12 @@ func Test_Dropout_AccessorsAndNilReceiverBehavior(t *testing.T) {
 		t.Fatal("nil Training changed after SetTraining")
 	}
 
-	_, err = nilDropout.Forward(mustMatrix(t, 1, 1, []float64{1}))
+	_, err = nilDropout.Forward(mustMatrix(t, 1, 1, []float32{1}))
 	if err == nil {
 		t.Fatal("nil Forward error = nil, want error")
 	}
 
-	_, err = nilDropout.Backward(mustMatrix(t, 1, 1, []float64{1}))
+	_, err = nilDropout.Backward(mustMatrix(t, 1, 1, []float32{1}))
 	if err == nil {
 		t.Fatal("nil Backward error = nil, want error")
 	}
@@ -119,12 +119,12 @@ func Test_Dropout_ForwardTrainingIsDeterministicWithSeed(t *testing.T) {
 		input         *matrix.Matrix
 		firstOutput   *matrix.Matrix
 		secondOutput  *matrix.Matrix
-		outputValues  []float64
-		inputValues   []float64
+		outputValues  []float32
+		inputValues   []float32
 		index         int
 		kept          bool
 		dropped       bool
-		expectedScale float64
+		expectedScale float32
 		err           error
 	)
 
@@ -138,7 +138,7 @@ func Test_Dropout_ForwardTrainingIsDeterministicWithSeed(t *testing.T) {
 		t.Fatalf("NewDropout returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 2, 4, []float64{
+	input = mustMatrix(t, 2, 4, []float32{
 		1, 2, 3, 4,
 		5, 6, 7, 8,
 	})
@@ -193,7 +193,7 @@ func Test_Dropout_RateZeroTrainingIsIdentity(t *testing.T) {
 		t.Fatalf("NewDropout returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 1, 3, []float64{1, 2, 3})
+	input = mustMatrix(t, 1, 3, []float32{1, 2, 3})
 	output, err = dropout.Forward(input)
 	if err != nil {
 		t.Fatalf("Forward returned error: %v", err)
@@ -204,9 +204,9 @@ func Test_Dropout_RateZeroTrainingIsIdentity(t *testing.T) {
 		t.Fatalf("Set returned error: %v", err)
 	}
 
-	requireMatrixValues(t, output, []float64{1, 2, 3})
+	requireMatrixValues(t, output, []float32{1, 2, 3})
 
-	outputGradient = mustMatrix(t, 1, 3, []float64{4, 5, 6})
+	outputGradient = mustMatrix(t, 1, 3, []float32{4, 5, 6})
 	inputGradient, err = dropout.Backward(outputGradient)
 	if err != nil {
 		t.Fatalf("Backward returned error: %v", err)
@@ -217,7 +217,7 @@ func Test_Dropout_RateZeroTrainingIsIdentity(t *testing.T) {
 		t.Fatalf("Set returned error: %v", err)
 	}
 
-	requireMatrixValues(t, inputGradient, []float64{4, 5, 6})
+	requireMatrixValues(t, inputGradient, []float32{4, 5, 6})
 }
 
 func Test_Dropout_BackwardUsesTrainingMask(t *testing.T) {
@@ -227,9 +227,9 @@ func Test_Dropout_BackwardUsesTrainingMask(t *testing.T) {
 		output         *matrix.Matrix
 		outputGradient *matrix.Matrix
 		inputGradient  *matrix.Matrix
-		outputValues   []float64
-		inputValues    []float64
-		maskValues     []float64
+		outputValues   []float32
+		inputValues    []float32
+		maskValues     []float32
 		index          int
 		err            error
 	)
@@ -239,7 +239,7 @@ func Test_Dropout_BackwardUsesTrainingMask(t *testing.T) {
 		t.Fatalf("NewDropout returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 2, 3, []float64{
+	input = mustMatrix(t, 2, 3, []float32{
 		1, 2, 3,
 		4, 5, 6,
 	})
@@ -250,12 +250,12 @@ func Test_Dropout_BackwardUsesTrainingMask(t *testing.T) {
 
 	inputValues = mustDropoutValues(t, input)
 	outputValues = mustDropoutValues(t, output)
-	maskValues = make([]float64, len(outputValues))
+	maskValues = make([]float32, len(outputValues))
 	for index = range maskValues {
 		maskValues[index] = outputValues[index] / inputValues[index]
 	}
 
-	outputGradient = mustMatrix(t, 2, 3, []float64{
+	outputGradient = mustMatrix(t, 2, 3, []float32{
 		1, 2, 3,
 		4, 5, 6,
 	})
@@ -265,7 +265,7 @@ func Test_Dropout_BackwardUsesTrainingMask(t *testing.T) {
 	}
 
 	for index = range maskValues {
-		maskValues[index] *= float64(index + 1)
+		maskValues[index] *= float32(index + 1)
 	}
 
 	requireMatrixValues(t, inputGradient, maskValues)
@@ -291,7 +291,7 @@ func Test_Dropout_EvaluationModeIsIdentity(t *testing.T) {
 		t.Fatal("Training = true, want false")
 	}
 
-	input = mustMatrix(t, 1, 3, []float64{1, 2, 3})
+	input = mustMatrix(t, 1, 3, []float32{1, 2, 3})
 	output, err = dropout.Forward(input)
 	if err != nil {
 		t.Fatalf("Forward returned error: %v", err)
@@ -302,9 +302,9 @@ func Test_Dropout_EvaluationModeIsIdentity(t *testing.T) {
 		t.Fatalf("Set returned error: %v", err)
 	}
 
-	requireMatrixValues(t, output, []float64{1, 2, 3})
+	requireMatrixValues(t, output, []float32{1, 2, 3})
 
-	outputGradient = mustMatrix(t, 1, 3, []float64{4, 5, 6})
+	outputGradient = mustMatrix(t, 1, 3, []float32{4, 5, 6})
 	inputGradient, err = dropout.Backward(outputGradient)
 	if err != nil {
 		t.Fatalf("Backward returned error: %v", err)
@@ -315,7 +315,7 @@ func Test_Dropout_EvaluationModeIsIdentity(t *testing.T) {
 		t.Fatalf("Set returned error: %v", err)
 	}
 
-	requireMatrixValues(t, inputGradient, []float64{4, 5, 6})
+	requireMatrixValues(t, inputGradient, []float32{4, 5, 6})
 }
 
 func Test_Dropout_EvaluationModeIgnoresPreviousTrainingMask(t *testing.T) {
@@ -333,7 +333,7 @@ func Test_Dropout_EvaluationModeIgnoresPreviousTrainingMask(t *testing.T) {
 		t.Fatalf("NewDropout returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 2, 4, []float64{
+	input = mustMatrix(t, 2, 4, []float32{
 		1, 2, 3, 4,
 		5, 6, 7, 8,
 	})
@@ -343,7 +343,7 @@ func Test_Dropout_EvaluationModeIgnoresPreviousTrainingMask(t *testing.T) {
 	}
 
 	dropout.SetTraining(false)
-	input = mustMatrix(t, 2, 4, []float64{
+	input = mustMatrix(t, 2, 4, []float32{
 		8, 7, 6, 5,
 		4, 3, 2, 1,
 	})
@@ -352,12 +352,12 @@ func Test_Dropout_EvaluationModeIgnoresPreviousTrainingMask(t *testing.T) {
 		t.Fatalf("evaluation Forward returned error: %v", err)
 	}
 
-	requireMatrixValues(t, output, []float64{
+	requireMatrixValues(t, output, []float32{
 		8, 7, 6, 5,
 		4, 3, 2, 1,
 	})
 
-	outputGradient = mustMatrix(t, 2, 4, []float64{
+	outputGradient = mustMatrix(t, 2, 4, []float32{
 		1, 2, 3, 4,
 		5, 6, 7, 8,
 	})
@@ -366,7 +366,7 @@ func Test_Dropout_EvaluationModeIgnoresPreviousTrainingMask(t *testing.T) {
 		t.Fatalf("Backward returned error: %v", err)
 	}
 
-	requireMatrixValues(t, inputGradient, []float64{
+	requireMatrixValues(t, inputGradient, []float32{
 		1, 2, 3, 4,
 		5, 6, 7, 8,
 	})
@@ -384,7 +384,7 @@ func Test_Dropout_BackwardRequiresForward(t *testing.T) {
 		t.Fatalf("NewDropout returned error: %v", err)
 	}
 
-	inputGradient, err = dropout.Backward(mustMatrix(t, 1, 1, []float64{1}))
+	inputGradient, err = dropout.Backward(mustMatrix(t, 1, 1, []float32{1}))
 	if err == nil {
 		t.Fatalf("Backward returned gradient %v and nil error, want error", inputGradient)
 	}
@@ -402,7 +402,7 @@ func Test_Dropout_BackwardReportsShapeMismatch(t *testing.T) {
 		t.Fatalf("NewDropout returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 2, 2, []float64{
+	input = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 4,
 	})
@@ -411,7 +411,7 @@ func Test_Dropout_BackwardReportsShapeMismatch(t *testing.T) {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
-	_, err = dropout.Backward(mustMatrix(t, 1, 2, []float64{1, 2}))
+	_, err = dropout.Backward(mustMatrix(t, 1, 2, []float32{1, 2}))
 	if err == nil {
 		t.Fatal("Backward error = nil, want shape error")
 	}
@@ -421,7 +421,7 @@ func Test_Dropout_BackwardReportsShapeMismatch(t *testing.T) {
 	}
 }
 
-func mustDropoutValues(tb testing.TB, m *matrix.Matrix) (values []float64) {
+func mustDropoutValues(tb testing.TB, m *matrix.Matrix) (values []float32) {
 	var err error
 
 	tb.Helper()

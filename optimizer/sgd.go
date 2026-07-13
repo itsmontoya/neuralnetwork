@@ -1,7 +1,7 @@
 package optimizer
 
 // NewSGD constructs stochastic gradient descent with the provided learning rate.
-func NewSGD(learningRate float64) (out *SGD, err error) {
+func NewSGD(learningRate float32) (out *SGD, err error) {
 	if err = validateLearningRate(learningRate); err != nil {
 		return nil, err
 	}
@@ -16,7 +16,7 @@ func NewSGD(learningRate float64) (out *SGD, err error) {
 // Update applies values -= learningRate * gradient for each parameter and
 // resets gradients after a successful update.
 type SGD struct {
-	learningRate float64
+	learningRate float32
 }
 
 // Update applies one SGD update to each parameter.
@@ -42,7 +42,7 @@ func (s *SGD) Update(parameters []*Parameter) (err error) {
 }
 
 // LearningRate returns the current learning rate.
-func (s *SGD) LearningRate() (learningRate float64) {
+func (s *SGD) LearningRate() (learningRate float32) {
 	if s == nil {
 		return 0
 	}
@@ -52,7 +52,7 @@ func (s *SGD) LearningRate() (learningRate float64) {
 }
 
 // SetLearningRate updates the learning rate.
-func (s *SGD) SetLearningRate(learningRate float64) (err error) {
+func (s *SGD) SetLearningRate(learningRate float32) (err error) {
 	if s == nil {
 		err = nilOptimizerError("sgd")
 		return err

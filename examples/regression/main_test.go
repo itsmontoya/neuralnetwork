@@ -15,8 +15,8 @@ func Test_NewRegressionDataset(t *testing.T) {
 		dataset *data.Dataset
 		inputs  *matrix.Matrix
 		targets *matrix.Matrix
-		first   float64
-		last    float64
+		first   float32
+		last    float32
 		err     error
 	)
 
@@ -89,7 +89,7 @@ func Test_NewRegressionModelPredictsInputShape(t *testing.T) {
 		t.Fatalf("newRegressionModel returned error: %v", err)
 	}
 
-	inputs, err = matrix.FromSlice(3, 1, []float64{-1, 0, 1})
+	inputs, err = matrix.FromSlice(3, 1, []float32{-1, 0, 1})
 	if err != nil {
 		t.Fatalf("FromSlice returned error: %v", err)
 	}

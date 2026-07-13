@@ -10,7 +10,7 @@ import (
 	"github.com/itsmontoya/neuralnetwork/optimizer"
 )
 
-const epsilon = 1e-12
+const epsilon = 1e-5
 
 func Test_Dense_ImplementsLayer(t *testing.T) {
 	var _ layer.Layer = (*layer.Dense)(nil)
@@ -27,7 +27,7 @@ func Test_NewDense_UsesWeightInitializer(t *testing.T) {
 	dense, err = layer.NewDense(2, 3, func(inputSize, outputSize int) (weights *matrix.Matrix, err error) {
 		gotInputSize = inputSize
 		gotOutputSize = outputSize
-		weights, err = matrix.FromSlice(inputSize, outputSize, []float64{1, 2, 3, 4, 5, 6})
+		weights, err = matrix.FromSlice(inputSize, outputSize, []float32{1, 2, 3, 4, 5, 6})
 		return weights, err
 	})
 	if err != nil {
@@ -42,8 +42,8 @@ func Test_NewDense_UsesWeightInitializer(t *testing.T) {
 		t.Fatalf("initializer outputSize = %d, want 3", gotOutputSize)
 	}
 
-	requireMatrixValues(t, dense.Weights().Values(), []float64{1, 2, 3, 4, 5, 6})
-	requireMatrixValues(t, dense.Biases().Values(), []float64{0, 0, 0})
+	requireMatrixValues(t, dense.Weights().Values(), []float32{1, 2, 3, 4, 5, 6})
+	requireMatrixValues(t, dense.Biases().Values(), []float32{0, 0, 0})
 }
 
 func Test_Dense_Accessors(t *testing.T) {
@@ -56,11 +56,11 @@ func Test_Dense_Accessors(t *testing.T) {
 		t,
 		2,
 		3,
-		[]float64{
+		[]float32{
 			1, 2, 3,
 			4, 5, 6,
 		},
-		[]float64{0.1, 0.2, 0.3},
+		[]float32{0.1, 0.2, 0.3},
 	)
 
 	if dense.InputSize() != 2 {
@@ -178,13 +178,13 @@ func Test_Dense_Forward(t *testing.T) {
 		t,
 		2,
 		3,
-		[]float64{
+		[]float32{
 			0.5, -1, 2,
 			1.5, 0, -0.5,
 		},
-		[]float64{0.1, 0.2, 0.3},
+		[]float32{0.1, 0.2, 0.3},
 	)
-	input = mustMatrix(t, 2, 2, []float64{
+	input = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 4,
 	})
@@ -202,7 +202,7 @@ func Test_Dense_Forward(t *testing.T) {
 		t.Fatalf("Forward output cols = %d, want 3", output.Cols())
 	}
 
-	requireMatrixValues(t, output, []float64{
+	requireMatrixValues(t, output, []float32{
 		3.6, -0.8, 1.3,
 		7.6, -2.8, 4.3,
 	})
@@ -219,14 +219,14 @@ func Test_Dense_ForwardReportsInputShapeMismatch(t *testing.T) {
 		t,
 		3,
 		2,
-		[]float64{
+		[]float32{
 			1, 2,
 			3, 4,
 			5, 6,
 		},
-		[]float64{0, 0},
+		[]float32{0, 0},
 	)
-	input = mustMatrix(t, 4, 2, []float64{
+	input = mustMatrix(t, 4, 2, []float32{
 		1, 2,
 		3, 4,
 		5, 6,
@@ -256,17 +256,17 @@ func Test_Dense_Backward(t *testing.T) {
 		t,
 		2,
 		3,
-		[]float64{
+		[]float32{
 			0.5, -1, 2,
 			1.5, 0, -0.5,
 		},
-		[]float64{0.1, 0.2, 0.3},
+		[]float32{0.1, 0.2, 0.3},
 	)
-	input = mustMatrix(t, 2, 2, []float64{
+	input = mustMatrix(t, 2, 2, []float32{
 		1, 2,
 		3, 4,
 	})
-	outputGradient = mustMatrix(t, 2, 3, []float64{
+	outputGradient = mustMatrix(t, 2, 3, []float32{
 		1, -2, 0.5,
 		0.25, 1.5, -1,
 	})
@@ -281,15 +281,15 @@ func Test_Dense_Backward(t *testing.T) {
 		t.Fatalf("Backward returned error: %v", err)
 	}
 
-	requireMatrixValues(t, inputGradient, []float64{
+	requireMatrixValues(t, inputGradient, []float32{
 		3.5, 1.25,
 		-3.375, 0.875,
 	})
-	requireMatrixValues(t, dense.Weights().Gradient(), []float64{
+	requireMatrixValues(t, dense.Weights().Gradient(), []float32{
 		1.75, 2.5, -2.5,
 		3, 2, -3,
 	})
-	requireMatrixValues(t, dense.Biases().Gradient(), []float64{1.25, -0.5, -0.5})
+	requireMatrixValues(t, dense.Biases().Gradient(), []float32{1.25, -0.5, -0.5})
 }
 
 func Test_Dense_ResetGradients(t *testing.T) {
@@ -304,14 +304,14 @@ func Test_Dense_ResetGradients(t *testing.T) {
 		t,
 		2,
 		2,
-		[]float64{
+		[]float32{
 			1, 2,
 			3, 4,
 		},
-		[]float64{0.5, -0.5},
+		[]float32{0.5, -0.5},
 	)
-	input = mustMatrix(t, 1, 2, []float64{2, 3})
-	outputGradient = mustMatrix(t, 1, 2, []float64{0.25, -0.75})
+	input = mustMatrix(t, 1, 2, []float32{2, 3})
+	outputGradient = mustMatrix(t, 1, 2, []float32{0.25, -0.75})
 
 	_, err = dense.Forward(input)
 	if err != nil {
@@ -328,11 +328,11 @@ func Test_Dense_ResetGradients(t *testing.T) {
 		t.Fatalf("ResetGradients returned error: %v", err)
 	}
 
-	requireMatrixValues(t, dense.Weights().Gradient(), []float64{0, 0, 0, 0})
-	requireMatrixValues(t, dense.Biases().Gradient(), []float64{0, 0})
+	requireMatrixValues(t, dense.Weights().Gradient(), []float32{0, 0, 0, 0})
+	requireMatrixValues(t, dense.Biases().Gradient(), []float32{0, 0})
 }
 
-func mustDense(tb testing.TB, inputSize, outputSize int, weightValues, biasValues []float64) (dense *layer.Dense) {
+func mustDense(tb testing.TB, inputSize, outputSize int, weightValues, biasValues []float32) (dense *layer.Dense) {
 	var (
 		biases *matrix.Matrix
 		err    error
@@ -357,7 +357,7 @@ func mustDense(tb testing.TB, inputSize, outputSize int, weightValues, biasValue
 	return dense
 }
 
-func mustMatrix(tb testing.TB, rows, cols int, values []float64) (m *matrix.Matrix) {
+func mustMatrix(tb testing.TB, rows, cols int, values []float32) (m *matrix.Matrix) {
 	var err error
 
 	tb.Helper()
@@ -370,9 +370,9 @@ func mustMatrix(tb testing.TB, rows, cols int, values []float64) (m *matrix.Matr
 	return m
 }
 
-func requireMatrixValues(tb testing.TB, got *matrix.Matrix, want []float64) {
+func requireMatrixValues(tb testing.TB, got *matrix.Matrix, want []float32) {
 	var (
-		values []float64
+		values []float32
 		err    error
 	)
 

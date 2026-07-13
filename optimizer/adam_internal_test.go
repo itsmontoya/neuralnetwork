@@ -32,16 +32,16 @@ func Test_Adam_Update_ValidatesStateShape(t *testing.T) {
 		secondMoment   *matrix.Matrix
 		parameter      *Parameter
 		adam           *Adam
-		gradientValues []float64
+		gradientValues []float32
 		err            error
 	)
 
-	values, err = matrix.FromSlice(1, 2, []float64{1, 2})
+	values, err = matrix.FromSlice(1, 2, []float32{1, 2})
 	if err != nil {
 		t.Fatalf("FromSlice returned error: %v", err)
 	}
 
-	gradient, err = matrix.FromSlice(1, 2, []float64{0.1, 0.2})
+	gradient, err = matrix.FromSlice(1, 2, []float32{0.1, 0.2})
 	if err != nil {
 		t.Fatalf("FromSlice returned error: %v", err)
 	}

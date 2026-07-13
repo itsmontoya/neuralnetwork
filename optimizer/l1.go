@@ -1,7 +1,7 @@
 package optimizer
 
 // NewL1 constructs L1 regularization with the provided coefficient.
-func NewL1(coefficient float64) (out *L1, err error) {
+func NewL1(coefficient float32) (out *L1, err error) {
 	if err = validateRegularizationCoefficient("l1", coefficient); err != nil {
 		return nil, err
 	}
@@ -13,7 +13,7 @@ func NewL1(coefficient float64) (out *L1, err error) {
 
 // L1 adds coefficient*sign(value) to each parameter gradient.
 type L1 struct {
-	coefficient float64
+	coefficient float32
 }
 
 // Apply adds L1 regularization gradients to parameters.
@@ -27,7 +27,7 @@ func (l *L1) Apply(parameters []*Parameter) (err error) {
 }
 
 // Coefficient returns the L1 regularization coefficient.
-func (l *L1) Coefficient() (coefficient float64) {
+func (l *L1) Coefficient() (coefficient float32) {
 	if l == nil {
 		return 0
 	}
@@ -37,7 +37,7 @@ func (l *L1) Coefficient() (coefficient float64) {
 }
 
 // SetCoefficient updates the L1 regularization coefficient.
-func (l *L1) SetCoefficient(coefficient float64) (err error) {
+func (l *L1) SetCoefficient(coefficient float32) (err error) {
 	if l == nil {
 		err = nilRegularizerError("l1")
 		return err
@@ -51,7 +51,7 @@ func (l *L1) SetCoefficient(coefficient float64) (err error) {
 	return nil
 }
 
-func (l *L1) gradient(value float64) (gradient float64) {
+func (l *L1) gradient(value float32) (gradient float32) {
 	if value > 0 {
 		gradient = l.coefficient
 		return gradient

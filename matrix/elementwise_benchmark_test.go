@@ -2,7 +2,7 @@ package matrix
 
 import "testing"
 
-var benchmarkElementwiseValuesSink []float64
+var benchmarkElementwiseValuesSink []float32
 
 func Benchmark_ElementwiseCandidates(b *testing.B) {
 	type testcase struct {
@@ -56,8 +56,8 @@ func Benchmark_ElementwiseCandidates(b *testing.B) {
 func benchmarkElementwiseBinaryInto(
 	b *testing.B,
 	length int,
-	pure func(left, right, result []float64),
-	active func(left, right, result []float64),
+	pure func(left, right, result []float32),
+	active func(left, right, result []float32),
 ) {
 	b.Run("Pure", func(b *testing.B) {
 		benchmarkElementwiseBinaryIntoFunc(b, length, pure)
@@ -70,18 +70,18 @@ func benchmarkElementwiseBinaryInto(
 func benchmarkElementwiseBinaryIntoFunc(
 	b *testing.B,
 	length int,
-	fn func(left, right, result []float64),
+	fn func(left, right, result []float32),
 ) {
 	var (
-		left   []float64
-		right  []float64
-		result []float64
+		left   []float32
+		right  []float32
+		result []float32
 		index  int
 	)
 
 	left = benchmarkElementwiseValues(length, 0.25)
 	right = benchmarkElementwiseValues(length, -0.75)
-	result = make([]float64, length)
+	result = make([]float32, length)
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -105,11 +105,11 @@ func benchmarkElementwiseAddScaledInPlace(b *testing.B, length int) {
 func benchmarkElementwiseAddScaledInPlaceFunc(
 	b *testing.B,
 	length int,
-	fn func(left, right []float64, scale float64),
+	fn func(left, right []float32, scale float32),
 ) {
 	var (
-		left  []float64
-		right []float64
+		left  []float32
+		right []float32
 		index int
 	)
 
@@ -147,17 +147,17 @@ func benchmarkElementwiseMultiplyScalarInto(b *testing.B, length int) {
 func benchmarkElementwiseScalarIntoFunc(
 	b *testing.B,
 	length int,
-	value float64,
-	fn func(source []float64, value float64, result []float64),
+	value float32,
+	fn func(source []float32, value float32, result []float32),
 ) {
 	var (
-		source []float64
-		result []float64
+		source []float32
+		result []float32
 		index  int
 	)
 
 	source = benchmarkElementwiseValues(length, 0.25)
-	result = make([]float64, length)
+	result = make([]float32, length)
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -181,10 +181,10 @@ func benchmarkElementwiseMultiplyScalarInPlace(b *testing.B, length int) {
 func benchmarkElementwiseMultiplyScalarInPlaceFunc(
 	b *testing.B,
 	length int,
-	fn func(source []float64, value float64),
+	fn func(source []float32, value float32),
 ) {
 	var (
-		source []float64
+		source []float32
 		index  int
 	)
 
@@ -200,12 +200,12 @@ func benchmarkElementwiseMultiplyScalarInPlaceFunc(
 	benchmarkElementwiseValuesSink = source
 }
 
-func benchmarkElementwiseValues(length int, offset float64) (values []float64) {
+func benchmarkElementwiseValues(length int, offset float32) (values []float32) {
 	var index int
 
-	values = make([]float64, length)
+	values = make([]float32, length)
 	for index = range values {
-		values[index] = offset + float64(index%31)/31
+		values[index] = offset + float32(index%31)/31
 	}
 
 	return values

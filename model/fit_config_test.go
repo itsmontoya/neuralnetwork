@@ -32,14 +32,14 @@ func Test_FitConfigValidateRejectsInvalidEarlyStopping(t *testing.T) {
 			name: "nan min delta",
 			earlyStopping: &EarlyStopping{
 				patience: 1,
-				minDelta: math.NaN(),
+				minDelta: float32(math.NaN()),
 			},
 		},
 		{
 			name: "infinite min delta",
 			earlyStopping: &EarlyStopping{
 				patience: 1,
-				minDelta: math.Inf(1),
+				minDelta: float32(math.Inf(1)),
 			},
 		},
 	}

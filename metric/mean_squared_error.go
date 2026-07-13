@@ -6,14 +6,14 @@ import "github.com/itsmontoya/neuralnetwork/matrix"
 type MeanSquaredError struct{}
 
 // Value returns the mean squared error for predictions and targets with equal shape.
-func (m MeanSquaredError) Value(predictions, targets *matrix.Matrix) (value float64, err error) {
+func (m MeanSquaredError) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
 	var (
 		rows             int
 		cols             int
-		predictionValues []float64
-		targetValues     []float64
+		predictionValues []float32
+		targetValues     []float32
 		index            int
-		difference       float64
+		difference       float32
 	)
 
 	if rows, cols, predictionValues, targetValues, err = matrixValuePair(predictions, targets); err != nil {
@@ -25,6 +25,6 @@ func (m MeanSquaredError) Value(predictions, targets *matrix.Matrix) (value floa
 		value += difference * difference
 	}
 
-	value /= float64(rows * cols)
+	value /= float32(rows * cols)
 	return value, nil
 }

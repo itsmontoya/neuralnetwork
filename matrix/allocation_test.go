@@ -7,8 +7,8 @@ import (
 )
 
 var allocationMatrixResult *matrix.Matrix
-var allocationMatrixValues []float64
-var allocationMatrixFloat float64
+var allocationMatrixValues []float32
+var allocationMatrixFloat float32
 
 func Test_MatrixDestinationAllocations(t *testing.T) {
 	var (
@@ -27,7 +27,7 @@ func Test_MatrixDestinationAllocations(t *testing.T) {
 		rowSumsDestination        *matrix.Matrix
 		columnSumsDestination     *matrix.Matrix
 		rowVector                 *matrix.Matrix
-		values                    []float64
+		values                    []float32
 		adamValues                *matrix.Matrix
 		adamGradient              *matrix.Matrix
 		adamFirstMoment           *matrix.Matrix
@@ -35,26 +35,26 @@ func Test_MatrixDestinationAllocations(t *testing.T) {
 		err                       error
 	)
 
-	left = mustMatrix(t, 2, 3, []float64{1, 2, 3, 4, 5, 6})
-	right = mustMatrix(t, 2, 3, []float64{6, 5, 4, 3, 2, 1})
-	nonZeroRight = mustMatrix(t, 2, 3, []float64{6, 5, 4, 3, 2, 1})
-	destination = mustMatrix(t, 2, 3, []float64{0, 0, 0, 0, 0, 0})
-	matMulLeft = mustMatrix(t, 2, 3, []float64{1, 2, 3, 4, 5, 6})
-	matMulRight = mustMatrix(t, 3, 2, []float64{1, 2, 3, 4, 5, 6})
-	matMulDestination = mustMatrix(t, 2, 2, []float64{0, 0, 0, 0})
-	leftTransposeRight = mustMatrix(t, 2, 4, []float64{1, 2, 3, 4, 5, 6, 7, 8})
-	leftTransposeDestination = mustMatrix(t, 3, 4, []float64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
-	rightTransposeRight = mustMatrix(t, 4, 3, []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})
-	rightTransposeDestination = mustMatrix(t, 2, 4, []float64{0, 0, 0, 0, 0, 0, 0, 0})
-	transposeDestination = mustMatrix(t, 3, 2, []float64{0, 0, 0, 0, 0, 0})
-	rowSumsDestination = mustMatrix(t, 2, 1, []float64{0, 0})
-	columnSumsDestination = mustMatrix(t, 1, 3, []float64{0, 0, 0})
-	rowVector = mustMatrix(t, 1, 3, []float64{0.5, 1.5, 2.5})
-	values = []float64{9, 8, 7, 6, 5, 4}
-	adamValues = mustMatrix(t, 1, 3, []float64{0.5, -0.25, 0.75})
-	adamGradient = mustMatrix(t, 1, 3, []float64{0.1, -0.2, 0.3})
-	adamFirstMoment = mustMatrix(t, 1, 3, []float64{0, 0, 0})
-	adamSecondMoment = mustMatrix(t, 1, 3, []float64{0, 0, 0})
+	left = mustMatrix(t, 2, 3, []float32{1, 2, 3, 4, 5, 6})
+	right = mustMatrix(t, 2, 3, []float32{6, 5, 4, 3, 2, 1})
+	nonZeroRight = mustMatrix(t, 2, 3, []float32{6, 5, 4, 3, 2, 1})
+	destination = mustMatrix(t, 2, 3, []float32{0, 0, 0, 0, 0, 0})
+	matMulLeft = mustMatrix(t, 2, 3, []float32{1, 2, 3, 4, 5, 6})
+	matMulRight = mustMatrix(t, 3, 2, []float32{1, 2, 3, 4, 5, 6})
+	matMulDestination = mustMatrix(t, 2, 2, []float32{0, 0, 0, 0})
+	leftTransposeRight = mustMatrix(t, 2, 4, []float32{1, 2, 3, 4, 5, 6, 7, 8})
+	leftTransposeDestination = mustMatrix(t, 3, 4, []float32{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+	rightTransposeRight = mustMatrix(t, 4, 3, []float32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})
+	rightTransposeDestination = mustMatrix(t, 2, 4, []float32{0, 0, 0, 0, 0, 0, 0, 0})
+	transposeDestination = mustMatrix(t, 3, 2, []float32{0, 0, 0, 0, 0, 0})
+	rowSumsDestination = mustMatrix(t, 2, 1, []float32{0, 0})
+	columnSumsDestination = mustMatrix(t, 1, 3, []float32{0, 0, 0})
+	rowVector = mustMatrix(t, 1, 3, []float32{0.5, 1.5, 2.5})
+	values = []float32{9, 8, 7, 6, 5, 4}
+	adamValues = mustMatrix(t, 1, 3, []float32{0.5, -0.25, 0.75})
+	adamGradient = mustMatrix(t, 1, 3, []float32{0.1, -0.2, 0.3})
+	adamFirstMoment = mustMatrix(t, 1, 3, []float32{0, 0, 0})
+	adamSecondMoment = mustMatrix(t, 1, 3, []float32{0, 0, 0})
 
 	tests := []struct {
 		name string
@@ -280,12 +280,12 @@ func Test_MatrixCopyAllocationCeilings(t *testing.T) {
 		indexes []int
 		source  *matrix.Matrix
 		result  *matrix.Matrix
-		values  []float64
+		values  []float32
 		err     error
 	)
 
 	indexes = []int{1, 0}
-	source = mustMatrix(t, 2, 3, []float64{1, 2, 3, 4, 5, 6})
+	source = mustMatrix(t, 2, 3, []float32{1, 2, 3, 4, 5, 6})
 
 	requireMaxAllocs(t, "Values", 1, func() {
 		values, err = source.Values()
@@ -312,17 +312,17 @@ func Test_MatrixCopyAllocationCeilings(t *testing.T) {
 	allocationMatrixResult = result
 }
 
-func allocationDouble(value float64) (out float64) {
+func allocationDouble(value float32) (out float32) {
 	out = value * 2
 	return out
 }
 
-func allocationSumPair(row, col int, left, right float64) (err error) {
+func allocationSumPair(row, col int, left, right float32) (err error) {
 	allocationMatrixFloat += left + right
 	return nil
 }
 
-func allocationAddPair(row, col int, left, right float64) (value float64, err error) {
+func allocationAddPair(row, col int, left, right float32) (value float32, err error) {
 	value = left + right
 	return value, nil
 }

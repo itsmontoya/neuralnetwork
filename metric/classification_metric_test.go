@@ -12,12 +12,12 @@ func Test_BinaryClassificationMetrics(t *testing.T) {
 	var (
 		predictions *matrix.Matrix
 		targets     *matrix.Matrix
-		value       float64
+		value       float32
 		err         error
 	)
 
-	predictions = mustMatrix(t, 6, 1, []float64{0.9, 0.8, 0.7, 0.1, 0.2, 0.3})
-	targets = mustMatrix(t, 6, 1, []float64{1, 0, 1, 1, 0, 0})
+	predictions = mustMatrix(t, 6, 1, []float32{0.9, 0.8, 0.7, 0.1, 0.2, 0.3})
+	targets = mustMatrix(t, 6, 1, []float32{1, 0, 1, 1, 0, 0})
 
 	value, err = metric.BinaryPrecision{}.Value(predictions, targets)
 	if err != nil {
@@ -45,7 +45,7 @@ func Test_NewBinaryClassificationMetrics_UseCustomThreshold(t *testing.T) {
 		f1          metric.BinaryF1
 		predictions *matrix.Matrix
 		targets     *matrix.Matrix
-		value       float64
+		value       float32
 		err         error
 	)
 
@@ -64,8 +64,8 @@ func Test_NewBinaryClassificationMetrics_UseCustomThreshold(t *testing.T) {
 		t.Fatalf("NewBinaryF1 returned error: %v", err)
 	}
 
-	predictions = mustMatrix(t, 3, 1, []float64{0.74, 0.75, 0.76})
-	targets = mustMatrix(t, 3, 1, []float64{0, 1, 1})
+	predictions = mustMatrix(t, 3, 1, []float32{0.74, 0.75, 0.76})
+	targets = mustMatrix(t, 3, 1, []float32{0, 1, 1})
 
 	value, err = precision.Value(predictions, targets)
 	if err != nil {
@@ -89,17 +89,17 @@ func Test_NewBinaryClassificationMetrics_UseCustomThreshold(t *testing.T) {
 func Test_NewBinaryClassificationMetrics_RejectNonFiniteThreshold(t *testing.T) {
 	var err error
 
-	_, err = metric.NewBinaryPrecision(math.NaN())
+	_, err = metric.NewBinaryPrecision(float32(math.NaN()))
 	if err == nil {
 		t.Fatal("NewBinaryPrecision error = nil, want error")
 	}
 
-	_, err = metric.NewBinaryRecall(math.NaN())
+	_, err = metric.NewBinaryRecall(float32(math.NaN()))
 	if err == nil {
 		t.Fatal("NewBinaryRecall error = nil, want error")
 	}
 
-	_, err = metric.NewBinaryF1(math.NaN())
+	_, err = metric.NewBinaryF1(float32(math.NaN()))
 	if err == nil {
 		t.Fatal("NewBinaryF1 error = nil, want error")
 	}
@@ -109,17 +109,17 @@ func Test_CategoricalMacroClassificationMetrics(t *testing.T) {
 	var (
 		predictions *matrix.Matrix
 		targets     *matrix.Matrix
-		value       float64
+		value       float32
 		err         error
 	)
 
-	predictions = mustMatrix(t, 4, 3, []float64{
+	predictions = mustMatrix(t, 4, 3, []float32{
 		0.1, 0.8, 0.1,
 		0.6, 0.2, 0.2,
 		0.1, 0.2, 0.7,
 		0.1, 0.3, 0.6,
 	})
-	targets = mustMatrix(t, 4, 3, []float64{
+	targets = mustMatrix(t, 4, 3, []float32{
 		0, 1, 0,
 		1, 0, 0,
 		0, 1, 0,

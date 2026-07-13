@@ -16,7 +16,7 @@ as `NewBinaryAccuracy`, `NewBinaryPrecision`, `NewBinaryRecall`, and
 `NewBinaryConfusionMatrix` also uses the default threshold of `0.5`.
 `NewBinaryConfusionMatrixWithThreshold` accepts a custom threshold.
 
-Thresholds must be finite. Any finite `float64` threshold is valid, including
+Thresholds must be finite. Any finite `float32` threshold is valid, including
 values outside `[0, 1]`. The threshold is a numeric decision boundary rather than
 a probability-range validator.
 

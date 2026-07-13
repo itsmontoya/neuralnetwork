@@ -1,8 +1,7 @@
 package activation
 
 import (
-	"math"
-
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
@@ -21,15 +20,15 @@ func (t Tanh) Backward(input, outputGradient *matrix.Matrix) (inputGradient *mat
 	return inputGradient, err
 }
 
-func tanhValue(value float64) (result float64) {
-	result = math.Tanh(value)
+func tanhValue(value float32) (result float32) {
+	result = f32.Tanh(value)
 	return result
 }
 
-func tanhDerivative(value float64) (result float64) {
-	var activated float64
+func tanhDerivative(value float32) (result float32) {
+	var activated float32
 
-	activated = math.Tanh(value)
+	activated = f32.Tanh(value)
 	result = 1 - activated*activated
 	return result
 }

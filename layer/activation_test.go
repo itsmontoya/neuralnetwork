@@ -56,12 +56,12 @@ func Test_ActivationLayer_NilReceiverBehavior(t *testing.T) {
 		t.Fatal("Function returned value for nil receiver")
 	}
 
-	_, err = activationLayer.Forward(mustMatrix(t, 1, 1, []float64{1}))
+	_, err = activationLayer.Forward(mustMatrix(t, 1, 1, []float32{1}))
 	if err == nil {
 		t.Fatal("Forward error = nil, want nil receiver error")
 	}
 
-	_, err = activationLayer.Backward(mustMatrix(t, 1, 1, []float64{1}))
+	_, err = activationLayer.Backward(mustMatrix(t, 1, 1, []float32{1}))
 	if err == nil {
 		t.Fatal("Backward error = nil, want nil receiver error")
 	}
@@ -82,13 +82,13 @@ func Test_ActivationLayer_ForwardBackward(t *testing.T) {
 		t.Fatalf("NewActivation returned error: %v", err)
 	}
 
-	input = mustMatrix(t, 1, 3, []float64{-1, 0, 2})
+	input = mustMatrix(t, 1, 3, []float32{-1, 0, 2})
 	output, err = activationLayer.Forward(input)
 	if err != nil {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
-	requireMatrixValues(t, output, []float64{
+	requireMatrixValues(t, output, []float32{
 		0.2689414213699951,
 		0.5,
 		0.8807970779778823,
@@ -99,13 +99,13 @@ func Test_ActivationLayer_ForwardBackward(t *testing.T) {
 		t.Fatalf("Set returned error: %v", err)
 	}
 
-	outputGradient = mustMatrix(t, 1, 3, []float64{1, 2, 3})
+	outputGradient = mustMatrix(t, 1, 3, []float32{1, 2, 3})
 	inputGradient, err = activationLayer.Backward(outputGradient)
 	if err != nil {
 		t.Fatalf("Backward returned error: %v", err)
 	}
 
-	requireMatrixValues(t, inputGradient, []float64{
+	requireMatrixValues(t, inputGradient, []float32{
 		0.19661193324148185,
 		0.5,
 		0.31498075621051985,
@@ -124,7 +124,7 @@ func Test_ActivationLayer_BackwardRequiresForward(t *testing.T) {
 		t.Fatalf("NewActivation returned error: %v", err)
 	}
 
-	inputGradient, err = activationLayer.Backward(mustMatrix(t, 1, 1, []float64{1}))
+	inputGradient, err = activationLayer.Backward(mustMatrix(t, 1, 1, []float32{1}))
 	if err == nil {
 		t.Fatalf("Backward returned gradient %v and nil error, want error", inputGradient)
 	}

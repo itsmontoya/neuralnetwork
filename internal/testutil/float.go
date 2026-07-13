@@ -6,7 +6,7 @@ import (
 )
 
 // AlmostEqual reports whether a and b differ by no more than epsilon.
-func AlmostEqual(a, b, epsilon float64) (ok bool) {
+func AlmostEqual(a, b, epsilon float32) (ok bool) {
 	if epsilon < 0 {
 		return false
 	}
@@ -15,16 +15,16 @@ func AlmostEqual(a, b, epsilon float64) (ok bool) {
 		return true
 	}
 
-	if math.IsNaN(a) || math.IsNaN(b) {
+	if math.IsNaN(float64(a)) || math.IsNaN(float64(b)) {
 		return false
 	}
 
-	ok = math.Abs(a-b) <= epsilon
+	ok = float32(math.Abs(float64(a-b))) <= epsilon
 	return ok
 }
 
 // RequireAlmostEqual fails tb when got and want differ by more than epsilon.
-func RequireAlmostEqual(tb testing.TB, got, want, epsilon float64) {
+func RequireAlmostEqual(tb testing.TB, got, want, epsilon float32) {
 	tb.Helper()
 
 	if AlmostEqual(got, want, epsilon) {
@@ -36,12 +36,12 @@ func RequireAlmostEqual(tb testing.TB, got, want, epsilon float64) {
 		got,
 		want,
 		epsilon,
-		math.Abs(got-want),
+		float32(math.Abs(float64(got-want))),
 	)
 }
 
 // RequireSliceAlmostEqual fails tb when got and want differ in length or values.
-func RequireSliceAlmostEqual(tb testing.TB, got, want []float64, epsilon float64) {
+func RequireSliceAlmostEqual(tb testing.TB, got, want []float32, epsilon float32) {
 	tb.Helper()
 
 	if len(got) != len(want) {
@@ -60,7 +60,7 @@ func RequireSliceAlmostEqual(tb testing.TB, got, want []float64, epsilon float64
 			got[index],
 			want[index],
 			epsilon,
-			math.Abs(got[index]-want[index]),
+			float32(math.Abs(float64(got[index]-want[index]))),
 		)
 	}
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
-const epsilon = 1e-12
+const epsilon = 1e-5
 
 func Test_NewDataset_ValidatesSampleCount(t *testing.T) {
 	var (
@@ -19,8 +19,8 @@ func Test_NewDataset_ValidatesSampleCount(t *testing.T) {
 		err     error
 	)
 
-	inputs = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
-	targets = mustMatrix(t, 1, 1, []float64{1})
+	inputs = mustMatrix(t, 2, 2, []float32{1, 2, 3, 4})
+	targets = mustMatrix(t, 1, 1, []float32{1})
 
 	got, err = data.NewDataset(inputs, targets)
 	if err == nil {
@@ -44,8 +44,8 @@ func Test_Dataset_CopiesMatrices(t *testing.T) {
 		err             error
 	)
 
-	inputs = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
-	targets = mustMatrix(t, 2, 1, []float64{10, 20})
+	inputs = mustMatrix(t, 2, 2, []float32{1, 2, 3, 4})
+	targets = mustMatrix(t, 2, 1, []float32{10, 20})
 
 	dataset, err = data.NewDataset(inputs, targets)
 	if err != nil {
@@ -72,8 +72,8 @@ func Test_Dataset_CopiesMatrices(t *testing.T) {
 		t.Fatalf("Targets returned error: %v", err)
 	}
 
-	requireMatrixValues(t, datasetInputs, []float64{1, 2, 3, 4})
-	requireMatrixValues(t, datasetTargets, []float64{10, 20})
+	requireMatrixValues(t, datasetInputs, []float32{1, 2, 3, 4})
+	requireMatrixValues(t, datasetTargets, []float32{10, 20})
 
 	err = datasetInputs.Set(0, 0, 77)
 	if err != nil {
@@ -95,8 +95,8 @@ func Test_Dataset_CopiesMatrices(t *testing.T) {
 		t.Fatalf("Targets returned error: %v", err)
 	}
 
-	requireMatrixValues(t, returnedInputs, []float64{1, 2, 3, 4})
-	requireMatrixValues(t, returnedTargets, []float64{10, 20})
+	requireMatrixValues(t, returnedInputs, []float32{1, 2, 3, 4})
+	requireMatrixValues(t, returnedTargets, []float32{10, 20})
 }
 
 func Test_Dataset_InputsIntoAndTargetsIntoCopyMatrices(t *testing.T) {
@@ -111,15 +111,15 @@ func Test_Dataset_InputsIntoAndTargetsIntoCopyMatrices(t *testing.T) {
 		err             error
 	)
 
-	inputs = mustMatrix(t, 2, 2, []float64{1, 2, 3, 4})
-	targets = mustMatrix(t, 2, 1, []float64{10, 20})
+	inputs = mustMatrix(t, 2, 2, []float32{1, 2, 3, 4})
+	targets = mustMatrix(t, 2, 1, []float32{10, 20})
 	dataset, err = data.NewDataset(inputs, targets)
 	if err != nil {
 		t.Fatalf("NewDataset returned error: %v", err)
 	}
 
-	inputsCopy = mustMatrix(t, 2, 2, []float64{0, 0, 0, 0})
-	targetsCopy = mustMatrix(t, 2, 1, []float64{0, 0})
+	inputsCopy = mustMatrix(t, 2, 2, []float32{0, 0, 0, 0})
+	targetsCopy = mustMatrix(t, 2, 1, []float32{0, 0})
 	if err = dataset.InputsInto(inputsCopy); err != nil {
 		t.Fatalf("InputsInto returned error: %v", err)
 	}
@@ -128,8 +128,8 @@ func Test_Dataset_InputsIntoAndTargetsIntoCopyMatrices(t *testing.T) {
 		t.Fatalf("TargetsInto returned error: %v", err)
 	}
 
-	requireMatrixValues(t, inputsCopy, []float64{1, 2, 3, 4})
-	requireMatrixValues(t, targetsCopy, []float64{10, 20})
+	requireMatrixValues(t, inputsCopy, []float32{1, 2, 3, 4})
+	requireMatrixValues(t, targetsCopy, []float32{10, 20})
 
 	if err = inputsCopy.Set(0, 0, 99); err != nil {
 		t.Fatalf("Set returned error: %v", err)
@@ -147,8 +147,8 @@ func Test_Dataset_InputsIntoAndTargetsIntoCopyMatrices(t *testing.T) {
 		t.Fatalf("Targets returned error: %v", err)
 	}
 
-	requireMatrixValues(t, returnedInputs, []float64{1, 2, 3, 4})
-	requireMatrixValues(t, returnedTargets, []float64{10, 20})
+	requireMatrixValues(t, returnedInputs, []float32{1, 2, 3, 4})
+	requireMatrixValues(t, returnedTargets, []float32{10, 20})
 }
 
 func Test_Dataset_InputsIntoAndTargetsIntoRejectWrongShape(t *testing.T) {
@@ -159,7 +159,7 @@ func Test_Dataset_InputsIntoAndTargetsIntoRejectWrongShape(t *testing.T) {
 	)
 
 	dataset = mustDatasetWithSamples(t, 2)
-	wrongInputs = mustMatrix(t, 1, 2, []float64{0, 0})
+	wrongInputs = mustMatrix(t, 1, 2, []float32{0, 0})
 
 	err = dataset.InputsInto(wrongInputs)
 	if err == nil {
@@ -248,7 +248,7 @@ func Test_Dataset_BatchesReturnsLastPartialBatchValues(t *testing.T) {
 	dataset = mustDataset(t,
 		5,
 		2,
-		[]float64{
+		[]float32{
 			1, 10,
 			2, 20,
 			3, 30,
@@ -256,7 +256,7 @@ func Test_Dataset_BatchesReturnsLastPartialBatchValues(t *testing.T) {
 			5, 50,
 		},
 		1,
-		[]float64{101, 102, 103, 104, 105},
+		[]float32{101, 102, 103, 104, 105},
 	)
 
 	batches, err = dataset.Batches(2, nil)
@@ -278,8 +278,8 @@ func Test_Dataset_BatchesReturnsLastPartialBatchValues(t *testing.T) {
 		t.Fatalf("last batch sample count = %d, want 1", batches[2].SampleCount())
 	}
 
-	requireMatrixValues(t, inputs, []float64{5, 50})
-	requireMatrixValues(t, targets, []float64{105})
+	requireMatrixValues(t, inputs, []float32{5, 50})
+	requireMatrixValues(t, targets, []float32{105})
 }
 
 func Test_Dataset_BatchesCopiesReturnedMatrices(t *testing.T) {
@@ -296,12 +296,12 @@ func Test_Dataset_BatchesCopiesReturnedMatrices(t *testing.T) {
 	dataset = mustDataset(t,
 		2,
 		2,
-		[]float64{
+		[]float32{
 			1, 10,
 			2, 20,
 		},
 		1,
-		[]float64{101, 102},
+		[]float32{101, 102},
 	)
 
 	batches, err = dataset.Batches(2, nil)
@@ -339,11 +339,11 @@ func Test_Dataset_BatchesCopiesReturnedMatrices(t *testing.T) {
 		t.Fatalf("Targets returned error: %v", err)
 	}
 
-	requireMatrixValues(t, returnedInputs, []float64{
+	requireMatrixValues(t, returnedInputs, []float32{
 		1, 10,
 		2, 20,
 	})
-	requireMatrixValues(t, returnedTargets, []float64{101, 102})
+	requireMatrixValues(t, returnedTargets, []float32{101, 102})
 }
 
 func Test_Batch_InputsIntoAndTargetsIntoCopyMatrices(t *testing.T) {
@@ -360,12 +360,12 @@ func Test_Batch_InputsIntoAndTargetsIntoCopyMatrices(t *testing.T) {
 	dataset = mustDataset(t,
 		2,
 		2,
-		[]float64{
+		[]float32{
 			1, 10,
 			2, 20,
 		},
 		1,
-		[]float64{101, 102},
+		[]float32{101, 102},
 	)
 
 	batches, err = dataset.Batches(2, nil)
@@ -373,8 +373,8 @@ func Test_Batch_InputsIntoAndTargetsIntoCopyMatrices(t *testing.T) {
 		t.Fatalf("Batches returned error: %v", err)
 	}
 
-	batchInputs = mustMatrix(t, 2, 2, []float64{0, 0, 0, 0})
-	batchTargets = mustMatrix(t, 2, 1, []float64{0, 0})
+	batchInputs = mustMatrix(t, 2, 2, []float32{0, 0, 0, 0})
+	batchTargets = mustMatrix(t, 2, 1, []float32{0, 0})
 	if err = batches[0].InputsInto(batchInputs); err != nil {
 		t.Fatalf("InputsInto returned error: %v", err)
 	}
@@ -383,11 +383,11 @@ func Test_Batch_InputsIntoAndTargetsIntoCopyMatrices(t *testing.T) {
 		t.Fatalf("TargetsInto returned error: %v", err)
 	}
 
-	requireMatrixValues(t, batchInputs, []float64{
+	requireMatrixValues(t, batchInputs, []float32{
 		1, 10,
 		2, 20,
 	})
-	requireMatrixValues(t, batchTargets, []float64{101, 102})
+	requireMatrixValues(t, batchTargets, []float32{101, 102})
 
 	if err = batchInputs.Set(0, 0, 99); err != nil {
 		t.Fatalf("Set returned error: %v", err)
@@ -405,11 +405,11 @@ func Test_Batch_InputsIntoAndTargetsIntoCopyMatrices(t *testing.T) {
 		t.Fatalf("Targets returned error: %v", err)
 	}
 
-	requireMatrixValues(t, returnedInputs, []float64{
+	requireMatrixValues(t, returnedInputs, []float32{
 		1, 10,
 		2, 20,
 	})
-	requireMatrixValues(t, returnedTargets, []float64{101, 102})
+	requireMatrixValues(t, returnedTargets, []float32{101, 102})
 }
 
 func Test_Batch_InputsIntoAndTargetsIntoRejectWrongShape(t *testing.T) {
@@ -426,7 +426,7 @@ func Test_Batch_InputsIntoAndTargetsIntoRejectWrongShape(t *testing.T) {
 		t.Fatalf("Batches returned error: %v", err)
 	}
 
-	wrongInputs = mustMatrix(t, 1, 2, []float64{0, 0})
+	wrongInputs = mustMatrix(t, 1, 2, []float32{0, 0})
 	err = batches[0].InputsInto(wrongInputs)
 	if err == nil {
 		t.Fatal("InputsInto error = nil, want error")
@@ -443,11 +443,11 @@ func Test_Dataset_BatchesShufflesDeterministicallyAndKeepsRowsAligned(t *testing
 		dataset      *data.Dataset
 		first        []*data.Batch
 		second       []*data.Batch
-		firstInputs  []float64
-		firstTargets []float64
-		secondInputs []float64
-		inputValue   float64
-		targetValue  float64
+		firstInputs  []float32
+		firstTargets []float32
+		secondInputs []float32
+		inputValue   float32
+		targetValue  float32
 		row          int
 		err          error
 	)
@@ -455,7 +455,7 @@ func Test_Dataset_BatchesShufflesDeterministicallyAndKeepsRowsAligned(t *testing
 	dataset = mustDataset(t,
 		6,
 		2,
-		[]float64{
+		[]float32{
 			1, 10,
 			2, 20,
 			3, 30,
@@ -464,7 +464,7 @@ func Test_Dataset_BatchesShufflesDeterministicallyAndKeepsRowsAligned(t *testing
 			6, 60,
 		},
 		1,
-		[]float64{101, 102, 103, 104, 105, 106},
+		[]float32{101, 102, 103, 104, 105, 106},
 	)
 
 	first, err = dataset.Batches(2, rand.New(rand.NewSource(11)))
@@ -525,14 +525,14 @@ func Test_Dataset_SplitPreservesOrderWithoutShuffle(t *testing.T) {
 	dataset = mustDataset(t,
 		4,
 		2,
-		[]float64{
+		[]float32{
 			1, 10,
 			2, 20,
 			3, 30,
 			4, 40,
 		},
 		1,
-		[]float64{101, 102, 103, 104},
+		[]float32{101, 102, 103, 104},
 	)
 
 	train, test, err = dataset.Split(0.25, nil)
@@ -568,10 +568,10 @@ func Test_Dataset_SplitPreservesOrderWithoutShuffle(t *testing.T) {
 		t.Fatalf("Targets returned error: %v", err)
 	}
 
-	requireMatrixValues(t, trainInputs, []float64{1, 10, 2, 20, 3, 30})
-	requireMatrixValues(t, trainTargets, []float64{101, 102, 103})
-	requireMatrixValues(t, testInputs, []float64{4, 40})
-	requireMatrixValues(t, testTargets, []float64{104})
+	requireMatrixValues(t, trainInputs, []float32{1, 10, 2, 20, 3, 30})
+	requireMatrixValues(t, trainTargets, []float32{101, 102, 103})
+	requireMatrixValues(t, testInputs, []float32{4, 40})
+	requireMatrixValues(t, testTargets, []float32{104})
 }
 
 func Test_Dataset_SplitUsesSeedAndDoesNotMutateOriginal(t *testing.T) {
@@ -587,15 +587,15 @@ func Test_Dataset_SplitUsesSeedAndDoesNotMutateOriginal(t *testing.T) {
 		testInputs     *matrix.Matrix
 		testTargets    *matrix.Matrix
 		currentInput   *matrix.Matrix
-		originalValues []float64
-		currentValues  []float64
+		originalValues []float32
+		currentValues  []float32
 		err            error
 	)
 
 	dataset = mustDataset(t,
 		5,
 		2,
-		[]float64{
+		[]float32{
 			1, 10,
 			2, 20,
 			3, 30,
@@ -603,7 +603,7 @@ func Test_Dataset_SplitUsesSeedAndDoesNotMutateOriginal(t *testing.T) {
 			5, 50,
 		},
 		1,
-		[]float64{101, 102, 103, 104, 105},
+		[]float32{101, 102, 103, 104, 105},
 	)
 
 	originalInput, err = dataset.Inputs()
@@ -690,19 +690,19 @@ func Test_Dataset_SplitRejectsInvalidFraction(t *testing.T) {
 
 func mustDatasetWithSamples(tb testing.TB, samples int) (dataset *data.Dataset) {
 	var (
-		inputValues  []float64
-		targetValues []float64
+		inputValues  []float32
+		targetValues []float32
 		row          int
 	)
 
 	tb.Helper()
 
-	inputValues = make([]float64, samples*2)
-	targetValues = make([]float64, samples)
+	inputValues = make([]float32, samples*2)
+	targetValues = make([]float32, samples)
 	for row = 0; row < samples; row++ {
-		inputValues[row*2] = float64(row + 1)
-		inputValues[row*2+1] = float64((row + 1) * 10)
-		targetValues[row] = float64(row + 101)
+		inputValues[row*2] = float32(row + 1)
+		inputValues[row*2+1] = float32((row + 1) * 10)
+		targetValues[row] = float32(row + 101)
 	}
 
 	dataset = mustDataset(tb, samples, 2, inputValues, 1, targetValues)
@@ -713,9 +713,9 @@ func mustDataset(
 	tb testing.TB,
 	rows int,
 	inputCols int,
-	inputValues []float64,
+	inputValues []float32,
 	targetCols int,
-	targetValues []float64,
+	targetValues []float32,
 ) (dataset *data.Dataset) {
 	var (
 		inputs  *matrix.Matrix
@@ -736,7 +736,7 @@ func mustDataset(
 	return dataset
 }
 
-func mustMatrix(tb testing.TB, rows, cols int, values []float64) (m *matrix.Matrix) {
+func mustMatrix(tb testing.TB, rows, cols int, values []float32) (m *matrix.Matrix) {
 	var err error
 
 	tb.Helper()
@@ -749,11 +749,11 @@ func mustMatrix(tb testing.TB, rows, cols int, values []float64) (m *matrix.Matr
 	return m
 }
 
-func flattenBatchInputs(tb testing.TB, batches []*data.Batch) (values []float64) {
+func flattenBatchInputs(tb testing.TB, batches []*data.Batch) (values []float32) {
 	var (
 		batch       *data.Batch
 		inputs      *matrix.Matrix
-		inputValues []float64
+		inputValues []float32
 		err         error
 	)
 
@@ -776,11 +776,11 @@ func flattenBatchInputs(tb testing.TB, batches []*data.Batch) (values []float64)
 	return values
 }
 
-func flattenBatchTargets(tb testing.TB, batches []*data.Batch) (values []float64) {
+func flattenBatchTargets(tb testing.TB, batches []*data.Batch) (values []float32) {
 	var (
 		batch        *data.Batch
 		targets      *matrix.Matrix
-		targetValues []float64
+		targetValues []float32
 		err          error
 	)
 
@@ -807,8 +807,8 @@ func requireDatasetInputsEqual(tb testing.TB, got, want *data.Dataset) {
 	var (
 		gotInputs  *matrix.Matrix
 		wantInputs *matrix.Matrix
-		gotValues  []float64
-		wantValues []float64
+		gotValues  []float32
+		wantValues []float32
 		err        error
 	)
 
@@ -839,8 +839,8 @@ func requireDatasetInputsEqual(tb testing.TB, got, want *data.Dataset) {
 
 func requireAlignedRows(tb testing.TB, inputs, targets *matrix.Matrix) {
 	var (
-		inputValues  []float64
-		targetValues []float64
+		inputValues  []float32
+		targetValues []float32
 		row          int
 		err          error
 	)
@@ -863,9 +863,9 @@ func requireAlignedRows(tb testing.TB, inputs, targets *matrix.Matrix) {
 	}
 }
 
-func requireMatrixValues(tb testing.TB, got *matrix.Matrix, want []float64) {
+func requireMatrixValues(tb testing.TB, got *matrix.Matrix, want []float32) {
 	var (
-		values []float64
+		values []float32
 		err    error
 	)
 

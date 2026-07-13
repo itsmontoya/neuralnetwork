@@ -1,6 +1,6 @@
 package matrix
 
-func dotProductPure(left, right []float64) (sum float64) {
+func dotProductPure(left, right []float32) (sum float32) {
 	var index int
 
 	for index = range left {

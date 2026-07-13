@@ -1,8 +1,7 @@
 package activation
 
 import (
-	"math"
-
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
@@ -21,22 +20,22 @@ func (s Sigmoid) Backward(input, outputGradient *matrix.Matrix) (inputGradient *
 	return inputGradient, err
 }
 
-func sigmoidValue(value float64) (result float64) {
-	var exponent float64
+func sigmoidValue(value float32) (result float32) {
+	var exponent float32
 
 	if value >= 0 {
-		exponent = math.Exp(-value)
+		exponent = f32.Exp(-value)
 		result = 1 / (1 + exponent)
 		return result
 	}
 
-	exponent = math.Exp(value)
+	exponent = f32.Exp(value)
 	result = exponent / (1 + exponent)
 	return result
 }
 
-func sigmoidDerivative(value float64) (result float64) {
-	var activated float64
+func sigmoidDerivative(value float32) (result float32) {
+	var activated float32
 
 	activated = sigmoidValue(value)
 	result = activated * (1 - activated)

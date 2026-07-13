@@ -2,9 +2,9 @@
 
 package matrix
 
-import simd64 "github.com/tphakala/simd/f64"
+import simd32 "github.com/tphakala/simd/f32"
 
-func dotProduct(left, right []float64) (sum float64) {
-	sum = simd64.DotProduct(left, right)
+func dotProduct(left, right []float32) (sum float32) {
+	sum = simd32.DotProduct(left, right)
 	return sum
 }

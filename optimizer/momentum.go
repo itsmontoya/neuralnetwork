@@ -5,13 +5,13 @@ import "github.com/itsmontoya/neuralnetwork/matrix"
 const defaultMomentumCoefficient = 0.9
 
 // NewMomentum constructs Momentum with the default coefficient.
-func NewMomentum(learningRate float64) (out *Momentum, err error) {
+func NewMomentum(learningRate float32) (out *Momentum, err error) {
 	out, err = NewMomentumWithCoefficient(learningRate, defaultMomentumCoefficient)
 	return out, err
 }
 
 // NewMomentumWithCoefficient constructs Momentum with an explicit coefficient.
-func NewMomentumWithCoefficient(learningRate, coefficient float64) (out *Momentum, err error) {
+func NewMomentumWithCoefficient(learningRate, coefficient float32) (out *Momentum, err error) {
 	if err = validateLearningRate(learningRate); err != nil {
 		return nil, err
 	}
@@ -33,8 +33,8 @@ func NewMomentumWithCoefficient(learningRate, coefficient float64) (out *Momentu
 // values += velocity for each parameter. Gradients are reset after a successful
 // update.
 type Momentum struct {
-	learningRate float64
-	coefficient  float64
+	learningRate float32
+	coefficient  float32
 	velocities   map[*Parameter]*matrix.Matrix
 }
 
@@ -60,7 +60,7 @@ func (m *Momentum) Update(parameters []*Parameter) (err error) {
 }
 
 // LearningRate returns the current learning rate.
-func (m *Momentum) LearningRate() (learningRate float64) {
+func (m *Momentum) LearningRate() (learningRate float32) {
 	if m == nil {
 		return 0
 	}
@@ -70,7 +70,7 @@ func (m *Momentum) LearningRate() (learningRate float64) {
 }
 
 // SetLearningRate updates the learning rate.
-func (m *Momentum) SetLearningRate(learningRate float64) (err error) {
+func (m *Momentum) SetLearningRate(learningRate float32) (err error) {
 	if m == nil {
 		err = nilOptimizerError("momentum")
 		return err
@@ -85,7 +85,7 @@ func (m *Momentum) SetLearningRate(learningRate float64) (err error) {
 }
 
 // Coefficient returns the current momentum coefficient.
-func (m *Momentum) Coefficient() (coefficient float64) {
+func (m *Momentum) Coefficient() (coefficient float32) {
 	if m == nil {
 		return 0
 	}
@@ -95,7 +95,7 @@ func (m *Momentum) Coefficient() (coefficient float64) {
 }
 
 // SetCoefficient updates the momentum coefficient.
-func (m *Momentum) SetCoefficient(coefficient float64) (err error) {
+func (m *Momentum) SetCoefficient(coefficient float32) (err error) {
 	if m == nil {
 		err = nilOptimizerError("momentum")
 		return err

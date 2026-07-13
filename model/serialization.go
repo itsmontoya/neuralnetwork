@@ -98,9 +98,9 @@ type serializedLayer struct {
 	OutputSize      int               `json:"output_size,omitempty"`
 	FeatureSize     int               `json:"feature_size,omitempty"`
 	Activation      string            `json:"activation,omitempty"`
-	Rate            float64           `json:"rate,omitempty"`
-	Momentum        float64           `json:"momentum,omitempty"`
-	Epsilon         float64           `json:"epsilon,omitempty"`
+	Rate            float32           `json:"rate,omitempty"`
+	Momentum        float32           `json:"momentum,omitempty"`
+	Epsilon         float32           `json:"epsilon,omitempty"`
 	Weights         *serializedMatrix `json:"weights,omitempty"`
 	Biases          *serializedMatrix `json:"biases,omitempty"`
 	Gamma           *serializedMatrix `json:"gamma,omitempty"`
@@ -429,11 +429,11 @@ func (s serializedLayer) dropoutLayer(index int) (dropoutLayer *layerpkg.Dropout
 type serializedMatrix struct {
 	Rows   int       `json:"rows"`
 	Cols   int       `json:"cols"`
-	Values []float64 `json:"values"`
+	Values []float32 `json:"values"`
 }
 
 func serializedMatrixFromMatrix(source *matrixpkg.Matrix) (serialized serializedMatrix, err error) {
-	var values []float64
+	var values []float32
 
 	if values, err = source.Values(); err != nil {
 		return serialized, err

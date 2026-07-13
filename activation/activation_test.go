@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/itsmontoya/neuralnetwork/activation"
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/internal/testutil"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
-const epsilon = 1e-12
+const epsilon = 1e-5
 
 func Test_Activation_Interface(t *testing.T) {
 	var _ activation.Activation = activation.ELU{}
@@ -27,7 +28,7 @@ func Test_Activation_Forward(t *testing.T) {
 		name       string
 		activation activation.Activation
 		input      *matrix.Matrix
-		want       []float64
+		want       []float32
 	}
 
 	var (
@@ -36,18 +37,18 @@ func Test_Activation_Forward(t *testing.T) {
 		tests        []testcase
 	)
 
-	baseInput = mustMatrix(t, 2, 3, []float64{-1, 0, 2, -2, 1, 3})
-	softmaxInput = mustMatrix(t, 2, 3, []float64{1, 2, 3, -1, 0, 1})
+	baseInput = mustMatrix(t, 2, 3, []float32{-1, 0, 2, -2, 1, 3})
+	softmaxInput = mustMatrix(t, 2, 3, []float32{1, 2, 3, -1, 0, 1})
 	tests = []testcase{
 		{
 			name:       "elu",
 			activation: activation.ELU{},
 			input:      baseInput,
-			want: []float64{
-				math.Exp(-1) - 1,
+			want: []float32{
+				f32.Exp(-1) - 1,
 				0,
 				2,
-				math.Exp(-2) - 1,
+				f32.Exp(-2) - 1,
 				1,
 				3,
 			},
@@ -56,7 +57,7 @@ func Test_Activation_Forward(t *testing.T) {
 			name:       "gelu",
 			activation: activation.GELU{},
 			input:      baseInput,
-			want: []float64{
+			want: []float32{
 				geluTestValue(-1),
 				geluTestValue(0),
 				geluTestValue(2),
@@ -69,19 +70,19 @@ func Test_Activation_Forward(t *testing.T) {
 			name:       "leaky relu",
 			activation: activation.LeakyReLU{},
 			input:      baseInput,
-			want:       []float64{-0.01, 0, 2, -0.02, 1, 3},
+			want:       []float32{-0.01, 0, 2, -0.02, 1, 3},
 		},
 		{
 			name:       "relu",
 			activation: activation.ReLU{},
 			input:      baseInput,
-			want:       []float64{0, 0, 2, 0, 1, 3},
+			want:       []float32{0, 0, 2, 0, 1, 3},
 		},
 		{
 			name:       "sigmoid",
 			activation: activation.Sigmoid{},
 			input:      baseInput,
-			want: []float64{
+			want: []float32{
 				0.2689414213699951,
 				0.5,
 				0.8807970779778823,
@@ -94,7 +95,7 @@ func Test_Activation_Forward(t *testing.T) {
 			name:       "tanh",
 			activation: activation.Tanh{},
 			input:      baseInput,
-			want: []float64{
+			want: []float32{
 				-0.7615941559557649,
 				0,
 				0.9640275800758169,
@@ -107,13 +108,13 @@ func Test_Activation_Forward(t *testing.T) {
 			name:       "linear",
 			activation: activation.Linear{},
 			input:      baseInput,
-			want:       []float64{-1, 0, 2, -2, 1, 3},
+			want:       []float32{-1, 0, 2, -2, 1, 3},
 		},
 		{
 			name:       "softmax",
 			activation: activation.Softmax{},
 			input:      softmaxInput,
-			want: []float64{
+			want: []float32{
 				0.09003057317038046,
 				0.24472847105479764,
 				0.6652409557748218,
@@ -127,7 +128,7 @@ func Test_Activation_Forward(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var (
-				before []float64
+				before []float32
 				got    *matrix.Matrix
 				err    error
 			)
@@ -154,7 +155,7 @@ func Test_Activation_Backward(t *testing.T) {
 		activation activation.Activation
 		input      *matrix.Matrix
 		gradient   *matrix.Matrix
-		want       []float64
+		want       []float32
 	}
 
 	var (
@@ -163,19 +164,19 @@ func Test_Activation_Backward(t *testing.T) {
 		tests    []testcase
 	)
 
-	input = mustMatrix(t, 2, 3, []float64{-1, 0, 2, -2, 1, 3})
-	gradient = mustMatrix(t, 2, 3, []float64{1, 2, 3, 4, 5, 6})
+	input = mustMatrix(t, 2, 3, []float32{-1, 0, 2, -2, 1, 3})
+	gradient = mustMatrix(t, 2, 3, []float32{1, 2, 3, 4, 5, 6})
 	tests = []testcase{
 		{
 			name:       "elu",
 			activation: activation.ELU{},
 			input:      input,
 			gradient:   gradient,
-			want: []float64{
-				1 * math.Exp(-1),
+			want: []float32{
+				1 * f32.Exp(-1),
 				2,
 				3,
-				4 * math.Exp(-2),
+				4 * f32.Exp(-2),
 				5,
 				6,
 			},
@@ -185,7 +186,7 @@ func Test_Activation_Backward(t *testing.T) {
 			activation: activation.GELU{},
 			input:      input,
 			gradient:   gradient,
-			want: []float64{
+			want: []float32{
 				1 * geluTestDerivative(-1),
 				2 * geluTestDerivative(0),
 				3 * geluTestDerivative(2),
@@ -199,21 +200,21 @@ func Test_Activation_Backward(t *testing.T) {
 			activation: activation.LeakyReLU{},
 			input:      input,
 			gradient:   gradient,
-			want:       []float64{0.01, 0.02, 3, 0.04, 5, 6},
+			want:       []float32{0.01, 0.02, 3, 0.04, 5, 6},
 		},
 		{
 			name:       "relu",
 			activation: activation.ReLU{},
 			input:      input,
 			gradient:   gradient,
-			want:       []float64{0, 0, 3, 0, 5, 6},
+			want:       []float32{0, 0, 3, 0, 5, 6},
 		},
 		{
 			name:       "sigmoid",
 			activation: activation.Sigmoid{},
 			input:      input,
 			gradient:   gradient,
-			want: []float64{
+			want: []float32{
 				1 * 0.19661193324148185,
 				2 * 0.25,
 				3 * 0.10499358540350662,
@@ -227,7 +228,7 @@ func Test_Activation_Backward(t *testing.T) {
 			activation: activation.Tanh{},
 			input:      input,
 			gradient:   gradient,
-			want: []float64{
+			want: []float32{
 				1 * 0.41997434161402614,
 				2,
 				3 * 0.07065082485316443,
@@ -241,14 +242,14 @@ func Test_Activation_Backward(t *testing.T) {
 			activation: activation.Linear{},
 			input:      input,
 			gradient:   gradient,
-			want:       []float64{1, 2, 3, 4, 5, 6},
+			want:       []float32{1, 2, 3, 4, 5, 6},
 		},
 		{
 			name:       "softmax",
 			activation: activation.Softmax{},
-			input:      mustMatrix(t, 1, 2, []float64{0, 0}),
-			gradient:   mustMatrix(t, 1, 2, []float64{1, 3}),
-			want:       []float64{-0.5, 0.5},
+			input:      mustMatrix(t, 1, 2, []float32{0, 0}),
+			gradient:   mustMatrix(t, 1, 2, []float32{1, 3}),
+			want:       []float32{-0.5, 0.5},
 		},
 	}
 
@@ -277,8 +278,8 @@ func Test_Activation_Backward_ValidatesShape(t *testing.T) {
 		err           error
 	)
 
-	input = mustMatrix(t, 1, 3, []float64{1, 2, 3})
-	gradient = mustMatrix(t, 3, 1, []float64{1, 2, 3})
+	input = mustMatrix(t, 1, 3, []float32{1, 2, 3})
+	gradient = mustMatrix(t, 3, 1, []float32{1, 2, 3})
 
 	inputGradient, err = activation.ReLU{}.Backward(input, gradient)
 	if err == nil {
@@ -290,11 +291,11 @@ func Test_Softmax_RowsSumToOne(t *testing.T) {
 	var (
 		input   *matrix.Matrix
 		output  *matrix.Matrix
-		rowSums []float64
+		rowSums []float32
 		err     error
 	)
 
-	input = mustMatrix(t, 3, 4, []float64{
+	input = mustMatrix(t, 3, 4, []float32{
 		1, 2, 3, 4,
 		-4, -3, -2, -1,
 		0.5, -0.25, 0.75, 1.25,
@@ -310,19 +311,19 @@ func Test_Softmax_RowsSumToOne(t *testing.T) {
 		t.Fatalf("RowSums returned error: %v", err)
 	}
 
-	testutil.RequireSliceAlmostEqual(t, rowSums, []float64{1, 1, 1}, epsilon)
+	testutil.RequireSliceAlmostEqual(t, rowSums, []float32{1, 1, 1}, epsilon)
 }
 
 func Test_Softmax_StableForLargeValues(t *testing.T) {
 	var (
 		input  *matrix.Matrix
 		output *matrix.Matrix
-		values []float64
+		values []float32
 		index  int
 		err    error
 	)
 
-	input = mustMatrix(t, 2, 3, []float64{
+	input = mustMatrix(t, 2, 3, []float32{
 		1000, 1001, 1002,
 		-1000, -1001, -1002,
 	})
@@ -338,12 +339,12 @@ func Test_Softmax_StableForLargeValues(t *testing.T) {
 	}
 
 	for index = range values {
-		if math.IsInf(values[index], 0) || math.IsNaN(values[index]) {
+		if f32.IsInf(values[index], 0) || f32.IsNaN(values[index]) {
 			t.Fatalf("Softmax value at index %d is unstable: %g", index, values[index])
 		}
 	}
 
-	testutil.RequireSliceAlmostEqual(t, values, []float64{
+	testutil.RequireSliceAlmostEqual(t, values, []float32{
 		0.09003057317038046,
 		0.24472847105479764,
 		0.6652409557748218,
@@ -353,7 +354,7 @@ func Test_Softmax_StableForLargeValues(t *testing.T) {
 	}, epsilon)
 }
 
-func mustMatrix(tb testing.TB, rows, cols int, values []float64) (m *matrix.Matrix) {
+func mustMatrix(tb testing.TB, rows, cols int, values []float32) (m *matrix.Matrix) {
 	var err error
 
 	tb.Helper()
@@ -366,9 +367,9 @@ func mustMatrix(tb testing.TB, rows, cols int, values []float64) (m *matrix.Matr
 	return m
 }
 
-func requireMatrixValues(tb testing.TB, got *matrix.Matrix, want []float64) {
+func requireMatrixValues(tb testing.TB, got *matrix.Matrix, want []float32) {
 	var (
-		values []float64
+		values []float32
 		err    error
 	)
 
@@ -382,15 +383,15 @@ func requireMatrixValues(tb testing.TB, got *matrix.Matrix, want []float64) {
 	testutil.RequireSliceAlmostEqual(tb, values, want, epsilon)
 }
 
-func geluTestValue(value float64) (result float64) {
-	result = 0.5 * value * (1 + math.Erf(value/math.Sqrt2))
+func geluTestValue(value float32) (result float32) {
+	result = 0.5 * value * (1 + f32.Erf(value/float32(math.Sqrt2)))
 	return result
 }
 
-func geluTestDerivative(value float64) (result float64) {
-	var density float64
+func geluTestDerivative(value float32) (result float32) {
+	var density float32
 
-	density = math.Exp(-0.5*value*value) / math.Sqrt(2*math.Pi)
-	result = 0.5*(1+math.Erf(value/math.Sqrt2)) + value*density
+	density = f32.Exp(-0.5*value*value) / f32.Sqrt(2*float32(math.Pi))
+	result = 0.5*(1+f32.Erf(value/float32(math.Sqrt2))) + value*density
 	return result
 }

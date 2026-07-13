@@ -142,16 +142,16 @@ func benchmarkOptimizerParameter(tb testing.TB, rows, cols, offset int) (paramet
 
 func benchmarkOptimizerMatrix(tb testing.TB, rows, cols, offset int) (m *matrix.Matrix) {
 	var (
-		values []float64
+		values []float32
 		err    error
 		index  int
 	)
 
 	tb.Helper()
 
-	values = make([]float64, rows*cols)
+	values = make([]float32, rows*cols)
 	for index = range values {
-		values[index] = float64((index+offset)%37)/37 - 0.5
+		values[index] = float32((index+offset)%37)/37 - 0.5
 	}
 
 	m, err = matrix.FromSlice(rows, cols, values)

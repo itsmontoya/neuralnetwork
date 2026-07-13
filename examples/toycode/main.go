@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 	"log"
-	"math"
 	"math/rand"
 	"strings"
 
 	"github.com/itsmontoya/neuralnetwork/activation"
 	"github.com/itsmontoya/neuralnetwork/data"
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/layer"
 	"github.com/itsmontoya/neuralnetwork/loss"
 	"github.com/itsmontoya/neuralnetwork/matrix"
@@ -213,8 +213,8 @@ func toyPrograms() (programs [][]string) {
 
 func newNextTokenDataset(sequences [][]int, vocabSize, padIndex, endIndex int) (dataset *data.Dataset, err error) {
 	var (
-		inputValues  []float64
-		targetValues []float64
+		inputValues  []float32
+		targetValues []float32
 		context      []int
 		sequence     []int
 		token        int
@@ -267,7 +267,7 @@ func shiftedContext(context []int, token int) (next []int) {
 	return next
 }
 
-func appendContext(values []float64, context []int, vocabSize int) (next []float64) {
+func appendContext(values []float32, context []int, vocabSize int) (next []float32) {
 	var (
 		token int
 		index int
@@ -288,7 +288,7 @@ func appendContext(values []float64, context []int, vocabSize int) (next []float
 	return next
 }
 
-func appendOneHot(values []float64, token, vocabSize int) (next []float64) {
+func appendOneHot(values []float32, token, vocabSize int) (next []float32) {
 	var index int
 
 	next = values
@@ -353,10 +353,10 @@ func printEpochMetrics(metrics model.EpochMetrics) (err error) {
 func generateProgram(network *model.Sequential, tokens []string, tokenIndexes map[string]int, random *rand.Rand) (generated []string, err error) {
 	var (
 		context          []int
-		inputValues      []float64
+		inputValues      []float32
 		input            *matrix.Matrix
 		predictions      *matrix.Matrix
-		predictionValues []float64
+		predictionValues []float32
 		nextToken        int
 		step             int
 	)
@@ -392,23 +392,23 @@ func generateProgram(network *model.Sequential, tokens []string, tokenIndexes ma
 	return generated, nil
 }
 
-func sampleToken(probabilities []float64, blockedToken int, random *rand.Rand) (token int) {
+func sampleToken(probabilities []float32, blockedToken int, random *rand.Rand) (token int) {
 	var (
 		index       int
-		probability float64
-		scaled      []float64
-		total       float64
-		threshold   float64
-		running     float64
+		probability float32
+		scaled      []float32
+		total       float32
+		threshold   float32
+		running     float32
 	)
 
-	scaled = make([]float64, len(probabilities))
+	scaled = make([]float32, len(probabilities))
 	for index, probability = range probabilities {
 		if index == blockedToken || probability <= 0 {
 			continue
 		}
 
-		scaled[index] = math.Pow(probability, 1/temperature)
+		scaled[index] = f32.Pow(probability, 1/temperature)
 		total += scaled[index]
 	}
 
@@ -416,7 +416,7 @@ func sampleToken(probabilities []float64, blockedToken int, random *rand.Rand) (
 		return argmax(probabilities)
 	}
 
-	threshold = random.Float64() * total
+	threshold = float32(random.Float64()) * total
 	for index, probability = range scaled {
 		running += probability
 		if running >= threshold {
@@ -428,11 +428,11 @@ func sampleToken(probabilities []float64, blockedToken int, random *rand.Rand) (
 	return token
 }
 
-func argmax(values []float64) (index int) {
+func argmax(values []float32) (index int) {
 	var (
 		current int
-		value   float64
-		best    float64
+		value   float32
+		best    float32
 	)
 
 	best = values[0]

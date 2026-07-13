@@ -20,13 +20,13 @@ func Test_NilReceivers_ReturnZeroValues(t *testing.T) {
 		exponential         *optimizer.ExponentialDecay
 		regularizerCount    int
 		stepSize            int
-		learningRate        float64
-		coefficient         float64
-		beta                float64
-		epsilon             float64
-		initialLearningRate float64
-		factor              float64
-		decayRate           float64
+		learningRate        float32
+		coefficient         float32
+		beta                float32
+		epsilon             float32
+		initialLearningRate float32
+		factor              float32
+		decayRate           float32
 	)
 
 	if learningRate = sgd.LearningRate(); learningRate != 0 {
@@ -224,13 +224,13 @@ func Test_NilReceivers_SettersReturnErrors(t *testing.T) {
 func Test_NilSchedules_LearningRateReturnsErrors(t *testing.T) {
 	type testcase struct {
 		name         string
-		learningRate func() (rate float64, err error)
+		learningRate func() (rate float32, err error)
 	}
 
 	tests := []testcase{
 		{
 			name: "constant",
-			learningRate: func() (rate float64, err error) {
+			learningRate: func() (rate float32, err error) {
 				var schedule *optimizer.ConstantLearningRate
 
 				rate, err = schedule.LearningRate(1)
@@ -239,7 +239,7 @@ func Test_NilSchedules_LearningRateReturnsErrors(t *testing.T) {
 		},
 		{
 			name: "step",
-			learningRate: func() (rate float64, err error) {
+			learningRate: func() (rate float32, err error) {
 				var schedule *optimizer.StepDecay
 
 				rate, err = schedule.LearningRate(1)
@@ -248,7 +248,7 @@ func Test_NilSchedules_LearningRateReturnsErrors(t *testing.T) {
 		},
 		{
 			name: "exponential",
-			learningRate: func() (rate float64, err error) {
+			learningRate: func() (rate float32, err error) {
 				var schedule *optimizer.ExponentialDecay
 
 				rate, err = schedule.LearningRate(1)
@@ -260,7 +260,7 @@ func Test_NilSchedules_LearningRateReturnsErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var (
-				rate float64
+				rate float32
 				err  error
 			)
 

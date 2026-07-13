@@ -14,10 +14,10 @@ func Test_NewXORDataset(t *testing.T) {
 		dataset      *data.Dataset
 		inputs       *matrix.Matrix
 		targets      *matrix.Matrix
-		inputValues  []float64
-		targetValues []float64
-		wantInputs   []float64
-		wantTargets  []float64
+		inputValues  []float32
+		targetValues []float32
+		wantInputs   []float32
+		wantTargets  []float32
 		index        int
 		err          error
 	)
@@ -49,7 +49,7 @@ func Test_NewXORDataset(t *testing.T) {
 		t.Fatalf("input Values returned error: %v", err)
 	}
 
-	wantInputs = []float64{
+	wantInputs = []float32{
 		0, 0,
 		0, 1,
 		1, 0,
@@ -73,7 +73,7 @@ func Test_NewXORDataset(t *testing.T) {
 		t.Fatalf("target Values returned error: %v", err)
 	}
 
-	wantTargets = []float64{0, 1, 1, 0}
+	wantTargets = []float32{0, 1, 1, 0}
 	for index = range wantTargets {
 		if targetValues[index] == wantTargets[index] {
 			continue

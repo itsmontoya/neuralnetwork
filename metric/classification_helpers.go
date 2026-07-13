@@ -2,18 +2,18 @@ package metric
 
 import (
 	"fmt"
-	"math"
 
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
-func configuredBinaryThreshold(metricName string, threshold float64, hasThreshold bool) (configured float64, err error) {
+func configuredBinaryThreshold(metricName string, threshold float32, hasThreshold bool) (configured float32, err error) {
 	configured = defaultBinaryThreshold
 	if hasThreshold {
 		configured = threshold
 	}
 
-	if math.IsNaN(configured) || math.IsInf(configured, 0) {
+	if f32.IsNaN(configured) || f32.IsInf(configured, 0) {
 		err = fmt.Errorf("metric: %s threshold must be finite: threshold=%g", metricName, configured)
 		return 0, err
 	}
@@ -21,16 +21,16 @@ func configuredBinaryThreshold(metricName string, threshold float64, hasThreshol
 	return configured, nil
 }
 
-func binaryClassValues(predictions, targets *matrix.Matrix, threshold float64) (predictedClasses, targetClasses []int, err error) {
+func binaryClassValues(predictions, targets *matrix.Matrix, threshold float32) (predictedClasses, targetClasses []int, err error) {
 	var (
 		rows             int
 		cols             int
-		predictionValues []float64
-		targetValues     []float64
+		predictionValues []float32
+		targetValues     []float32
 		index            int
 	)
 
-	if math.IsNaN(threshold) || math.IsInf(threshold, 0) {
+	if f32.IsNaN(threshold) || f32.IsInf(threshold, 0) {
 		err = fmt.Errorf("metric: binary classification threshold must be finite: threshold=%g", threshold)
 		return nil, nil, err
 	}
@@ -65,8 +65,8 @@ func categoricalClassValues(predictions, targets *matrix.Matrix) (classCount int
 	var (
 		rows             int
 		cols             int
-		predictionValues []float64
-		targetValues     []float64
+		predictionValues []float32
+		targetValues     []float32
 		row              int
 	)
 

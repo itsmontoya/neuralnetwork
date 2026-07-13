@@ -9,7 +9,7 @@ type Optimizer interface {
 	// Update applies one optimization step to parameters.
 	Update(parameters []*Parameter) (err error)
 	// LearningRate returns the optimizer learning rate.
-	LearningRate() (learningRate float64)
+	LearningRate() (learningRate float32)
 	// SetLearningRate updates the optimizer learning rate.
-	SetLearningRate(learningRate float64) (err error)
+	SetLearningRate(learningRate float32) (err error)
 }

@@ -2,13 +2,13 @@ package optimizer
 
 import (
 	"fmt"
-	"math"
 
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
-func validateLearningRate(learningRate float64) (err error) {
-	if learningRate <= 0 || math.IsNaN(learningRate) || math.IsInf(learningRate, 0) {
+func validateLearningRate(learningRate float32) (err error) {
+	if learningRate <= 0 || f32.IsNaN(learningRate) || f32.IsInf(learningRate, 0) {
 		err = fmt.Errorf("optimizer: learning rate must be positive and finite: learningRate=%g", learningRate)
 		return err
 	}
@@ -21,8 +21,8 @@ func nilOptimizerError(name string) (err error) {
 	return err
 }
 
-func validateUnitCoefficient(name string, value float64) (err error) {
-	if value < 0 || value >= 1 || math.IsNaN(value) || math.IsInf(value, 0) {
+func validateUnitCoefficient(name string, value float32) (err error) {
+	if value < 0 || value >= 1 || f32.IsNaN(value) || f32.IsInf(value, 0) {
 		err = fmt.Errorf("optimizer: %s must be greater than or equal to 0 and less than 1: %s=%g", name, name, value)
 		return err
 	}
@@ -30,8 +30,8 @@ func validateUnitCoefficient(name string, value float64) (err error) {
 	return nil
 }
 
-func validatePositiveFinite(name string, value float64) (err error) {
-	if value <= 0 || math.IsNaN(value) || math.IsInf(value, 0) {
+func validatePositiveFinite(name string, value float32) (err error) {
+	if value <= 0 || f32.IsNaN(value) || f32.IsInf(value, 0) {
 		err = fmt.Errorf("optimizer: %s must be positive and finite: %s=%g", name, name, value)
 		return err
 	}
@@ -55,7 +55,7 @@ func validateParameters(parameters []*Parameter) (err error) {
 	return nil
 }
 
-func matrixValues(source *matrix.Matrix) (rows, cols int, values []float64, err error) {
+func matrixValues(source *matrix.Matrix) (rows, cols int, values []float32, err error) {
 	if values, err = source.Values(); err != nil {
 		return 0, 0, nil, err
 	}

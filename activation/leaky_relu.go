@@ -19,7 +19,7 @@ func (l LeakyReLU) Backward(input, outputGradient *matrix.Matrix) (inputGradient
 	return inputGradient, err
 }
 
-func leakyReLUValue(value float64) (result float64) {
+func leakyReLUValue(value float32) (result float32) {
 	if value > 0 {
 		result = value
 		return result
@@ -29,7 +29,7 @@ func leakyReLUValue(value float64) (result float64) {
 	return result
 }
 
-func leakyReLUDerivative(value float64) (result float64) {
+func leakyReLUDerivative(value float32) (result float32) {
 	if value > 0 {
 		return 1
 	}

@@ -126,8 +126,8 @@ func benchmarkBatch(tb testing.TB) (batch *data.Batch) {
 
 func benchmarkDataset(tb testing.TB, samples, inputSize, targetSize int) (dataset *data.Dataset) {
 	var (
-		inputValues  []float64
-		targetValues []float64
+		inputValues  []float32
+		targetValues []float32
 		inputs       *matrix.Matrix
 		targets      *matrix.Matrix
 		row          int
@@ -137,16 +137,16 @@ func benchmarkDataset(tb testing.TB, samples, inputSize, targetSize int) (datase
 
 	tb.Helper()
 
-	inputValues = make([]float64, samples*inputSize)
-	targetValues = make([]float64, samples*targetSize)
+	inputValues = make([]float32, samples*inputSize)
+	targetValues = make([]float32, samples*targetSize)
 
 	for row = 0; row < samples; row++ {
 		for col = 0; col < inputSize; col++ {
-			inputValues[row*inputSize+col] = float64(row+col) / float64(inputSize)
+			inputValues[row*inputSize+col] = float32(row+col) / float32(inputSize)
 		}
 
 		for col = 0; col < targetSize; col++ {
-			targetValues[row*targetSize+col] = float64(row-col) / float64(targetSize)
+			targetValues[row*targetSize+col] = float32(row-col) / float32(targetSize)
 		}
 	}
 

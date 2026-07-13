@@ -30,7 +30,7 @@ func Test_NewEarlyStopping_ValidatesConfig(t *testing.T) {
 	type testcase struct {
 		name     string
 		patience int
-		minDelta float64
+		minDelta float32
 	}
 
 	tests := []testcase{
@@ -52,12 +52,12 @@ func Test_NewEarlyStopping_ValidatesConfig(t *testing.T) {
 		{
 			name:     "nan min delta",
 			patience: 1,
-			minDelta: math.NaN(),
+			minDelta: float32(math.NaN()),
 		},
 		{
 			name:     "infinite min delta",
 			patience: 1,
-			minDelta: math.Inf(1),
+			minDelta: float32(math.Inf(1)),
 		},
 	}
 

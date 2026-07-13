@@ -14,7 +14,7 @@ func Test_Optimizer_Interface(t *testing.T) {
 }
 
 type mockOptimizer struct {
-	learningRate       float64
+	learningRate       float32
 	updateFunc         func(parameters []*optimizer.Parameter) (err error)
 	setLearningRateErr error
 }
@@ -28,12 +28,12 @@ func (m *mockOptimizer) Update(parameters []*optimizer.Parameter) (err error) {
 	return nil
 }
 
-func (m *mockOptimizer) LearningRate() (learningRate float64) {
+func (m *mockOptimizer) LearningRate() (learningRate float32) {
 	learningRate = m.learningRate
 	return learningRate
 }
 
-func (m *mockOptimizer) SetLearningRate(learningRate float64) (err error) {
+func (m *mockOptimizer) SetLearningRate(learningRate float32) (err error) {
 	if m.setLearningRateErr != nil {
 		err = m.setLearningRateErr
 		return err

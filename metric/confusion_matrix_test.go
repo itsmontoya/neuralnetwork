@@ -14,12 +14,12 @@ func Test_NewBinaryConfusionMatrix(t *testing.T) {
 		confusionMatrix *metric.ConfusionMatrix
 		counts          [][]int
 		count           int
-		value           float64
+		value           float32
 		err             error
 	)
 
-	predictions = mustMatrix(t, 5, 1, []float64{0.2, 0.8, 0.6, 0.4, 0.9})
-	targets = mustMatrix(t, 5, 1, []float64{0, 1, 0, 1, 1})
+	predictions = mustMatrix(t, 5, 1, []float32{0.2, 0.8, 0.6, 0.4, 0.9})
+	targets = mustMatrix(t, 5, 1, []float32{0, 1, 0, 1, 1})
 
 	confusionMatrix, err = metric.NewBinaryConfusionMatrix(predictions, targets)
 	if err != nil {
@@ -106,8 +106,8 @@ func Test_NewBinaryConfusionMatrixWithThreshold(t *testing.T) {
 		err             error
 	)
 
-	predictions = mustMatrix(t, 3, 1, []float64{0.49, 0.5, 0.51})
-	targets = mustMatrix(t, 3, 1, []float64{0, 0, 1})
+	predictions = mustMatrix(t, 3, 1, []float32{0.49, 0.5, 0.51})
+	targets = mustMatrix(t, 3, 1, []float32{0, 0, 1})
 
 	confusionMatrix, err = metric.NewBinaryConfusionMatrixWithThreshold(predictions, targets, 0.51)
 	if err != nil {
@@ -131,17 +131,17 @@ func Test_NewCategoricalConfusionMatrix(t *testing.T) {
 		targets         *matrix.Matrix
 		confusionMatrix *metric.ConfusionMatrix
 		counts          [][]int
-		value           float64
+		value           float32
 		err             error
 	)
 
-	predictions = mustMatrix(t, 4, 3, []float64{
+	predictions = mustMatrix(t, 4, 3, []float32{
 		0.1, 0.8, 0.1,
 		0.6, 0.2, 0.2,
 		0.1, 0.2, 0.7,
 		0.1, 0.3, 0.6,
 	})
-	targets = mustMatrix(t, 4, 3, []float64{
+	targets = mustMatrix(t, 4, 3, []float32{
 		0, 1, 0,
 		1, 0, 0,
 		0, 1, 0,
@@ -209,8 +209,8 @@ func Test_ConfusionMatrix_ValidatesClassIndex(t *testing.T) {
 		err             error
 	)
 
-	predictions = mustMatrix(t, 1, 1, []float64{0.5})
-	targets = mustMatrix(t, 1, 1, []float64{1})
+	predictions = mustMatrix(t, 1, 1, []float32{0.5})
+	targets = mustMatrix(t, 1, 1, []float32{1})
 
 	confusionMatrix, err = metric.NewBinaryConfusionMatrix(predictions, targets)
 	if err != nil {
@@ -230,16 +230,16 @@ func Test_ConfusionMatrix_ValidatesInputs(t *testing.T) {
 		err         error
 	)
 
-	predictions = mustMatrix(t, 1, 2, []float64{0.4, 0.6})
-	targets = mustMatrix(t, 1, 2, []float64{0, 1})
+	predictions = mustMatrix(t, 1, 2, []float32{0.4, 0.6})
+	targets = mustMatrix(t, 1, 2, []float32{0, 1})
 
 	_, err = metric.NewBinaryConfusionMatrix(predictions, targets)
 	if err == nil {
 		t.Fatal("NewBinaryConfusionMatrix error = nil, want error")
 	}
 
-	predictions = mustMatrix(t, 1, 3, []float64{0.1, 0.8, 0.1})
-	targets = mustMatrix(t, 1, 3, []float64{0.5, 0.5, 0})
+	predictions = mustMatrix(t, 1, 3, []float32{0.1, 0.8, 0.1})
+	targets = mustMatrix(t, 1, 3, []float32{0.5, 0.5, 0})
 
 	_, err = metric.NewCategoricalConfusionMatrix(predictions, targets)
 	if err == nil {

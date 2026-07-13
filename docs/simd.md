@@ -1,23 +1,23 @@
 # SIMD Design
 
 Captured on July 7, 2026.
-Updated on July 11, 2026 for hybrid local assembly and `github.com/tphakala/simd` integration.
+Updated on July 12, 2026 for `float32` matrix storage and
+`github.com/tphakala/simd` integration.
 
 ## Decision
 
-v2 SIMD work uses local architecture-specific assembly for add-style contiguous
-`float64` slice kernels on `arm64` and `amd64`, and delegates dot product and
-multiply-style kernels to `github.com/tphakala/simd/f64`. That dependency
-provides runtime CPU feature dispatch and pure Go fallbacks behind its API. Pure
-Go matrix kernels remain the local portable baseline for unsupported platforms
-and for builds using this repository's `purego` opt-out tag.
+SIMD work uses `github.com/tphakala/simd/f32` for `float32` dot product and
+elementwise kernels on `arm64` and `amd64`. That dependency provides runtime CPU
+feature dispatch and pure Go fallbacks behind its API. Pure Go matrix kernels
+remain the local portable baseline for unsupported platforms and for builds
+using this repository's `purego` opt-out tag.
 
 The SIMD boundary stays inside the `matrix` package. Public matrix methods keep
 owning validation, destination shape checks, alias checks, and ownership
-contracts. Private kernels receive already-validated `[]float64` storage and do
+contracts. Private kernels receive already-validated `[]float32` storage and do
 not expose mutable matrix data outside the package.
 
-Checked-in architecture-specific assembly should be kept only where benchmark
+Checked-in architecture-specific assembly should be added only where benchmark
 evidence shows it beats the external SIMD dependency or the dependency cannot
 cover the operation cleanly.
 
@@ -58,8 +58,8 @@ architectures. The public method validates inputs before calling the private
 kernel, so fallback and SIMD paths share the same public error behavior.
 
 The active private kernel may choose a scalar fallback for small inputs or
-unsupported CPU features. Local add-style assembly keeps a private length cutoff.
-When using `tphakala/simd`, runtime CPU dispatch stays inside the dependency.
+unsupported CPU features. When using `tphakala/simd`, runtime CPU dispatch stays
+inside the dependency.
 
 Floating-point reductions such as dot products and sums may not be bit-for-bit
 identical if SIMD changes accumulation order. Correctness tests should compare
@@ -89,13 +89,11 @@ Current layout:
 
 ```text
 matrix/elementwise_pure.go        pure Go helpers available to tests
-matrix/elementwise_arm64.go       local add assembly wrappers, f64 multiply wrappers
-matrix/elementwise_arm64.s        local arm64 add assembly kernels
-matrix/elementwise_amd64.go       local add assembly wrappers, f64 multiply wrappers
-matrix/elementwise_amd64.s        local amd64 add assembly kernels
+matrix/elementwise_arm64.go       f32 SIMD elementwise wrappers
+matrix/elementwise_amd64.go       f32 SIMD elementwise wrappers
 matrix/elementwise_default.go     local pure Go fallback wrappers
 matrix/dot_product.go             pure Go dot product helper
-matrix/dot_product_simd.go        f64 SIMD dot product wrapper
+matrix/dot_product_simd.go        f32 SIMD dot product wrapper
 matrix/dot_product_default.go     local pure Go dot product wrapper
 ```
 
@@ -106,7 +104,7 @@ builds.
 
 Attempt kernels in this order:
 
-1. Dot product for contiguous `[]float64` inputs.
+1. Dot product for contiguous `[]float32` inputs.
 2. Elementwise destination and in-place operations.
 3. Reductions only if later profiling shows they remain hot.
 

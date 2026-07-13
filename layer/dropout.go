@@ -3,14 +3,14 @@ package layer
 import (
 	"errors"
 	"fmt"
-	"math"
 	"math/rand"
 
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
 // NewDropout constructs an inverted dropout layer with training mode enabled.
-func NewDropout(rate float64, random *rand.Rand) (out *Dropout, err error) {
+func NewDropout(rate float32, random *rand.Rand) (out *Dropout, err error) {
 	if err = validateDropoutRate(rate); err != nil {
 		return nil, err
 	}
@@ -33,15 +33,15 @@ func NewDropout(rate float64, random *rand.Rand) (out *Dropout, err error) {
 // Training forward passes use inverted dropout: kept activations are scaled by
 // 1/(1-rate), so evaluation passes do not need additional scaling.
 type Dropout struct {
-	rate                 float64
+	rate                 float32
 	random               *rand.Rand
 	training             bool
 	maskCache            *matrix.Matrix
 	outputScratch        *matrix.Matrix
 	inputGradientScratch *matrix.Matrix
-	inputValues          []float64
-	outputValues         []float64
-	maskValues           []float64
+	inputValues          []float32
+	outputValues         []float32
+	maskValues           []float32
 	forwardRows          int
 	forwardCols          int
 	forwardCalled        bool
@@ -54,8 +54,8 @@ func (d *Dropout) Forward(input *matrix.Matrix) (output *matrix.Matrix, err erro
 		rows       int
 		cols       int
 		index      int
-		scale      float64
-		mask       float64
+		scale      float32
+		mask       float32
 		valueCount int
 	)
 
@@ -122,7 +122,7 @@ func (d *Dropout) Forward(input *matrix.Matrix) (output *matrix.Matrix, err erro
 	scale = 1 / (1 - d.rate)
 	for index = range d.inputValues {
 		mask = scale
-		if d.random.Float64() < d.rate {
+		if float32(d.random.Float64()) < d.rate {
 			mask = 0
 		}
 
@@ -188,7 +188,7 @@ func (d *Dropout) Backward(outputGradient *matrix.Matrix) (inputGradient *matrix
 }
 
 // Rate returns the probability that an activation is dropped during training.
-func (d *Dropout) Rate() (rate float64) {
+func (d *Dropout) Rate() (rate float32) {
 	if d == nil {
 		return 0
 	}
@@ -265,8 +265,8 @@ func (d *Dropout) validateOutputGradient(outputGradient *matrix.Matrix) (err err
 	return nil
 }
 
-func validateDropoutRate(rate float64) (err error) {
-	if rate < 0 || rate >= 1 || math.IsNaN(rate) || math.IsInf(rate, 0) {
+func validateDropoutRate(rate float32) (err error) {
+	if rate < 0 || rate >= 1 || f32.IsNaN(rate) || f32.IsInf(rate, 0) {
 		err = fmt.Errorf("layer: dropout rate must be greater than or equal to 0 and less than 1: rate=%g", rate)
 		return err
 	}

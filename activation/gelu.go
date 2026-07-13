@@ -1,8 +1,7 @@
 package activation
 
 import (
-	"math"
-
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
@@ -26,15 +25,15 @@ func (g GELU) Backward(input, outputGradient *matrix.Matrix) (inputGradient *mat
 	return inputGradient, err
 }
 
-func geluValue(value float64) (result float64) {
-	result = 0.5 * value * (1 + math.Erf(value*geluInverseSqrtTwo))
+func geluValue(value float32) (result float32) {
+	result = 0.5 * value * (1 + f32.Erf(value*geluInverseSqrtTwo))
 	return result
 }
 
-func geluDerivative(value float64) (result float64) {
-	var density float64
+func geluDerivative(value float32) (result float32) {
+	var density float32
 
-	density = geluInverseSqrtTwoPi * math.Exp(-0.5*value*value)
-	result = 0.5*(1+math.Erf(value*geluInverseSqrtTwo)) + value*density
+	density = geluInverseSqrtTwoPi * f32.Exp(-0.5*value*value)
+	result = 0.5*(1+f32.Erf(value*geluInverseSqrtTwo)) + value*density
 	return result
 }

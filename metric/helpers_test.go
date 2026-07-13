@@ -7,9 +7,9 @@ import (
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
-const epsilon = 1e-12
+const epsilon = 1e-5
 
-func mustMatrix(tb testing.TB, rows, cols int, values []float64) (m *matrix.Matrix) {
+func mustMatrix(tb testing.TB, rows, cols int, values []float32) (m *matrix.Matrix) {
 	var err error
 
 	tb.Helper()
@@ -22,7 +22,7 @@ func mustMatrix(tb testing.TB, rows, cols int, values []float64) (m *matrix.Matr
 	return m
 }
 
-func requireAlmostEqual(tb testing.TB, got, want float64) {
+func requireAlmostEqual(tb testing.TB, got, want float32) {
 	tb.Helper()
 
 	testutil.RequireAlmostEqual(tb, got, want, epsilon)

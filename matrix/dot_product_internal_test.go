@@ -5,20 +5,20 @@ import (
 	"testing"
 )
 
-const dotProductEpsilon = 1e-12
+const dotProductEpsilon = 1e-4
 
 func Test_DotProduct(t *testing.T) {
 	type testcase struct {
 		name  string
-		left  []float64
-		right []float64
+		left  []float32
+		right []float32
 	}
 
 	tests := []testcase{
 		{
 			name:  "empty",
-			left:  []float64{},
-			right: []float64{},
+			left:  []float32{},
+			right: []float32{},
 		},
 		{
 			name:  "length one",
@@ -52,15 +52,15 @@ func Test_DotProduct(t *testing.T) {
 		},
 		{
 			name:  "inf and nan",
-			left:  []float64{1, math.Inf(1), 2, math.NaN()},
-			right: []float64{2, 3, math.Inf(-1), 4},
+			left:  []float32{1, float32(float32(math.Inf(1))), 2, float32(float32(math.NaN()))},
+			right: []float32{2, 3, float32(float32(math.Inf(-1))), 4},
 		},
 	}
 
 	var (
 		tt   testcase
-		got  float64
-		want float64
+		got  float32
+		want float32
 	)
 
 	for _, tt = range tests {
@@ -72,22 +72,22 @@ func Test_DotProduct(t *testing.T) {
 	}
 }
 
-func dotProductTestValues(length int, offset float64) (values []float64) {
+func dotProductTestValues(length int, offset float32) (values []float32) {
 	var index int
 
-	values = make([]float64, length)
+	values = make([]float32, length)
 	for index = range values {
-		values[index] = offset + float64(index%17) - 8
+		values[index] = offset + float32(index%17) - 8
 	}
 
 	return values
 }
 
-func requireDotProductEqual(tb testing.TB, got, want float64) {
+func requireDotProductEqual(tb testing.TB, got, want float32) {
 	tb.Helper()
 
-	if math.IsNaN(want) {
-		if !math.IsNaN(got) {
+	if math.IsNaN(float64(want)) {
+		if !math.IsNaN(float64(got)) {
 			tb.Fatalf("dot product = %g, want NaN", got)
 		}
 
@@ -98,7 +98,7 @@ func requireDotProductEqual(tb testing.TB, got, want float64) {
 		return
 	}
 
-	if math.Abs(got-want) <= dotProductEpsilon {
+	if float32(math.Abs(float64(got-want))) <= dotProductEpsilon {
 		return
 	}
 
@@ -107,6 +107,6 @@ func requireDotProductEqual(tb testing.TB, got, want float64) {
 		got,
 		want,
 		dotProductEpsilon,
-		math.Abs(got-want),
+		float32(math.Abs(float64(got-want))),
 	)
 }

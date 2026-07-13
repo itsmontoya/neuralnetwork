@@ -47,11 +47,11 @@ func train() (predictions *matrix.Matrix, err error) {
 
 	random = rand.New(rand.NewSource(1))
 
-	if inputs, err = matrix.FromSlice(4, 2, []float64{0, 0, 0, 1, 1, 0, 1, 1}); err != nil {
+	if inputs, err = matrix.FromSlice(4, 2, []float32{0, 0, 0, 1, 1, 0, 1, 1}); err != nil {
 		return nil, err
 	}
 
-	if targets, err = matrix.FromSlice(4, 1, []float64{0, 1, 1, 0}); err != nil {
+	if targets, err = matrix.FromSlice(4, 1, []float32{0, 1, 1, 0}); err != nil {
 		return nil, err
 	}
 

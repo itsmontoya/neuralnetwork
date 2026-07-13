@@ -22,7 +22,7 @@ func Test_Metric_Interface(t *testing.T) {
 
 type mockMetric struct{}
 
-func (m mockMetric) Value(predictions, targets *matrix.Matrix) (value float64, err error) {
+func (m mockMetric) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
 	value = 0
 	return value, nil
 }

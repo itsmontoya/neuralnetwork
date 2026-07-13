@@ -16,7 +16,7 @@ func NewBinaryConfusionMatrix(predictions, targets *matrix.Matrix) (out *Confusi
 
 // NewBinaryConfusionMatrixWithThreshold constructs a binary confusion matrix
 // with a finite threshold.
-func NewBinaryConfusionMatrixWithThreshold(predictions, targets *matrix.Matrix, threshold float64) (out *ConfusionMatrix, err error) {
+func NewBinaryConfusionMatrixWithThreshold(predictions, targets *matrix.Matrix, threshold float32) (out *ConfusionMatrix, err error) {
 	var (
 		predictedClasses []int
 		targetClasses    []int
@@ -151,7 +151,7 @@ func (c *ConfusionMatrix) At(targetClass, predictedClass int) (count int, err er
 }
 
 // Accuracy returns the fraction of samples on the matrix diagonal.
-func (c *ConfusionMatrix) Accuracy() (value float64, err error) {
+func (c *ConfusionMatrix) Accuracy() (value float32, err error) {
 	var (
 		classIndex int
 		correct    int
@@ -169,12 +169,12 @@ func (c *ConfusionMatrix) Accuracy() (value float64, err error) {
 		correct += c.counts[classIndex][classIndex]
 	}
 
-	value = float64(correct) / float64(c.total)
+	value = float32(correct) / float32(c.total)
 	return value, nil
 }
 
 // Precision returns precision for classIndex.
-func (c *ConfusionMatrix) Precision(classIndex int) (value float64, err error) {
+func (c *ConfusionMatrix) Precision(classIndex int) (value float32, err error) {
 	var predictedTotal int
 
 	if err = c.validateClass(classIndex); err != nil {
@@ -186,12 +186,12 @@ func (c *ConfusionMatrix) Precision(classIndex int) (value float64, err error) {
 		return 0, nil
 	}
 
-	value = float64(c.counts[classIndex][classIndex]) / float64(predictedTotal)
+	value = float32(c.counts[classIndex][classIndex]) / float32(predictedTotal)
 	return value, nil
 }
 
 // Recall returns recall for classIndex.
-func (c *ConfusionMatrix) Recall(classIndex int) (value float64, err error) {
+func (c *ConfusionMatrix) Recall(classIndex int) (value float32, err error) {
 	var targetTotal int
 
 	if err = c.validateClass(classIndex); err != nil {
@@ -203,15 +203,15 @@ func (c *ConfusionMatrix) Recall(classIndex int) (value float64, err error) {
 		return 0, nil
 	}
 
-	value = float64(c.counts[classIndex][classIndex]) / float64(targetTotal)
+	value = float32(c.counts[classIndex][classIndex]) / float32(targetTotal)
 	return value, nil
 }
 
 // F1 returns the harmonic mean of precision and recall for classIndex.
-func (c *ConfusionMatrix) F1(classIndex int) (value float64, err error) {
+func (c *ConfusionMatrix) F1(classIndex int) (value float32, err error) {
 	var (
-		precision float64
-		recall    float64
+		precision float32
+		recall    float32
 	)
 
 	if precision, err = c.Precision(classIndex); err != nil {
@@ -231,27 +231,27 @@ func (c *ConfusionMatrix) F1(classIndex int) (value float64, err error) {
 }
 
 // MacroPrecision returns the unweighted mean precision across classes.
-func (c *ConfusionMatrix) MacroPrecision() (value float64, err error) {
+func (c *ConfusionMatrix) MacroPrecision() (value float32, err error) {
 	value, err = c.macro(c.Precision)
 	return value, err
 }
 
 // MacroRecall returns the unweighted mean recall across classes.
-func (c *ConfusionMatrix) MacroRecall() (value float64, err error) {
+func (c *ConfusionMatrix) MacroRecall() (value float32, err error) {
 	value, err = c.macro(c.Recall)
 	return value, err
 }
 
 // MacroF1 returns the unweighted mean F1 across classes.
-func (c *ConfusionMatrix) MacroF1() (value float64, err error) {
+func (c *ConfusionMatrix) MacroF1() (value float32, err error) {
 	value, err = c.macro(c.F1)
 	return value, err
 }
 
-func (c *ConfusionMatrix) macro(fn func(int) (float64, error)) (value float64, err error) {
+func (c *ConfusionMatrix) macro(fn func(int) (float32, error)) (value float32, err error) {
 	var (
 		classIndex int
-		next       float64
+		next       float32
 	)
 
 	if err = c.validate(); err != nil {
@@ -266,7 +266,7 @@ func (c *ConfusionMatrix) macro(fn func(int) (float64, error)) (value float64, e
 		value += next
 	}
 
-	value /= float64(len(c.counts))
+	value /= float32(len(c.counts))
 	return value, nil
 }
 

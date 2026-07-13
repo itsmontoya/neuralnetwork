@@ -13,7 +13,7 @@ func Test_NewUniform(t *testing.T) {
 		random         *rand.Rand
 		expectedRandom *rand.Rand
 		got            *matrix.Matrix
-		expected       []float64
+		expected       []float32
 		index          int
 		err            error
 	)
@@ -25,9 +25,9 @@ func Test_NewUniform(t *testing.T) {
 		t.Fatalf("NewUniform returned error: %v", err)
 	}
 
-	expected = make([]float64, 6)
+	expected = make([]float32, 6)
 	for index = range expected {
-		expected[index] = -0.25 + expectedRandom.Float64()
+		expected[index] = -0.25 + float32(expectedRandom.Float64())
 	}
 
 	requireMatrixValues(t, got, expected)
@@ -38,7 +38,7 @@ func Test_NewNormal(t *testing.T) {
 		random         *rand.Rand
 		expectedRandom *rand.Rand
 		got            *matrix.Matrix
-		expected       []float64
+		expected       []float32
 		index          int
 		err            error
 	)
@@ -50,9 +50,9 @@ func Test_NewNormal(t *testing.T) {
 		t.Fatalf("NewNormal returned error: %v", err)
 	}
 
-	expected = make([]float64, 6)
+	expected = make([]float32, 6)
 	for index = range expected {
-		expected[index] = 1.5 + 0.25*expectedRandom.NormFloat64()
+		expected[index] = 1.5 + 0.25*float32(expectedRandom.NormFloat64())
 	}
 
 	requireMatrixValues(t, got, expected)
@@ -63,8 +63,8 @@ func Test_NewXavierUniform(t *testing.T) {
 		random         *rand.Rand
 		expectedRandom *rand.Rand
 		got            *matrix.Matrix
-		expected       []float64
-		limit          float64
+		expected       []float32
+		limit          float32
 		index          int
 		err            error
 	)
@@ -84,10 +84,10 @@ func Test_NewXavierUniform(t *testing.T) {
 		t.Fatalf("Cols() = %d, want 3", got.Cols())
 	}
 
-	limit = math.Sqrt(6 / float64(2+3))
-	expected = make([]float64, 6)
+	limit = float32(math.Sqrt(float64(6 / float32(2+3))))
+	expected = make([]float32, 6)
 	for index = range expected {
-		expected[index] = -limit + (2 * limit * expectedRandom.Float64())
+		expected[index] = -limit + (2 * limit * float32(expectedRandom.Float64()))
 	}
 
 	requireMatrixValues(t, got, expected)
@@ -98,8 +98,8 @@ func Test_NewHeNormal(t *testing.T) {
 		random         *rand.Rand
 		expectedRandom *rand.Rand
 		got            *matrix.Matrix
-		expected       []float64
-		stddev         float64
+		expected       []float32
+		stddev         float32
 		index          int
 		err            error
 	)
@@ -119,10 +119,10 @@ func Test_NewHeNormal(t *testing.T) {
 		t.Fatalf("Cols() = %d, want 3", got.Cols())
 	}
 
-	stddev = math.Sqrt(2 / float64(4))
-	expected = make([]float64, 12)
+	stddev = float32(math.Sqrt(float64(2 / float32(4))))
+	expected = make([]float32, 12)
 	for index = range expected {
-		expected[index] = stddev * expectedRandom.NormFloat64()
+		expected[index] = stddev * float32(expectedRandom.NormFloat64())
 	}
 
 	requireMatrixValues(t, got, expected)

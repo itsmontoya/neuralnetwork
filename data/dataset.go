@@ -189,7 +189,7 @@ func (d *Dataset) Batches(batchSize int, random *rand.Rand) (batches []*Batch, e
 // is floored from sampleCount*testFraction and must leave at least one sample
 // in each split. When random is not nil, rows are shuffled with the provided
 // source before splitting. A nil random source preserves dataset order.
-func (d *Dataset) Split(testFraction float64, random *rand.Rand) (train, test *Dataset, err error) {
+func (d *Dataset) Split(testFraction float32, random *rand.Rand) (train, test *Dataset, err error) {
 	var (
 		sampleCount  int
 		testCount    int
@@ -213,7 +213,7 @@ func (d *Dataset) Split(testFraction float64, random *rand.Rand) (train, test *D
 	}
 
 	sampleCount = d.inputs.Rows()
-	testCount = int(float64(sampleCount) * testFraction)
+	testCount = int(float32(sampleCount) * testFraction)
 	trainCount = sampleCount - testCount
 	if testCount == 0 || trainCount == 0 {
 		err = fmt.Errorf("data: test fraction must produce non-empty splits: samples=%d testFraction=%g", sampleCount, testFraction)

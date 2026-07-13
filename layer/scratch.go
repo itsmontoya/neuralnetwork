@@ -12,12 +12,12 @@ func matrixScratch(current *matrix.Matrix, rows, cols int) (scratch *matrix.Matr
 	return scratch, err
 }
 
-func floatScratch(current []float64, length int) (scratch []float64) {
+func floatScratch(current []float32, length int) (scratch []float32) {
 	if len(current) == length {
 		scratch = current
 		return scratch
 	}
 
-	scratch = make([]float64, length)
+	scratch = make([]float32, length)
 	return scratch
 }

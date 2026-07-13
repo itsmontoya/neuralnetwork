@@ -15,8 +15,8 @@ func Test_L1_Apply(t *testing.T) {
 		err       error
 	)
 
-	parameter = mustParameter(t, 1, 3, []float64{2, -4, 0})
-	accumulateGradient(t, parameter, []float64{0.5, 0.5, 0.5})
+	parameter = mustParameter(t, 1, 3, []float32{2, -4, 0})
+	accumulateGradient(t, parameter, []float32{0.5, 0.5, 0.5})
 
 	l1, err = optimizer.NewL1(0.25)
 	if err != nil {
@@ -28,7 +28,7 @@ func Test_L1_Apply(t *testing.T) {
 		t.Fatalf("Apply returned error: %v", err)
 	}
 
-	requireMatrixValues(t, parameter.Gradient(), []float64{0.75, 0.25, 0.5})
+	requireMatrixValues(t, parameter.Gradient(), []float32{0.75, 0.25, 0.5})
 }
 
 func Test_L1_SetCoefficient(t *testing.T) {
@@ -52,7 +52,7 @@ func Test_L1_SetCoefficient(t *testing.T) {
 func Test_NewL1_ValidatesCoefficient(t *testing.T) {
 	type testcase struct {
 		name        string
-		coefficient float64
+		coefficient float32
 	}
 
 	tests := []testcase{
@@ -62,7 +62,7 @@ func Test_NewL1_ValidatesCoefficient(t *testing.T) {
 		},
 		{
 			name:        "nan",
-			coefficient: math.NaN(),
+			coefficient: float32(math.NaN()),
 		},
 	}
 

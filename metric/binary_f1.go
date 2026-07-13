@@ -3,7 +3,7 @@ package metric
 import "github.com/itsmontoya/neuralnetwork/matrix"
 
 // NewBinaryF1 constructs BinaryF1 with the provided finite threshold.
-func NewBinaryF1(threshold float64) (b BinaryF1, err error) {
+func NewBinaryF1(threshold float32) (b BinaryF1, err error) {
 	if _, err = configuredBinaryThreshold("binary f1", threshold, true); err != nil {
 		return b, err
 	}
@@ -17,14 +17,14 @@ func NewBinaryF1(threshold float64) (b BinaryF1, err error) {
 //
 // The zero value uses a threshold of 0.5. Predictions greater than or equal to
 // the threshold are treated as class 1; lower predictions are treated as class 0.
-// Custom thresholds may be any finite float64, including values outside [0, 1].
+// Custom thresholds may be any finite float32, including values outside [0, 1].
 type BinaryF1 struct {
-	threshold    float64
+	threshold    float32
 	hasThreshold bool
 }
 
 // Value returns positive-class F1 for [batchSize, 1] predictions.
-func (b BinaryF1) Value(predictions, targets *matrix.Matrix) (value float64, err error) {
+func (b BinaryF1) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
 	var confusionMatrix *ConfusionMatrix
 
 	if confusionMatrix, err = b.confusionMatrix(predictions, targets); err != nil {
@@ -36,7 +36,7 @@ func (b BinaryF1) Value(predictions, targets *matrix.Matrix) (value float64, err
 }
 
 func (b BinaryF1) confusionMatrix(predictions, targets *matrix.Matrix) (confusionMatrix *ConfusionMatrix, err error) {
-	var threshold float64
+	var threshold float32
 
 	if threshold, err = configuredBinaryThreshold("binary f1", b.threshold, b.hasThreshold); err != nil {
 		return nil, err

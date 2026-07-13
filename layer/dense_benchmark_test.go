@@ -161,16 +161,16 @@ func benchmarkDense(tb testing.TB, inputSize, outputSize int) (dense *layer.Dens
 
 func benchmarkLayerMatrix(tb testing.TB, rows, cols int) (m *matrix.Matrix) {
 	var (
-		values []float64
+		values []float32
 		err    error
 		index  int
 	)
 
 	tb.Helper()
 
-	values = make([]float64, rows*cols)
+	values = make([]float32, rows*cols)
 	for index = range values {
-		values[index] = float64(index%29)/29 - 0.5
+		values[index] = float32(index%29)/29 - 0.5
 	}
 
 	m, err = matrix.FromSlice(rows, cols, values)

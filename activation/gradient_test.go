@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	activationGradientCheckStep      = 1e-5
-	activationGradientCheckTolerance = 1e-8
+	activationGradientCheckStep      = 1e-3
+	activationGradientCheckTolerance = 5e-3
 )
 
 func Test_Activation_GradientCheck(t *testing.T) {
@@ -27,11 +27,11 @@ func Test_Activation_GradientCheck(t *testing.T) {
 		{
 			name:       "elu",
 			activation: activation.ELU{},
-			input: mustMatrix(t, 2, 2, []float64{
+			input: mustMatrix(t, 2, 2, []float32{
 				-0.8, 0.4,
 				1.1, -0.3,
 			}),
-			gradient: mustMatrix(t, 2, 2, []float64{
+			gradient: mustMatrix(t, 2, 2, []float32{
 				0.2, -0.7,
 				1.3, 0.5,
 			}),
@@ -39,11 +39,11 @@ func Test_Activation_GradientCheck(t *testing.T) {
 		{
 			name:       "gelu",
 			activation: activation.GELU{},
-			input: mustMatrix(t, 2, 2, []float64{
+			input: mustMatrix(t, 2, 2, []float32{
 				-1.2, 0.7,
 				1.6, -0.4,
 			}),
-			gradient: mustMatrix(t, 2, 2, []float64{
+			gradient: mustMatrix(t, 2, 2, []float32{
 				0.6, -0.2,
 				-0.9, 1.4,
 			}),
@@ -51,11 +51,11 @@ func Test_Activation_GradientCheck(t *testing.T) {
 		{
 			name:       "leaky relu",
 			activation: activation.LeakyReLU{},
-			input: mustMatrix(t, 2, 2, []float64{
+			input: mustMatrix(t, 2, 2, []float32{
 				-0.9, 0.25,
 				1.2, -1.5,
 			}),
-			gradient: mustMatrix(t, 2, 2, []float64{
+			gradient: mustMatrix(t, 2, 2, []float32{
 				-0.4, 0.8,
 				1.1, -0.6,
 			}),
@@ -63,11 +63,11 @@ func Test_Activation_GradientCheck(t *testing.T) {
 		{
 			name:       "relu",
 			activation: activation.ReLU{},
-			input: mustMatrix(t, 2, 2, []float64{
+			input: mustMatrix(t, 2, 2, []float32{
 				-0.8, 0.4,
 				1.1, -0.3,
 			}),
-			gradient: mustMatrix(t, 2, 2, []float64{
+			gradient: mustMatrix(t, 2, 2, []float32{
 				0.2, -0.7,
 				1.3, 0.5,
 			}),
@@ -75,11 +75,11 @@ func Test_Activation_GradientCheck(t *testing.T) {
 		{
 			name:       "sigmoid",
 			activation: activation.Sigmoid{},
-			input: mustMatrix(t, 2, 2, []float64{
+			input: mustMatrix(t, 2, 2, []float32{
 				-1.2, 0.7,
 				1.6, -0.4,
 			}),
-			gradient: mustMatrix(t, 2, 2, []float64{
+			gradient: mustMatrix(t, 2, 2, []float32{
 				0.6, -0.2,
 				-0.9, 1.4,
 			}),
@@ -87,11 +87,11 @@ func Test_Activation_GradientCheck(t *testing.T) {
 		{
 			name:       "tanh",
 			activation: activation.Tanh{},
-			input: mustMatrix(t, 2, 2, []float64{
+			input: mustMatrix(t, 2, 2, []float32{
 				-0.9, 0.25,
 				1.2, -1.5,
 			}),
-			gradient: mustMatrix(t, 2, 2, []float64{
+			gradient: mustMatrix(t, 2, 2, []float32{
 				-0.4, 0.8,
 				1.1, -0.6,
 			}),
@@ -99,11 +99,11 @@ func Test_Activation_GradientCheck(t *testing.T) {
 		{
 			name:       "linear",
 			activation: activation.Linear{},
-			input: mustMatrix(t, 2, 2, []float64{
+			input: mustMatrix(t, 2, 2, []float32{
 				-0.6, 0.2,
 				0.9, 1.3,
 			}),
-			gradient: mustMatrix(t, 2, 2, []float64{
+			gradient: mustMatrix(t, 2, 2, []float32{
 				0.3, -0.5,
 				1.7, -1.1,
 			}),
@@ -111,11 +111,11 @@ func Test_Activation_GradientCheck(t *testing.T) {
 		{
 			name:       "softmax",
 			activation: activation.Softmax{},
-			input: mustMatrix(t, 2, 3, []float64{
+			input: mustMatrix(t, 2, 3, []float32{
 				0.3, -0.7, 1.1,
 				-1.2, 0.4, 0.8,
 			}),
-			gradient: mustMatrix(t, 2, 3, []float64{
+			gradient: mustMatrix(t, 2, 3, []float32{
 				0.5, -0.25, 1.2,
 				-0.4, 0.9, -0.1,
 			}),
@@ -138,7 +138,7 @@ func Test_Activation_GradientCheck(t *testing.T) {
 			numericalGradient, err = testutil.FiniteDifferenceGradient(
 				tt.input,
 				activationGradientCheckStep,
-				func() (value float64, err error) {
+				func() (value float32, err error) {
 					var output *matrix.Matrix
 
 					if output, err = tt.activation.Forward(tt.input); err != nil {

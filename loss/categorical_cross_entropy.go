@@ -2,8 +2,8 @@ package loss
 
 import (
 	"fmt"
-	"math"
 
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
@@ -16,13 +16,13 @@ import (
 type CategoricalCrossEntropy struct{}
 
 // Value returns the mean categorical cross entropy over the batch.
-func (c CategoricalCrossEntropy) Value(predictions, targets *matrix.Matrix) (value float64, err error) {
+func (c CategoricalCrossEntropy) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
 	var (
 		rows       int
 		currentRow int
 		ones       int
-		prediction float64
-		target     float64
+		prediction float32
+		target     float32
 	)
 
 	if rows, _, err = matrixShapePair(predictions, targets); err != nil {
@@ -30,7 +30,7 @@ func (c CategoricalCrossEntropy) Value(predictions, targets *matrix.Matrix) (val
 	}
 
 	currentRow = -1
-	err = predictions.Pairwise(targets, func(row, col int, left, right float64) (err error) {
+	err = predictions.Pairwise(targets, func(row, col int, left, right float32) (err error) {
 		if row != currentRow {
 			if currentRow >= 0 && ones != 1 {
 				err = fmt.Errorf("loss: categorical target row %d must contain exactly one class: ones=%d", currentRow, ones)
@@ -46,7 +46,7 @@ func (c CategoricalCrossEntropy) Value(predictions, targets *matrix.Matrix) (val
 		if target == 1 {
 			ones++
 			prediction = clampPrediction(prediction)
-			value -= math.Log(prediction)
+			value -= f32.Log(prediction)
 			return nil
 		}
 
@@ -66,7 +66,7 @@ func (c CategoricalCrossEntropy) Value(predictions, targets *matrix.Matrix) (val
 		return 0, err
 	}
 
-	value /= float64(rows)
+	value /= float32(rows)
 	return value, nil
 }
 
@@ -75,9 +75,9 @@ func (c CategoricalCrossEntropy) Gradient(predictions, targets *matrix.Matrix) (
 	var (
 		rows       int
 		cols       int
-		prediction float64
-		target     float64
-		scale      float64
+		prediction float32
+		target     float32
+		scale      float32
 	)
 
 	if rows, cols, err = c.shape(predictions, targets); err != nil {
@@ -88,8 +88,8 @@ func (c CategoricalCrossEntropy) Gradient(predictions, targets *matrix.Matrix) (
 		return nil, err
 	}
 
-	scale = 1 / float64(rows)
-	err = predictions.PairwiseInto(targets, gradient, func(row, col int, left, right float64) (value float64, err error) {
+	scale = 1 / float32(rows)
+	err = predictions.PairwiseInto(targets, gradient, func(row, col int, left, right float32) (value float32, err error) {
 		prediction = left
 		target = right
 		if target == 0 {
@@ -123,11 +123,11 @@ func validateOneHotTargets(targets *matrix.Matrix) (err error) {
 	var (
 		currentRow int
 		ones       int
-		value      float64
+		value      float32
 	)
 
 	currentRow = -1
-	err = targets.Pairwise(targets, func(row, col int, left, right float64) (err error) {
+	err = targets.Pairwise(targets, func(row, col int, left, right float32) (err error) {
 		if row != currentRow {
 			if currentRow >= 0 && ones != 1 {
 				err = fmt.Errorf("loss: categorical target row %d must contain exactly one class: ones=%d", currentRow, ones)

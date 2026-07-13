@@ -17,8 +17,8 @@ func Test_NewNextTokenDataset(t *testing.T) {
 		dataset      *data.Dataset
 		inputs       *matrix.Matrix
 		targets      *matrix.Matrix
-		inputValues  []float64
-		targetValues []float64
+		inputValues  []float32
+		targetValues []float32
 		sequence     []int
 		expectedRows int
 		index        int
@@ -95,7 +95,7 @@ func Test_NewToyCodeModelPredictsVocabularyShape(t *testing.T) {
 		random       *rand.Rand
 		network      *model.Sequential
 		context      []int
-		inputValues  []float64
+		inputValues  []float32
 		input        *matrix.Matrix
 		predictions  *matrix.Matrix
 		err          error
@@ -164,12 +164,12 @@ func Test_ToyCodeHelpers(t *testing.T) {
 		t.Fatalf("formatToyCode output = %q", generated)
 	}
 
-	token = sampleToken([]float64{0.9, 0.1}, 0, rand.New(rand.NewSource(107)))
+	token = sampleToken([]float32{0.9, 0.1}, 0, rand.New(rand.NewSource(107)))
 	if token != 1 {
 		t.Fatalf("sampleToken blocked token = %d, want 1", token)
 	}
 
-	token = argmax([]float64{0.1, 0.7, 0.7})
+	token = argmax([]float32{0.1, 0.7, 0.7})
 	if token != 1 {
 		t.Fatalf("argmax tie token = %d, want 1", token)
 	}
