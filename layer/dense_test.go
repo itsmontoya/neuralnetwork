@@ -48,8 +48,9 @@ func Test_NewDense_UsesWeightInitializer(t *testing.T) {
 
 func Test_Dense_Accessors(t *testing.T) {
 	var (
-		dense      *layer.Dense
-		parameters []*optimizer.Parameter
+		dense              *layer.Dense
+		parameters         []*optimizer.Parameter
+		appendedParameters []*optimizer.Parameter
 	)
 
 	dense = mustDense(
@@ -83,10 +84,33 @@ func Test_Dense_Accessors(t *testing.T) {
 	if parameters[1] != dense.Biases() {
 		t.Fatal("Parameters[1] did not match biases")
 	}
+
+	appendedParameters = make([]*optimizer.Parameter, 1, 3)
+	appendedParameters[0] = dense.Biases()
+	appendedParameters = dense.AppendParameters(appendedParameters)
+	if len(appendedParameters) != 3 {
+		t.Fatalf("AppendParameters length = %d, want 3", len(appendedParameters))
+	}
+
+	if appendedParameters[0] != dense.Biases() {
+		t.Fatal("AppendParameters changed the existing prefix")
+	}
+
+	if appendedParameters[1] != dense.Weights() || appendedParameters[2] != dense.Biases() {
+		t.Fatal("AppendParameters did not append weights and biases in order")
+	}
+
+	appendedParameters[1] = nil
+	if dense.Weights() == nil {
+		t.Fatal("mutating AppendParameters result changed Dense weights")
+	}
 }
 
 func Test_Dense_NilReceiverAccessors(t *testing.T) {
-	var dense *layer.Dense
+	var (
+		dense      *layer.Dense
+		parameters []*optimizer.Parameter
+	)
 
 	if dense.InputSize() != 0 {
 		t.Fatalf("InputSize = %d, want 0", dense.InputSize())
@@ -106,6 +130,12 @@ func Test_Dense_NilReceiverAccessors(t *testing.T) {
 
 	if dense.Parameters() != nil {
 		t.Fatal("Parameters returned value for nil receiver")
+	}
+
+	parameters = []*optimizer.Parameter{nil}
+	parameters = dense.AppendParameters(parameters)
+	if len(parameters) != 1 {
+		t.Fatalf("AppendParameters length = %d, want 1", len(parameters))
 	}
 }
 
