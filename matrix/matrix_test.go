@@ -654,12 +654,65 @@ func Test_ElementwiseDestinationOperations(t *testing.T) {
 
 	requireMatrixValues(t, left, []float32{2.5, 5, 7.5, 10})
 
+	err = left.AddMappedInPlace(right, func(value float32) (mapped float32) {
+		mapped = value * 0.25
+		return mapped
+	})
+	if err != nil {
+		t.Fatalf("AddMappedInPlace returned error: %v", err)
+	}
+
+	requireMatrixValues(t, left, []float32{2.75, 5.5, 8.25, 11})
+
 	err = left.MultiplyScalarInPlace(2)
 	if err != nil {
 		t.Fatalf("MultiplyScalarInPlace returned error: %v", err)
 	}
 
-	requireMatrixValues(t, left, []float32{5, 10, 15, 20})
+	requireMatrixValues(t, left, []float32{5.5, 11, 16.5, 22})
+}
+
+func Test_AddMappedInPlace_ValidatesInputs(t *testing.T) {
+	var (
+		left       *matrix.Matrix
+		right      *matrix.Matrix
+		mismatched *matrix.Matrix
+		err        error
+	)
+
+	left = mustMatrix(t, 1, 2, []float32{1, 2})
+	right = mustMatrix(t, 1, 2, []float32{3, 4})
+	mismatched = mustMatrix(t, 2, 1, []float32{3, 4})
+
+	err = left.AddMappedInPlace(right, nil)
+	if err == nil {
+		t.Fatal("AddMappedInPlace nil function error = nil, want error")
+	}
+
+	err = left.AddMappedInPlace(mismatched, func(value float32) (mapped float32) {
+		return value
+	})
+	if err == nil {
+		t.Fatal("AddMappedInPlace shape error = nil, want error")
+	}
+}
+
+func Test_AddMappedInPlace_AllowsAliasedInput(t *testing.T) {
+	var (
+		values *matrix.Matrix
+		err    error
+	)
+
+	values = mustMatrix(t, 1, 3, []float32{-2, 0, 3})
+	err = values.AddMappedInPlace(values, func(value float32) (mapped float32) {
+		mapped = value * value
+		return mapped
+	})
+	if err != nil {
+		t.Fatalf("AddMappedInPlace returned error: %v", err)
+	}
+
+	requireMatrixValues(t, values, []float32{2, 0, 12})
 }
 
 func Test_AdamUpdateInPlace(t *testing.T) {
