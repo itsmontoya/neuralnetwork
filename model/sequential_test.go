@@ -145,6 +145,83 @@ func Test_Sequential_ParametersCollectsTrainableLayersInOrder(t *testing.T) {
 	}
 }
 
+func Test_Sequential_ParametersReturnsIndependentSlices(t *testing.T) {
+	var (
+		dense   *layer.Dense
+		network *model.Sequential
+		first   []*optimizer.Parameter
+		second  []*optimizer.Parameter
+		third   []*optimizer.Parameter
+		err     error
+	)
+
+	dense = mustDense(t)
+	network, err = model.NewSequential(dense)
+	if err != nil {
+		t.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	first = network.Parameters()
+	second = network.Parameters()
+	first[0] = nil
+	if second[0] != dense.Weights() {
+		t.Fatal("mutating first Parameters result changed second result")
+	}
+
+	second[1] = nil
+	third = network.Parameters()
+	if third[0] != dense.Weights() {
+		t.Fatal("Parameters weights changed after returned slice mutation")
+	}
+
+	if third[1] != dense.Biases() {
+		t.Fatal("Parameters biases changed after returned slice mutation")
+	}
+}
+
+func Test_Sequential_ParametersIncludesLayersAddedAfterWarmUp(t *testing.T) {
+	var (
+		dense      *layer.Dense
+		batchNorm  *layer.BatchNormalization
+		network    *model.Sequential
+		parameters []*optimizer.Parameter
+		err        error
+	)
+
+	dense = mustDense(t)
+	network, err = model.NewSequential(dense)
+	if err != nil {
+		t.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	parameters = network.Parameters()
+	if len(parameters) != 2 {
+		t.Fatalf("initial Parameters length = %d, want 2", len(parameters))
+	}
+
+	batchNorm, err = layer.NewBatchNormalization(1)
+	if err != nil {
+		t.Fatalf("NewBatchNormalization returned error: %v", err)
+	}
+
+	if err = network.Add(batchNorm); err != nil {
+		t.Fatalf("Add returned error: %v", err)
+	}
+
+	parameters = network.Parameters()
+	if len(parameters) != 4 {
+		t.Fatalf("Parameters length after Add = %d, want 4", len(parameters))
+	}
+
+	if parameters[0] != dense.Weights() || parameters[1] != dense.Biases() {
+		t.Fatal("Parameters did not preserve Dense parameter order after Add")
+	}
+
+	if parameters[2] != batchNorm.Gamma() || parameters[3] != batchNorm.Beta() {
+		t.Fatal("Parameters did not append BatchNormalization parameters in order")
+	}
+}
+
 func Test_Sequential_SetTrainingPropagatesMode(t *testing.T) {
 	var (
 		first   *modeLayer
@@ -179,13 +256,14 @@ func Test_Sequential_SetTrainingPropagatesMode(t *testing.T) {
 
 func Test_Sequential_TrainBatchUpdatesParameters(t *testing.T) {
 	var (
-		dense   *layer.Dense
-		network *model.Sequential
-		input   *matrix.Matrix
-		targets *matrix.Matrix
-		sgd     *optimizer.SGD
-		metrics model.TrainMetrics
-		err     error
+		dense            *layer.Dense
+		network          *model.Sequential
+		publicParameters []*optimizer.Parameter
+		input            *matrix.Matrix
+		targets          *matrix.Matrix
+		sgd              *optimizer.SGD
+		metrics          model.TrainMetrics
+		err              error
 	)
 
 	dense = mustDense(t)
@@ -193,6 +271,9 @@ func Test_Sequential_TrainBatchUpdatesParameters(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSequential returned error: %v", err)
 	}
+	publicParameters = network.Parameters()
+	publicParameters[0] = nil
+	publicParameters[1] = nil
 
 	input = mustMatrix(t, 1, 2, []float32{1, 2})
 	targets = mustMatrix(t, 1, 1, []float32{0})
@@ -211,6 +292,54 @@ func Test_Sequential_TrainBatchUpdatesParameters(t *testing.T) {
 	requireMatrixValues(t, dense.Biases().Values(), []float32{0.6})
 	requireMatrixValues(t, dense.Weights().Gradient(), []float32{0, 0})
 	requireMatrixValues(t, dense.Biases().Gradient(), []float32{0})
+}
+
+func Test_Sequential_TrainBatchObservesChangingCustomParameters(t *testing.T) {
+	var (
+		parameterOne  *optimizer.Parameter
+		parameterTwo  *optimizer.Parameter
+		provider      *changingParameterLayer
+		network       *model.Sequential
+		input         *matrix.Matrix
+		targets       *matrix.Matrix
+		optimizerRule recordingOptimizer
+		err           error
+	)
+
+	parameterOne = mustParameter(t, []float32{1})
+	parameterTwo = mustParameter(t, []float32{2})
+	provider = &changingParameterLayer{
+		parameterSets: [][]*optimizer.Parameter{
+			{parameterOne},
+			{parameterTwo},
+		},
+	}
+	network, err = model.NewSequential(provider)
+	if err != nil {
+		t.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	input = mustMatrix(t, 1, 1, []float32{1})
+	targets = mustMatrix(t, 1, 1, []float32{1})
+	if _, err = network.TrainBatch(input, targets, loss.MeanSquaredError{}, &optimizerRule); err != nil {
+		t.Fatalf("first TrainBatch returned error: %v", err)
+	}
+
+	if _, err = network.TrainBatch(input, targets, loss.MeanSquaredError{}, &optimizerRule); err != nil {
+		t.Fatalf("second TrainBatch returned error: %v", err)
+	}
+
+	if len(optimizerRule.parameterCalls) != 2 {
+		t.Fatalf("optimizer parameter calls = %d, want 2", len(optimizerRule.parameterCalls))
+	}
+
+	if len(optimizerRule.parameterCalls[0]) != 1 || optimizerRule.parameterCalls[0][0] != parameterOne {
+		t.Fatal("first optimizer update did not receive first custom parameter set")
+	}
+
+	if len(optimizerRule.parameterCalls[1]) != 1 || optimizerRule.parameterCalls[1][0] != parameterTwo {
+		t.Fatal("second optimizer update did not receive changed custom parameter set")
+	}
 }
 
 func Test_Sequential_TrainBatchRejectsNilDependencies(t *testing.T) {
@@ -1362,6 +1491,29 @@ func (p *parameterLayer) Parameters() (parameters []*optimizer.Parameter) {
 	return parameters
 }
 
+type changingParameterLayer struct {
+	recordingLayer
+	parameterSets [][]*optimizer.Parameter
+	calls         int
+}
+
+func (c *changingParameterLayer) Parameters() (parameters []*optimizer.Parameter) {
+	var index int
+
+	if len(c.parameterSets) == 0 {
+		return nil
+	}
+
+	index = c.calls
+	if index >= len(c.parameterSets) {
+		index = len(c.parameterSets) - 1
+	}
+
+	c.calls++
+	parameters = c.parameterSets[index]
+	return parameters
+}
+
 type modeLayer struct {
 	recordingLayer
 	modes []bool
@@ -1487,15 +1639,20 @@ type recordingOptimizer struct {
 	updateErr          error
 	updateCalls        int
 	setRates           []float32
+	parameterCalls     [][]*optimizer.Parameter
 }
 
 func (r *recordingOptimizer) Update(parameters []*optimizer.Parameter) (err error) {
+	var copiedParameters []*optimizer.Parameter
+
 	r.updateCalls++
 	if r.updateErr != nil {
 		err = r.updateErr
 		return err
 	}
 
+	copiedParameters = append(copiedParameters, parameters...)
+	r.parameterCalls = append(r.parameterCalls, copiedParameters)
 	return nil
 }
 
