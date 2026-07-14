@@ -101,6 +101,14 @@ func Test_MatrixDestinationAllocations(t *testing.T) {
 			},
 		},
 		{
+			name: "AddMappedInPlace",
+			run: func() {
+				if err = destination.AddMappedInPlace(right, allocationDouble); err != nil {
+					panic(err)
+				}
+			},
+		},
+		{
 			name: "SubtractInto",
 			run: func() {
 				if err = left.SubtractInto(right, destination); err != nil {

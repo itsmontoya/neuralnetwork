@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/itsmontoya/neuralnetwork/internal/f32"
-	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
 func validateLearningRate(learningRate float32) (err error) {
@@ -53,15 +52,6 @@ func validateParameters(parameters []*Parameter) (err error) {
 	}
 
 	return nil
-}
-
-func matrixValues(source *matrix.Matrix) (rows, cols int, values []float32, err error) {
-	if values, err = source.Values(); err != nil {
-		return 0, 0, nil, err
-	}
-
-	rows, cols = source.Shape()
-	return rows, cols, values, nil
 }
 
 func resetGradients(parameters []*Parameter) (err error) {

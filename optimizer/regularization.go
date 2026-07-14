@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/itsmontoya/neuralnetwork/internal/f32"
-	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
 func validateRegularizers(regularizers []Regularizer) (err error) {
@@ -44,15 +43,7 @@ func nilRegularizerError(name string) (err error) {
 }
 
 func applyRegularizationGradient(parameters []*Parameter, gradientForValue func(float32) float32) (err error) {
-	var (
-		parameter      *Parameter
-		rows           int
-		cols           int
-		values         []float32
-		gradientValues []float32
-		index          int
-		gradient       *matrix.Matrix
-	)
+	var parameter *Parameter
 
 	if gradientForValue == nil {
 		err = errors.New("optimizer: regularization gradient function is nil")
@@ -64,20 +55,7 @@ func applyRegularizationGradient(parameters []*Parameter, gradientForValue func(
 	}
 
 	for _, parameter = range parameters {
-		if rows, cols, values, err = matrixValues(parameter.Values()); err != nil {
-			return err
-		}
-
-		gradientValues = make([]float32, len(values))
-		for index = range values {
-			gradientValues[index] = gradientForValue(values[index])
-		}
-
-		if gradient, err = matrix.FromSlice(rows, cols, gradientValues); err != nil {
-			return err
-		}
-
-		if err = parameter.AccumulateGradient(gradient); err != nil {
+		if err = parameter.Gradient().AddMappedInPlace(parameter.Values(), gradientForValue); err != nil {
 			return err
 		}
 	}
