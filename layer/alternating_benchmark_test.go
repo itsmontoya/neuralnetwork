@@ -95,6 +95,51 @@ func Benchmark_ActivationForwardBackward_AlternatingShapes(b *testing.B) {
 	benchmarkScratchLayerResult = result
 }
 
+func Benchmark_ActivationForwardBackward_Softmax_AlternatingShapes(b *testing.B) {
+	var (
+		activationLayer *layer.Activation
+		inputs          []*matrix.Matrix
+		outputGradients []*matrix.Matrix
+		result          *matrix.Matrix
+		err             error
+		index           int
+		shapeIndex      int
+	)
+
+	activationLayer, err = layer.NewActivation(activation.Softmax{})
+	if err != nil {
+		b.Fatalf("NewActivation returned error: %v", err)
+	}
+
+	inputs = benchmarkAlternatingLayerMatrices(b, 64)
+	outputGradients = benchmarkAlternatingLayerMatrices(b, 64)
+	for shapeIndex = range inputs {
+		if _, err = activationLayer.Forward(inputs[shapeIndex]); err != nil {
+			b.Fatalf("Forward returned error: %v", err)
+		}
+
+		if result, err = activationLayer.Backward(outputGradients[shapeIndex]); err != nil {
+			b.Fatalf("Backward returned error: %v", err)
+		}
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		shapeIndex = index % len(inputs)
+		if _, err = activationLayer.Forward(inputs[shapeIndex]); err != nil {
+			b.Fatalf("Forward returned error: %v", err)
+		}
+
+		if result, err = activationLayer.Backward(outputGradients[shapeIndex]); err != nil {
+			b.Fatalf("Backward returned error: %v", err)
+		}
+	}
+
+	benchmarkScratchLayerResult = result
+}
+
 func Benchmark_DropoutForwardBackward_AlternatingShapes(b *testing.B) {
 	var (
 		dropout         *layer.Dropout

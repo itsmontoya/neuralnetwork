@@ -27,6 +27,7 @@ func Test_ActivationDestinationSteadyStateAllocations(t *testing.T) {
 		{name: "Linear", function: activation.Linear{}},
 		{name: "ReLU", function: activation.ReLU{}},
 		{name: "Sigmoid", function: activation.Sigmoid{}},
+		{name: "Softmax", function: activation.Softmax{}},
 		{name: "Tanh", function: activation.Tanh{}},
 	}
 
@@ -87,6 +88,7 @@ func Test_ActivationDestinationAlternatingShapeSteadyStateAllocations(t *testing
 		{name: "Linear", function: activation.Linear{}},
 		{name: "ReLU", function: activation.ReLU{}},
 		{name: "Sigmoid", function: activation.Sigmoid{}},
+		{name: "Softmax", function: activation.Softmax{}},
 		{name: "Tanh", function: activation.Tanh{}},
 	}
 	inputs = allocationAlternatingLayerMatrices(t, 4)
