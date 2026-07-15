@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/itsmontoya/neuralnetwork/internal/f32"
+	"github.com/itsmontoya/neuralnetwork/internal/scratch"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 	"github.com/itsmontoya/neuralnetwork/optimizer"
 )
@@ -100,37 +101,44 @@ func NewBatchNormalizationWithConfig(featureSize int, momentum, epsilon float32)
 // statistics. Gamma and beta are trainable per-feature scale and offset
 // parameters.
 type BatchNormalization struct {
-	featureSize     int
-	momentum        float32
-	epsilon         float32
-	gamma           *optimizer.Parameter
-	beta            *optimizer.Parameter
-	runningMean     *matrix.Matrix
-	runningVariance *matrix.Matrix
-	training        bool
-	outputScratch   *matrix.Matrix
-	inputValues     []float32
-	gammaValues     []float32
-	betaValues      []float32
-	meanValues      []float32
-	varianceValues  []float32
-	normalizedCache []float32
-	inverseStdCache []float32
-	outputValues    []float32
+	featureSize      int
+	momentum         float32
+	epsilon          float32
+	gamma            *optimizer.Parameter
+	beta             *optimizer.Parameter
+	runningMean      *matrix.Matrix
+	runningVariance  *matrix.Matrix
+	training         bool
+	outputPool       scratch.MatrixPool
+	outputScratch    *matrix.Matrix
+	inputValuesPool  scratch.Float32Pool
+	inputValues      []float32
+	gammaValues      []float32
+	betaValues       []float32
+	meanValues       []float32
+	varianceValues   []float32
+	normalizedPool   scratch.Float32Pool
+	normalizedCache  []float32
+	inverseStdCache  []float32
+	outputValuesPool scratch.Float32Pool
+	outputValues     []float32
 
-	gradientValues        []float32
-	gammaGradientValues   []float32
-	betaGradientValues    []float32
-	inputGradientValues   []float32
-	runningMeanValues     []float32
-	runningVarianceValues []float32
-	inputGradientScratch  *matrix.Matrix
-	gammaGradientScratch  *matrix.Matrix
-	betaGradientScratch   *matrix.Matrix
-	forwardRows           int
-	forwardCols           int
-	forwardCalled         bool
-	forwardTraining       bool
+	gradientValuesPool      scratch.Float32Pool
+	gradientValues          []float32
+	gammaGradientValues     []float32
+	betaGradientValues      []float32
+	inputGradientValuesPool scratch.Float32Pool
+	inputGradientValues     []float32
+	runningMeanValues       []float32
+	runningVarianceValues   []float32
+	inputGradientPool       scratch.MatrixPool
+	inputGradientScratch    *matrix.Matrix
+	gammaGradientScratch    *matrix.Matrix
+	betaGradientScratch     *matrix.Matrix
+	forwardRows             int
+	forwardCols             int
+	forwardCalled           bool
+	forwardTraining         bool
 }
 
 // Forward normalizes input features and applies trainable scale and offset.
@@ -495,8 +503,13 @@ func (b *BatchNormalization) updateRunningStatistics(meanValues, varianceValues 
 		updateScale float32
 	)
 
-	b.runningMeanValues = floatScratch(b.runningMeanValues, b.featureSize)
-	b.runningVarianceValues = floatScratch(b.runningVarianceValues, b.featureSize)
+	if b.runningMeanValues == nil {
+		b.runningMeanValues = make([]float32, b.featureSize)
+	}
+
+	if b.runningVarianceValues == nil {
+		b.runningVarianceValues = make([]float32, b.featureSize)
+	}
 
 	if err = b.runningMean.ValuesInto(b.runningMeanValues); err != nil {
 		return err
@@ -577,38 +590,80 @@ func (b *BatchNormalization) validate() (err error) {
 }
 
 func (b *BatchNormalization) ensureForwardScratch(rows, cols, valueCount int) (err error) {
-	if b.outputScratch, err = matrixScratch(b.outputScratch, rows, cols); err != nil {
+	if b.outputScratch, _, err = b.outputPool.Get(rows, cols); err != nil {
 		return err
 	}
 
-	b.inputValues = floatScratch(b.inputValues, valueCount)
-	b.gammaValues = floatScratch(b.gammaValues, cols)
-	b.betaValues = floatScratch(b.betaValues, cols)
-	b.meanValues = floatScratch(b.meanValues, cols)
-	b.varianceValues = floatScratch(b.varianceValues, cols)
-	b.normalizedCache = floatScratch(b.normalizedCache, valueCount)
-	b.inverseStdCache = floatScratch(b.inverseStdCache, cols)
-	b.outputValues = floatScratch(b.outputValues, valueCount)
+	if b.inputValues, _, err = b.inputValuesPool.Get(valueCount); err != nil {
+		return err
+	}
+
+	if b.gammaValues == nil {
+		b.gammaValues = make([]float32, cols)
+	}
+
+	if b.betaValues == nil {
+		b.betaValues = make([]float32, cols)
+	}
+
+	if b.meanValues == nil {
+		b.meanValues = make([]float32, cols)
+	}
+
+	if b.varianceValues == nil {
+		b.varianceValues = make([]float32, cols)
+	}
+
+	if b.normalizedCache, _, err = b.normalizedPool.Get(valueCount); err != nil {
+		return err
+	}
+
+	if b.inverseStdCache == nil {
+		b.inverseStdCache = make([]float32, cols)
+	}
+
+	if b.outputValues, _, err = b.outputValuesPool.Get(valueCount); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (b *BatchNormalization) ensureBackwardScratch(rows, cols, valueCount int) (err error) {
-	b.gradientValues = floatScratch(b.gradientValues, valueCount)
-	b.gammaValues = floatScratch(b.gammaValues, cols)
-	b.gammaGradientValues = floatScratch(b.gammaGradientValues, cols)
-	b.betaGradientValues = floatScratch(b.betaGradientValues, cols)
-	b.inputGradientValues = floatScratch(b.inputGradientValues, valueCount)
-
-	if b.inputGradientScratch, err = matrixScratch(b.inputGradientScratch, rows, cols); err != nil {
+	if b.gradientValues, _, err = b.gradientValuesPool.Get(valueCount); err != nil {
 		return err
 	}
 
-	if b.gammaGradientScratch, err = matrixScratch(b.gammaGradientScratch, 1, cols); err != nil {
+	if b.gammaValues == nil {
+		b.gammaValues = make([]float32, cols)
+	}
+
+	if b.gammaGradientValues == nil {
+		b.gammaGradientValues = make([]float32, cols)
+	}
+
+	if b.betaGradientValues == nil {
+		b.betaGradientValues = make([]float32, cols)
+	}
+
+	if b.inputGradientValues, _, err = b.inputGradientValuesPool.Get(valueCount); err != nil {
 		return err
 	}
 
-	if b.betaGradientScratch, err = matrixScratch(b.betaGradientScratch, 1, cols); err != nil {
+	if b.inputGradientScratch, _, err = b.inputGradientPool.Get(rows, cols); err != nil {
 		return err
+	}
+
+	if b.gammaGradientScratch == nil {
+		if b.gammaGradientScratch, err = matrix.New(1, cols); err != nil {
+			return err
+		}
+	}
+
+	if b.betaGradientScratch == nil {
+		if b.betaGradientScratch, err = matrix.New(1, cols); err != nil {
+			return err
+		}
 	}
 
 	return nil
