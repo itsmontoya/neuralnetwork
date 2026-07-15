@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/itsmontoya/neuralnetwork/activation"
+	"github.com/itsmontoya/neuralnetwork/internal/scratch"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
@@ -17,20 +18,26 @@ func NewActivation(function activation.Activation) (out *Activation, err error) 
 
 	var a Activation
 	a.function = function
+	a.destinationFunction, _ = function.(activation.DestinationActivation)
 	return &a, nil
 }
 
 // Activation applies a stateless activation function as a trainable-model layer.
 type Activation struct {
-	function   activation.Activation
-	inputCache *matrix.Matrix
+	function            activation.Activation
+	destinationFunction activation.DestinationActivation
+	inputCachePool      scratch.MatrixPool
+	outputPool          scratch.MatrixPool
+	inputGradientPool   scratch.MatrixPool
+	inputCache          *matrix.Matrix
 }
 
 // Forward applies the wrapped activation function and caches input for Backward.
 func (a *Activation) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error) {
 	var (
-		rows int
-		cols int
+		rows       int
+		cols       int
+		inputCache *matrix.Matrix
 	)
 
 	if err = a.validate(); err != nil {
@@ -48,23 +55,39 @@ func (a *Activation) Forward(input *matrix.Matrix) (output *matrix.Matrix, err e
 	}
 
 	rows, cols = input.Shape()
-	if a.inputCache, err = matrixScratch(a.inputCache, rows, cols); err != nil {
+	if a.destinationFunction == nil {
+		if output, err = a.function.Forward(input); err != nil {
+			return nil, err
+		}
+	} else {
+		if output, _, err = a.outputPool.Get(rows, cols); err != nil {
+			return nil, err
+		}
+
+		if err = a.destinationFunction.ForwardInto(input, output); err != nil {
+			return nil, err
+		}
+	}
+
+	if inputCache, _, err = a.inputCachePool.Get(rows, cols); err != nil {
 		return nil, err
 	}
 
-	if output, err = a.function.Forward(input); err != nil {
+	if err = inputCache.CopyFrom(input); err != nil {
 		return nil, err
 	}
-
-	if err = a.inputCache.CopyFrom(input); err != nil {
-		return nil, err
-	}
+	a.inputCache = inputCache
 
 	return output, nil
 }
 
 // Backward propagates gradients through the wrapped activation function.
 func (a *Activation) Backward(outputGradient *matrix.Matrix) (inputGradient *matrix.Matrix, err error) {
+	var (
+		rows int
+		cols int
+	)
+
 	if err = a.validate(); err != nil {
 		return nil, err
 	}
@@ -84,8 +107,21 @@ func (a *Activation) Backward(outputGradient *matrix.Matrix) (inputGradient *mat
 		return nil, err
 	}
 
-	inputGradient, err = a.function.Backward(a.inputCache, outputGradient)
-	return inputGradient, err
+	if a.destinationFunction == nil {
+		inputGradient, err = a.function.Backward(a.inputCache, outputGradient)
+		return inputGradient, err
+	}
+
+	rows, cols = a.inputCache.Shape()
+	if inputGradient, _, err = a.inputGradientPool.Get(rows, cols); err != nil {
+		return nil, err
+	}
+
+	if err = a.destinationFunction.BackwardInto(a.inputCache, outputGradient, inputGradient); err != nil {
+		return nil, err
+	}
+
+	return inputGradient, nil
 }
 
 // Function returns the wrapped activation function.
