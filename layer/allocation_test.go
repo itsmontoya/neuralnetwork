@@ -4,11 +4,114 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/itsmontoya/neuralnetwork/activation"
 	"github.com/itsmontoya/neuralnetwork/layer"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
 var allocationLayerResult *matrix.Matrix
+
+func Test_ActivationDestinationSteadyStateAllocations(t *testing.T) {
+	var tests []struct {
+		name     string
+		function activation.Activation
+	}
+
+	tests = []struct {
+		name     string
+		function activation.Activation
+	}{
+		{name: "ELU", function: activation.ELU{}},
+		{name: "GELU", function: activation.GELU{}},
+		{name: "LeakyReLU", function: activation.LeakyReLU{}},
+		{name: "Linear", function: activation.Linear{}},
+		{name: "ReLU", function: activation.ReLU{}},
+		{name: "Sigmoid", function: activation.Sigmoid{}},
+		{name: "Tanh", function: activation.Tanh{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				activationLayer *layer.Activation
+				input           *matrix.Matrix
+				outputGradient  *matrix.Matrix
+				err             error
+			)
+
+			activationLayer, err = layer.NewActivation(tt.function)
+			if err != nil {
+				t.Fatalf("NewActivation returned error: %v", err)
+			}
+
+			input = allocationLayerMatrix(t, 8, 4)
+			outputGradient = allocationLayerMatrix(t, 8, 4)
+			if _, err = activationLayer.Forward(input); err != nil {
+				t.Fatalf("Forward returned error: %v", err)
+			}
+
+			if _, err = activationLayer.Backward(outputGradient); err != nil {
+				t.Fatalf("Backward returned error: %v", err)
+			}
+
+			requireMaxAllocs(t, tt.name+" Forward and Backward", 0, func() {
+				if _, err = activationLayer.Forward(input); err != nil {
+					panic(err)
+				}
+
+				if allocationLayerResult, err = activationLayer.Backward(outputGradient); err != nil {
+					panic(err)
+				}
+			})
+		})
+	}
+}
+
+func Test_ActivationDestinationAlternatingShapeSteadyStateAllocations(t *testing.T) {
+	var (
+		tests []struct {
+			name     string
+			function activation.Activation
+		}
+		inputs          []*matrix.Matrix
+		outputGradients []*matrix.Matrix
+	)
+
+	tests = []struct {
+		name     string
+		function activation.Activation
+	}{
+		{name: "ELU", function: activation.ELU{}},
+		{name: "GELU", function: activation.GELU{}},
+		{name: "LeakyReLU", function: activation.LeakyReLU{}},
+		{name: "Linear", function: activation.Linear{}},
+		{name: "ReLU", function: activation.ReLU{}},
+		{name: "Sigmoid", function: activation.Sigmoid{}},
+		{name: "Tanh", function: activation.Tanh{}},
+	}
+	inputs = allocationAlternatingLayerMatrices(t, 4)
+	outputGradients = allocationAlternatingLayerMatrices(t, 4)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				activationLayer *layer.Activation
+				err             error
+			)
+
+			activationLayer, err = layer.NewActivation(tt.function)
+			if err != nil {
+				t.Fatalf("NewActivation returned error: %v", err)
+			}
+
+			warmAlternatingLayerShapes(t, activationLayer, func(index int) {}, inputs, outputGradients)
+			requireMaxAllocs(t, tt.name+" alternating shapes", 0, func() {
+				warmAlternatingLayerShapes(t, activationLayer, func(index int) {}, inputs, outputGradients)
+			})
+			requireStableLayerScratch(t, activationLayer, func(index int) {}, inputs[0], outputGradients[0])
+		})
+	}
+}
 
 func Test_DenseSteadyStateAllocations(t *testing.T) {
 	var (
