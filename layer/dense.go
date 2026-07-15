@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/itsmontoya/neuralnetwork/internal/scratch"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 	"github.com/itsmontoya/neuralnetwork/optimizer"
 )
@@ -70,9 +71,12 @@ type Dense struct {
 	outputSize           int
 	weights              *optimizer.Parameter
 	biases               *optimizer.Parameter
+	inputCachePool       scratch.MatrixPool
 	inputCache           *matrix.Matrix
+	outputScratchPool    scratch.MatrixPool
 	outputScratch        *matrix.Matrix
 	weightGradient       *matrix.Matrix
+	inputGradientPool    scratch.MatrixPool
 	inputGradientScratch *matrix.Matrix
 }
 
@@ -89,7 +93,7 @@ func (d *Dense) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error)
 	}
 
 	batchRows = input.Rows()
-	if d.outputScratch, err = matrixScratch(d.outputScratch, batchRows, d.outputSize); err != nil {
+	if d.outputScratch, _, err = d.outputScratchPool.Get(batchRows, d.outputSize); err != nil {
 		return nil, err
 	}
 
@@ -99,7 +103,7 @@ func (d *Dense) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error)
 		}
 	}
 
-	if d.inputCache, err = matrixScratch(d.inputCache, batchRows, d.inputSize); err != nil {
+	if d.inputCache, _, err = d.inputCachePool.Get(batchRows, d.inputSize); err != nil {
 		return nil, err
 	}
 
@@ -137,11 +141,13 @@ func (d *Dense) Backward(outputGradient *matrix.Matrix) (inputGradient *matrix.M
 	}
 
 	batchRows = outputGradient.Rows()
-	if d.weightGradient, err = matrixScratch(d.weightGradient, d.inputSize, d.outputSize); err != nil {
-		return nil, err
+	if d.weightGradient == nil {
+		if d.weightGradient, err = matrix.New(d.inputSize, d.outputSize); err != nil {
+			return nil, err
+		}
 	}
 
-	if d.inputGradientScratch, err = matrixScratch(d.inputGradientScratch, batchRows, d.inputSize); err != nil {
+	if d.inputGradientScratch, _, err = d.inputGradientPool.Get(batchRows, d.inputSize); err != nil {
 		return nil, err
 	}
 
