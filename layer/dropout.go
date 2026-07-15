@@ -6,6 +6,7 @@ import (
 	"math/rand"
 
 	"github.com/itsmontoya/neuralnetwork/internal/f32"
+	"github.com/itsmontoya/neuralnetwork/internal/scratch"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
@@ -36,11 +37,17 @@ type Dropout struct {
 	rate                 float32
 	random               *rand.Rand
 	training             bool
+	maskCachePool        scratch.MatrixPool
 	maskCache            *matrix.Matrix
+	outputScratchPool    scratch.MatrixPool
 	outputScratch        *matrix.Matrix
+	inputGradientPool    scratch.MatrixPool
 	inputGradientScratch *matrix.Matrix
+	inputValuesPool      scratch.Float32Pool
 	inputValues          []float32
+	outputValuesPool     scratch.Float32Pool
 	outputValues         []float32
+	maskValuesPool       scratch.Float32Pool
 	maskValues           []float32
 	forwardRows          int
 	forwardCols          int
@@ -75,7 +82,7 @@ func (d *Dropout) Forward(input *matrix.Matrix) (output *matrix.Matrix, err erro
 
 	rows, cols = input.Shape()
 	valueCount = rows * cols
-	if d.outputScratch, err = matrixScratch(d.outputScratch, rows, cols); err != nil {
+	if d.outputScratch, _, err = d.outputScratchPool.Get(rows, cols); err != nil {
 		return nil, err
 	}
 
@@ -94,7 +101,7 @@ func (d *Dropout) Forward(input *matrix.Matrix) (output *matrix.Matrix, err erro
 		return output, nil
 	}
 
-	if d.maskCache, err = matrixScratch(d.maskCache, rows, cols); err != nil {
+	if d.maskCache, _, err = d.maskCachePool.Get(rows, cols); err != nil {
 		return nil, err
 	}
 
@@ -111,9 +118,17 @@ func (d *Dropout) Forward(input *matrix.Matrix) (output *matrix.Matrix, err erro
 		return output, nil
 	}
 
-	d.inputValues = floatScratch(d.inputValues, valueCount)
-	d.outputValues = floatScratch(d.outputValues, valueCount)
-	d.maskValues = floatScratch(d.maskValues, valueCount)
+	if d.inputValues, _, err = d.inputValuesPool.Get(valueCount); err != nil {
+		return nil, err
+	}
+
+	if d.outputValues, _, err = d.outputValuesPool.Get(valueCount); err != nil {
+		return nil, err
+	}
+
+	if d.maskValues, _, err = d.maskValuesPool.Get(valueCount); err != nil {
+		return nil, err
+	}
 
 	if err = input.ValuesInto(d.inputValues); err != nil {
 		return nil, err
@@ -158,7 +173,7 @@ func (d *Dropout) Backward(outputGradient *matrix.Matrix) (inputGradient *matrix
 	}
 
 	if !d.forwardTraining {
-		if d.inputGradientScratch, err = matrixScratch(d.inputGradientScratch, d.forwardRows, d.forwardCols); err != nil {
+		if d.inputGradientScratch, _, err = d.inputGradientPool.Get(d.forwardRows, d.forwardCols); err != nil {
 			return nil, err
 		}
 
@@ -175,7 +190,7 @@ func (d *Dropout) Backward(outputGradient *matrix.Matrix) (inputGradient *matrix
 		return nil, err
 	}
 
-	if d.inputGradientScratch, err = matrixScratch(d.inputGradientScratch, d.forwardRows, d.forwardCols); err != nil {
+	if d.inputGradientScratch, _, err = d.inputGradientPool.Get(d.forwardRows, d.forwardCols); err != nil {
 		return nil, err
 	}
 
