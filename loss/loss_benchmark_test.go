@@ -50,6 +50,36 @@ func Benchmark_MeanSquaredErrorGradient_MediumBatch(b *testing.B) {
 	benchmarkLossGradientMethod(b, loss.MeanSquaredError{}, predictions, targets)
 }
 
+func Benchmark_MeanSquaredErrorGradientInto_Small(b *testing.B) {
+	var (
+		predictions *matrix.Matrix
+		targets     *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	predictions, targets = benchmarkRegressionMatrices(b, 2, 2)
+	if destination, err = matrix.New(2, 2); err != nil {
+		b.Fatalf("New destination returned error: %v", err)
+	}
+	benchmarkLossGradientIntoMethod(b, loss.MeanSquaredError{}, predictions, targets, destination)
+}
+
+func Benchmark_MeanSquaredErrorGradientInto_MediumBatch(b *testing.B) {
+	var (
+		predictions *matrix.Matrix
+		targets     *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	predictions, targets = benchmarkRegressionMatrices(b, 128, 16)
+	if destination, err = matrix.New(128, 16); err != nil {
+		b.Fatalf("New destination returned error: %v", err)
+	}
+	benchmarkLossGradientIntoMethod(b, loss.MeanSquaredError{}, predictions, targets, destination)
+}
+
 func Benchmark_BinaryCrossEntropyValue_Small(b *testing.B) {
 	var (
 		predictions *matrix.Matrix
@@ -88,6 +118,36 @@ func Benchmark_BinaryCrossEntropyGradient_MediumBatch(b *testing.B) {
 
 	predictions, targets = benchmarkBinaryMatrices(b, 128)
 	benchmarkLossGradientMethod(b, loss.BinaryCrossEntropy{}, predictions, targets)
+}
+
+func Benchmark_BinaryCrossEntropyGradientInto_Small(b *testing.B) {
+	var (
+		predictions *matrix.Matrix
+		targets     *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	predictions, targets = benchmarkBinaryMatrices(b, 4)
+	if destination, err = matrix.New(4, 1); err != nil {
+		b.Fatalf("New destination returned error: %v", err)
+	}
+	benchmarkLossGradientIntoMethod(b, loss.BinaryCrossEntropy{}, predictions, targets, destination)
+}
+
+func Benchmark_BinaryCrossEntropyGradientInto_MediumBatch(b *testing.B) {
+	var (
+		predictions *matrix.Matrix
+		targets     *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	predictions, targets = benchmarkBinaryMatrices(b, 128)
+	if destination, err = matrix.New(128, 1); err != nil {
+		b.Fatalf("New destination returned error: %v", err)
+	}
+	benchmarkLossGradientIntoMethod(b, loss.BinaryCrossEntropy{}, predictions, targets, destination)
 }
 
 func Benchmark_CategoricalCrossEntropyValue_Small(b *testing.B) {
@@ -130,6 +190,36 @@ func Benchmark_CategoricalCrossEntropyGradient_MediumBatch(b *testing.B) {
 	benchmarkLossGradientMethod(b, loss.CategoricalCrossEntropy{}, predictions, targets)
 }
 
+func Benchmark_CategoricalCrossEntropyGradientInto_Small(b *testing.B) {
+	var (
+		predictions *matrix.Matrix
+		targets     *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	predictions, targets = benchmarkCategoricalMatrices(b, 4, 3)
+	if destination, err = matrix.New(4, 3); err != nil {
+		b.Fatalf("New destination returned error: %v", err)
+	}
+	benchmarkLossGradientIntoMethod(b, loss.CategoricalCrossEntropy{}, predictions, targets, destination)
+}
+
+func Benchmark_CategoricalCrossEntropyGradientInto_MediumBatch(b *testing.B) {
+	var (
+		predictions *matrix.Matrix
+		targets     *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	predictions, targets = benchmarkCategoricalMatrices(b, 128, 16)
+	if destination, err = matrix.New(128, 16); err != nil {
+		b.Fatalf("New destination returned error: %v", err)
+	}
+	benchmarkLossGradientIntoMethod(b, loss.CategoricalCrossEntropy{}, predictions, targets, destination)
+}
+
 func benchmarkLossValueMethod(b *testing.B, lossFunc loss.Loss, predictions, targets *matrix.Matrix) {
 	var (
 		value float32
@@ -170,6 +260,31 @@ func benchmarkLossGradientMethod(b *testing.B, lossFunc loss.Loss, predictions, 
 	}
 
 	benchmarkLossGradient = gradient
+}
+
+func benchmarkLossGradientIntoMethod(
+	b *testing.B,
+	lossFunc loss.DestinationGradient,
+	predictions,
+	targets,
+	destination *matrix.Matrix,
+) {
+	var (
+		err   error
+		index int
+	)
+
+	b.Helper()
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		if err = lossFunc.GradientInto(predictions, targets, destination); err != nil {
+			b.Fatalf("GradientInto returned error: %v", err)
+		}
+	}
+
+	benchmarkLossGradient = destination
 }
 
 func benchmarkRegressionMatrices(tb testing.TB, rows, cols int) (predictions, targets *matrix.Matrix) {
