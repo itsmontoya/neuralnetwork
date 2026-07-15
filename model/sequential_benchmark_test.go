@@ -271,6 +271,65 @@ func Benchmark_SequentialTrainBatch_Regularized(b *testing.B) {
 	}
 }
 
+func Benchmark_SequentialTrainBatch_AlternatingShapes(b *testing.B) {
+	var (
+		sampleCounts  []int
+		inputs        []*matrix.Matrix
+		targets       []*matrix.Matrix
+		network       *model.Sequential
+		optimizerRule *optimizer.SGD
+		metrics       model.TrainMetrics
+		err           error
+		index         int
+		shapeIndex    int
+	)
+
+	sampleCounts = []int{128, 17, 64, 31}
+	inputs = make([]*matrix.Matrix, len(sampleCounts))
+	targets = make([]*matrix.Matrix, len(sampleCounts))
+	for shapeIndex = range sampleCounts {
+		inputs[shapeIndex], targets[shapeIndex] = benchmarkSyntheticMatrices(
+			b,
+			sampleCounts[shapeIndex],
+			32,
+			16,
+		)
+	}
+
+	network = benchmarkSyntheticModel(b)
+	if optimizerRule, err = optimizer.NewSGD(0.01); err != nil {
+		b.Fatalf("NewSGD returned error: %v", err)
+	}
+
+	for shapeIndex = range sampleCounts {
+		if _, err = network.TrainBatch(
+			inputs[shapeIndex],
+			targets[shapeIndex],
+			loss.MeanSquaredError{},
+			optimizerRule,
+		); err != nil {
+			b.Fatalf("warm-up TrainBatch returned error: %v", err)
+		}
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		shapeIndex = index % len(sampleCounts)
+		if metrics, err = network.TrainBatch(
+			inputs[shapeIndex],
+			targets[shapeIndex],
+			loss.MeanSquaredError{},
+			optimizerRule,
+		); err != nil {
+			b.Fatalf("TrainBatch returned error: %v", err)
+		}
+	}
+
+	benchmarkTrainMetrics = metrics
+}
+
 func Benchmark_SequentialFit_SyntheticDense_ColdOneEpoch(b *testing.B) {
 	var (
 		network       *model.Sequential

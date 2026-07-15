@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/itsmontoya/neuralnetwork/data"
+	"github.com/itsmontoya/neuralnetwork/internal/scratch"
 	"github.com/itsmontoya/neuralnetwork/layer"
 	"github.com/itsmontoya/neuralnetwork/loss"
 	"github.com/itsmontoya/neuralnetwork/matrix"
@@ -57,6 +58,7 @@ func LoadSequential(reader io.Reader) (out *Sequential, err error) {
 type Sequential struct {
 	layers          []layer.Layer
 	parameterBuffer []*optimizer.Parameter
+	gradientPool    scratch.MatrixPool
 	training        bool
 }
 
@@ -273,7 +275,7 @@ func (s *Sequential) TrainBatch(
 		return metrics, err
 	}
 
-	if gradient, err = lossFunc.Gradient(predictions, targets); err != nil {
+	if gradient, err = s.lossGradient(lossFunc, predictions, targets); err != nil {
 		err = fmt.Errorf("model: loss gradient failed: %w", err)
 		return metrics, err
 	}
@@ -289,6 +291,36 @@ func (s *Sequential) TrainBatch(
 	}
 
 	return metrics, nil
+}
+
+func (s *Sequential) lossGradient(
+	lossFunc loss.Loss,
+	predictions,
+	targets *matrix.Matrix,
+) (gradient *matrix.Matrix, err error) {
+	var (
+		destinationLoss loss.DestinationGradient
+		rows            int
+		cols            int
+		ok              bool
+	)
+
+	destinationLoss, ok = lossFunc.(loss.DestinationGradient)
+	if !ok {
+		gradient, err = lossFunc.Gradient(predictions, targets)
+		return gradient, err
+	}
+
+	rows, cols = predictions.Shape()
+	if gradient, _, err = s.gradientPool.Get(rows, cols); err != nil {
+		return nil, err
+	}
+
+	if err = destinationLoss.GradientInto(predictions, targets, gradient); err != nil {
+		return nil, err
+	}
+
+	return gradient, nil
 }
 
 // Fit trains the model across multiple epochs using mini-batches.
