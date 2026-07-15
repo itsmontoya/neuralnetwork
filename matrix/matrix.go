@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 )
 
 const columnReductionAddMinCols = 16
@@ -698,6 +700,71 @@ func (m *Matrix) DivideScalarInto(value float32, result *Matrix) (err error) {
 	return nil
 }
 
+// SoftmaxRowsInto writes the row-wise normalized exponentials of m into result.
+//
+// The destination must match the input shape and may alias m. Each row uses its
+// maximum input value for numerical stability.
+func (m *Matrix) SoftmaxRowsInto(result *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+
+	softmaxRowsInto(m.data, result.data, m.rows, m.cols)
+	return nil
+}
+
+// SoftmaxRowsBackwardInto writes the product of outputGradient and each row's
+// Softmax Jacobian into result.
+//
+// The output gradient and destination must match the input shape. The
+// destination may alias m, but must not alias outputGradient.
+func (m *Matrix) SoftmaxRowsBackwardInto(outputGradient, result *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if err = outputGradient.requireShape("output gradient", m.rows, m.cols); err != nil {
+		return err
+	}
+
+	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+
+	if result == outputGradient {
+		err = errors.New("matrix: destination must not alias output gradient")
+		return err
+	}
+
+	softmaxRowsInto(m.data, result.data, m.rows, m.cols)
+
+	var (
+		row    int
+		col    int
+		offset int
+		dot    float32
+	)
+
+	for row = 0; row < m.rows; row++ {
+		offset = row * m.cols
+		dot = 0
+
+		for col = 0; col < m.cols; col++ {
+			dot += outputGradient.data[offset+col] * result.data[offset+col]
+		}
+
+		for col = 0; col < m.cols; col++ {
+			result.data[offset+col] *= outputGradient.data[offset+col] - dot
+		}
+	}
+
+	return nil
+}
+
 // MatMul returns the matrix product of m and other.
 func (m *Matrix) MatMul(other *Matrix) (result *Matrix, err error) {
 	var next Matrix
@@ -1206,6 +1273,40 @@ func (m *Matrix) newLike() (result *Matrix) {
 	next.cols = m.cols
 	next.data = make([]float32, len(m.data))
 	return &next
+}
+
+func softmaxRowsInto(input, result []float32, rows, cols int) {
+	var (
+		row      int
+		col      int
+		offset   int
+		maxValue float32
+		value    float32
+		sum      float32
+	)
+
+	for row = 0; row < rows; row++ {
+		offset = row * cols
+		maxValue = input[offset]
+
+		for col = 1; col < cols; col++ {
+			value = input[offset+col]
+			if value > maxValue {
+				maxValue = value
+			}
+		}
+
+		sum = 0
+		for col = 0; col < cols; col++ {
+			value = f32.Exp(input[offset+col] - maxValue)
+			result[offset+col] = value
+			sum += value
+		}
+
+		for col = 0; col < cols; col++ {
+			result[offset+col] /= sum
+		}
+	}
 }
 
 func (m *Matrix) validate() (err error) {
