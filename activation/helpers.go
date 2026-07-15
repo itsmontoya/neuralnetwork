@@ -1,6 +1,7 @@
 package activation
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/itsmontoya/neuralnetwork/matrix"
@@ -19,6 +20,19 @@ func apply(input *matrix.Matrix, fn func(float32) float32) (output *matrix.Matri
 	return output, nil
 }
 
+func applyInto(input, output *matrix.Matrix, fn func(float32) float32) (err error) {
+	if _, _, err = matrixShape("input", input); err != nil {
+		return err
+	}
+
+	if err = input.ApplyInto(fn, output); err != nil {
+		err = fmt.Errorf("activation: output matrix invalid: %w", err)
+		return err
+	}
+
+	return nil
+}
+
 func applyDerivative(input, outputGradient *matrix.Matrix, derivative func(float32) float32) (inputGradient *matrix.Matrix, err error) {
 	if _, _, err = matrixPairShape(input, outputGradient); err != nil {
 		return nil, err
@@ -35,6 +49,32 @@ func applyDerivative(input, outputGradient *matrix.Matrix, derivative func(float
 	}
 
 	return inputGradient, nil
+}
+
+func applyDerivativeInto(
+	input, outputGradient, inputGradient *matrix.Matrix,
+	derivative func(float32) float32,
+) (err error) {
+	if _, _, err = matrixPairShape(input, outputGradient); err != nil {
+		return err
+	}
+
+	if inputGradient == outputGradient {
+		err = errors.New("activation: input gradient must not alias output gradient")
+		return err
+	}
+
+	if err = input.ApplyInto(derivative, inputGradient); err != nil {
+		err = fmt.Errorf("activation: input gradient matrix invalid: %w", err)
+		return err
+	}
+
+	if err = inputGradient.MultiplyElementsInto(outputGradient, inputGradient); err != nil {
+		err = fmt.Errorf("activation: derivative multiply failed: %w", err)
+		return err
+	}
+
+	return nil
 }
 
 func matrixShape(name string, input *matrix.Matrix) (rows, cols int, err error) {
