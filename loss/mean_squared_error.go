@@ -33,9 +33,8 @@ func (m MeanSquaredError) Value(predictions, targets *matrix.Matrix) (value floa
 // Gradient returns the prediction gradient of the mean squared error.
 func (m MeanSquaredError) Gradient(predictions, targets *matrix.Matrix) (gradient *matrix.Matrix, err error) {
 	var (
-		rows  int
-		cols  int
-		scale float32
+		rows int
+		cols int
 	)
 
 	if rows, cols, err = matrixShapePair(predictions, targets); err != nil {
@@ -46,14 +45,45 @@ func (m MeanSquaredError) Gradient(predictions, targets *matrix.Matrix) (gradien
 		return nil, err
 	}
 
-	if err = predictions.SubtractInto(targets, gradient); err != nil {
-		return nil, err
-	}
-
-	scale = 2 / float32(rows*cols)
-	if err = gradient.MultiplyScalarInPlace(scale); err != nil {
+	if err = m.gradientInto(predictions, targets, gradient, rows, cols); err != nil {
 		return nil, err
 	}
 
 	return gradient, nil
+}
+
+// GradientInto writes the prediction gradient into destination.
+func (m MeanSquaredError) GradientInto(predictions, targets, destination *matrix.Matrix) (err error) {
+	var (
+		rows int
+		cols int
+	)
+
+	if rows, cols, err = matrixShapePair(predictions, targets); err != nil {
+		return err
+	}
+
+	err = m.gradientInto(predictions, targets, destination, rows, cols)
+	return err
+}
+
+func (m MeanSquaredError) gradientInto(
+	predictions,
+	targets,
+	destination *matrix.Matrix,
+	rows,
+	cols int,
+) (err error) {
+	var scale float32
+
+	if err = predictions.SubtractInto(targets, destination); err != nil {
+		return err
+	}
+
+	scale = 2 / float32(rows*cols)
+	if err = destination.MultiplyScalarInPlace(scale); err != nil {
+		return err
+	}
+
+	return nil
 }
