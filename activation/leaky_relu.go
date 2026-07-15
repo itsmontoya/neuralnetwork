@@ -13,10 +13,22 @@ func (l LeakyReLU) Forward(input *matrix.Matrix) (output *matrix.Matrix, err err
 	return output, err
 }
 
+// ForwardInto writes the LeakyReLU result into output.
+func (l LeakyReLU) ForwardInto(input, output *matrix.Matrix) (err error) {
+	err = applyInto(input, output, leakyReLUValue)
+	return err
+}
+
 // Backward multiplies outputGradient by the LeakyReLU derivative at input.
 func (l LeakyReLU) Backward(input, outputGradient *matrix.Matrix) (inputGradient *matrix.Matrix, err error) {
 	inputGradient, err = applyDerivative(input, outputGradient, leakyReLUDerivative)
 	return inputGradient, err
+}
+
+// BackwardInto writes the propagated LeakyReLU gradient into inputGradient.
+func (l LeakyReLU) BackwardInto(input, outputGradient, inputGradient *matrix.Matrix) (err error) {
+	err = applyDerivativeInto(input, outputGradient, inputGradient, leakyReLUDerivative)
+	return err
 }
 
 func leakyReLUValue(value float32) (result float32) {
