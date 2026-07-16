@@ -62,6 +62,7 @@ func LoadCSV(reader io.Reader, config CSVConfig) (out *Dataset, err error) {
 
 	csvReader = csv.NewReader(reader)
 	csvReader.FieldsPerRecord = -1
+	csvReader.ReuseRecord = true
 	csvReader.TrimLeadingSpace = true
 
 	if config.HasHeader {
@@ -115,7 +116,7 @@ func LoadCSV(reader io.Reader, config CSVConfig) (out *Dataset, err error) {
 		return nil, err
 	}
 
-	out, err = NewDataset(inputs, targets)
+	out, err = newDataset(inputs, targets)
 	return out, err
 }
 
