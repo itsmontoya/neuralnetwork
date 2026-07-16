@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
@@ -17,81 +18,83 @@ func NewBinaryConfusionMatrix(predictions, targets *matrix.Matrix) (out *Confusi
 // NewBinaryConfusionMatrixWithThreshold constructs a binary confusion matrix
 // with a finite threshold.
 func NewBinaryConfusionMatrixWithThreshold(predictions, targets *matrix.Matrix, threshold float32) (out *ConfusionMatrix, err error) {
-	var (
-		predictedClasses []int
-		targetClasses    []int
-	)
+	var confusionMatrix ConfusionMatrix
 
-	if predictedClasses, targetClasses, err = binaryClassValues(predictions, targets, threshold); err != nil {
+	if confusionMatrix, err = binaryConfusionMatrix(predictions, targets, threshold); err != nil {
 		return nil, err
 	}
 
-	out, err = newConfusionMatrix(2, predictedClasses, targetClasses)
-	return out, err
+	out = &confusionMatrix
+	return out, nil
 }
 
 // NewCategoricalConfusionMatrix constructs a confusion matrix for one-hot targets.
 //
 // Predicted classes use each prediction row's first maximum value.
 func NewCategoricalConfusionMatrix(predictions, targets *matrix.Matrix) (out *ConfusionMatrix, err error) {
-	var (
-		classCount       int
-		predictedClasses []int
-		targetClasses    []int
-	)
+	var confusionMatrix ConfusionMatrix
 
-	if classCount, predictedClasses, targetClasses, err = categoricalClassValues(predictions, targets); err != nil {
+	if confusionMatrix, err = categoricalConfusionMatrix(predictions, targets); err != nil {
 		return nil, err
 	}
 
-	out, err = newConfusionMatrix(classCount, predictedClasses, targetClasses)
-	return out, err
+	out = &confusionMatrix
+	return out, nil
+}
+
+func binaryConfusionMatrix(predictions, targets *matrix.Matrix, threshold float32) (out ConfusionMatrix, err error) {
+	var (
+		truePositive      int
+		predictedPositive int
+		targetPositive    int
+	)
+
+	if f32.IsNaN(threshold) || f32.IsInf(threshold, 0) {
+		err = fmt.Errorf("metric: binary classification threshold must be finite: threshold=%g", threshold)
+		return out, err
+	}
+
+	if out.total, truePositive, predictedPositive, targetPositive, err = binaryPositiveTotals(
+		predictions,
+		targets,
+		threshold,
+		"binary classification",
+	); err != nil {
+		return out, err
+	}
+
+	out.classCount = 2
+	out.counts = make([]int, out.classCount*out.classCount)
+	out.counts[0] = out.total - predictedPositive - targetPositive + truePositive
+	out.counts[1] = predictedPositive - truePositive
+	out.counts[2] = targetPositive - truePositive
+	out.counts[3] = truePositive
+	return out, nil
+}
+
+func categoricalConfusionMatrix(predictions, targets *matrix.Matrix) (out ConfusionMatrix, err error) {
+	if out.total, out.classCount, err = matrixShapePair(predictions, targets); err != nil {
+		return out, err
+	}
+
+	out.counts = make([]int, out.classCount*out.classCount)
+	if _, err = categoricalClassSummary(
+		predictions,
+		targets,
+		out.classCount,
+		out.counts,
+	); err != nil {
+		return out, err
+	}
+
+	return out, nil
 }
 
 // ConfusionMatrix stores classification counts as target rows by predicted columns.
 type ConfusionMatrix struct {
-	counts [][]int
-	total  int
-}
-
-func newConfusionMatrix(classCount int, predictedClasses, targetClasses []int) (out *ConfusionMatrix, err error) {
-	var (
-		index          int
-		predictedClass int
-		targetClass    int
-		c              ConfusionMatrix
-	)
-
-	if classCount <= 0 {
-		err = fmt.Errorf("metric: confusion matrix class count must be positive: classCount=%d", classCount)
-		return nil, err
-	}
-
-	if len(predictedClasses) != len(targetClasses) {
-		err = fmt.Errorf("metric: confusion matrix class length mismatch: predictions=%d targets=%d", len(predictedClasses), len(targetClasses))
-		return nil, err
-	}
-
-	c.counts = make([][]int, classCount)
-	c.total = len(predictedClasses)
-	for index = range c.counts {
-		c.counts[index] = make([]int, classCount)
-	}
-
-	for index, predictedClass = range predictedClasses {
-		targetClass = targetClasses[index]
-		if err = validateClassIndex("predicted", predictedClass, classCount); err != nil {
-			return nil, err
-		}
-
-		if err = validateClassIndex("target", targetClass, classCount); err != nil {
-			return nil, err
-		}
-
-		c.counts[targetClass][predictedClass]++
-	}
-
-	return &c, nil
+	counts     []int
+	classCount int
+	total      int
 }
 
 // ClassCount returns the number of classes represented by the matrix.
@@ -100,7 +103,7 @@ func (c *ConfusionMatrix) ClassCount() (classCount int) {
 		return 0
 	}
 
-	classCount = len(c.counts)
+	classCount = c.classCount
 	return classCount
 }
 
@@ -117,16 +120,19 @@ func (c *ConfusionMatrix) Total() (total int) {
 // Counts returns a copy of target-row by predicted-column counts.
 func (c *ConfusionMatrix) Counts() (counts [][]int, err error) {
 	var (
-		row int
+		row    int
+		offset int
 	)
 
 	if err = c.validate(); err != nil {
 		return nil, err
 	}
 
-	counts = make([][]int, len(c.counts))
-	for row = range c.counts {
-		counts[row] = append([]int(nil), c.counts[row]...)
+	counts = make([][]int, c.classCount)
+	for row = 0; row < c.classCount; row++ {
+		offset = row * c.classCount
+		counts[row] = make([]int, c.classCount)
+		copy(counts[row], c.counts[offset:offset+c.classCount])
 	}
 
 	return counts, nil
@@ -138,15 +144,15 @@ func (c *ConfusionMatrix) At(targetClass, predictedClass int) (count int, err er
 		return 0, err
 	}
 
-	if err = validateClassIndex("target", targetClass, len(c.counts)); err != nil {
+	if err = validateClassIndex("target", targetClass, c.classCount); err != nil {
 		return 0, err
 	}
 
-	if err = validateClassIndex("predicted", predictedClass, len(c.counts)); err != nil {
+	if err = validateClassIndex("predicted", predictedClass, c.classCount); err != nil {
 		return 0, err
 	}
 
-	count = c.counts[targetClass][predictedClass]
+	count = c.counts[targetClass*c.classCount+predictedClass]
 	return count, nil
 }
 
@@ -165,8 +171,8 @@ func (c *ConfusionMatrix) Accuracy() (value float32, err error) {
 		return 0, nil
 	}
 
-	for classIndex = range c.counts {
-		correct += c.counts[classIndex][classIndex]
+	for classIndex = 0; classIndex < c.classCount; classIndex++ {
+		correct += c.counts[classIndex*c.classCount+classIndex]
 	}
 
 	value = float32(correct) / float32(c.total)
@@ -175,106 +181,121 @@ func (c *ConfusionMatrix) Accuracy() (value float32, err error) {
 
 // Precision returns precision for classIndex.
 func (c *ConfusionMatrix) Precision(classIndex int) (value float32, err error) {
-	var predictedTotal int
-
 	if err = c.validateClass(classIndex); err != nil {
 		return 0, err
 	}
 
-	predictedTotal = c.predictedTotal(classIndex)
-	if predictedTotal == 0 {
-		return 0, nil
-	}
-
-	value = float32(c.counts[classIndex][classIndex]) / float32(predictedTotal)
+	value = c.precision(classIndex)
 	return value, nil
 }
 
 // Recall returns recall for classIndex.
 func (c *ConfusionMatrix) Recall(classIndex int) (value float32, err error) {
-	var targetTotal int
-
 	if err = c.validateClass(classIndex); err != nil {
 		return 0, err
 	}
 
-	targetTotal = c.targetTotal(classIndex)
-	if targetTotal == 0 {
-		return 0, nil
-	}
-
-	value = float32(c.counts[classIndex][classIndex]) / float32(targetTotal)
+	value = c.recall(classIndex)
 	return value, nil
 }
 
 // F1 returns the harmonic mean of precision and recall for classIndex.
 func (c *ConfusionMatrix) F1(classIndex int) (value float32, err error) {
-	var (
-		precision float32
-		recall    float32
-	)
-
-	if precision, err = c.Precision(classIndex); err != nil {
+	if err = c.validateClass(classIndex); err != nil {
 		return 0, err
 	}
 
-	if recall, err = c.Recall(classIndex); err != nil {
-		return 0, err
-	}
-
-	if precision+recall == 0 {
-		return 0, nil
-	}
-
-	value = 2 * precision * recall / (precision + recall)
+	value = c.f1(classIndex)
 	return value, nil
 }
 
 // MacroPrecision returns the unweighted mean precision across classes.
 func (c *ConfusionMatrix) MacroPrecision() (value float32, err error) {
-	value, err = c.macro(c.Precision)
-	return value, err
-}
-
-// MacroRecall returns the unweighted mean recall across classes.
-func (c *ConfusionMatrix) MacroRecall() (value float32, err error) {
-	value, err = c.macro(c.Recall)
-	return value, err
-}
-
-// MacroF1 returns the unweighted mean F1 across classes.
-func (c *ConfusionMatrix) MacroF1() (value float32, err error) {
-	value, err = c.macro(c.F1)
-	return value, err
-}
-
-func (c *ConfusionMatrix) macro(fn func(int) (float32, error)) (value float32, err error) {
-	var (
-		classIndex int
-		next       float32
-	)
+	var classIndex int
 
 	if err = c.validate(); err != nil {
 		return 0, err
 	}
 
-	for classIndex = range c.counts {
-		if next, err = fn(classIndex); err != nil {
-			return 0, err
-		}
-
-		value += next
+	for classIndex = 0; classIndex < c.classCount; classIndex++ {
+		value += c.precision(classIndex)
 	}
 
-	value /= float32(len(c.counts))
+	value /= float32(c.classCount)
 	return value, nil
 }
 
-func (c *ConfusionMatrix) targetTotal(classIndex int) (total int) {
-	var predictedClass int
+// MacroRecall returns the unweighted mean recall across classes.
+func (c *ConfusionMatrix) MacroRecall() (value float32, err error) {
+	var classIndex int
 
-	for predictedClass = range c.counts[classIndex] {
-		total += c.counts[classIndex][predictedClass]
+	if err = c.validate(); err != nil {
+		return 0, err
+	}
+
+	for classIndex = 0; classIndex < c.classCount; classIndex++ {
+		value += c.recall(classIndex)
+	}
+
+	value /= float32(c.classCount)
+	return value, nil
+}
+
+// MacroF1 returns the unweighted mean F1 across classes.
+func (c *ConfusionMatrix) MacroF1() (value float32, err error) {
+	var classIndex int
+
+	if err = c.validate(); err != nil {
+		return 0, err
+	}
+
+	for classIndex = 0; classIndex < c.classCount; classIndex++ {
+		value += c.f1(classIndex)
+	}
+
+	value /= float32(c.classCount)
+	return value, nil
+}
+
+func (c *ConfusionMatrix) precision(classIndex int) (value float32) {
+	var predictedTotal int
+
+	predictedTotal = c.predictedTotal(classIndex)
+	value = precisionValue(c.counts[classIndex*c.classCount+classIndex], predictedTotal)
+	return value
+}
+
+func (c *ConfusionMatrix) recall(classIndex int) (value float32) {
+	var targetTotal int
+
+	targetTotal = c.targetTotal(classIndex)
+	value = recallValue(c.counts[classIndex*c.classCount+classIndex], targetTotal)
+	return value
+}
+
+func (c *ConfusionMatrix) f1(classIndex int) (value float32) {
+	var (
+		truePositive      int
+		predictedPositive int
+		targetPositive    int
+	)
+
+	truePositive = c.counts[classIndex*c.classCount+classIndex]
+	predictedPositive = c.predictedTotal(classIndex)
+	targetPositive = c.targetTotal(classIndex)
+	value = f1Value(truePositive, predictedPositive, targetPositive)
+	return value
+}
+
+func (c *ConfusionMatrix) targetTotal(classIndex int) (total int) {
+	var (
+		predictedClass int
+		offset         int
+	)
+
+	offset = classIndex * c.classCount
+	for predictedClass = 0; predictedClass < c.classCount; predictedClass++ {
+		total += c.counts[offset+predictedClass]
 	}
 
 	return total
@@ -283,8 +304,8 @@ func (c *ConfusionMatrix) targetTotal(classIndex int) (total int) {
 func (c *ConfusionMatrix) predictedTotal(classIndex int) (total int) {
 	var targetClass int
 
-	for targetClass = range c.counts {
-		total += c.counts[targetClass][classIndex]
+	for targetClass = 0; targetClass < c.classCount; targetClass++ {
+		total += c.counts[targetClass*c.classCount+classIndex]
 	}
 
 	return total
@@ -295,28 +316,28 @@ func (c *ConfusionMatrix) validateClass(classIndex int) (err error) {
 		return err
 	}
 
-	err = validateClassIndex("class", classIndex, len(c.counts))
+	err = validateClassIndex("class", classIndex, c.classCount)
 	return err
 }
 
 func (c *ConfusionMatrix) validate() (err error) {
-	var row int
-
 	if c == nil {
 		err = errors.New("metric: confusion matrix is nil")
 		return err
 	}
 
-	if len(c.counts) == 0 {
+	if c.classCount <= 0 {
 		err = errors.New("metric: confusion matrix has no classes")
 		return err
 	}
 
-	for row = range c.counts {
-		if len(c.counts[row]) != len(c.counts) {
-			err = fmt.Errorf("metric: confusion matrix row %d length mismatch: got %d, want %d", row, len(c.counts[row]), len(c.counts))
-			return err
-		}
+	if len(c.counts) != c.classCount*c.classCount {
+		err = fmt.Errorf(
+			"metric: confusion matrix storage length mismatch: got %d, want %d",
+			len(c.counts),
+			c.classCount*c.classCount,
+		)
+		return err
 	}
 
 	return nil
