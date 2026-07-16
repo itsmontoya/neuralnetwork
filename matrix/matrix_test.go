@@ -394,6 +394,129 @@ func Test_SelectRows(t *testing.T) {
 	})
 }
 
+func Test_SelectRowsInto(t *testing.T) {
+	var (
+		source      *matrix.Matrix
+		destination *matrix.Matrix
+		err         error
+	)
+
+	source = mustMatrix(t, 3, 2, []float32{
+		1, 2,
+		3, 4,
+		5, 6,
+	})
+	destination = mustMatrix(t, 3, 2, []float32{
+		-1, -1,
+		-1, -1,
+		-1, -1,
+	})
+
+	if err = source.SelectRowsInto([]int{2, 0, 2}, destination); err != nil {
+		t.Fatalf("SelectRowsInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, destination, []float32{
+		5, 6,
+		1, 2,
+		5, 6,
+	})
+
+	if err = destination.Set(0, 0, 99); err != nil {
+		t.Fatalf("destination Set returned error: %v", err)
+	}
+
+	requireMatrixValues(t, source, []float32{
+		1, 2,
+		3, 4,
+		5, 6,
+	})
+}
+
+func Test_SelectRowsInto_ValidatesDestinationAndIndexes(t *testing.T) {
+	type testcase struct {
+		name        string
+		indexes     []int
+		destination func(source *matrix.Matrix) *matrix.Matrix
+	}
+
+	var tests []testcase
+	tests = []testcase{
+		{
+			name:    "empty indexes",
+			indexes: []int{},
+			destination: func(source *matrix.Matrix) (destination *matrix.Matrix) {
+				destination = mustMatrix(t, 1, 2, []float32{0, 0})
+				return destination
+			},
+		},
+		{
+			name:    "negative index",
+			indexes: []int{-1},
+			destination: func(source *matrix.Matrix) (destination *matrix.Matrix) {
+				destination = mustMatrix(t, 1, 2, []float32{0, 0})
+				return destination
+			},
+		},
+		{
+			name:    "index too large",
+			indexes: []int{3},
+			destination: func(source *matrix.Matrix) (destination *matrix.Matrix) {
+				destination = mustMatrix(t, 1, 2, []float32{0, 0})
+				return destination
+			},
+		},
+		{
+			name:    "wrong rows",
+			indexes: []int{0, 1},
+			destination: func(source *matrix.Matrix) (destination *matrix.Matrix) {
+				destination = mustMatrix(t, 1, 2, []float32{0, 0})
+				return destination
+			},
+		},
+		{
+			name:    "wrong columns",
+			indexes: []int{0, 1},
+			destination: func(source *matrix.Matrix) (destination *matrix.Matrix) {
+				destination = mustMatrix(t, 2, 1, []float32{0, 0})
+				return destination
+			},
+		},
+		{
+			name:    "nil destination",
+			indexes: []int{0},
+			destination: func(source *matrix.Matrix) (destination *matrix.Matrix) {
+				return nil
+			},
+		},
+		{
+			name:    "aliased destination",
+			indexes: []int{2, 1, 0},
+			destination: func(source *matrix.Matrix) (destination *matrix.Matrix) {
+				destination = source
+				return destination
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				source      *matrix.Matrix
+				destination *matrix.Matrix
+				err         error
+			)
+
+			source = mustMatrix(t, 3, 2, []float32{1, 2, 3, 4, 5, 6})
+			destination = tt.destination(source)
+			err = source.SelectRowsInto(tt.indexes, destination)
+			if err == nil {
+				t.Fatal("SelectRowsInto error = nil, want error")
+			}
+		})
+	}
+}
+
 func Test_SelectRows_ValidatesIndexes(t *testing.T) {
 	type testcase struct {
 		name    string
