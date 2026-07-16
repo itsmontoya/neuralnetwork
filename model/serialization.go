@@ -243,13 +243,6 @@ func serializedBatchNormalizationLayer(index int, batchNormLayer *layerpkg.Batch
 }
 
 func (s serializedLayer) batchNormalizationLayer(index int) (batchNormLayer *layerpkg.BatchNormalization, err error) {
-	var (
-		gamma           *matrixpkg.Matrix
-		beta            *matrixpkg.Matrix
-		runningMean     *matrixpkg.Matrix
-		runningVariance *matrixpkg.Matrix
-	)
-
 	if s.Gamma == nil {
 		err = fmt.Errorf("model: layer %d batch normalization gamma is missing", index)
 		return nil, err
@@ -270,22 +263,22 @@ func (s serializedLayer) batchNormalizationLayer(index int) (batchNormLayer *lay
 		return nil, err
 	}
 
-	if gamma, err = s.Gamma.matrix(); err != nil {
+	if err = s.Gamma.validate(); err != nil {
 		err = fmt.Errorf("model: layer %d batch normalization gamma load failed: %w", index, err)
 		return nil, err
 	}
 
-	if beta, err = s.Beta.matrix(); err != nil {
+	if err = s.Beta.validate(); err != nil {
 		err = fmt.Errorf("model: layer %d batch normalization beta load failed: %w", index, err)
 		return nil, err
 	}
 
-	if runningMean, err = s.RunningMean.matrix(); err != nil {
+	if err = s.RunningMean.validate(); err != nil {
 		err = fmt.Errorf("model: layer %d batch normalization running mean load failed: %w", index, err)
 		return nil, err
 	}
 
-	if runningVariance, err = s.RunningVariance.matrix(); err != nil {
+	if err = s.RunningVariance.validate(); err != nil {
 		err = fmt.Errorf("model: layer %d batch normalization running variance load failed: %w", index, err)
 		return nil, err
 	}
@@ -295,22 +288,22 @@ func (s serializedLayer) batchNormalizationLayer(index int) (batchNormLayer *lay
 		return nil, err
 	}
 
-	if err = batchNormLayer.Gamma().Values().CopyFrom(gamma); err != nil {
+	if err = s.Gamma.copyInto(batchNormLayer.Gamma().Values()); err != nil {
 		err = fmt.Errorf("model: layer %d batch normalization gamma copy failed: %w", index, err)
 		return nil, err
 	}
 
-	if err = batchNormLayer.Beta().Values().CopyFrom(beta); err != nil {
+	if err = s.Beta.copyInto(batchNormLayer.Beta().Values()); err != nil {
 		err = fmt.Errorf("model: layer %d batch normalization beta copy failed: %w", index, err)
 		return nil, err
 	}
 
-	if err = batchNormLayer.RunningMean().CopyFrom(runningMean); err != nil {
+	if err = s.RunningMean.copyInto(batchNormLayer.RunningMean()); err != nil {
 		err = fmt.Errorf("model: layer %d batch normalization running mean copy failed: %w", index, err)
 		return nil, err
 	}
 
-	if err = batchNormLayer.RunningVariance().CopyFrom(runningVariance); err != nil {
+	if err = s.RunningVariance.copyInto(batchNormLayer.RunningVariance()); err != nil {
 		err = fmt.Errorf("model: layer %d batch normalization running variance copy failed: %w", index, err)
 		return nil, err
 	}
@@ -362,7 +355,6 @@ func serializedDenseLayer(index int, denseLayer *layerpkg.Dense) (serialized ser
 func (s serializedLayer) denseLayer(index int) (denseLayer *layerpkg.Dense, err error) {
 	var (
 		weights *matrixpkg.Matrix
-		biases  *matrixpkg.Matrix
 	)
 
 	if s.Weights == nil {
@@ -380,7 +372,7 @@ func (s serializedLayer) denseLayer(index int) (denseLayer *layerpkg.Dense, err 
 		return nil, err
 	}
 
-	if biases, err = s.Biases.matrix(); err != nil {
+	if err = s.Biases.validate(); err != nil {
 		err = fmt.Errorf("model: layer %d dense biases load failed: %w", index, err)
 		return nil, err
 	}
@@ -393,7 +385,7 @@ func (s serializedLayer) denseLayer(index int) (denseLayer *layerpkg.Dense, err 
 		return nil, err
 	}
 
-	if err = denseLayer.Biases().Values().CopyFrom(biases); err != nil {
+	if err = s.Biases.copyInto(denseLayer.Biases().Values()); err != nil {
 		err = fmt.Errorf("model: layer %d dense biases copy failed: %w", index, err)
 		return nil, err
 	}
@@ -450,6 +442,61 @@ func serializedMatrixFromMatrix(source *matrixpkg.Matrix) (serialized serialized
 func (s serializedMatrix) matrix() (m *matrixpkg.Matrix, err error) {
 	m, err = matrixpkg.FromSlice(s.Rows, s.Cols, s.Values)
 	return m, err
+}
+
+func (s serializedMatrix) copyInto(destination *matrixpkg.Matrix) (err error) {
+	var (
+		rows int
+		cols int
+	)
+
+	if err = s.validate(); err != nil {
+		return err
+	}
+
+	if destination == nil {
+		err = errors.New("matrix: matrix is nil")
+		return err
+	}
+
+	if err = destination.Validate(); err != nil {
+		return err
+	}
+
+	rows, cols = destination.Shape()
+	if s.Rows != rows || s.Cols != cols {
+		err = fmt.Errorf("matrix: destination shape mismatch: got %dx%d, want %dx%d", s.Rows, s.Cols, rows, cols)
+		return err
+	}
+
+	err = destination.CopyValuesFrom(s.Values)
+	return err
+}
+
+func (s serializedMatrix) validate() (err error) {
+	var (
+		maxInt int
+		size   int
+	)
+
+	if s.Rows <= 0 || s.Cols <= 0 {
+		err = fmt.Errorf("matrix: dimensions must be positive: rows=%d cols=%d", s.Rows, s.Cols)
+		return err
+	}
+
+	maxInt = int(^uint(0) >> 1)
+	if s.Rows > maxInt/s.Cols {
+		err = fmt.Errorf("matrix: dimensions are too large: rows=%d cols=%d", s.Rows, s.Cols)
+		return err
+	}
+
+	size = s.Rows * s.Cols
+	if len(s.Values) != size {
+		err = fmt.Errorf("matrix: values length mismatch: got %d, want %d", len(s.Values), size)
+		return err
+	}
+
+	return nil
 }
 
 func encodeSequential(writer io.Writer, s *Sequential) (err error) {
