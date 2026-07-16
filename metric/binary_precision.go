@@ -25,23 +25,25 @@ type BinaryPrecision struct {
 
 // Value returns positive-class precision for [batchSize, 1] predictions.
 func (b BinaryPrecision) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
-	var confusionMatrix *ConfusionMatrix
+	var (
+		truePositive      int
+		predictedPositive int
+		threshold         float32
+	)
 
-	if confusionMatrix, err = b.confusionMatrix(predictions, targets); err != nil {
+	if threshold, err = configuredBinaryThreshold("binary precision", b.threshold, b.hasThreshold); err != nil {
 		return 0, err
 	}
 
-	value, err = confusionMatrix.Precision(1)
-	return value, err
-}
-
-func (b BinaryPrecision) confusionMatrix(predictions, targets *matrix.Matrix) (confusionMatrix *ConfusionMatrix, err error) {
-	var threshold float32
-
-	if threshold, err = configuredBinaryThreshold("binary precision", b.threshold, b.hasThreshold); err != nil {
-		return nil, err
+	if _, truePositive, predictedPositive, _, err = binaryPositiveTotals(
+		predictions,
+		targets,
+		threshold,
+		"binary classification",
+	); err != nil {
+		return 0, err
 	}
 
-	confusionMatrix, err = NewBinaryConfusionMatrixWithThreshold(predictions, targets, threshold)
-	return confusionMatrix, err
+	value = precisionValue(truePositive, predictedPositive)
+	return value, nil
 }

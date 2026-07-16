@@ -25,23 +25,26 @@ type BinaryF1 struct {
 
 // Value returns positive-class F1 for [batchSize, 1] predictions.
 func (b BinaryF1) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
-	var confusionMatrix *ConfusionMatrix
+	var (
+		truePositive      int
+		predictedPositive int
+		targetPositive    int
+		threshold         float32
+	)
 
-	if confusionMatrix, err = b.confusionMatrix(predictions, targets); err != nil {
+	if threshold, err = configuredBinaryThreshold("binary f1", b.threshold, b.hasThreshold); err != nil {
 		return 0, err
 	}
 
-	value, err = confusionMatrix.F1(1)
-	return value, err
-}
-
-func (b BinaryF1) confusionMatrix(predictions, targets *matrix.Matrix) (confusionMatrix *ConfusionMatrix, err error) {
-	var threshold float32
-
-	if threshold, err = configuredBinaryThreshold("binary f1", b.threshold, b.hasThreshold); err != nil {
-		return nil, err
+	if _, truePositive, predictedPositive, targetPositive, err = binaryPositiveTotals(
+		predictions,
+		targets,
+		threshold,
+		"binary classification",
+	); err != nil {
+		return 0, err
 	}
 
-	confusionMatrix, err = NewBinaryConfusionMatrixWithThreshold(predictions, targets, threshold)
-	return confusionMatrix, err
+	value = f1Value(truePositive, predictedPositive, targetPositive)
+	return value, nil
 }
