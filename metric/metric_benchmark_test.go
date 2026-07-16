@@ -9,6 +9,7 @@ import (
 
 var benchmarkMetricValue float32
 var benchmarkConfusionMatrix *metric.ConfusionMatrix
+var benchmarkConfusionCounts [][]int
 
 func Benchmark_MetricValue(b *testing.B) {
 	var tests []struct {
@@ -93,6 +94,34 @@ func Benchmark_ConfusionMatrixConstruction(b *testing.B) {
 			}
 		})
 	}
+}
+
+func Benchmark_ConfusionMatrixCounts_ColdPath(b *testing.B) {
+	var (
+		predictions     *matrix.Matrix
+		targets         *matrix.Matrix
+		confusionMatrix *metric.ConfusionMatrix
+		counts          [][]int
+		err             error
+		index           int
+	)
+
+	predictions, targets = benchmarkCategoricalMatrices(b, 128)
+	if confusionMatrix, err = metric.NewCategoricalConfusionMatrix(predictions, targets); err != nil {
+		b.Fatalf("NewCategoricalConfusionMatrix returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		counts, err = confusionMatrix.Counts()
+		if err != nil {
+			b.Fatalf("Counts returned error: %v", err)
+		}
+	}
+
+	benchmarkConfusionCounts = counts
 }
 
 func benchmarkMetricShapes(
