@@ -8,21 +8,22 @@ type MeanSquaredError struct{}
 // Value returns the mean squared error for predictions and targets with equal shape.
 func (m MeanSquaredError) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
 	var (
-		rows             int
-		cols             int
-		predictionValues []float32
-		targetValues     []float32
-		index            int
-		difference       float32
+		rows       int
+		cols       int
+		difference float32
 	)
 
-	if rows, cols, predictionValues, targetValues, err = matrixValuePair(predictions, targets); err != nil {
+	if rows, cols, err = matrixShapePair(predictions, targets); err != nil {
 		return 0, err
 	}
 
-	for index = range predictionValues {
-		difference = predictionValues[index] - targetValues[index]
+	err = predictions.Pairwise(targets, func(row, col int, prediction, target float32) (err error) {
+		difference = prediction - target
 		value += difference * difference
+		return nil
+	})
+	if err != nil {
+		return 0, err
 	}
 
 	value /= float32(rows * cols)
