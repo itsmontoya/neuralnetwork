@@ -79,7 +79,8 @@ func (d *Dataset) Targets() (targets *matrix.Matrix, err error) {
 // InputsInto copies dataset inputs into inputs.
 //
 // The destination must match the dataset input shape. Values are copied, so
-// mutating the destination does not mutate the dataset.
+// mutating the caller-owned destination does not mutate the dataset. Valid
+// calls fully overwrite the destination without allocating or retaining it.
 func (d *Dataset) InputsInto(inputs *matrix.Matrix) (err error) {
 	if err = d.validate(); err != nil {
 		return err
@@ -96,7 +97,8 @@ func (d *Dataset) InputsInto(inputs *matrix.Matrix) (err error) {
 // TargetsInto copies dataset targets into targets.
 //
 // The destination must match the dataset target shape. Values are copied, so
-// mutating the destination does not mutate the dataset.
+// mutating the caller-owned destination does not mutate the dataset. Valid
+// calls fully overwrite the destination without allocating or retaining it.
 func (d *Dataset) TargetsInto(targets *matrix.Matrix) (err error) {
 	if err = d.validate(); err != nil {
 		return err
@@ -115,7 +117,8 @@ func (d *Dataset) TargetsInto(targets *matrix.Matrix) (err error) {
 // Rows are copied in index order, and repeated indexes duplicate rows. The
 // destinations must be separate matrices with shapes [len(indexes),
 // d.InputSize()] and [len(indexes), d.TargetSize()]. Both destinations are
-// fully overwritten, and mutating them does not mutate the dataset.
+// caller-owned and fully overwritten; mutating them does not mutate the
+// dataset. Valid calls allocate no storage and retain neither destination.
 func (d *Dataset) SelectRowsInto(indexes []int, inputs, targets *matrix.Matrix) (err error) {
 	var sourceRow int
 

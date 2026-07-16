@@ -20,6 +20,8 @@ func (l Linear) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error)
 }
 
 // ForwardInto copies input into output.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (l Linear) ForwardInto(input, output *matrix.Matrix) (err error) {
 	if _, _, err = matrixShape("input", input); err != nil {
 		return err
@@ -48,6 +50,8 @@ func (l Linear) Backward(input, outputGradient *matrix.Matrix) (inputGradient *m
 }
 
 // BackwardInto copies outputGradient into inputGradient after validating input.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (l Linear) BackwardInto(input, outputGradient, inputGradient *matrix.Matrix) (err error) {
 	if _, _, err = matrixPairShape(input, outputGradient); err != nil {
 		return err

@@ -12,6 +12,8 @@ func (r ReLU) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error) {
 }
 
 // ForwardInto writes max(0, x) for each input value into output.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (r ReLU) ForwardInto(input, output *matrix.Matrix) (err error) {
 	err = applyInto(input, output, reLUValue)
 	return err
@@ -24,6 +26,8 @@ func (r ReLU) Backward(input, outputGradient *matrix.Matrix) (inputGradient *mat
 }
 
 // BackwardInto writes the propagated ReLU gradient into inputGradient.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (r ReLU) BackwardInto(input, outputGradient, inputGradient *matrix.Matrix) (err error) {
 	err = applyDerivativeInto(input, outputGradient, inputGradient, reLUDerivative)
 	return err

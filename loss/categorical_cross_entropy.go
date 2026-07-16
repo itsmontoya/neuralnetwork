@@ -93,6 +93,8 @@ func (c CategoricalCrossEntropy) Gradient(predictions, targets *matrix.Matrix) (
 }
 
 // GradientInto writes the prediction gradient into destination.
+// It follows DestinationGradient's destination and alias contract without
+// allocating.
 func (c CategoricalCrossEntropy) GradientInto(predictions, targets, destination *matrix.Matrix) (err error) {
 	var rows int
 

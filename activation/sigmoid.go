@@ -15,6 +15,8 @@ func (s Sigmoid) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error
 }
 
 // ForwardInto writes the Sigmoid result into output.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (s Sigmoid) ForwardInto(input, output *matrix.Matrix) (err error) {
 	err = applyInto(input, output, sigmoidValue)
 	return err
@@ -27,6 +29,8 @@ func (s Sigmoid) Backward(input, outputGradient *matrix.Matrix) (inputGradient *
 }
 
 // BackwardInto writes the propagated Sigmoid gradient into inputGradient.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (s Sigmoid) BackwardInto(input, outputGradient, inputGradient *matrix.Matrix) (err error) {
 	err = applyDerivativeInto(input, outputGradient, inputGradient, sigmoidDerivative)
 	return err

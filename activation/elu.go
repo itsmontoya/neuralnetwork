@@ -17,6 +17,8 @@ func (e ELU) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error) {
 }
 
 // ForwardInto writes the ELU result into output.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (e ELU) ForwardInto(input, output *matrix.Matrix) (err error) {
 	err = applyInto(input, output, eluValue)
 	return err
@@ -29,6 +31,8 @@ func (e ELU) Backward(input, outputGradient *matrix.Matrix) (inputGradient *matr
 }
 
 // BackwardInto writes the propagated ELU gradient into inputGradient.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (e ELU) BackwardInto(input, outputGradient, inputGradient *matrix.Matrix) (err error) {
 	err = applyDerivativeInto(input, outputGradient, inputGradient, eluDerivative)
 	return err

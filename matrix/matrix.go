@@ -324,7 +324,8 @@ func (m *Matrix) SelectRows(indexes []int) (result *Matrix, err error) {
 //
 // Rows are copied in index order, and repeated indexes duplicate rows. The
 // destination must have shape [len(indexes), m.Cols()] and must not be m. The
-// destination is fully overwritten and neither matrix retains indexes.
+// destination is fully overwritten. Valid calls allocate no storage, and
+// neither matrix retains indexes.
 func (m *Matrix) SelectRowsInto(indexes []int, destination *Matrix) (err error) {
 	if err = m.validate(); err != nil {
 		return err
@@ -434,7 +435,8 @@ func (m *Matrix) AddScaledInPlace(other *Matrix, scale float32) (err error) {
 //
 // The receiver is updated in place. The other matrix may alias the receiver
 // because each element is read before it is written. Neither argument is
-// retained.
+// retained. The method allocates no storage beyond any allocation performed by
+// fn.
 func (m *Matrix) AddMappedInPlace(other *Matrix, fn func(float32) float32) (err error) {
 	if fn == nil {
 		err = errors.New("matrix: add mapped function is nil")
@@ -744,7 +746,8 @@ func (m *Matrix) DivideScalarInto(value float32, result *Matrix) (err error) {
 // SoftmaxRowsInto writes the row-wise normalized exponentials of m into result.
 //
 // The destination must match the input shape and may alias m. Each row uses its
-// maximum input value for numerical stability.
+// maximum input value for numerical stability. Valid calls fully overwrite the
+// caller-owned destination without allocating or retaining either matrix.
 func (m *Matrix) SoftmaxRowsInto(result *Matrix) (err error) {
 	if err = m.validate(); err != nil {
 		return err
@@ -762,7 +765,9 @@ func (m *Matrix) SoftmaxRowsInto(result *Matrix) (err error) {
 // Softmax Jacobian into result.
 //
 // The output gradient and destination must match the input shape. The
-// destination may alias m, but must not alias outputGradient.
+// destination may alias m, but must not alias outputGradient. Valid calls fully
+// overwrite the caller-owned destination without allocating or retaining any
+// matrix.
 func (m *Matrix) SoftmaxRowsBackwardInto(outputGradient, result *Matrix) (err error) {
 	if err = m.validate(); err != nil {
 		return err
