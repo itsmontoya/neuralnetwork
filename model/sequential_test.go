@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strings"
 	"testing"
 
 	"github.com/itsmontoya/neuralnetwork/data"
@@ -616,6 +617,97 @@ func Test_Sequential_FitIsReproducibleWithFixedSeed(t *testing.T) {
 	requireMatrixValues(t, firstPredictions, mustValues(t, secondPredictions))
 }
 
+func Test_Sequential_FitUsesExpectedInternalBatches(t *testing.T) {
+	type testcase struct {
+		name      string
+		samples   int
+		batchSize int
+		want      [][]float32
+	}
+
+	var tests []testcase
+	tests = []testcase{
+		{
+			name:      "exact batches",
+			samples:   4,
+			batchSize: 2,
+			want: [][]float32{
+				{1, 2},
+				{3, 4},
+			},
+		},
+		{
+			name:      "final partial batch",
+			samples:   5,
+			batchSize: 2,
+			want: [][]float32{
+				{1, 2},
+				{3, 4},
+				{5},
+			},
+		},
+		{
+			name:      "batch larger than dataset",
+			samples:   3,
+			batchSize: 5,
+			want: [][]float32{
+				{1, 2, 3},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				recorder      *fitBatchRecordingLayer
+				network       *model.Sequential
+				dataset       *data.Dataset
+				optimizerRule *recordingOptimizer
+				history       model.TrainingHistory
+				err           error
+			)
+
+			recorder = &fitBatchRecordingLayer{}
+			if network, err = model.NewSequential(recorder); err != nil {
+				t.Fatalf("NewSequential returned error: %v", err)
+			}
+
+			dataset = mustSequenceDatasetWithSamples(t, tt.samples)
+			optimizerRule = &recordingOptimizer{}
+			history, err = network.Fit(dataset, model.FitConfig{
+				Epochs:    1,
+				BatchSize: tt.batchSize,
+				Optimizer: optimizerRule,
+				Loss:      loss.MeanSquaredError{},
+			})
+			if err != nil {
+				t.Fatalf("Fit returned error: %v", err)
+			}
+
+			requireEpochCount(t, history, 1)
+			requireFloat32Batches(t, recorder.batches, tt.want)
+		})
+	}
+}
+
+func Test_Sequential_FitRefillsAndReshufflesIndexesEachEpoch(t *testing.T) {
+	var (
+		first  [][]float32
+		second [][]float32
+		want   [][]float32
+	)
+
+	first = fitRecordedShuffleBatches(t, 11)
+	second = fitRecordedShuffleBatches(t, 11)
+	want = expectedShuffleBatches(6, 2, 3, 11)
+
+	requireFloat32Batches(t, first, want)
+	requireFloat32Batches(t, second, want)
+	if equalFloat32Values(joinFloat32Batches(first[:3]), joinFloat32Batches(first[3:6])) {
+		t.Fatal("first and second epoch orders are equal, want reshuffled order")
+	}
+}
+
 func Test_Sequential_FitAppliesLearningRateScheduleBeforeEachEpoch(t *testing.T) {
 	var (
 		dense       *layer.Dense
@@ -772,7 +864,7 @@ func Test_Sequential_FitStopsEarlyOnTrainingLoss(t *testing.T) {
 	}
 
 	history, err = network.Fit(dataset, model.FitConfig{
-		Epochs:        10,
+		Epochs:        1_000_000,
 		BatchSize:     2,
 		Optimizer:     sgd,
 		Loss:          loss.MeanSquaredError{},
@@ -783,6 +875,9 @@ func Test_Sequential_FitStopsEarlyOnTrainingLoss(t *testing.T) {
 	}
 
 	requireEpochCount(t, history, 3)
+	if cap(history.Epochs) > 64 {
+		t.Fatalf("history capacity = %d, want bounded growth after early stopping", cap(history.Epochs))
+	}
 }
 
 func Test_Sequential_FitEarlyStoppingUsesValidationLossWhenAvailable(t *testing.T) {
@@ -927,6 +1022,10 @@ func Test_Sequential_FitRestoresTrainingModeAfterBatchFailure(t *testing.T) {
 	})
 	if !errors.Is(err, updateErr) {
 		t.Fatalf("Fit error = %v, want %v", err, updateErr)
+	}
+
+	if !strings.Contains(err.Error(), "model: epoch 1 train batch failed") {
+		t.Fatalf("Fit error = %q, want epoch and train batch context", err)
 	}
 
 	requireEpochCount(t, history, 0)
@@ -1259,6 +1358,130 @@ func mustSequenceDataset(tb testing.TB) (dataset *data.Dataset) {
 	return dataset
 }
 
+func mustSequenceDatasetWithSamples(tb testing.TB, samples int) (dataset *data.Dataset) {
+	var (
+		values  []float32
+		inputs  *matrix.Matrix
+		targets *matrix.Matrix
+		index   int
+		err     error
+	)
+
+	tb.Helper()
+
+	values = make([]float32, samples)
+	for index = range values {
+		values[index] = float32(index + 1)
+	}
+
+	inputs = mustMatrix(tb, samples, 1, values)
+	targets = mustMatrix(tb, samples, 1, values)
+	dataset, err = data.NewDataset(inputs, targets)
+	if err != nil {
+		tb.Fatalf("NewDataset returned error: %v", err)
+	}
+
+	return dataset
+}
+
+func fitRecordedShuffleBatches(tb testing.TB, seed int64) (batches [][]float32) {
+	var (
+		recorder      *fitBatchRecordingLayer
+		network       *model.Sequential
+		dataset       *data.Dataset
+		optimizerRule *recordingOptimizer
+		err           error
+	)
+
+	tb.Helper()
+
+	recorder = &fitBatchRecordingLayer{}
+	if network, err = model.NewSequential(recorder); err != nil {
+		tb.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	dataset = mustSequenceDatasetWithSamples(tb, 6)
+	optimizerRule = &recordingOptimizer{}
+	if _, err = network.Fit(dataset, model.FitConfig{
+		Epochs:    3,
+		BatchSize: 2,
+		Shuffle:   true,
+		Random:    rand.New(rand.NewSource(seed)),
+		Optimizer: optimizerRule,
+		Loss:      loss.MeanSquaredError{},
+	}); err != nil {
+		tb.Fatalf("Fit returned error: %v", err)
+	}
+
+	batches = recorder.batches
+	return batches
+}
+
+func expectedShuffleBatches(samples, batchSize, epochs int, seed int64) (batches [][]float32) {
+	var (
+		random  *rand.Rand
+		indexes []int
+		batch   []float32
+		epoch   int
+		index   int
+		start   int
+		end     int
+	)
+
+	random = rand.New(rand.NewSource(seed))
+	for epoch = 0; epoch < epochs; epoch++ {
+		indexes = make([]int, samples)
+		for index = range indexes {
+			indexes[index] = index
+		}
+
+		random.Shuffle(len(indexes), func(left, right int) {
+			indexes[left], indexes[right] = indexes[right], indexes[left]
+		})
+
+		for start = 0; start < len(indexes); start += batchSize {
+			end = start + batchSize
+			if end > len(indexes) {
+				end = len(indexes)
+			}
+
+			batch = make([]float32, end-start)
+			for index = start; index < end; index++ {
+				batch[index-start] = float32(indexes[index] + 1)
+			}
+			batches = append(batches, batch)
+		}
+	}
+
+	return batches
+}
+
+func joinFloat32Batches(batches [][]float32) (values []float32) {
+	var batch []float32
+
+	for _, batch = range batches {
+		values = append(values, batch...)
+	}
+
+	return values
+}
+
+func equalFloat32Values(left, right []float32) (equal bool) {
+	var index int
+
+	if len(left) != len(right) {
+		return false
+	}
+
+	for index = range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func fitSeededModel(tb testing.TB, seed int64) (history model.TrainingHistory, predictions *matrix.Matrix) {
 	var (
 		dense   *layer.Dense
@@ -1447,6 +1670,20 @@ func sequence(count int) (values []int) {
 	return values
 }
 
+func requireFloat32Batches(tb testing.TB, got, want [][]float32) {
+	var index int
+
+	tb.Helper()
+
+	if len(got) != len(want) {
+		tb.Fatalf("batch counts differ: got %d, want %d", len(got), len(want))
+	}
+
+	for index = range got {
+		testutil.RequireSliceAlmostEqual(tb, got[index], want[index], epsilon)
+	}
+}
+
 func requireStrings(tb testing.TB, got, want []string) {
 	var index int
 
@@ -1481,6 +1718,34 @@ func requireBools(tb testing.TB, got, want []bool) {
 
 		tb.Fatalf("bool slice differs at index %d: got %t, want %t", index, got[index], want[index])
 	}
+}
+
+type fitBatchRecordingLayer struct {
+	training bool
+	batches  [][]float32
+}
+
+func (f *fitBatchRecordingLayer) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error) {
+	var values []float32
+
+	if f.training {
+		if values, err = input.Values(); err != nil {
+			return nil, err
+		}
+		f.batches = append(f.batches, values)
+	}
+
+	output = input
+	return output, nil
+}
+
+func (f *fitBatchRecordingLayer) Backward(outputGradient *matrix.Matrix) (inputGradient *matrix.Matrix, err error) {
+	inputGradient = outputGradient
+	return inputGradient, nil
+}
+
+func (f *fitBatchRecordingLayer) SetTraining(training bool) {
+	f.training = training
 }
 
 type recordingLayer struct {
