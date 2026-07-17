@@ -285,15 +285,23 @@ func Test_MatrixDestinationAllocations(t *testing.T) {
 
 func Test_MatrixCopyAllocationCeilings(t *testing.T) {
 	var (
-		indexes []int
-		source  *matrix.Matrix
-		result  *matrix.Matrix
-		values  []float32
-		err     error
+		indexes     []int
+		source      *matrix.Matrix
+		destination *matrix.Matrix
+		result      *matrix.Matrix
+		values      []float32
+		err         error
 	)
 
 	indexes = []int{1, 0}
 	source = mustMatrix(t, 2, 3, []float32{1, 2, 3, 4, 5, 6})
+	destination = mustMatrix(t, 2, 3, []float32{0, 0, 0, 0, 0, 0})
+
+	requireMaxAllocs(t, "SelectRowsInto", 0, func() {
+		if err = source.SelectRowsInto(indexes, destination); err != nil {
+			panic(err)
+		}
+	})
 
 	requireMaxAllocs(t, "Values", 1, func() {
 		values, err = source.Values()

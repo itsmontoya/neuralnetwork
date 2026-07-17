@@ -99,6 +99,79 @@ func (d *Dataset) TargetsInto(targets *matrix.Matrix) (err error) {
 	return nil
 }
 
+// SelectRowsInto copies paired rows into inputs and targets.
+//
+// Rows are copied in index order, and repeated indexes duplicate rows. The
+// destinations must be separate matrices with shapes [len(indexes),
+// d.InputSize()] and [len(indexes), d.TargetSize()]. Both destinations are
+// fully overwritten, and mutating them does not mutate the dataset.
+func (d *Dataset) SelectRowsInto(indexes []int, inputs, targets *matrix.Matrix) (err error) {
+	var sourceRow int
+
+	if err = d.validate(); err != nil {
+		return err
+	}
+
+	if len(indexes) == 0 {
+		err = fmt.Errorf("data: row indexes are empty")
+		return err
+	}
+
+	for _, sourceRow = range indexes {
+		if sourceRow < 0 || sourceRow >= d.SampleCount() {
+			err = fmt.Errorf("data: row index out of range: row=%d rows=%d", sourceRow, d.SampleCount())
+			return err
+		}
+	}
+
+	if err = validateMatrix("selected inputs destination", inputs); err != nil {
+		return err
+	}
+
+	if err = validateMatrix("selected targets destination", targets); err != nil {
+		return err
+	}
+
+	if inputs == targets {
+		err = fmt.Errorf("data: selected-row destinations must not alias")
+		return err
+	}
+
+	if inputs.Rows() != len(indexes) || inputs.Cols() != d.inputs.Cols() {
+		err = fmt.Errorf(
+			"data: selected inputs destination shape mismatch: got %dx%d, want %dx%d",
+			inputs.Rows(),
+			inputs.Cols(),
+			len(indexes),
+			d.inputs.Cols(),
+		)
+		return err
+	}
+
+	if targets.Rows() != len(indexes) || targets.Cols() != d.targets.Cols() {
+		err = fmt.Errorf(
+			"data: selected targets destination shape mismatch: got %dx%d, want %dx%d",
+			targets.Rows(),
+			targets.Cols(),
+			len(indexes),
+			d.targets.Cols(),
+		)
+		return err
+	}
+
+	if err = d.inputs.SelectRowsInto(indexes, inputs); err != nil {
+		err = fmt.Errorf("data: select input rows into destination: %w", err)
+		return err
+	}
+
+	if err = d.targets.SelectRowsInto(indexes, targets); err != nil {
+		err = fmt.Errorf("data: select target rows into destination: %w", err)
+		return err
+	}
+
+	return nil
+}
+
 // SampleCount returns the number of paired samples in the dataset.
 func (d *Dataset) SampleCount() (samples int) {
 	if d == nil || d.inputs == nil {

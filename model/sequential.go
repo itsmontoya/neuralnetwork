@@ -410,24 +410,27 @@ func (s *Sequential) Save(writer io.Writer) (err error) {
 
 func (s *Sequential) trainFitEpoch(trainingData *data.Dataset, config FitConfig, epoch int, scratch *fitScratch) (err error) {
 	var (
-		batches []*data.Batch
-		batch   *data.Batch
+		indexes []int
+		start   int
+		end     int
 		inputs  *matrix.Matrix
 		targets *matrix.Matrix
 	)
 
+	indexes = scratch.rowIndexes(trainingData.SampleCount())
 	if config.Shuffle {
-		batches, err = trainingData.Batches(config.BatchSize, config.Random)
-	} else {
-		batches, err = trainingData.Batches(config.BatchSize, nil)
-	}
-	if err != nil {
-		err = fmt.Errorf("model: epoch %d batching failed: %w", epoch, err)
-		return err
+		config.Random.Shuffle(len(indexes), func(left, right int) {
+			indexes[left], indexes[right] = indexes[right], indexes[left]
+		})
 	}
 
-	for _, batch = range batches {
-		if inputs, targets, err = scratch.batchMatrices(batch, trainingData.InputSize(), trainingData.TargetSize()); err != nil {
+	for start = 0; start < len(indexes); start += config.BatchSize {
+		end = start + config.BatchSize
+		if end > len(indexes) {
+			end = len(indexes)
+		}
+
+		if inputs, targets, err = scratch.batchMatrices(trainingData, indexes[start:end]); err != nil {
 			err = fmt.Errorf("model: epoch %d batch matrix copy failed: %w", epoch, err)
 			return err
 		}
@@ -561,32 +564,40 @@ func validateFitDataset(name string, dataset *data.Dataset) (err error) {
 }
 
 type fitScratch struct {
+	indexes              []int
 	batch                fitMatrixPair
 	trainingEvaluation   fitMatrixPair
 	validationEvaluation fitMatrixPair
 }
 
 type fitMatrixPair struct {
-	inputs  *matrix.Matrix
-	targets *matrix.Matrix
+	inputs  scratch.MatrixPool
+	targets scratch.MatrixPool
 }
 
-func (s *fitScratch) batchMatrices(batch *data.Batch, inputSize, targetSize int) (inputs, targets *matrix.Matrix, err error) {
-	if inputs, err = ensureFitMatrix(s.batch.inputs, batch.SampleCount(), inputSize); err != nil {
-		return nil, nil, err
-	}
-	s.batch.inputs = inputs
+func (s *fitScratch) rowIndexes(count int) (indexes []int) {
+	var index int
 
-	if targets, err = ensureFitMatrix(s.batch.targets, batch.SampleCount(), targetSize); err != nil {
-		return nil, nil, err
-	}
-	s.batch.targets = targets
-
-	if err = batch.InputsInto(inputs); err != nil {
-		return nil, nil, err
+	if cap(s.indexes) < count {
+		s.indexes = make([]int, count)
+	} else {
+		s.indexes = s.indexes[:count]
 	}
 
-	if err = batch.TargetsInto(targets); err != nil {
+	for index = range s.indexes {
+		s.indexes[index] = index
+	}
+
+	indexes = s.indexes
+	return indexes
+}
+
+func (s *fitScratch) batchMatrices(dataset *data.Dataset, indexes []int) (inputs, targets *matrix.Matrix, err error) {
+	if inputs, targets, err = s.batch.get(len(indexes), dataset.InputSize(), dataset.TargetSize()); err != nil {
+		return nil, nil, err
+	}
+
+	if err = dataset.SelectRowsInto(indexes, inputs, targets); err != nil {
 		return nil, nil, err
 	}
 
@@ -594,15 +605,9 @@ func (s *fitScratch) batchMatrices(batch *data.Batch, inputSize, targetSize int)
 }
 
 func (p *fitMatrixPair) datasetMatrices(dataset *data.Dataset) (inputs, targets *matrix.Matrix, err error) {
-	if inputs, err = ensureFitMatrix(p.inputs, dataset.SampleCount(), dataset.InputSize()); err != nil {
+	if inputs, targets, err = p.get(dataset.SampleCount(), dataset.InputSize(), dataset.TargetSize()); err != nil {
 		return nil, nil, err
 	}
-	p.inputs = inputs
-
-	if targets, err = ensureFitMatrix(p.targets, dataset.SampleCount(), dataset.TargetSize()); err != nil {
-		return nil, nil, err
-	}
-	p.targets = targets
 
 	if err = dataset.InputsInto(inputs); err != nil {
 		return nil, nil, err
@@ -615,24 +620,16 @@ func (p *fitMatrixPair) datasetMatrices(dataset *data.Dataset) (inputs, targets 
 	return inputs, targets, nil
 }
 
-func ensureFitMatrix(current *matrix.Matrix, rows, cols int) (out *matrix.Matrix, err error) {
-	var (
-		currentRows int
-		currentCols int
-	)
-
-	if current != nil {
-		currentRows, currentCols = current.Shape()
-		if currentRows == rows && currentCols == cols {
-			return current, nil
-		}
+func (p *fitMatrixPair) get(rows, inputSize, targetSize int) (inputs, targets *matrix.Matrix, err error) {
+	if inputs, _, err = p.inputs.Get(rows, inputSize); err != nil {
+		return nil, nil, err
 	}
 
-	if out, err = matrix.New(rows, cols); err != nil {
-		return nil, err
+	if targets, _, err = p.targets.Get(rows, targetSize); err != nil {
+		return nil, nil, err
 	}
 
-	return out, nil
+	return inputs, targets, nil
 }
 
 func applyLearningRateSchedule(config FitConfig, epoch int) (err error) {

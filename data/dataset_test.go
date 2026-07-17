@@ -172,6 +172,171 @@ func Test_Dataset_InputsIntoAndTargetsIntoRejectWrongShape(t *testing.T) {
 	}
 }
 
+func Test_Dataset_SelectRowsIntoCopiesPairedRows(t *testing.T) {
+	var (
+		dataset         *data.Dataset
+		inputs          *matrix.Matrix
+		targets         *matrix.Matrix
+		returnedInputs  *matrix.Matrix
+		returnedTargets *matrix.Matrix
+		err             error
+	)
+
+	dataset = mustDataset(t,
+		3,
+		2,
+		[]float32{
+			1, 10,
+			2, 20,
+			3, 30,
+		},
+		1,
+		[]float32{101, 102, 103},
+	)
+	inputs = mustMatrix(t, 3, 2, []float32{-1, -1, -1, -1, -1, -1})
+	targets = mustMatrix(t, 3, 1, []float32{-1, -1, -1})
+
+	if err = dataset.SelectRowsInto([]int{2, 0, 2}, inputs, targets); err != nil {
+		t.Fatalf("SelectRowsInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, inputs, []float32{
+		3, 30,
+		1, 10,
+		3, 30,
+	})
+	requireMatrixValues(t, targets, []float32{103, 101, 103})
+
+	if err = inputs.Set(0, 0, 99); err != nil {
+		t.Fatalf("inputs Set returned error: %v", err)
+	}
+
+	if err = targets.Set(0, 0, 99); err != nil {
+		t.Fatalf("targets Set returned error: %v", err)
+	}
+
+	if returnedInputs, err = dataset.Inputs(); err != nil {
+		t.Fatalf("Inputs returned error: %v", err)
+	}
+
+	if returnedTargets, err = dataset.Targets(); err != nil {
+		t.Fatalf("Targets returned error: %v", err)
+	}
+
+	requireMatrixValues(t, returnedInputs, []float32{1, 10, 2, 20, 3, 30})
+	requireMatrixValues(t, returnedTargets, []float32{101, 102, 103})
+}
+
+func Test_Dataset_SelectRowsIntoRejectsInvalidIndexesAndDestinations(t *testing.T) {
+	type testcase struct {
+		name    string
+		indexes []int
+		inputs  func() *matrix.Matrix
+		targets func() *matrix.Matrix
+	}
+
+	var tests []testcase
+	tests = []testcase{
+		{
+			name:    "empty indexes",
+			indexes: []int{},
+			inputs: func() (inputs *matrix.Matrix) {
+				inputs = mustMatrix(t, 1, 2, []float32{0, 0})
+				return inputs
+			},
+			targets: func() (targets *matrix.Matrix) {
+				targets = mustMatrix(t, 1, 1, []float32{0})
+				return targets
+			},
+		},
+		{
+			name:    "negative index",
+			indexes: []int{-1},
+			inputs: func() (inputs *matrix.Matrix) {
+				inputs = mustMatrix(t, 1, 2, []float32{0, 0})
+				return inputs
+			},
+			targets: func() (targets *matrix.Matrix) {
+				targets = mustMatrix(t, 1, 1, []float32{0})
+				return targets
+			},
+		},
+		{
+			name:    "index too large",
+			indexes: []int{3},
+			inputs: func() (inputs *matrix.Matrix) {
+				inputs = mustMatrix(t, 1, 2, []float32{0, 0})
+				return inputs
+			},
+			targets: func() (targets *matrix.Matrix) {
+				targets = mustMatrix(t, 1, 1, []float32{0})
+				return targets
+			},
+		},
+		{
+			name:    "wrong input shape",
+			indexes: []int{0, 1},
+			inputs: func() (inputs *matrix.Matrix) {
+				inputs = mustMatrix(t, 1, 2, []float32{0, 0})
+				return inputs
+			},
+			targets: func() (targets *matrix.Matrix) {
+				targets = mustMatrix(t, 2, 1, []float32{0, 0})
+				return targets
+			},
+		},
+		{
+			name:    "wrong target shape",
+			indexes: []int{0, 1},
+			inputs: func() (inputs *matrix.Matrix) {
+				inputs = mustMatrix(t, 2, 2, []float32{0, 0, 0, 0})
+				return inputs
+			},
+			targets: func() (targets *matrix.Matrix) {
+				targets = mustMatrix(t, 1, 1, []float32{0})
+				return targets
+			},
+		},
+		{
+			name:    "nil input destination",
+			indexes: []int{0},
+			inputs: func() (inputs *matrix.Matrix) {
+				return nil
+			},
+			targets: func() (targets *matrix.Matrix) {
+				targets = mustMatrix(t, 1, 1, []float32{0})
+				return targets
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var err error
+
+			err = mustDatasetWithSamples(t, 3).SelectRowsInto(tt.indexes, tt.inputs(), tt.targets())
+			if err == nil {
+				t.Fatal("SelectRowsInto error = nil, want error")
+			}
+		})
+	}
+}
+
+func Test_Dataset_SelectRowsIntoRejectsAliasedDestinations(t *testing.T) {
+	var (
+		dataset     *data.Dataset
+		destination *matrix.Matrix
+		err         error
+	)
+
+	dataset = mustDatasetWithSamples(t, 2)
+	destination = mustMatrix(t, 1, 2, []float32{0, 0})
+	err = dataset.SelectRowsInto([]int{0}, destination, destination)
+	if err == nil {
+		t.Fatal("SelectRowsInto error = nil, want error")
+	}
+}
+
 func Test_Dataset_BatchesReturnsExpectedCounts(t *testing.T) {
 	type testcase struct {
 		name        string

@@ -40,6 +40,7 @@ func Test_DataCopyAccessorAllocationCeilings(t *testing.T) {
 		dataset            *data.Dataset
 		batches            []*data.Batch
 		batch              *data.Batch
+		indexes            []int
 		inputsDestination  *matrix.Matrix
 		targetsDestination *matrix.Matrix
 		err                error
@@ -52,6 +53,15 @@ func Test_DataCopyAccessorAllocationCeilings(t *testing.T) {
 	}
 
 	batch = batches[0]
+	indexes = []int{3, 1}
+	inputsDestination = mustMatrix(t, 2, 2, []float32{0, 0, 0, 0})
+	targetsDestination = mustMatrix(t, 2, 1, []float32{0, 0})
+	requireMaxAllocs(t, "Dataset.SelectRowsInto", 0, func() {
+		if err = dataset.SelectRowsInto(indexes, inputsDestination, targetsDestination); err != nil {
+			panic(err)
+		}
+	})
+
 	inputsDestination = mustMatrix(t, 4, 2, []float32{0, 0, 0, 0, 0, 0, 0, 0})
 	targetsDestination = mustMatrix(t, 4, 1, []float32{0, 0, 0, 0})
 	requireMaxAllocs(t, "Dataset.InputsInto", 0, func() {

@@ -304,42 +304,83 @@ func (m *Matrix) CopyValuesFrom(values []float32) (err error) {
 // Rows are copied in index order, and repeated indexes duplicate rows in the
 // returned matrix. The returned matrix owns its storage.
 func (m *Matrix) SelectRows(indexes []int) (result *Matrix, err error) {
-	var (
-		next        Matrix
-		outputRow   int
-		sourceRow   int
-		sourceStart int
-		resultStart int
-	)
-
 	if err = m.validate(); err != nil {
 		return nil, err
 	}
 
+	if err = m.validateRowIndexes(indexes); err != nil {
+		return nil, err
+	}
+
+	if result, err = New(len(indexes), m.cols); err != nil {
+		return nil, err
+	}
+
+	m.copySelectedRows(indexes, result)
+	return result, nil
+}
+
+// SelectRowsInto copies the rows identified by indexes into destination.
+//
+// Rows are copied in index order, and repeated indexes duplicate rows. The
+// destination must have shape [len(indexes), m.Cols()] and must not be m. The
+// destination is fully overwritten and neither matrix retains indexes.
+func (m *Matrix) SelectRowsInto(indexes []int, destination *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+
+	if err = m.validateRowIndexes(indexes); err != nil {
+		return err
+	}
+
+	if destination == m {
+		err = errors.New("matrix: selected rows destination must not alias input")
+		return err
+	}
+
+	if err = destination.requireShape("selected rows destination", len(indexes), m.cols); err != nil {
+		return err
+	}
+
+	m.copySelectedRows(indexes, destination)
+	return nil
+}
+
+func (m *Matrix) validateRowIndexes(indexes []int) (err error) {
+	var sourceRow int
+
 	if len(indexes) == 0 {
 		err = errors.New("matrix: row indexes are empty")
-		return nil, err
+		return err
 	}
 
 	for _, sourceRow = range indexes {
 		if sourceRow < 0 || sourceRow >= m.rows {
 			err = fmt.Errorf("matrix: row index out of range: row=%d rows=%d", sourceRow, m.rows)
-			return nil, err
+			return err
 		}
 	}
 
-	next.rows = len(indexes)
-	next.cols = m.cols
-	next.data = make([]float32, len(indexes)*m.cols)
-	result = &next
+	return nil
+}
+
+func (m *Matrix) copySelectedRows(indexes []int, destination *Matrix) {
+	var (
+		outputRow        int
+		sourceRow        int
+		sourceStart      int
+		destinationStart int
+	)
 
 	for outputRow, sourceRow = range indexes {
 		sourceStart = sourceRow * m.cols
-		resultStart = outputRow * m.cols
-		copy(result.data[resultStart:resultStart+m.cols], m.data[sourceStart:sourceStart+m.cols])
+		destinationStart = outputRow * m.cols
+		copy(
+			destination.data[destinationStart:destinationStart+m.cols],
+			m.data[sourceStart:sourceStart+m.cols],
+		)
 	}
-
-	return result, nil
 }
 
 // Add returns the elementwise sum of m and other.

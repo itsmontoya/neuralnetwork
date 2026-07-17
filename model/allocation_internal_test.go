@@ -1,8 +1,10 @@
 package model
 
 import (
+	"math/rand"
 	"testing"
 
+	"github.com/itsmontoya/neuralnetwork/data"
 	"github.com/itsmontoya/neuralnetwork/layer"
 	"github.com/itsmontoya/neuralnetwork/loss"
 	"github.com/itsmontoya/neuralnetwork/matrix"
@@ -152,4 +154,112 @@ func Test_Sequential_TrainBatchAlternatingShapesDoesNotAllocateAfterWarmUp(t *te
 	if allocations != 0 {
 		t.Fatalf("warmed alternating TrainBatch allocations = %g, want 0", allocations)
 	}
+}
+
+func Test_Sequential_TrainFitEpochDoesNotAllocateAfterWorkspaceWarmUp(t *testing.T) {
+	var tests []struct {
+		name    string
+		shuffle bool
+	}
+
+	tests = []struct {
+		name    string
+		shuffle bool
+	}{
+		{name: "ordered"},
+		{name: "shuffled", shuffle: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				network     *Sequential
+				dataset     *data.Dataset
+				config      FitConfig
+				scratch     fitScratch
+				allocations float64
+				err         error
+			)
+
+			network, dataset, config = fitEpochAllocationFixture(t, tt.shuffle)
+			if err = network.trainFitEpoch(dataset, config, 1, &scratch); err != nil {
+				t.Fatalf("warm-up trainFitEpoch returned error: %v", err)
+			}
+
+			allocations = testing.AllocsPerRun(100, func() {
+				if err = network.trainFitEpoch(dataset, config, 2, &scratch); err != nil {
+					panic(err)
+				}
+			})
+			if allocations != 0 {
+				t.Fatalf("warmed trainFitEpoch allocations = %g, want 0", allocations)
+			}
+		})
+	}
+}
+
+func Benchmark_SequentialTrainFitEpoch_Warmed(b *testing.B) {
+	var (
+		network *Sequential
+		dataset *data.Dataset
+		config  FitConfig
+		scratch fitScratch
+		err     error
+		index   int
+	)
+
+	network, dataset, config = fitEpochAllocationFixture(b, false)
+	if err = network.trainFitEpoch(dataset, config, 1, &scratch); err != nil {
+		b.Fatalf("warm-up trainFitEpoch returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		if err = network.trainFitEpoch(dataset, config, index+2, &scratch); err != nil {
+			b.Fatalf("trainFitEpoch returned error: %v", err)
+		}
+	}
+}
+
+func fitEpochAllocationFixture(tb testing.TB, shuffle bool) (network *Sequential, dataset *data.Dataset, config FitConfig) {
+	var (
+		dense         *layer.Dense
+		inputs        *matrix.Matrix
+		targets       *matrix.Matrix
+		optimizerRule *optimizer.SGD
+		err           error
+	)
+
+	tb.Helper()
+
+	if inputs, err = matrix.New(5, 2); err != nil {
+		tb.Fatalf("New inputs returned error: %v", err)
+	}
+	if targets, err = matrix.New(5, 1); err != nil {
+		tb.Fatalf("New targets returned error: %v", err)
+	}
+	if dataset, err = data.NewDataset(inputs, targets); err != nil {
+		tb.Fatalf("NewDataset returned error: %v", err)
+	}
+	if dense, err = layer.NewDense(2, 1, layer.ZeroWeights); err != nil {
+		tb.Fatalf("NewDense returned error: %v", err)
+	}
+	if network, err = NewSequential(dense); err != nil {
+		tb.Fatalf("NewSequential returned error: %v", err)
+	}
+	if optimizerRule, err = optimizer.NewSGD(0.01); err != nil {
+		tb.Fatalf("NewSGD returned error: %v", err)
+	}
+
+	config.Epochs = 1
+	config.BatchSize = 2
+	config.Shuffle = shuffle
+	if shuffle {
+		config.Random = rand.New(rand.NewSource(7))
+	}
+	config.Optimizer = optimizerRule
+	config.Loss = loss.MeanSquaredError{}
+	return network, dataset, config
 }
