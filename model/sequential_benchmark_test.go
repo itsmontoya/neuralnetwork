@@ -9,6 +9,7 @@ import (
 	"github.com/itsmontoya/neuralnetwork/layer"
 	"github.com/itsmontoya/neuralnetwork/loss"
 	"github.com/itsmontoya/neuralnetwork/matrix"
+	"github.com/itsmontoya/neuralnetwork/metric"
 	"github.com/itsmontoya/neuralnetwork/model"
 	"github.com/itsmontoya/neuralnetwork/optimizer"
 )
@@ -99,6 +100,52 @@ func Benchmark_SequentialFit_XOR(b *testing.B) {
 	config.BatchSize = 4
 	config.Optimizer = optimizerRule
 	config.Loss = loss.BinaryCrossEntropy{}
+	if _, err = network.Fit(dataset, config); err != nil {
+		b.Fatalf("warm-up Fit returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		history, err = network.Fit(dataset, config)
+		if err != nil {
+			b.Fatalf("Fit returned error: %v", err)
+		}
+	}
+
+	benchmarkTrainingHistory = history
+}
+
+func Benchmark_SequentialFit_XOR_Accuracy(b *testing.B) {
+	var (
+		network       *model.Sequential
+		optimizerRule optimizer.Optimizer
+		inputs        *matrix.Matrix
+		targets       *matrix.Matrix
+		dataset       *data.Dataset
+		config        model.FitConfig
+		history       model.TrainingHistory
+		err           error
+		index         int
+	)
+
+	inputs, targets = benchmarkXORMatrices(b)
+	if dataset, err = data.NewDataset(inputs, targets); err != nil {
+		b.Fatalf("NewDataset returned error: %v", err)
+	}
+
+	network = benchmarkXORModel(b)
+	optimizerRule, err = optimizer.NewAdam(0.05)
+	if err != nil {
+		b.Fatalf("NewAdam returned error: %v", err)
+	}
+
+	config.Epochs = 1
+	config.BatchSize = 4
+	config.Optimizer = optimizerRule
+	config.Loss = loss.BinaryCrossEntropy{}
+	config.Accuracy = metric.BinaryAccuracy{}.Value
 	if _, err = network.Fit(dataset, config); err != nil {
 		b.Fatalf("warm-up Fit returned error: %v", err)
 	}

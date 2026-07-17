@@ -105,6 +105,36 @@ func Test_NewBinaryClassificationMetrics_RejectNonFiniteThreshold(t *testing.T) 
 	}
 }
 
+func Test_BinaryClassificationMetrics_ReturnZeroForZeroDenominators(t *testing.T) {
+	var (
+		predictions *matrix.Matrix
+		targets     *matrix.Matrix
+		value       float32
+		err         error
+	)
+
+	predictions = mustMatrix(t, 3, 1, []float32{0.1, 0.2, 0.3})
+	targets = mustMatrix(t, 3, 1, []float32{0, 0, 0})
+
+	value, err = metric.BinaryPrecision{}.Value(predictions, targets)
+	if err != nil {
+		t.Fatalf("BinaryPrecision returned error: %v", err)
+	}
+	requireAlmostEqual(t, value, 0)
+
+	value, err = metric.BinaryRecall{}.Value(predictions, targets)
+	if err != nil {
+		t.Fatalf("BinaryRecall returned error: %v", err)
+	}
+	requireAlmostEqual(t, value, 0)
+
+	value, err = metric.BinaryF1{}.Value(predictions, targets)
+	if err != nil {
+		t.Fatalf("BinaryF1 returned error: %v", err)
+	}
+	requireAlmostEqual(t, value, 0)
+}
+
 func Test_CategoricalMacroClassificationMetrics(t *testing.T) {
 	var (
 		predictions *matrix.Matrix

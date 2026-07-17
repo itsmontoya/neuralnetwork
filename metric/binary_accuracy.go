@@ -34,55 +34,32 @@ type BinaryAccuracy struct {
 // Value returns binary accuracy for [batchSize, 1] predictions and binary targets.
 func (b BinaryAccuracy) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
 	var (
-		rows             int
-		predictionValues []float32
-		targetValues     []float32
-		index            int
-		threshold        float32
-		predictedClass   float32
-		correct          int
+		rows              int
+		truePositive      int
+		predictedPositive int
+		targetPositive    int
+		trueNegative      int
+		correct           int
+		threshold         float32
 	)
-
-	if rows, _, predictionValues, targetValues, err = b.values(predictions, targets); err != nil {
-		return 0, err
-	}
 
 	if threshold, err = b.configuredThreshold(); err != nil {
 		return 0, err
 	}
 
-	for index = range predictionValues {
-		predictedClass = 0
-		if predictionValues[index] >= threshold {
-			predictedClass = 1
-		}
-
-		if predictedClass != targetValues[index] {
-			continue
-		}
-
-		correct++
+	if rows, truePositive, predictedPositive, targetPositive, err = binaryPositiveTotals(
+		predictions,
+		targets,
+		threshold,
+		"binary accuracy",
+	); err != nil {
+		return 0, err
 	}
 
+	trueNegative = rows - predictedPositive - targetPositive + truePositive
+	correct = truePositive + trueNegative
 	value = float32(correct) / float32(rows)
 	return value, nil
-}
-
-func (b BinaryAccuracy) values(predictions, targets *matrix.Matrix) (rows, cols int, predictionValues, targetValues []float32, err error) {
-	if rows, cols, predictionValues, targetValues, err = matrixValuePair(predictions, targets); err != nil {
-		return 0, 0, nil, nil, err
-	}
-
-	if cols != 1 {
-		err = fmt.Errorf("metric: binary accuracy requires one prediction column: cols=%d", cols)
-		return 0, 0, nil, nil, err
-	}
-
-	if err = validateBinaryTargets(targetValues); err != nil {
-		return 0, 0, nil, nil, err
-	}
-
-	return rows, cols, predictionValues, targetValues, nil
 }
 
 func (b BinaryAccuracy) configuredThreshold() (threshold float32, err error) {

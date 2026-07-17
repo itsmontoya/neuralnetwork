@@ -25,23 +25,25 @@ type BinaryRecall struct {
 
 // Value returns positive-class recall for [batchSize, 1] predictions.
 func (b BinaryRecall) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
-	var confusionMatrix *ConfusionMatrix
+	var (
+		truePositive   int
+		targetPositive int
+		threshold      float32
+	)
 
-	if confusionMatrix, err = b.confusionMatrix(predictions, targets); err != nil {
+	if threshold, err = configuredBinaryThreshold("binary recall", b.threshold, b.hasThreshold); err != nil {
 		return 0, err
 	}
 
-	value, err = confusionMatrix.Recall(1)
-	return value, err
-}
-
-func (b BinaryRecall) confusionMatrix(predictions, targets *matrix.Matrix) (confusionMatrix *ConfusionMatrix, err error) {
-	var threshold float32
-
-	if threshold, err = configuredBinaryThreshold("binary recall", b.threshold, b.hasThreshold); err != nil {
-		return nil, err
+	if _, truePositive, _, targetPositive, err = binaryPositiveTotals(
+		predictions,
+		targets,
+		threshold,
+		"binary classification",
+	); err != nil {
+		return 0, err
 	}
 
-	confusionMatrix, err = NewBinaryConfusionMatrixWithThreshold(predictions, targets, threshold)
-	return confusionMatrix, err
+	value = recallValue(truePositive, targetPositive)
+	return value, nil
 }
