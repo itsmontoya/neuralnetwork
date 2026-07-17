@@ -48,7 +48,10 @@ func Test_NewBatchNormalization_InitializesState(t *testing.T) {
 }
 
 func Test_BatchNormalization_NilReceiverAccessors(t *testing.T) {
-	var batchNorm *layer.BatchNormalization
+	var (
+		batchNorm  *layer.BatchNormalization
+		parameters []*optimizer.Parameter
+	)
 
 	if batchNorm.FeatureSize() != 0 {
 		t.Fatalf("FeatureSize = %d, want 0", batchNorm.FeatureSize())
@@ -80,6 +83,12 @@ func Test_BatchNormalization_NilReceiverAccessors(t *testing.T) {
 
 	if batchNorm.Parameters() != nil {
 		t.Fatal("Parameters returned value for nil receiver")
+	}
+
+	parameters = []*optimizer.Parameter{nil}
+	parameters = batchNorm.AppendParameters(parameters)
+	if len(parameters) != 1 {
+		t.Fatalf("AppendParameters length = %d, want 1", len(parameters))
 	}
 
 	if batchNorm.Training() {
@@ -386,11 +395,12 @@ func Test_BatchNormalization_BackwardEvaluation(t *testing.T) {
 
 func Test_BatchNormalization_ParametersAndResetGradients(t *testing.T) {
 	var (
-		batchNorm      *layer.BatchNormalization
-		parameters     []*optimizer.Parameter
-		input          *matrix.Matrix
-		outputGradient *matrix.Matrix
-		err            error
+		batchNorm          *layer.BatchNormalization
+		parameters         []*optimizer.Parameter
+		appendedParameters []*optimizer.Parameter
+		input              *matrix.Matrix
+		outputGradient     *matrix.Matrix
+		err                error
 	)
 
 	batchNorm, err = layer.NewBatchNormalization(2)
@@ -409,6 +419,26 @@ func Test_BatchNormalization_ParametersAndResetGradients(t *testing.T) {
 
 	if parameters[1] != batchNorm.Beta() {
 		t.Fatal("Parameters[1] did not match beta")
+	}
+
+	appendedParameters = make([]*optimizer.Parameter, 1, 3)
+	appendedParameters[0] = batchNorm.Beta()
+	appendedParameters = batchNorm.AppendParameters(appendedParameters)
+	if len(appendedParameters) != 3 {
+		t.Fatalf("AppendParameters length = %d, want 3", len(appendedParameters))
+	}
+
+	if appendedParameters[0] != batchNorm.Beta() {
+		t.Fatal("AppendParameters changed the existing prefix")
+	}
+
+	if appendedParameters[1] != batchNorm.Gamma() || appendedParameters[2] != batchNorm.Beta() {
+		t.Fatal("AppendParameters did not append gamma and beta in order")
+	}
+
+	appendedParameters[1] = nil
+	if batchNorm.Gamma() == nil {
+		t.Fatal("mutating AppendParameters result changed BatchNormalization gamma")
 	}
 
 	input = mustMatrix(t, 2, 2, []float32{

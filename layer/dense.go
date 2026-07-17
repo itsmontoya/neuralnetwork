@@ -221,6 +221,17 @@ func (d *Dense) Parameters() (parameters []*optimizer.Parameter) {
 	return parameters
 }
 
+// AppendParameters appends trainable parameters in weight, bias order.
+// The returned slice is caller-owned, and Dense does not retain it.
+func (d *Dense) AppendParameters(parameters []*optimizer.Parameter) (out []*optimizer.Parameter) {
+	if d == nil {
+		return parameters
+	}
+
+	out = append(parameters, d.weights, d.biases)
+	return out
+}
+
 // ResetGradients clears all accumulated parameter gradients.
 func (d *Dense) ResetGradients() (err error) {
 	if err = d.validate(); err != nil {

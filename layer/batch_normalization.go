@@ -358,6 +358,17 @@ func (b *BatchNormalization) Parameters() (parameters []*optimizer.Parameter) {
 	return parameters
 }
 
+// AppendParameters appends trainable gamma and beta parameters in that order.
+// The returned slice is caller-owned, and BatchNormalization does not retain it.
+func (b *BatchNormalization) AppendParameters(parameters []*optimizer.Parameter) (out []*optimizer.Parameter) {
+	if b == nil {
+		return parameters
+	}
+
+	out = append(parameters, b.gamma, b.beta)
+	return out
+}
+
 // ResetGradients clears accumulated gamma and beta gradients.
 func (b *BatchNormalization) ResetGradients() (err error) {
 	if err = b.validate(); err != nil {

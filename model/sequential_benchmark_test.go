@@ -15,6 +15,27 @@ import (
 
 var benchmarkTrainMetrics model.TrainMetrics
 var benchmarkTrainingHistory model.TrainingHistory
+var benchmarkParameters []*optimizer.Parameter
+
+func Benchmark_SequentialParameters(b *testing.B) {
+	var (
+		network    *model.Sequential
+		parameters []*optimizer.Parameter
+		index      int
+	)
+
+	network = benchmarkSyntheticModel(b)
+	parameters = network.Parameters()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		parameters = network.Parameters()
+	}
+
+	benchmarkParameters = parameters
+}
 
 func Benchmark_SequentialTrainBatch_XOR(b *testing.B) {
 	var (

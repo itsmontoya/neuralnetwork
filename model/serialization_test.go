@@ -26,6 +26,7 @@ func Test_Sequential_SaveLoadRoundTrip(t *testing.T) {
 		input            *matrix.Matrix
 		before           *matrix.Matrix
 		after            *matrix.Matrix
+		loadedParameters []*optimizer.Parameter
 		buffer           bytes.Buffer
 		err              error
 	)
@@ -78,6 +79,10 @@ func Test_Sequential_SaveLoadRoundTrip(t *testing.T) {
 		t.Fatalf("serialized model missing sequential format: %s", buffer.String())
 	}
 
+	if strings.Contains(buffer.String(), "parameter_buffer") {
+		t.Fatalf("serialized model contains parameter scratch: %s", buffer.String())
+	}
+
 	loaded, err = model.LoadSequential(&buffer)
 	if err != nil {
 		t.Fatalf("LoadSequential returned error: %v", err)
@@ -86,6 +91,19 @@ func Test_Sequential_SaveLoadRoundTrip(t *testing.T) {
 	if !loaded.Training() {
 		t.Fatal("loaded Training = false, want true")
 	}
+
+	loadedParameters = loaded.Parameters()
+	if len(loadedParameters) != 4 {
+		t.Fatalf("loaded Parameters length = %d, want 4", len(loadedParameters))
+	}
+
+	requireMatrixValues(t, loadedParameters[0].Values(), []float32{
+		0.5, -0.25, 0.75,
+		-1, 0.4, 0.2,
+	})
+	requireMatrixValues(t, loadedParameters[1].Values(), []float32{0.1, -0.2, 0.3})
+	requireMatrixValues(t, loadedParameters[2].Values(), []float32{0.8, -0.6, 0.25})
+	requireMatrixValues(t, loadedParameters[3].Values(), []float32{-0.1})
 
 	after, err = loaded.Predict(input)
 	if err != nil {

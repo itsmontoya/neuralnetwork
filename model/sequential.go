@@ -55,8 +55,9 @@ func LoadSequential(reader io.Reader) (out *Sequential, err error) {
 
 // Sequential applies an ordered list of layers.
 type Sequential struct {
-	layers   []layer.Layer
-	training bool
+	layers          []layer.Layer
+	parameterBuffer []*optimizer.Parameter
+	training        bool
 }
 
 // Add appends a layer to the model.
@@ -143,27 +144,53 @@ func (s *Sequential) Backward(outputGradient *matrix.Matrix) (inputGradient *mat
 	return inputGradient, nil
 }
 
-// Parameters returns trainable parameters from all layers in layer order.
+// Parameters returns a caller-owned slice of trainable parameters in layer order.
+// Mutating the returned slice does not change the model's parameter enumeration.
 func (s *Sequential) Parameters() (parameters []*optimizer.Parameter) {
+	var internalParameters []*optimizer.Parameter
+
+	internalParameters = s.rebuildParameters()
+	if len(internalParameters) == 0 {
+		return nil
+	}
+
+	parameters = make([]*optimizer.Parameter, len(internalParameters))
+	copy(parameters, internalParameters)
+	return parameters
+}
+
+func (s *Sequential) rebuildParameters() (parameters []*optimizer.Parameter) {
 	var (
-		current        layer.Layer
-		parameterLayer parameterProvider
-		ok             bool
+		current         layer.Layer
+		appendLayer     parameterAppender
+		parameterLayer  parameterProvider
+		layerParameters []*optimizer.Parameter
+		ok              bool
 	)
 
 	if s == nil {
 		return nil
 	}
 
+	clear(s.parameterBuffer)
+	s.parameterBuffer = s.parameterBuffer[:0]
 	for _, current = range s.layers {
+		appendLayer, ok = current.(parameterAppender)
+		if ok {
+			s.parameterBuffer = appendLayer.AppendParameters(s.parameterBuffer)
+			continue
+		}
+
 		parameterLayer, ok = current.(parameterProvider)
 		if !ok {
 			continue
 		}
 
-		parameters = append(parameters, parameterLayer.Parameters()...)
+		layerParameters = parameterLayer.Parameters()
+		s.parameterBuffer = append(s.parameterBuffer, layerParameters...)
 	}
 
+	parameters = s.parameterBuffer
 	return parameters
 }
 
@@ -256,7 +283,7 @@ func (s *Sequential) TrainBatch(
 		return metrics, err
 	}
 
-	if err = optimizerRule.Update(s.Parameters()); err != nil {
+	if err = optimizerRule.Update(s.rebuildParameters()); err != nil {
 		err = fmt.Errorf("model: optimizer update failed: %w", err)
 		return metrics, err
 	}
