@@ -90,12 +90,15 @@ difference steps and tolerances rather than float64 precision assumptions.
 
 ## Convolutional Layers
 
-Convolutional layers remain out of scope for the dense-network v1 API. The core
-layer contract currently accepts batched 2D matrices, while convolution support
-needs an explicit tensor or image representation, channel ordering, padding and
-stride semantics, pooling or flattening behavior, and serialization fields for
-those shapes.
+Convolutional layers remain outside the reviewed dense-network v1 surface. The
+initial CNN milestone is additive post-v1 work and does not revise the accepted
+ANN contract. In particular, `layer.Layer` and `model.Sequential` continue to
+exchange batched 2D matrices, and existing ANN constructors and serialized ANN
+models remain compatible.
 
-The dense-network baseline is reliable enough to revisit this after v1, but
-adding convolutional layers now would expand the public API beyond the current
-scope instead of fitting into the existing abstractions.
+The post-v1 design represents each image as one flattened matrix row in
+channels-first order. This permits convolution, pooling, and flattening layers
+to compose through the stable matrix contract without introducing a general
+tensor API. The layout, shape, padding, stride, pooling, ownership, determinism,
+and serialization decisions are recorded in
+[cnn-design.md](cnn-design.md).
