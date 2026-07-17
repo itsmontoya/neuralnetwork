@@ -29,7 +29,7 @@ func Test_BuiltInActivationAllocationCeilings(t *testing.T) {
 		{name: "Linear", function: activation.Linear{}, forwardLimit: 2, backwardLimit: 2},
 		{name: "ReLU", function: activation.ReLU{}, forwardLimit: 2, backwardLimit: 2},
 		{name: "Sigmoid", function: activation.Sigmoid{}, forwardLimit: 2, backwardLimit: 2},
-		{name: "Softmax", function: activation.Softmax{}, forwardLimit: 4, backwardLimit: 6},
+		{name: "Softmax", function: activation.Softmax{}, forwardLimit: 2, backwardLimit: 2},
 		{name: "Tanh", function: activation.Tanh{}, forwardLimit: 2, backwardLimit: 2},
 	}
 
@@ -77,6 +77,7 @@ func Test_BuiltInDestinationActivationAllocations(t *testing.T) {
 		{name: "Linear", function: activation.Linear{}},
 		{name: "ReLU", function: activation.ReLU{}},
 		{name: "Sigmoid", function: activation.Sigmoid{}},
+		{name: "Softmax", function: activation.Softmax{}},
 		{name: "Tanh", function: activation.Tanh{}},
 	}
 

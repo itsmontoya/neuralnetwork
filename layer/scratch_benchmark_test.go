@@ -83,6 +83,74 @@ func Benchmark_ActivationBackward_MediumBatch(b *testing.B) {
 	benchmarkScratchLayerResult = inputGradient
 }
 
+func Benchmark_ActivationForward_Softmax_MediumBatch(b *testing.B) {
+	var (
+		activationLayer *layer.Activation
+		input           *matrix.Matrix
+		output          *matrix.Matrix
+		err             error
+		index           int
+	)
+
+	activationLayer, err = layer.NewActivation(activation.Softmax{})
+	if err != nil {
+		b.Fatalf("NewActivation returned error: %v", err)
+	}
+
+	input = benchmarkLayerMatrix(b, 128, 64)
+	if output, err = activationLayer.Forward(input); err != nil {
+		b.Fatalf("Forward returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		if output, err = activationLayer.Forward(input); err != nil {
+			b.Fatalf("Forward returned error: %v", err)
+		}
+	}
+
+	benchmarkScratchLayerResult = output
+}
+
+func Benchmark_ActivationBackward_Softmax_MediumBatch(b *testing.B) {
+	var (
+		activationLayer *layer.Activation
+		input           *matrix.Matrix
+		outputGradient  *matrix.Matrix
+		inputGradient   *matrix.Matrix
+		err             error
+		index           int
+	)
+
+	activationLayer, err = layer.NewActivation(activation.Softmax{})
+	if err != nil {
+		b.Fatalf("NewActivation returned error: %v", err)
+	}
+
+	input = benchmarkLayerMatrix(b, 128, 64)
+	outputGradient = benchmarkLayerMatrix(b, 128, 64)
+	if _, err = activationLayer.Forward(input); err != nil {
+		b.Fatalf("Forward returned error: %v", err)
+	}
+
+	if inputGradient, err = activationLayer.Backward(outputGradient); err != nil {
+		b.Fatalf("Backward returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		if inputGradient, err = activationLayer.Backward(outputGradient); err != nil {
+			b.Fatalf("Backward returned error: %v", err)
+		}
+	}
+
+	benchmarkScratchLayerResult = inputGradient
+}
+
 func Benchmark_DropoutForwardTraining_MediumBatch(b *testing.B) {
 	var (
 		dropout *layer.Dropout

@@ -87,19 +87,6 @@ func matrixShape(name string, input *matrix.Matrix) (rows, cols int, err error) 
 	return rows, cols, nil
 }
 
-func matrixValues(name string, input *matrix.Matrix) (rows, cols int, values []float32, err error) {
-	if rows, cols, err = matrixShape(name, input); err != nil {
-		return 0, 0, nil, err
-	}
-
-	if values, err = input.Values(); err != nil {
-		err = fmt.Errorf("activation: %s matrix invalid: %w", name, err)
-		return 0, 0, nil, err
-	}
-
-	return rows, cols, values, nil
-}
-
 func matrixPairShape(input, outputGradient *matrix.Matrix) (rows, cols int, err error) {
 	var (
 		gradientRows int
@@ -126,22 +113,4 @@ func matrixPairShape(input, outputGradient *matrix.Matrix) (rows, cols int, err 
 	}
 
 	return rows, cols, nil
-}
-
-func matrixValuePair(input, outputGradient *matrix.Matrix) (rows, cols int, inputValues, gradientValues []float32, err error) {
-	if rows, cols, err = matrixPairShape(input, outputGradient); err != nil {
-		return 0, 0, nil, nil, err
-	}
-
-	if inputValues, err = input.Values(); err != nil {
-		err = fmt.Errorf("activation: input matrix invalid: %w", err)
-		return 0, 0, nil, nil, err
-	}
-
-	if gradientValues, err = outputGradient.Values(); err != nil {
-		err = fmt.Errorf("activation: output gradient matrix invalid: %w", err)
-		return 0, 0, nil, nil, err
-	}
-
-	return rows, cols, inputValues, gradientValues, nil
 }

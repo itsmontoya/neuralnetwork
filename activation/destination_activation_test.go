@@ -14,6 +14,7 @@ func Test_DestinationActivation_Interface(t *testing.T) {
 	var _ activation.DestinationActivation = activation.Linear{}
 	var _ activation.DestinationActivation = activation.ReLU{}
 	var _ activation.DestinationActivation = activation.Sigmoid{}
+	var _ activation.DestinationActivation = activation.Softmax{}
 	var _ activation.DestinationActivation = activation.Tanh{}
 }
 
@@ -33,6 +34,7 @@ func Test_DestinationActivation_EquivalentToAllocatingMethods(t *testing.T) {
 		{name: "Linear", function: activation.Linear{}},
 		{name: "ReLU", function: activation.ReLU{}},
 		{name: "Sigmoid", function: activation.Sigmoid{}},
+		{name: "Softmax", function: activation.Softmax{}},
 		{name: "Tanh", function: activation.Tanh{}},
 	}
 
@@ -128,6 +130,7 @@ func Test_DestinationActivation_ValidatesDestinations(t *testing.T) {
 		{name: "Linear", function: activation.Linear{}},
 		{name: "ReLU", function: activation.ReLU{}},
 		{name: "Sigmoid", function: activation.Sigmoid{}},
+		{name: "Softmax", function: activation.Softmax{}},
 		{name: "Tanh", function: activation.Tanh{}},
 	}
 
