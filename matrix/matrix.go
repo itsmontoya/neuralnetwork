@@ -387,6 +387,29 @@ func (m *Matrix) AddScaledInPlace(other *Matrix, scale float32) (err error) {
 	return nil
 }
 
+// AddMappedInPlace adds fn applied to each element of other to m.
+//
+// The receiver is updated in place. The other matrix may alias the receiver
+// because each element is read before it is written. Neither argument is
+// retained.
+func (m *Matrix) AddMappedInPlace(other *Matrix, fn func(float32) float32) (err error) {
+	if fn == nil {
+		err = errors.New("matrix: add mapped function is nil")
+		return err
+	}
+
+	if err = m.sameShape(other); err != nil {
+		return err
+	}
+
+	var index int
+	for index = range m.data {
+		m.data[index] += fn(other.data[index])
+	}
+
+	return nil
+}
+
 // AdamUpdateInPlace applies one Adam optimizer update to m.
 //
 // The gradient, firstMoment, and secondMoment matrices must match m's shape and

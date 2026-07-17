@@ -89,6 +89,172 @@ func Test_OptimizerSteadyStateUpdateAllocations(t *testing.T) {
 	}
 }
 
+func Test_RegularizedOptimizerSteadyStateUpdateAllocations(t *testing.T) {
+	type testcase struct {
+		name            string
+		newBase         func(testing.TB) optimizer.Optimizer
+		newRegularizers func(testing.TB) []optimizer.Regularizer
+	}
+
+	tests := []testcase{
+		{
+			name:            "SGD/L1",
+			newBase:         allocationNewSGD,
+			newRegularizers: allocationNewL1Regularizers,
+		},
+		{
+			name:            "SGD/L2",
+			newBase:         allocationNewSGD,
+			newRegularizers: allocationNewL2Regularizers,
+		},
+		{
+			name:            "SGD/L1+L2",
+			newBase:         allocationNewSGD,
+			newRegularizers: allocationNewL1L2Regularizers,
+		},
+		{
+			name:            "Adam/L1",
+			newBase:         allocationNewAdam,
+			newRegularizers: allocationNewL1Regularizers,
+		},
+		{
+			name:            "Adam/L2",
+			newBase:         allocationNewAdam,
+			newRegularizers: allocationNewL2Regularizers,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				base          optimizer.Optimizer
+				optimizerRule *optimizer.Regularized
+				regularizers  []optimizer.Regularizer
+				parameters    []*optimizer.Parameter
+				gradients     []*matrix.Matrix
+				err           error
+			)
+
+			base = tt.newBase(t)
+			regularizers = tt.newRegularizers(t)
+			optimizerRule, err = optimizer.NewRegularized(base, regularizers...)
+			if err != nil {
+				t.Fatalf("NewRegularized returned error: %v", err)
+			}
+
+			parameters, gradients = allocationOptimizerParametersAndGradients(t)
+			if err = allocationAccumulateGradients(parameters, gradients); err != nil {
+				t.Fatalf("AccumulateGradient returned error: %v", err)
+			}
+
+			if err = optimizerRule.Update(parameters); err != nil {
+				t.Fatalf("warm-up Update returned error: %v", err)
+			}
+
+			requireMaxAllocs(t, tt.name, 0, func() {
+				if err = allocationAccumulateGradients(parameters, gradients); err != nil {
+					panic(err)
+				}
+
+				if err = optimizerRule.Update(parameters); err != nil {
+					panic(err)
+				}
+			})
+
+			allocationOptimizerParameters = parameters
+		})
+	}
+}
+
+func allocationNewSGD(tb testing.TB) (optimizerRule optimizer.Optimizer) {
+	var (
+		sgd *optimizer.SGD
+		err error
+	)
+
+	tb.Helper()
+
+	sgd, err = optimizer.NewSGD(0.01)
+	if err != nil {
+		tb.Fatalf("NewSGD returned error: %v", err)
+	}
+
+	return sgd
+}
+
+func allocationNewAdam(tb testing.TB) (optimizerRule optimizer.Optimizer) {
+	var (
+		adam *optimizer.Adam
+		err  error
+	)
+
+	tb.Helper()
+
+	adam, err = optimizer.NewAdam(0.001)
+	if err != nil {
+		tb.Fatalf("NewAdam returned error: %v", err)
+	}
+
+	return adam
+}
+
+func allocationNewL1Regularizers(tb testing.TB) (regularizers []optimizer.Regularizer) {
+	var (
+		regularizer *optimizer.L1
+		err         error
+	)
+
+	tb.Helper()
+
+	regularizer, err = optimizer.NewL1(0.001)
+	if err != nil {
+		tb.Fatalf("NewL1 returned error: %v", err)
+	}
+
+	regularizers = append(regularizers, regularizer)
+	return regularizers
+}
+
+func allocationNewL2Regularizers(tb testing.TB) (regularizers []optimizer.Regularizer) {
+	var (
+		regularizer *optimizer.L2WeightDecay
+		err         error
+	)
+
+	tb.Helper()
+
+	regularizer, err = optimizer.NewL2WeightDecay(0.001)
+	if err != nil {
+		tb.Fatalf("NewL2WeightDecay returned error: %v", err)
+	}
+
+	regularizers = append(regularizers, regularizer)
+	return regularizers
+}
+
+func allocationNewL1L2Regularizers(tb testing.TB) (regularizers []optimizer.Regularizer) {
+	var (
+		l1  *optimizer.L1
+		l2  *optimizer.L2WeightDecay
+		err error
+	)
+
+	tb.Helper()
+
+	l1, err = optimizer.NewL1(0.001)
+	if err != nil {
+		tb.Fatalf("NewL1 returned error: %v", err)
+	}
+
+	l2, err = optimizer.NewL2WeightDecay(0.001)
+	if err != nil {
+		tb.Fatalf("NewL2WeightDecay returned error: %v", err)
+	}
+
+	regularizers = append(regularizers, l1, l2)
+	return regularizers
+}
+
 func allocationOptimizerParametersAndGradients(tb testing.TB) (parameters []*optimizer.Parameter, gradients []*matrix.Matrix) {
 	var (
 		parameter *optimizer.Parameter
