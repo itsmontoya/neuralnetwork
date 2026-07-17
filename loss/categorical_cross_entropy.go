@@ -73,11 +73,8 @@ func (c CategoricalCrossEntropy) Value(predictions, targets *matrix.Matrix) (val
 // Gradient returns the prediction gradient of the mean categorical cross entropy.
 func (c CategoricalCrossEntropy) Gradient(predictions, targets *matrix.Matrix) (gradient *matrix.Matrix, err error) {
 	var (
-		rows       int
-		cols       int
-		prediction float32
-		target     float32
-		scale      float32
+		rows int
+		cols int
 	)
 
 	if rows, cols, err = c.shape(predictions, targets); err != nil {
@@ -88,8 +85,39 @@ func (c CategoricalCrossEntropy) Gradient(predictions, targets *matrix.Matrix) (
 		return nil, err
 	}
 
+	if err = c.gradientInto(predictions, targets, gradient, rows); err != nil {
+		return nil, err
+	}
+
+	return gradient, nil
+}
+
+// GradientInto writes the prediction gradient into destination.
+func (c CategoricalCrossEntropy) GradientInto(predictions, targets, destination *matrix.Matrix) (err error) {
+	var rows int
+
+	if rows, _, err = c.shape(predictions, targets); err != nil {
+		return err
+	}
+
+	err = c.gradientInto(predictions, targets, destination, rows)
+	return err
+}
+
+func (c CategoricalCrossEntropy) gradientInto(
+	predictions,
+	targets,
+	destination *matrix.Matrix,
+	rows int,
+) (err error) {
+	var (
+		prediction float32
+		target     float32
+		scale      float32
+	)
+
 	scale = 1 / float32(rows)
-	err = predictions.PairwiseInto(targets, gradient, func(row, col int, left, right float32) (value float32, err error) {
+	err = predictions.PairwiseInto(targets, destination, func(row, col int, left, right float32) (value float32, err error) {
 		prediction = left
 		target = right
 		if target == 0 {
@@ -101,10 +129,10 @@ func (c CategoricalCrossEntropy) Gradient(predictions, targets *matrix.Matrix) (
 		return value, nil
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return gradient, nil
+	return nil
 }
 
 func (c CategoricalCrossEntropy) shape(predictions, targets *matrix.Matrix) (rows, cols int, err error) {

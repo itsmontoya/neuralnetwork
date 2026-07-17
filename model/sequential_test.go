@@ -342,6 +342,33 @@ func Test_Sequential_TrainBatchObservesChangingCustomParameters(t *testing.T) {
 	}
 }
 
+func Test_Sequential_TrainBatchUsesCustomLossGradientFallback(t *testing.T) {
+	var (
+		customLoss    *errorLoss
+		network       *model.Sequential
+		input         *matrix.Matrix
+		targets       *matrix.Matrix
+		optimizerRule *recordingOptimizer
+		err           error
+	)
+
+	customLoss = &errorLoss{}
+	if network, err = model.NewSequential(&recordingLayer{}); err != nil {
+		t.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	input = mustMatrix(t, 1, 1, []float32{1})
+	targets = mustMatrix(t, 1, 1, []float32{0})
+	optimizerRule = &recordingOptimizer{}
+	if _, err = network.TrainBatch(input, targets, customLoss, optimizerRule); err != nil {
+		t.Fatalf("TrainBatch returned error: %v", err)
+	}
+
+	if customLoss.gradientCalls != 1 {
+		t.Fatalf("custom Gradient calls = %d, want 1", customLoss.gradientCalls)
+	}
+}
+
 func Test_Sequential_TrainBatchRejectsNilDependencies(t *testing.T) {
 	type testcase struct {
 		name          string
@@ -1577,8 +1604,9 @@ func (s *sequenceLoss) Gradient(predictions, targets *matrix.Matrix) (gradient *
 }
 
 type errorLoss struct {
-	valueErr    error
-	gradientErr error
+	valueErr      error
+	gradientErr   error
+	gradientCalls int
 }
 
 func (e *errorLoss) Value(predictions, targets *matrix.Matrix) (value float32, err error) {
@@ -1596,6 +1624,7 @@ func (e *errorLoss) Value(predictions, targets *matrix.Matrix) (value float32, e
 func (e *errorLoss) Gradient(predictions, targets *matrix.Matrix) (gradient *matrix.Matrix, err error) {
 	var mse loss.MeanSquaredError
 
+	e.gradientCalls++
 	if e.gradientErr != nil {
 		err = e.gradientErr
 		return nil, err
