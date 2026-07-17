@@ -11,10 +11,22 @@ func (r ReLU) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error) {
 	return output, err
 }
 
+// ForwardInto writes max(0, x) for each input value into output.
+func (r ReLU) ForwardInto(input, output *matrix.Matrix) (err error) {
+	err = applyInto(input, output, reLUValue)
+	return err
+}
+
 // Backward multiplies outputGradient by the ReLU derivative at input.
 func (r ReLU) Backward(input, outputGradient *matrix.Matrix) (inputGradient *matrix.Matrix, err error) {
 	inputGradient, err = applyDerivative(input, outputGradient, reLUDerivative)
 	return inputGradient, err
+}
+
+// BackwardInto writes the propagated ReLU gradient into inputGradient.
+func (r ReLU) BackwardInto(input, outputGradient, inputGradient *matrix.Matrix) (err error) {
+	err = applyDerivativeInto(input, outputGradient, inputGradient, reLUDerivative)
+	return err
 }
 
 func reLUValue(value float32) (result float32) {
