@@ -33,6 +33,9 @@ func Benchmark_SequentialTrainBatch_XOR(b *testing.B) {
 	if err != nil {
 		b.Fatalf("NewAdam returned error: %v", err)
 	}
+	if _, err = network.TrainBatch(inputs, targets, loss.BinaryCrossEntropy{}, optimizerRule); err != nil {
+		b.Fatalf("warm-up TrainBatch returned error: %v", err)
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -75,6 +78,9 @@ func Benchmark_SequentialFit_XOR(b *testing.B) {
 	config.BatchSize = 4
 	config.Optimizer = optimizerRule
 	config.Loss = loss.BinaryCrossEntropy{}
+	if _, err = network.Fit(dataset, config); err != nil {
+		b.Fatalf("warm-up Fit returned error: %v", err)
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -105,6 +111,9 @@ func Benchmark_SequentialTrainBatch_SyntheticDense(b *testing.B) {
 	optimizerRule, err = optimizer.NewSGD(0.01)
 	if err != nil {
 		b.Fatalf("NewSGD returned error: %v", err)
+	}
+	if _, err = network.TrainBatch(inputs, targets, loss.MeanSquaredError{}, optimizerRule); err != nil {
+		b.Fatalf("warm-up TrainBatch returned error: %v", err)
 	}
 
 	b.ReportAllocs()
@@ -148,6 +157,9 @@ func Benchmark_SequentialFit_SyntheticDense(b *testing.B) {
 	config.BatchSize = 32
 	config.Optimizer = optimizerRule
 	config.Loss = loss.MeanSquaredError{}
+	if _, err = network.Fit(dataset, config); err != nil {
+		b.Fatalf("warm-up Fit returned error: %v", err)
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -160,6 +172,203 @@ func Benchmark_SequentialFit_SyntheticDense(b *testing.B) {
 	}
 
 	benchmarkTrainingHistory = history
+}
+
+func Benchmark_SequentialTrainBatch_Activations(b *testing.B) {
+	var tests []struct {
+		name     string
+		function activation.Activation
+	}
+
+	tests = []struct {
+		name     string
+		function activation.Activation
+	}{
+		{name: "ELU", function: activation.ELU{}},
+		{name: "GELU", function: activation.GELU{}},
+		{name: "LeakyReLU", function: activation.LeakyReLU{}},
+		{name: "Linear", function: activation.Linear{}},
+		{name: "ReLU", function: activation.ReLU{}},
+		{name: "Sigmoid", function: activation.Sigmoid{}},
+		{name: "Tanh", function: activation.Tanh{}},
+		{name: "Softmax", function: activation.Softmax{}},
+	}
+
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			benchmarkSequentialTrainBatchActivation(b, tt.function)
+		})
+	}
+}
+
+func Benchmark_SequentialTrainBatch_Regularized(b *testing.B) {
+	var tests []struct {
+		name string
+		new  func(testing.TB) optimizer.Regularizer
+	}
+
+	tests = []struct {
+		name string
+		new  func(testing.TB) optimizer.Regularizer
+	}{
+		{
+			name: "L1",
+			new: func(tb testing.TB) (regularizer optimizer.Regularizer) {
+				var (
+					l1  *optimizer.L1
+					err error
+				)
+
+				if l1, err = optimizer.NewL1(0.001); err != nil {
+					tb.Fatalf("NewL1 returned error: %v", err)
+				}
+
+				return l1
+			},
+		},
+		{
+			name: "L2",
+			new: func(tb testing.TB) (regularizer optimizer.Regularizer) {
+				var (
+					l2  *optimizer.L2WeightDecay
+					err error
+				)
+
+				if l2, err = optimizer.NewL2WeightDecay(0.001); err != nil {
+					tb.Fatalf("NewL2WeightDecay returned error: %v", err)
+				}
+
+				return l2
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			benchmarkSequentialTrainBatchRegularized(b, tt.new(b))
+		})
+	}
+}
+
+func Benchmark_SequentialFit_SyntheticDense_ColdOneEpoch(b *testing.B) {
+	var (
+		network       *model.Sequential
+		optimizerRule *optimizer.SGD
+		inputs        *matrix.Matrix
+		targets       *matrix.Matrix
+		dataset       *data.Dataset
+		config        model.FitConfig
+		history       model.TrainingHistory
+		err           error
+		index         int
+	)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		b.StopTimer()
+		inputs, targets = benchmarkSyntheticMatrices(b, 128, 32, 16)
+		if dataset, err = data.NewDataset(inputs, targets); err != nil {
+			b.Fatalf("NewDataset returned error: %v", err)
+		}
+
+		network = benchmarkSyntheticModel(b)
+		if optimizerRule, err = optimizer.NewSGD(0.01); err != nil {
+			b.Fatalf("NewSGD returned error: %v", err)
+		}
+
+		config = model.FitConfig{}
+		config.Epochs = 1
+		config.BatchSize = 32
+		config.Optimizer = optimizerRule
+		config.Loss = loss.MeanSquaredError{}
+		b.StartTimer()
+
+		if history, err = network.Fit(dataset, config); err != nil {
+			b.Fatalf("Fit returned error: %v", err)
+		}
+	}
+
+	benchmarkTrainingHistory = history
+}
+
+func Benchmark_SequentialFit_SyntheticDense_TenEpoch(b *testing.B) {
+	var (
+		network       *model.Sequential
+		optimizerRule *optimizer.SGD
+		inputs        *matrix.Matrix
+		targets       *matrix.Matrix
+		dataset       *data.Dataset
+		config        model.FitConfig
+		history       model.TrainingHistory
+		err           error
+		index         int
+	)
+
+	inputs, targets = benchmarkSyntheticMatrices(b, 128, 32, 16)
+	if dataset, err = data.NewDataset(inputs, targets); err != nil {
+		b.Fatalf("NewDataset returned error: %v", err)
+	}
+
+	network = benchmarkSyntheticModel(b)
+	if optimizerRule, err = optimizer.NewSGD(0.01); err != nil {
+		b.Fatalf("NewSGD returned error: %v", err)
+	}
+
+	config.Epochs = 1
+	config.BatchSize = 32
+	config.Optimizer = optimizerRule
+	config.Loss = loss.MeanSquaredError{}
+	if _, err = network.Fit(dataset, config); err != nil {
+		b.Fatalf("warm-up Fit returned error: %v", err)
+	}
+	config.Epochs = 10
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		if history, err = network.Fit(dataset, config); err != nil {
+			b.Fatalf("Fit returned error: %v", err)
+		}
+	}
+
+	benchmarkTrainingHistory = history
+}
+
+func Benchmark_SequentialFit_Scenarios(b *testing.B) {
+	var tests []struct {
+		name              string
+		samples           int
+		batchSize         int
+		shuffle           bool
+		validationSamples int
+	}
+
+	tests = []struct {
+		name              string
+		samples           int
+		batchSize         int
+		shuffle           bool
+		validationSamples int
+	}{
+		{name: "PartialFinalBatch", samples: 130, batchSize: 32},
+		{name: "Shuffle", samples: 128, batchSize: 32, shuffle: true},
+		{name: "Validation", samples: 128, batchSize: 32, validationSamples: 65},
+	}
+
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			benchmarkSequentialFitScenario(
+				b,
+				tt.samples,
+				tt.batchSize,
+				tt.shuffle,
+				tt.validationSamples,
+			)
+		})
+	}
 }
 
 func benchmarkXORMatrices(tb testing.TB) (inputs, targets *matrix.Matrix) {
@@ -289,4 +498,153 @@ func benchmarkSyntheticModel(tb testing.TB) (network *model.Sequential) {
 	}
 
 	return network
+}
+
+func benchmarkSequentialTrainBatchActivation(b *testing.B, function activation.Activation) {
+	var (
+		random          *rand.Rand
+		dense           *layer.Dense
+		activationLayer *layer.Activation
+		network         *model.Sequential
+		optimizerRule   *optimizer.SGD
+		inputs          *matrix.Matrix
+		targets         *matrix.Matrix
+		metrics         model.TrainMetrics
+		err             error
+		index           int
+	)
+
+	random = rand.New(rand.NewSource(17))
+	if dense, err = layer.NewDense(16, 8, layer.XavierUniformWeights(random)); err != nil {
+		b.Fatalf("NewDense returned error: %v", err)
+	}
+
+	if activationLayer, err = layer.NewActivation(function); err != nil {
+		b.Fatalf("NewActivation returned error: %v", err)
+	}
+
+	if network, err = model.NewSequential(dense, activationLayer); err != nil {
+		b.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	if optimizerRule, err = optimizer.NewSGD(0.01); err != nil {
+		b.Fatalf("NewSGD returned error: %v", err)
+	}
+
+	inputs, targets = benchmarkSyntheticMatrices(b, 64, 16, 8)
+	if _, err = network.TrainBatch(inputs, targets, loss.MeanSquaredError{}, optimizerRule); err != nil {
+		b.Fatalf("warm-up TrainBatch returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		if metrics, err = network.TrainBatch(inputs, targets, loss.MeanSquaredError{}, optimizerRule); err != nil {
+			b.Fatalf("TrainBatch returned error: %v", err)
+		}
+	}
+
+	benchmarkTrainMetrics = metrics
+}
+
+func benchmarkSequentialTrainBatchRegularized(b *testing.B, regularizer optimizer.Regularizer) {
+	var (
+		network       *model.Sequential
+		base          *optimizer.SGD
+		optimizerRule *optimizer.Regularized
+		inputs        *matrix.Matrix
+		targets       *matrix.Matrix
+		metrics       model.TrainMetrics
+		err           error
+		index         int
+	)
+
+	inputs, targets = benchmarkSyntheticMatrices(b, 128, 32, 16)
+	network = benchmarkSyntheticModel(b)
+	if base, err = optimizer.NewSGD(0.01); err != nil {
+		b.Fatalf("NewSGD returned error: %v", err)
+	}
+
+	if optimizerRule, err = optimizer.NewRegularized(base, regularizer); err != nil {
+		b.Fatalf("NewRegularized returned error: %v", err)
+	}
+
+	if _, err = network.TrainBatch(inputs, targets, loss.MeanSquaredError{}, optimizerRule); err != nil {
+		b.Fatalf("warm-up TrainBatch returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		if metrics, err = network.TrainBatch(inputs, targets, loss.MeanSquaredError{}, optimizerRule); err != nil {
+			b.Fatalf("TrainBatch returned error: %v", err)
+		}
+	}
+
+	benchmarkTrainMetrics = metrics
+}
+
+func benchmarkSequentialFitScenario(
+	b *testing.B,
+	samples, batchSize int,
+	shuffle bool,
+	validationSamples int,
+) {
+	var (
+		network           *model.Sequential
+		optimizerRule     *optimizer.SGD
+		inputs            *matrix.Matrix
+		targets           *matrix.Matrix
+		validationInputs  *matrix.Matrix
+		validationTargets *matrix.Matrix
+		trainingData      *data.Dataset
+		validationData    *data.Dataset
+		config            model.FitConfig
+		history           model.TrainingHistory
+		err               error
+		index             int
+	)
+
+	inputs, targets = benchmarkSyntheticMatrices(b, samples, 32, 16)
+	if trainingData, err = data.NewDataset(inputs, targets); err != nil {
+		b.Fatalf("NewDataset returned error: %v", err)
+	}
+
+	if validationSamples > 0 {
+		validationInputs, validationTargets = benchmarkSyntheticMatrices(b, validationSamples, 32, 16)
+		if validationData, err = data.NewDataset(validationInputs, validationTargets); err != nil {
+			b.Fatalf("validation NewDataset returned error: %v", err)
+		}
+	}
+
+	network = benchmarkSyntheticModel(b)
+	if optimizerRule, err = optimizer.NewSGD(0.01); err != nil {
+		b.Fatalf("NewSGD returned error: %v", err)
+	}
+
+	config.Epochs = 1
+	config.BatchSize = batchSize
+	config.Shuffle = shuffle
+	if shuffle {
+		config.Random = rand.New(rand.NewSource(23))
+	}
+	config.Optimizer = optimizerRule
+	config.Loss = loss.MeanSquaredError{}
+	config.ValidationData = validationData
+	if _, err = network.Fit(trainingData, config); err != nil {
+		b.Fatalf("warm-up Fit returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		if history, err = network.Fit(trainingData, config); err != nil {
+			b.Fatalf("Fit returned error: %v", err)
+		}
+	}
+
+	benchmarkTrainingHistory = history
 }

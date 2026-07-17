@@ -60,6 +60,133 @@ func Benchmark_AdamUpdate_SteadyState(b *testing.B) {
 	benchmarkOptimizerUpdate(b, optimizerRule, parameters, gradients)
 }
 
+func Benchmark_RegularizedUpdate_SteadyState(b *testing.B) {
+	var tests []struct {
+		name string
+		new  func(testing.TB) optimizer.Optimizer
+	}
+
+	tests = []struct {
+		name string
+		new  func(testing.TB) optimizer.Optimizer
+	}{
+		{
+			name: "SGD/L1",
+			new: func(tb testing.TB) (optimizerRule optimizer.Optimizer) {
+				var (
+					base        *optimizer.SGD
+					regularizer *optimizer.L1
+					regularized *optimizer.Regularized
+					err         error
+				)
+
+				if base, err = optimizer.NewSGD(0.01); err != nil {
+					tb.Fatalf("NewSGD returned error: %v", err)
+				}
+
+				if regularizer, err = optimizer.NewL1(0.001); err != nil {
+					tb.Fatalf("NewL1 returned error: %v", err)
+				}
+
+				if regularized, err = optimizer.NewRegularized(base, regularizer); err != nil {
+					tb.Fatalf("NewRegularized returned error: %v", err)
+				}
+
+				return regularized
+			},
+		},
+		{
+			name: "SGD/L2",
+			new: func(tb testing.TB) (optimizerRule optimizer.Optimizer) {
+				var (
+					base        *optimizer.SGD
+					regularizer *optimizer.L2WeightDecay
+					regularized *optimizer.Regularized
+					err         error
+				)
+
+				if base, err = optimizer.NewSGD(0.01); err != nil {
+					tb.Fatalf("NewSGD returned error: %v", err)
+				}
+
+				if regularizer, err = optimizer.NewL2WeightDecay(0.001); err != nil {
+					tb.Fatalf("NewL2WeightDecay returned error: %v", err)
+				}
+
+				if regularized, err = optimizer.NewRegularized(base, regularizer); err != nil {
+					tb.Fatalf("NewRegularized returned error: %v", err)
+				}
+
+				return regularized
+			},
+		},
+		{
+			name: "Adam/L1",
+			new: func(tb testing.TB) (optimizerRule optimizer.Optimizer) {
+				var (
+					base        *optimizer.Adam
+					regularizer *optimizer.L1
+					regularized *optimizer.Regularized
+					err         error
+				)
+
+				if base, err = optimizer.NewAdam(0.001); err != nil {
+					tb.Fatalf("NewAdam returned error: %v", err)
+				}
+
+				if regularizer, err = optimizer.NewL1(0.001); err != nil {
+					tb.Fatalf("NewL1 returned error: %v", err)
+				}
+
+				if regularized, err = optimizer.NewRegularized(base, regularizer); err != nil {
+					tb.Fatalf("NewRegularized returned error: %v", err)
+				}
+
+				return regularized
+			},
+		},
+		{
+			name: "Adam/L2",
+			new: func(tb testing.TB) (optimizerRule optimizer.Optimizer) {
+				var (
+					base        *optimizer.Adam
+					regularizer *optimizer.L2WeightDecay
+					regularized *optimizer.Regularized
+					err         error
+				)
+
+				if base, err = optimizer.NewAdam(0.001); err != nil {
+					tb.Fatalf("NewAdam returned error: %v", err)
+				}
+
+				if regularizer, err = optimizer.NewL2WeightDecay(0.001); err != nil {
+					tb.Fatalf("NewL2WeightDecay returned error: %v", err)
+				}
+
+				if regularized, err = optimizer.NewRegularized(base, regularizer); err != nil {
+					tb.Fatalf("NewRegularized returned error: %v", err)
+				}
+
+				return regularized
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			var (
+				optimizerRule optimizer.Optimizer
+				parameters    []*optimizer.Parameter
+				gradients     []*matrix.Matrix
+			)
+
+			parameters, gradients = benchmarkOptimizerParametersAndGradients(b)
+			optimizerRule = tt.new(b)
+			benchmarkOptimizerUpdate(b, optimizerRule, parameters, gradients)
+		})
+	}
+}
+
 func benchmarkOptimizerUpdate(
 	b *testing.B,
 	optimizerRule optimizer.Optimizer,
