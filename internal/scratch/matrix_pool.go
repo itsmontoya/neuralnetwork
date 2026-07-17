@@ -1,0 +1,55 @@
+package scratch
+
+import "github.com/itsmontoya/neuralnetwork/matrix"
+
+const poolEntryLimit = 4
+
+// MatrixPool retains matrices for up to four exact shapes in
+// least-recently-used order. Its zero value is ready for use.
+//
+// Returned matrices are dirty. A MatrixPool must serve only one logical
+// scratch role, and callers must not request another matrix while a previously
+// returned matrix from the same pool is still a live operand. A MatrixPool
+// must not be copied after first use.
+type MatrixPool struct {
+	entries [poolEntryLimit]*matrix.Matrix
+	count   int
+}
+
+// Get returns a dirty matrix with the requested exact shape. Reused reports
+// whether the matrix was already retained by the pool.
+func (p *MatrixPool) Get(rows, cols int) (out *matrix.Matrix, reused bool, err error) {
+	var index int
+	for index = 0; index < p.count; index++ {
+		out = p.entries[index]
+		if out.Rows() == rows && out.Cols() == cols {
+			p.moveToMostRecent(index)
+			return out, true, nil
+		}
+	}
+
+	if out, err = matrix.New(rows, cols); err != nil {
+		return nil, false, err
+	}
+
+	p.retain(out)
+	return out, false, nil
+}
+
+func (p *MatrixPool) moveToMostRecent(index int) {
+	var entry *matrix.Matrix
+	entry = p.entries[index]
+	copy(p.entries[index:p.count-1], p.entries[index+1:p.count])
+	p.entries[p.count-1] = entry
+}
+
+func (p *MatrixPool) retain(entry *matrix.Matrix) {
+	if p.count < poolEntryLimit {
+		p.entries[p.count] = entry
+		p.count++
+		return
+	}
+
+	copy(p.entries[:poolEntryLimit-1], p.entries[1:])
+	p.entries[poolEntryLimit-1] = entry
+}
