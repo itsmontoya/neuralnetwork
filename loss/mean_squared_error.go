@@ -53,6 +53,8 @@ func (m MeanSquaredError) Gradient(predictions, targets *matrix.Matrix) (gradien
 }
 
 // GradientInto writes the prediction gradient into destination.
+// It follows DestinationGradient's destination and alias contract without
+// allocating.
 func (m MeanSquaredError) GradientInto(predictions, targets, destination *matrix.Matrix) (err error) {
 	var (
 		rows int

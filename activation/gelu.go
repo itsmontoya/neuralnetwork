@@ -20,6 +20,8 @@ func (g GELU) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error) {
 }
 
 // ForwardInto writes the exact GELU result into output.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (g GELU) ForwardInto(input, output *matrix.Matrix) (err error) {
 	err = applyInto(input, output, geluValue)
 	return err
@@ -32,6 +34,8 @@ func (g GELU) Backward(input, outputGradient *matrix.Matrix) (inputGradient *mat
 }
 
 // BackwardInto writes the propagated GELU gradient into inputGradient.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (g GELU) BackwardInto(input, outputGradient, inputGradient *matrix.Matrix) (err error) {
 	err = applyDerivativeInto(input, outputGradient, inputGradient, geluDerivative)
 	return err

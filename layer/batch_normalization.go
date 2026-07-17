@@ -367,7 +367,8 @@ func (b *BatchNormalization) Parameters() (parameters []*optimizer.Parameter) {
 }
 
 // AppendParameters appends trainable gamma and beta parameters in that order.
-// The returned slice is caller-owned, and BatchNormalization does not retain it.
+// The returned slice is caller-owned, and BatchNormalization does not retain
+// it. Appending allocates only when the supplied slice lacks capacity.
 func (b *BatchNormalization) AppendParameters(parameters []*optimizer.Parameter) (out []*optimizer.Parameter) {
 	if b == nil {
 		return parameters

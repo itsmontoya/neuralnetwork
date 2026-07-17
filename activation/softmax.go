@@ -54,6 +54,8 @@ func (s Softmax) Backward(input, outputGradient *matrix.Matrix) (inputGradient *
 }
 
 // ForwardInto writes a row-wise Softmax into output.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (s Softmax) ForwardInto(input, output *matrix.Matrix) (err error) {
 	if err = input.SoftmaxRowsInto(output); err != nil {
 		err = fmt.Errorf("activation: softmax forward failed: %w", err)
@@ -65,6 +67,8 @@ func (s Softmax) ForwardInto(input, output *matrix.Matrix) (err error) {
 
 // BackwardInto writes the product of outputGradient and the row-wise Softmax
 // Jacobian into inputGradient.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (s Softmax) BackwardInto(input, outputGradient, inputGradient *matrix.Matrix) (err error) {
 	if err = input.SoftmaxRowsBackwardInto(outputGradient, inputGradient); err != nil {
 		err = fmt.Errorf("activation: softmax backward failed: %w", err)

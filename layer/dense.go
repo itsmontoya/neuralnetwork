@@ -228,7 +228,8 @@ func (d *Dense) Parameters() (parameters []*optimizer.Parameter) {
 }
 
 // AppendParameters appends trainable parameters in weight, bias order.
-// The returned slice is caller-owned, and Dense does not retain it.
+// The returned slice is caller-owned, and Dense does not retain it. Appending
+// allocates only when the supplied slice lacks capacity.
 func (d *Dense) AppendParameters(parameters []*optimizer.Parameter) (out []*optimizer.Parameter) {
 	if d == nil {
 		return parameters

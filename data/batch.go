@@ -48,7 +48,8 @@ func (b *Batch) Targets() (targets *matrix.Matrix, err error) {
 // InputsInto copies batch inputs into inputs.
 //
 // The destination must match the batch input shape. Values are copied, so
-// mutating the destination does not mutate the batch.
+// mutating the caller-owned destination does not mutate the batch. Valid calls
+// fully overwrite the destination without allocating or retaining it.
 func (b *Batch) InputsInto(inputs *matrix.Matrix) (err error) {
 	if err = b.validate(); err != nil {
 		return err
@@ -65,7 +66,8 @@ func (b *Batch) InputsInto(inputs *matrix.Matrix) (err error) {
 // TargetsInto copies batch targets into targets.
 //
 // The destination must match the batch target shape. Values are copied, so
-// mutating the destination does not mutate the batch.
+// mutating the caller-owned destination does not mutate the batch. Valid calls
+// fully overwrite the destination without allocating or retaining it.
 func (b *Batch) TargetsInto(targets *matrix.Matrix) (err error) {
 	if err = b.validate(); err != nil {
 		return err

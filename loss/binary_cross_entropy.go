@@ -69,6 +69,8 @@ func (b BinaryCrossEntropy) Gradient(predictions, targets *matrix.Matrix) (gradi
 }
 
 // GradientInto writes the prediction gradient into destination.
+// It follows DestinationGradient's destination and alias contract without
+// allocating.
 func (b BinaryCrossEntropy) GradientInto(predictions, targets, destination *matrix.Matrix) (err error) {
 	var rows int
 

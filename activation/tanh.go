@@ -15,6 +15,8 @@ func (t Tanh) Forward(input *matrix.Matrix) (output *matrix.Matrix, err error) {
 }
 
 // ForwardInto writes the hyperbolic tangent result into output.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (t Tanh) ForwardInto(input, output *matrix.Matrix) (err error) {
 	err = applyInto(input, output, tanhValue)
 	return err
@@ -27,6 +29,8 @@ func (t Tanh) Backward(input, outputGradient *matrix.Matrix) (inputGradient *mat
 }
 
 // BackwardInto writes the propagated Tanh gradient into inputGradient.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (t Tanh) BackwardInto(input, outputGradient, inputGradient *matrix.Matrix) (err error) {
 	err = applyDerivativeInto(input, outputGradient, inputGradient, tanhDerivative)
 	return err

@@ -14,6 +14,8 @@ func (l LeakyReLU) Forward(input *matrix.Matrix) (output *matrix.Matrix, err err
 }
 
 // ForwardInto writes the LeakyReLU result into output.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (l LeakyReLU) ForwardInto(input, output *matrix.Matrix) (err error) {
 	err = applyInto(input, output, leakyReLUValue)
 	return err
@@ -26,6 +28,8 @@ func (l LeakyReLU) Backward(input, outputGradient *matrix.Matrix) (inputGradient
 }
 
 // BackwardInto writes the propagated LeakyReLU gradient into inputGradient.
+// It follows DestinationActivation's destination and alias contract without
+// allocating.
 func (l LeakyReLU) BackwardInto(input, outputGradient, inputGradient *matrix.Matrix) (err error) {
 	err = applyDerivativeInto(input, outputGradient, inputGradient, leakyReLUDerivative)
 	return err
