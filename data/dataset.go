@@ -13,7 +13,6 @@ func NewDataset(inputs, targets *matrix.Matrix) (out *Dataset, err error) {
 	var (
 		clonedInputs  *matrix.Matrix
 		clonedTargets *matrix.Matrix
-		d             Dataset
 	)
 
 	if err = validateMatrixPair("inputs", inputs, "targets", targets); err != nil {
@@ -28,8 +27,20 @@ func NewDataset(inputs, targets *matrix.Matrix) (out *Dataset, err error) {
 		return nil, err
 	}
 
-	d.inputs = clonedInputs
-	d.targets = clonedTargets
+	out, err = newDataset(clonedInputs, clonedTargets)
+	return out, err
+}
+
+// newDataset stores matrices that are already owned by the data package.
+func newDataset(inputs, targets *matrix.Matrix) (out *Dataset, err error) {
+	var d Dataset
+
+	if err = validateMatrixPair("inputs", inputs, "targets", targets); err != nil {
+		return nil, err
+	}
+
+	d.inputs = inputs
+	d.targets = targets
 	return &d, nil
 }
 
@@ -314,11 +325,11 @@ func (d *Dataset) Split(testFraction float32, random *rand.Rand) (train, test *D
 		return nil, nil, err
 	}
 
-	if train, err = NewDataset(trainInputs, trainTargets); err != nil {
+	if train, err = newDataset(trainInputs, trainTargets); err != nil {
 		return nil, nil, err
 	}
 
-	if test, err = NewDataset(testInputs, testTargets); err != nil {
+	if test, err = newDataset(testInputs, testTargets); err != nil {
 		return nil, nil, err
 	}
 

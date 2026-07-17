@@ -488,6 +488,23 @@ func Test_LoadSequential_RejectsMalformedDocuments(t *testing.T) {
 			wantError: "dense biases copy failed",
 		},
 		{
+			name: "invalid dense bias value count",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "dense",
+						"input_size": 2,
+						"output_size": 1,
+						"weights": {"rows": 2, "cols": 1, "values": [0.2, 0.3]},
+						"biases": {"rows": 1, "cols": 1, "values": []}
+					}
+				]
+			}`,
+			wantError: "dense biases load failed",
+		},
+		{
 			name: "missing batch normalization gamma",
 			document: `{
 				"format": "neuralnetwork.sequential",
@@ -582,6 +599,26 @@ func Test_LoadSequential_RejectsMalformedDocuments(t *testing.T) {
 				]
 			}`,
 			wantError: "batch normalization gamma copy failed",
+		},
+		{
+			name: "invalid batch normalization gamma value count",
+			document: `{
+				"format": "neuralnetwork.sequential",
+				"version": 1,
+				"layers": [
+					{
+						"type": "batch_normalization",
+						"feature_size": 2,
+						"momentum": 0.8,
+						"epsilon": 0.0001,
+						"gamma": {"rows": 1, "cols": 2, "values": [1]},
+						"beta": {"rows": 1, "cols": 2, "values": [0, 0]},
+						"running_mean": {"rows": 1, "cols": 2, "values": [0, 0]},
+						"running_variance": {"rows": 1, "cols": 2, "values": [1, 1]}
+					}
+				]
+			}`,
+			wantError: "batch normalization gamma load failed",
 		},
 		{
 			name: "invalid batch normalization beta shape",

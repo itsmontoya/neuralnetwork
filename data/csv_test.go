@@ -1,6 +1,7 @@
 package data_test
 
 import (
+	"bytes"
 	"io"
 	"strings"
 	"testing"
@@ -126,6 +127,63 @@ func Test_LoadCSV_TrimsWhitespaceAndSkipsBlankRecords(t *testing.T) {
 
 	requireMatrixValues(t, inputs, []float32{1, 2})
 	requireMatrixValues(t, targets, []float32{10, 20})
+}
+
+func Test_LoadCSV_DoesNotRetainReusedRecordsOrSource(t *testing.T) {
+	var (
+		csvData         []byte
+		config          data.CSVConfig
+		dataset         *data.Dataset
+		inputs          *matrix.Matrix
+		targets         *matrix.Matrix
+		returnedInputs  *matrix.Matrix
+		returnedTargets *matrix.Matrix
+		index           int
+		err             error
+	)
+
+	csvData = []byte("1,10\n2,20\n3,30\n")
+	config.InputColumns = 1
+	config.TargetColumns = 1
+	if dataset, err = data.LoadCSV(bytes.NewReader(csvData), config); err != nil {
+		t.Fatalf("LoadCSV returned error: %v", err)
+	}
+
+	for index = range csvData {
+		if csvData[index] >= '0' && csvData[index] <= '9' {
+			csvData[index] = '9'
+		}
+	}
+
+	if inputs, err = dataset.Inputs(); err != nil {
+		t.Fatalf("Inputs returned error: %v", err)
+	}
+
+	if targets, err = dataset.Targets(); err != nil {
+		t.Fatalf("Targets returned error: %v", err)
+	}
+
+	requireMatrixValues(t, inputs, []float32{1, 2, 3})
+	requireMatrixValues(t, targets, []float32{10, 20, 30})
+
+	if err = inputs.Set(0, 0, 99); err != nil {
+		t.Fatalf("inputs Set returned error: %v", err)
+	}
+
+	if err = targets.Set(0, 0, 98); err != nil {
+		t.Fatalf("targets Set returned error: %v", err)
+	}
+
+	if returnedInputs, err = dataset.Inputs(); err != nil {
+		t.Fatalf("second Inputs returned error: %v", err)
+	}
+
+	if returnedTargets, err = dataset.Targets(); err != nil {
+		t.Fatalf("second Targets returned error: %v", err)
+	}
+
+	requireMatrixValues(t, returnedInputs, []float32{1, 2, 3})
+	requireMatrixValues(t, returnedTargets, []float32{10, 20, 30})
 }
 
 func Test_LoadCSV_RejectsInvalidInput(t *testing.T) {

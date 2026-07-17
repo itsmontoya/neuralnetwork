@@ -2,6 +2,7 @@ package data_test
 
 import (
 	"math/rand"
+	"strings"
 	"testing"
 
 	"github.com/itsmontoya/neuralnetwork/data"
@@ -10,6 +11,132 @@ import (
 
 var benchmarkBatches []*data.Batch
 var benchmarkBatchMatrix *matrix.Matrix
+var benchmarkDatasetResult *data.Dataset
+
+func Benchmark_LoadCSV_ColdPath(b *testing.B) {
+	var (
+		csvData string
+		reader  *strings.Reader
+		config  data.CSVConfig
+		dataset *data.Dataset
+		err     error
+		index   int
+	)
+
+	csvData = benchmarkCSVData(1024, 32, 8)
+	reader = strings.NewReader(csvData)
+	config.InputColumns = 32
+	config.TargetColumns = 8
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		reader.Reset(csvData)
+		dataset, err = data.LoadCSV(reader, config)
+		if err != nil {
+			b.Fatalf("LoadCSV returned error: %v", err)
+		}
+	}
+
+	benchmarkDatasetResult = dataset
+}
+
+func Benchmark_DatasetSplit_ColdPath(b *testing.B) {
+	var (
+		dataset *data.Dataset
+		train   *data.Dataset
+		test    *data.Dataset
+		err     error
+		index   int
+	)
+
+	dataset = benchmarkDataset(b, 1024, 32, 8)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		train, test, err = dataset.Split(0.2, nil)
+		if err != nil {
+			b.Fatalf("Split returned error: %v", err)
+		}
+	}
+
+	benchmarkDatasetResult = train
+	if test == nil {
+		b.Fatal("Split returned nil test dataset")
+	}
+}
+
+func Benchmark_NewDataset_ColdPath(b *testing.B) {
+	var (
+		inputs  *matrix.Matrix
+		targets *matrix.Matrix
+		dataset *data.Dataset
+		err     error
+		index   int
+	)
+
+	inputs = benchmarkMatrix(b, 1024, 32)
+	targets = benchmarkMatrix(b, 1024, 8)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		dataset, err = data.NewDataset(inputs, targets)
+		if err != nil {
+			b.Fatalf("NewDataset returned error: %v", err)
+		}
+	}
+
+	benchmarkDatasetResult = dataset
+}
+
+func Benchmark_DatasetCopyAccessors_ColdPath(b *testing.B) {
+	var dataset *data.Dataset
+
+	dataset = benchmarkDataset(b, 1024, 32, 8)
+	b.Run("Inputs", func(b *testing.B) {
+		var (
+			inputs *matrix.Matrix
+			err    error
+			index  int
+		)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for index = 0; index < b.N; index++ {
+			inputs, err = dataset.Inputs()
+			if err != nil {
+				b.Fatalf("Inputs returned error: %v", err)
+			}
+		}
+
+		benchmarkBatchMatrix = inputs
+	})
+	b.Run("Targets", func(b *testing.B) {
+		var (
+			targets *matrix.Matrix
+			err     error
+			index   int
+		)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for index = 0; index < b.N; index++ {
+			targets, err = dataset.Targets()
+			if err != nil {
+				b.Fatalf("Targets returned error: %v", err)
+			}
+		}
+
+		benchmarkBatchMatrix = targets
+	})
+}
 
 func Benchmark_DatasetBatches_Unshuffled(b *testing.B) {
 	var (
@@ -164,4 +291,46 @@ func benchmarkDataset(tb testing.TB, samples, inputSize, targetSize int) (datase
 	}
 
 	return dataset
+}
+
+func benchmarkMatrix(tb testing.TB, rows, cols int) (m *matrix.Matrix) {
+	var (
+		values []float32
+		err    error
+	)
+
+	tb.Helper()
+
+	values = make([]float32, rows*cols)
+	if m, err = matrix.FromSlice(rows, cols, values); err != nil {
+		tb.Fatalf("FromSlice returned error: %v", err)
+	}
+
+	return m
+}
+
+func benchmarkCSVData(samples, inputSize, targetSize int) (csvData string) {
+	var (
+		builder strings.Builder
+		row     int
+		column  int
+		columns int
+	)
+
+	columns = inputSize + targetSize
+	builder.Grow(samples * columns * 2)
+	for row = 0; row < samples; row++ {
+		for column = 0; column < columns; column++ {
+			if column > 0 {
+				builder.WriteByte(',')
+			}
+
+			builder.WriteByte('1')
+		}
+
+		builder.WriteByte('\n')
+	}
+
+	csvData = builder.String()
+	return csvData
 }
