@@ -238,6 +238,70 @@ func Test_Dense_Forward(t *testing.T) {
 	})
 }
 
+func Test_Dense_ScratchDoesNotAliasLiveOperands(t *testing.T) {
+	var (
+		dense               *layer.Dense
+		input               *matrix.Matrix
+		outputGradient      *matrix.Matrix
+		firstOutput         *matrix.Matrix
+		secondOutput        *matrix.Matrix
+		firstInputGradient  *matrix.Matrix
+		secondInputGradient *matrix.Matrix
+		err                 error
+	)
+
+	dense = mustDense(
+		t,
+		2,
+		2,
+		[]float32{
+			1, 0,
+			0, 1,
+		},
+		[]float32{0, 0},
+	)
+	input = mustMatrix(t, 2, 2, []float32{
+		1, 2,
+		3, 4,
+	})
+	outputGradient = mustMatrix(t, 2, 2, []float32{
+		5, 6,
+		7, 8,
+	})
+
+	if firstOutput, err = dense.Forward(input); err != nil {
+		t.Fatalf("first Forward returned error: %v", err)
+	}
+
+	if secondOutput, err = dense.Forward(firstOutput); err != nil {
+		t.Fatalf("aliased Forward returned error: %v", err)
+	}
+
+	if secondOutput == firstOutput {
+		t.Fatal("Forward output aliases its input")
+	}
+
+	requireMatrixValues(t, secondOutput, []float32{1, 2, 3, 4})
+
+	if firstInputGradient, err = dense.Backward(outputGradient); err != nil {
+		t.Fatalf("first Backward returned error: %v", err)
+	}
+
+	if _, err = dense.Forward(input); err != nil {
+		t.Fatalf("Forward before aliased Backward returned error: %v", err)
+	}
+
+	if secondInputGradient, err = dense.Backward(firstInputGradient); err != nil {
+		t.Fatalf("aliased Backward returned error: %v", err)
+	}
+
+	if secondInputGradient == firstInputGradient {
+		t.Fatal("Backward input gradient aliases its output gradient")
+	}
+
+	requireMatrixValues(t, secondInputGradient, []float32{5, 6, 7, 8})
+}
+
 func Test_Dense_ForwardReportsInputShapeMismatch(t *testing.T) {
 	var (
 		dense *layer.Dense
