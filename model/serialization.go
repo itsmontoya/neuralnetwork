@@ -16,8 +16,11 @@ const (
 	serializationFormatSequential        = "neuralnetwork.sequential"
 	serializationLayerActivation         = "activation"
 	serializationLayerBatchNormalization = "batch_normalization"
+	serializationLayerConv2D             = "conv2d"
 	serializationLayerDense              = "dense"
 	serializationLayerDropout            = "dropout"
+	serializationLayerFlatten            = "flatten"
+	serializationLayerMaxPool2D          = "max_pool2d"
 	serializationDropoutSeed             = 1
 	serializationVersion                 = 1
 )
@@ -107,6 +110,18 @@ type serializedLayer struct {
 	Beta            *serializedMatrix `json:"beta,omitempty"`
 	RunningMean     *serializedMatrix `json:"running_mean,omitempty"`
 	RunningVariance *serializedMatrix `json:"running_variance,omitempty"`
+	InputChannels   int               `json:"input_channels,omitempty"`
+	InputHeight     int               `json:"input_height,omitempty"`
+	InputWidth      int               `json:"input_width,omitempty"`
+	OutputChannels  int               `json:"output_channels,omitempty"`
+	KernelHeight    int               `json:"kernel_height,omitempty"`
+	KernelWidth     int               `json:"kernel_width,omitempty"`
+	StrideHeight    int               `json:"stride_height,omitempty"`
+	StrideWidth     int               `json:"stride_width,omitempty"`
+	PaddingHeight   int               `json:"padding_height,omitempty"`
+	PaddingWidth    int               `json:"padding_width,omitempty"`
+	WindowHeight    int               `json:"window_height,omitempty"`
+	WindowWidth     int               `json:"window_width,omitempty"`
 }
 
 func serializedLayerFromLayer(index int, currentLayer layerpkg.Layer) (serialized serializedLayer, err error) {
@@ -120,10 +135,16 @@ func serializedLayerFromLayer(index int, currentLayer layerpkg.Layer) (serialize
 		serialized, err = serializedActivationLayer(index, current)
 	case *layerpkg.BatchNormalization:
 		serialized, err = serializedBatchNormalizationLayer(index, current)
+	case *layerpkg.Conv2D:
+		serialized, err = serializedConv2DLayer(index, current)
 	case *layerpkg.Dense:
 		serialized, err = serializedDenseLayer(index, current)
 	case *layerpkg.Dropout:
 		serialized, err = serializedDropoutLayer(index, current)
+	case *layerpkg.Flatten:
+		serialized, err = serializedFlattenLayer(index, current)
+	case *layerpkg.MaxPool2D:
+		serialized, err = serializedMaxPool2DLayer(index, current)
 	default:
 		err = fmt.Errorf("model: layer %d unsupported layer type %T", index, currentLayer)
 		return serialized, err
@@ -138,10 +159,16 @@ func (s serializedLayer) layer(index int) (currentLayer layerpkg.Layer, err erro
 		currentLayer, err = s.activationLayer(index)
 	case serializationLayerBatchNormalization:
 		currentLayer, err = s.batchNormalizationLayer(index)
+	case serializationLayerConv2D:
+		currentLayer, err = s.conv2DLayer(index)
 	case serializationLayerDense:
 		currentLayer, err = s.denseLayer(index)
 	case serializationLayerDropout:
 		currentLayer, err = s.dropoutLayer(index)
+	case serializationLayerFlatten:
+		currentLayer, err = s.flattenLayer(index)
+	case serializationLayerMaxPool2D:
+		currentLayer, err = s.maxPool2DLayer(index)
 	default:
 		err = fmt.Errorf("model: layer %d unknown layer type %q", index, s.Type)
 		return nil, err
@@ -311,6 +338,140 @@ func (s serializedLayer) batchNormalizationLayer(index int) (batchNormLayer *lay
 	return batchNormLayer, nil
 }
 
+func serializedConv2DLayer(index int, convLayer *layerpkg.Conv2D) (serialized serializedLayer, err error) {
+	var (
+		config         layerpkg.Conv2DConfig
+		expectedConfig layerpkg.Conv2DConfig
+		shape          layerpkg.SpatialShape
+		weights        serializedMatrix
+		biases         serializedMatrix
+	)
+
+	if convLayer == nil {
+		err = fmt.Errorf("model: layer %d conv2d layer is nil", index)
+		return serialized, err
+	}
+
+	config = convLayer.Config()
+	shape = config.InputShape()
+	if expectedConfig, err = layerpkg.NewConv2DConfig(
+		shape,
+		config.OutputChannels(),
+		config.KernelHeight(),
+		config.KernelWidth(),
+		config.StrideHeight(),
+		config.StrideWidth(),
+		config.PaddingHeight(),
+		config.PaddingWidth(),
+	); err != nil {
+		err = fmt.Errorf("model: layer %d conv2d configuration serialize failed: %w", index, err)
+		return serialized, err
+	}
+
+	if expectedConfig != config {
+		err = fmt.Errorf("model: layer %d conv2d configuration is inconsistent", index)
+		return serialized, err
+	}
+
+	if convLayer.Weights() == nil {
+		err = fmt.Errorf("model: layer %d conv2d weights parameter is nil", index)
+		return serialized, err
+	}
+
+	if convLayer.Biases() == nil {
+		err = fmt.Errorf("model: layer %d conv2d biases parameter is nil", index)
+		return serialized, err
+	}
+
+	if weights, err = serializedMatrixFromMatrix(convLayer.Weights().Values()); err != nil {
+		err = fmt.Errorf("model: layer %d conv2d weights serialize failed: %w", index, err)
+		return serialized, err
+	}
+
+	if biases, err = serializedMatrixFromMatrix(convLayer.Biases().Values()); err != nil {
+		err = fmt.Errorf("model: layer %d conv2d biases serialize failed: %w", index, err)
+		return serialized, err
+	}
+
+	serialized = serializedLayer{
+		Type:           serializationLayerConv2D,
+		Weights:        &weights,
+		Biases:         &biases,
+		InputChannels:  shape.Channels(),
+		InputHeight:    shape.Height(),
+		InputWidth:     shape.Width(),
+		OutputChannels: config.OutputChannels(),
+		KernelHeight:   config.KernelHeight(),
+		KernelWidth:    config.KernelWidth(),
+		StrideHeight:   config.StrideHeight(),
+		StrideWidth:    config.StrideWidth(),
+		PaddingHeight:  config.PaddingHeight(),
+		PaddingWidth:   config.PaddingWidth(),
+	}
+	return serialized, nil
+}
+
+func (s serializedLayer) conv2DLayer(index int) (convLayer *layerpkg.Conv2D, err error) {
+	var (
+		inputShape layerpkg.SpatialShape
+		config     layerpkg.Conv2DConfig
+		weights    *matrixpkg.Matrix
+	)
+
+	if s.Weights == nil {
+		err = fmt.Errorf("model: layer %d conv2d weights are missing", index)
+		return nil, err
+	}
+
+	if s.Biases == nil {
+		err = fmt.Errorf("model: layer %d conv2d biases are missing", index)
+		return nil, err
+	}
+
+	if inputShape, err = s.spatialInputShape(index, serializationLayerConv2D); err != nil {
+		return nil, err
+	}
+
+	if config, err = layerpkg.NewConv2DConfig(
+		inputShape,
+		s.OutputChannels,
+		s.KernelHeight,
+		s.KernelWidth,
+		s.StrideHeight,
+		s.StrideWidth,
+		s.PaddingHeight,
+		s.PaddingWidth,
+	); err != nil {
+		err = fmt.Errorf("model: layer %d conv2d configuration load failed: %w", index, err)
+		return nil, err
+	}
+
+	if weights, err = s.Weights.matrix(); err != nil {
+		err = fmt.Errorf("model: layer %d conv2d weights load failed: %w", index, err)
+		return nil, err
+	}
+
+	if err = s.Biases.validate(); err != nil {
+		err = fmt.Errorf("model: layer %d conv2d biases load failed: %w", index, err)
+		return nil, err
+	}
+
+	if convLayer, err = layerpkg.NewConv2D(config, func(inputSize, outputSize int) (initialized *matrixpkg.Matrix, err error) {
+		initialized = weights
+		return initialized, nil
+	}); err != nil {
+		err = fmt.Errorf("model: layer %d conv2d construct failed: %w", index, err)
+		return nil, err
+	}
+
+	if err = s.Biases.copyInto(convLayer.Biases().Values()); err != nil {
+		err = fmt.Errorf("model: layer %d conv2d biases copy failed: %w", index, err)
+		return nil, err
+	}
+
+	return convLayer, nil
+}
+
 func serializedDenseLayer(index int, denseLayer *layerpkg.Dense) (serialized serializedLayer, err error) {
 	var (
 		weights serializedMatrix
@@ -416,6 +577,138 @@ func (s serializedLayer) dropoutLayer(index int) (dropoutLayer *layerpkg.Dropout
 	}
 
 	return dropoutLayer, nil
+}
+
+func serializedFlattenLayer(index int, flattenLayer *layerpkg.Flatten) (serialized serializedLayer, err error) {
+	var (
+		shape         layerpkg.SpatialShape
+		expectedShape layerpkg.SpatialShape
+	)
+
+	if flattenLayer == nil {
+		err = fmt.Errorf("model: layer %d flatten layer is nil", index)
+		return serialized, err
+	}
+
+	shape = flattenLayer.InputShape()
+	if expectedShape, err = layerpkg.NewSpatialShape(shape.Channels(), shape.Height(), shape.Width()); err != nil {
+		err = fmt.Errorf("model: layer %d flatten input shape serialize failed: %w", index, err)
+		return serialized, err
+	}
+
+	if expectedShape != shape {
+		err = fmt.Errorf("model: layer %d flatten input shape is inconsistent", index)
+		return serialized, err
+	}
+
+	serialized = serializedLayer{
+		Type:          serializationLayerFlatten,
+		InputChannels: shape.Channels(),
+		InputHeight:   shape.Height(),
+		InputWidth:    shape.Width(),
+	}
+	return serialized, nil
+}
+
+func (s serializedLayer) flattenLayer(index int) (flattenLayer *layerpkg.Flatten, err error) {
+	var inputShape layerpkg.SpatialShape
+
+	if inputShape, err = s.spatialInputShape(index, serializationLayerFlatten); err != nil {
+		return nil, err
+	}
+
+	if flattenLayer, err = layerpkg.NewFlatten(inputShape); err != nil {
+		err = fmt.Errorf("model: layer %d flatten construct failed: %w", index, err)
+		return nil, err
+	}
+
+	return flattenLayer, nil
+}
+
+func serializedMaxPool2DLayer(index int, poolLayer *layerpkg.MaxPool2D) (serialized serializedLayer, err error) {
+	var (
+		config         layerpkg.MaxPool2DConfig
+		expectedConfig layerpkg.MaxPool2DConfig
+		shape          layerpkg.SpatialShape
+	)
+
+	if poolLayer == nil {
+		err = fmt.Errorf("model: layer %d max pool2d layer is nil", index)
+		return serialized, err
+	}
+
+	config = poolLayer.Config()
+	shape = config.InputShape()
+	if expectedConfig, err = layerpkg.NewMaxPool2DConfig(
+		shape,
+		config.WindowHeight(),
+		config.WindowWidth(),
+		config.StrideHeight(),
+		config.StrideWidth(),
+	); err != nil {
+		err = fmt.Errorf("model: layer %d max pool2d configuration serialize failed: %w", index, err)
+		return serialized, err
+	}
+
+	if expectedConfig != config {
+		err = fmt.Errorf("model: layer %d max pool2d configuration is inconsistent", index)
+		return serialized, err
+	}
+
+	serialized = serializedLayer{
+		Type:          serializationLayerMaxPool2D,
+		InputChannels: shape.Channels(),
+		InputHeight:   shape.Height(),
+		InputWidth:    shape.Width(),
+		StrideHeight:  config.StrideHeight(),
+		StrideWidth:   config.StrideWidth(),
+		WindowHeight:  config.WindowHeight(),
+		WindowWidth:   config.WindowWidth(),
+	}
+	return serialized, nil
+}
+
+func (s serializedLayer) maxPool2DLayer(index int) (poolLayer *layerpkg.MaxPool2D, err error) {
+	var (
+		inputShape layerpkg.SpatialShape
+		config     layerpkg.MaxPool2DConfig
+	)
+
+	if inputShape, err = s.spatialInputShape(index, serializationLayerMaxPool2D); err != nil {
+		return nil, err
+	}
+
+	if config, err = layerpkg.NewMaxPool2DConfig(
+		inputShape,
+		s.WindowHeight,
+		s.WindowWidth,
+		s.StrideHeight,
+		s.StrideWidth,
+	); err != nil {
+		err = fmt.Errorf("model: layer %d max pool2d configuration load failed: %w", index, err)
+		return nil, err
+	}
+
+	if poolLayer, err = layerpkg.NewMaxPool2D(config); err != nil {
+		err = fmt.Errorf("model: layer %d max pool2d construct failed: %w", index, err)
+		return nil, err
+	}
+
+	return poolLayer, nil
+}
+
+func (s serializedLayer) spatialInputShape(index int, layerName string) (shape layerpkg.SpatialShape, err error) {
+	if s.InputChannels == 0 && s.InputHeight == 0 && s.InputWidth == 0 {
+		err = fmt.Errorf("model: layer %d %s input shape is missing", index, layerName)
+		return shape, err
+	}
+
+	if shape, err = layerpkg.NewSpatialShape(s.InputChannels, s.InputHeight, s.InputWidth); err != nil {
+		err = fmt.Errorf("model: layer %d %s input shape load failed: %w", index, layerName, err)
+		return shape, err
+	}
+
+	return shape, nil
 }
 
 type serializedMatrix struct {
