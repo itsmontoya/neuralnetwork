@@ -33,13 +33,14 @@ func NewSequential(layers ...layer.Layer) (out *Sequential, err error) {
 // LoadSequential restores a Sequential model from the v1 JSON contract.
 //
 // The document must use format "neuralnetwork.sequential", version 1, and
-// layer types "dense", "activation", "dropout", or "batch_normalization".
-// Loading restores architecture, parameter values, and batch-normalization
-// running statistics only. Optimizer state, accumulated gradients, training
-// history, callbacks, learning-rate schedules, and original random source state
-// are not serialized; dropout layers use deterministic local random sources.
-// New layer types or JSON fields should be added only with explicit
-// compatibility handling for this contract.
+// a supported dense, activation, dropout, batch-normalization, convolution,
+// max-pooling, or flatten layer type. Loading restores architecture, parameter
+// values, and batch-normalization running statistics only. Optimizer state,
+// accumulated gradients, forward caches, training history, callbacks,
+// learning-rate schedules, and original random source state are not serialized;
+// dropout layers use deterministic local random sources. ANN-only version 1
+// documents remain compatible; older readers reject documents containing the
+// additive CNN layer types.
 func LoadSequential(reader io.Reader) (out *Sequential, err error) {
 	if reader == nil {
 		err = errors.New("model: load reader is nil")
@@ -384,12 +385,13 @@ func (s *Sequential) Fit(trainingData *data.Dataset, config FitConfig) (history 
 // Save writes the model using the v1 JSON contract.
 //
 // The document uses format "neuralnetwork.sequential", version 1, and layer
-// types "dense", "activation", "dropout", or "batch_normalization". It stores
-// supported layer configuration, dense parameters, and batch-normalization
-// parameters and running statistics. It does not serialize optimizer state,
-// accumulated gradients, training history, callbacks, learning-rate schedules,
-// or original random source state. New layer types or JSON fields should be
-// added only with explicit compatibility handling for this contract.
+// types "dense", "activation", "dropout", "batch_normalization", "conv2d",
+// "max_pool2d", or "flatten". It stores supported layer configuration,
+// trainable parameter values, and batch-normalization running statistics. It
+// does not serialize optimizer state, accumulated gradients, forward caches,
+// training history, callbacks, learning-rate schedules, or original random
+// source state. CNN fields are additive, so ANN-only version 1 documents retain
+// their existing encoding and compatibility.
 func (s *Sequential) Save(writer io.Writer) (err error) {
 	if writer == nil {
 		err = errors.New("model: save writer is nil")
