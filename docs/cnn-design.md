@@ -299,6 +299,19 @@ cached inputs, the last batch size, or other forward-pass state. A loaded
 `Conv2D` therefore has zero gradients and requires a new forward pass before
 backward, like a newly constructed layer.
 
+CNN layer records add only constructor inputs and trainable values to the
+existing version `1` layer object:
+
+* Every CNN layer stores `input_channels`, `input_height`, and `input_width`.
+* `conv2d` stores `output_channels`, kernel, stride, and padding dimensions plus
+  `weights` and `biases` in stable weight-then-bias order.
+* `max_pool2d` stores window and stride dimensions.
+* `flatten` needs no fields beyond its input shape.
+
+Zero padding dimensions may be omitted by JSON's zero-value encoding and load
+as zero. Output shapes remain derived from validated constructor configuration
+and are not stored.
+
 Compatibility is:
 
 * Existing ANN-only version `1` documents remain byte-stable when saved and
