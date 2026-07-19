@@ -316,11 +316,23 @@ func (c *Conv2D) validate() (err error) {
 	}
 
 	fanIn = c.config.InputShape().Channels() * c.config.KernelHeight() * c.config.KernelWidth()
-	if err = validateConv2DParameter("weights", c.weights, fanIn, c.config.OutputChannels()); err != nil {
+	if err = validateConv2DParameter(
+		"weights",
+		"weights gradient",
+		c.weights,
+		fanIn,
+		c.config.OutputChannels(),
+	); err != nil {
 		return err
 	}
 
-	if err = validateConv2DParameter("biases", c.biases, 1, c.config.OutputChannels()); err != nil {
+	if err = validateConv2DParameter(
+		"biases",
+		"biases gradient",
+		c.biases,
+		1,
+		c.config.OutputChannels(),
+	); err != nil {
 		return err
 	}
 
@@ -659,7 +671,13 @@ func (c *Conv2D) backwardInto(rows int) {
 	}
 }
 
-func validateConv2DParameter(name string, parameter *optimizer.Parameter, rows, cols int) (err error) {
+func validateConv2DParameter(
+	name,
+	gradientName string,
+	parameter *optimizer.Parameter,
+	rows,
+	cols int,
+) (err error) {
 	if parameter == nil {
 		err = fmt.Errorf("layer: conv2d %s parameter is nil", name)
 		return err
@@ -669,7 +687,7 @@ func validateConv2DParameter(name string, parameter *optimizer.Parameter, rows, 
 		return err
 	}
 
-	if err = validateConv2DMatrix(name+" gradient", parameter.Gradient(), rows, cols); err != nil {
+	if err = validateConv2DMatrix(gradientName, parameter.Gradient(), rows, cols); err != nil {
 		return err
 	}
 
