@@ -1,12 +1,12 @@
 # CNN Architecture and Public Contract
 
-Status: proposed contract for maintainer review.
+Status: implemented additive post-v1 contract.
 
-This document freezes the public and behavioral contract for the initial
-convolutional neural network path. The milestone is additive to the reviewed
-dense-network v1 API. It does not change `layer.Layer`, `model.Sequential`,
-`data.Dataset`, losses, metrics, optimizers, or the physical representation of
-`matrix.Matrix`.
+This document records the implemented public and behavioral contract for the
+initial convolutional neural network path. The milestone is additive to the
+reviewed dense-network v1 API. It does not change `layer.Layer`,
+`model.Sequential`, `data.Dataset`, losses, metrics, optimizers, or the physical
+representation of `matrix.Matrix`.
 
 ## Milestone
 

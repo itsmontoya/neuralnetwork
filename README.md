@@ -1,7 +1,8 @@
 # neuralnetwork
 
-`neuralnetwork` is a pure-Go neural network library focused on dense feed-forward
-models trained with backpropagation.
+`neuralnetwork` is a pure-Go neural network library for dense feed-forward
+artificial neural networks (ANNs) and an initial convolutional neural network
+(CNN) path trained with backpropagation.
 
 The project is currently an early implementation. The v1 scope and public API
 direction are documented in [docs/v1-scope-and-api.md](docs/v1-scope-and-api.md),
@@ -109,6 +110,18 @@ nil and shuffle deterministically when callers provide a seeded `*rand.Rand`.
 See [docs/data.md](docs/data.md) for CSV, batching, and train/test split
 contracts.
 
+## Convolutional Networks
+
+The initial CNN path represents each image as one flattened matrix row in
+channels-first `CHW` order. It composes `Conv2D`, existing activation layers,
+`MaxPool2D`, `Flatten`, and `Dense` through the unchanged `model.Sequential`
+and `data.Dataset` APIs.
+
+See the [CNN guide](docs/cnn.md) for layout formulas, construction, training,
+serialization, ownership, determinism, and current limitations. The runnable
+[minimal CNN example](examples/cnn/main.go) trains a deterministic classifier
+on synthetic horizontal and vertical line images without external downloads.
+
 ## Training Controls
 
 `model.Sequential.Fit` is configured with `model.FitConfig`. In addition to the
@@ -127,10 +140,15 @@ Built-in regularizers include `optimizer.NewL1` and
 ## Layers
 
 The `layer` package includes dense layers, activation layers, inverted dropout,
-and per-feature batch normalization. `layer.NewDropout` requires a caller-owned
-random source for deterministic masks and follows training/evaluation mode.
-`layer.NewBatchNormalization` and `layer.NewBatchNormalizationWithConfig` manage
-trainable gamma and beta parameters plus running statistics for evaluation.
+per-feature batch normalization, trainable two-dimensional convolution,
+parameter-free two-dimensional max pooling, and a spatial-to-dense flatten
+adapter. `layer.NewSpatialShape`, `layer.NewConv2DConfig`, and
+`layer.NewMaxPool2DConfig` validate explicit channels-first spatial geometry.
+`layer.NewDropout` requires a caller-owned random source for deterministic masks
+and follows training/evaluation mode. `layer.NewBatchNormalization` and
+`layer.NewBatchNormalizationWithConfig` manage trainable gamma and beta
+parameters plus running statistics for evaluation; batch normalization remains
+per flattened feature rather than per spatial channel.
 
 ## Metrics
 
@@ -144,8 +162,10 @@ target expectations, and confusion-matrix orientation are documented in
 
 Use `Sequential.Save` and `model.LoadSequential` to persist sequential models
 with the v1 JSON contract. The format is `neuralnetwork.sequential`, version
-`1`, and supports `dense`, `activation`, `dropout`, and `batch_normalization`
-layers.
+`1`, and supports `dense`, `activation`, `dropout`, `batch_normalization`,
+`conv2d`, `max_pool2d`, and `flatten` layers. CNN layer names and fields are
+additive: existing ANN-only version `1` documents retain their encoding and
+compatibility.
 
 Serialization stores model structure and layer parameters. It does not store
 optimizer state, accumulated gradients, training history, callbacks,
@@ -170,6 +190,12 @@ Classification metric semantics are documented in
 [docs/metrics.md](docs/metrics.md).
 
 ## Examples
+
+Run the deterministic synthetic CNN classifier with:
+
+```sh
+go run ./examples/cnn
+```
 
 Run the XOR smoke test with:
 
