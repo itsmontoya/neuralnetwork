@@ -47,6 +47,32 @@ as part of the v1 stable surface rather than labeled as post-v1 additions.
 Post-v1 work may add packages, functions, methods, or implementations, but it
 should not break this surface without an explicit maintainer decision.
 
+## Additive Post-v1 CNN Surface
+
+The initial CNN milestone adds the following `layer` APIs without revising the
+accepted ANN v1 surface above:
+
+| Type | Additive APIs |
+| --- | --- |
+| Spatial shape | `NewSpatialShape`; `SpatialShape` with `Channels`, `Height`, `Width`, and `Size`. |
+| Convolution configuration | `NewConv2DConfig`; `Conv2DConfig` with `InputShape`, `OutputShape`, `OutputChannels`, `KernelHeight`, `KernelWidth`, `StrideHeight`, `StrideWidth`, `PaddingHeight`, and `PaddingWidth`. |
+| Convolution layer | `NewConv2D`; `Conv2D` with `Forward`, `Backward`, `Config`, `InputShape`, `OutputShape`, `Weights`, `Biases`, `Parameters`, `AppendParameters`, and `ResetGradients`. |
+| Pooling configuration | `NewMaxPool2DConfig`; `MaxPool2DConfig` with `InputShape`, `OutputShape`, `WindowHeight`, `WindowWidth`, `StrideHeight`, and `StrideWidth`. |
+| Pooling layer | `NewMaxPool2D`; `MaxPool2D` with `Forward`, `Backward`, `Config`, `InputShape`, and `OutputShape`. |
+| Flatten adapter | `NewFlatten`; `Flatten` with `Forward`, `Backward`, `InputShape`, and `OutputSize`. |
+
+These layers retain the v1 `layer.Layer` matrix contract. Spatial values use
+flattened channels-first rows, `Conv2D` performs cross-correlation with explicit
+symmetric zero padding, `MaxPool2D` uses valid padding, and `Flatten` preserves
+physical value order and batch rows. The detailed contract is recorded in
+[cnn-design.md](cnn-design.md), with construction and training guidance in
+[cnn.md](cnn.md).
+
+The `model.Sequential.Save` and `model.LoadSequential` APIs are unchanged. The
+version `1` serialization vocabulary now also accepts `conv2d`, `max_pool2d`,
+and `flatten` layer records. ANN-only documents retain their existing encoding;
+older readers reject documents containing unknown additive CNN layer types.
+
 ## Constructor Review
 
 Constructors validate required dimensions and nil dependencies before returning

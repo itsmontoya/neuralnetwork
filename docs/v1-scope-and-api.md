@@ -96,9 +96,10 @@ ANN contract. In particular, `layer.Layer` and `model.Sequential` continue to
 exchange batched 2D matrices, and existing ANN constructors and serialized ANN
 models remain compatible.
 
-The post-v1 design represents each image as one flattened matrix row in
-channels-first order. This permits convolution, pooling, and flattening layers
-to compose through the stable matrix contract without introducing a general
-tensor API. The layout, shape, padding, stride, pooling, ownership, determinism,
-and serialization decisions are recorded in
+The implemented post-v1 CNN path represents each image as one flattened matrix
+row in channels-first order. Its additive spatial shape, convolution, pooling,
+and flattening APIs compose through the stable matrix contract without
+introducing a general tensor API. The supported workflow is documented in
+[cnn.md](cnn.md); layout, shape, padding, stride, pooling, ownership,
+determinism, and serialization decisions are recorded in
 [cnn-design.md](cnn-design.md).
