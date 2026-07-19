@@ -197,6 +197,38 @@ func Benchmark_SequentialTrainBatch_SyntheticDense(b *testing.B) {
 	benchmarkTrainMetrics = metrics
 }
 
+func Benchmark_SequentialTrainBatch_CNN(b *testing.B) {
+	var (
+		network       *model.Sequential
+		optimizerRule *optimizer.SGD
+		inputs        *matrix.Matrix
+		targets       *matrix.Matrix
+		metrics       model.TrainMetrics
+		err           error
+		index         int
+	)
+
+	network = benchmarkCNNModel(b)
+	inputs, targets = benchmarkSyntheticMatrices(b, 8, 3*16*12, 6)
+	if optimizerRule, err = optimizer.NewSGD(0.01); err != nil {
+		b.Fatalf("NewSGD returned error: %v", err)
+	}
+	if _, err = network.TrainBatch(inputs, targets, loss.MeanSquaredError{}, optimizerRule); err != nil {
+		b.Fatalf("warm-up TrainBatch returned error: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for index = 0; index < b.N; index++ {
+		if metrics, err = network.TrainBatch(inputs, targets, loss.MeanSquaredError{}, optimizerRule); err != nil {
+			b.Fatalf("TrainBatch returned error: %v", err)
+		}
+	}
+
+	benchmarkTrainMetrics = metrics
+}
+
 func Benchmark_SequentialFit_SyntheticDense(b *testing.B) {
 	var (
 		network       *model.Sequential
@@ -621,6 +653,54 @@ func benchmarkSyntheticModel(tb testing.TB) (network *model.Sequential) {
 	}
 
 	if network, err = model.NewSequential(hidden, hiddenActivation, output); err != nil {
+		tb.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	return network
+}
+
+func benchmarkCNNModel(tb testing.TB) (network *model.Sequential) {
+	var (
+		random            *rand.Rand
+		inputShape        layer.SpatialShape
+		convolutionConfig layer.Conv2DConfig
+		convolution       *layer.Conv2D
+		hiddenActivation  *layer.Activation
+		poolingConfig     layer.MaxPool2DConfig
+		pooling           *layer.MaxPool2D
+		flatten           *layer.Flatten
+		output            *layer.Dense
+		err               error
+	)
+
+	tb.Helper()
+
+	random = rand.New(rand.NewSource(29))
+	if inputShape, err = layer.NewSpatialShape(3, 16, 12); err != nil {
+		tb.Fatalf("NewSpatialShape returned error: %v", err)
+	}
+	if convolutionConfig, err = layer.NewConv2DConfig(inputShape, 8, 3, 3, 1, 1, 1, 1); err != nil {
+		tb.Fatalf("NewConv2DConfig returned error: %v", err)
+	}
+	if convolution, err = layer.NewConv2D(convolutionConfig, layer.HeNormalWeights(random)); err != nil {
+		tb.Fatalf("NewConv2D returned error: %v", err)
+	}
+	if hiddenActivation, err = layer.NewActivation(activation.ReLU{}); err != nil {
+		tb.Fatalf("NewActivation returned error: %v", err)
+	}
+	if poolingConfig, err = layer.NewMaxPool2DConfig(convolution.OutputShape(), 2, 3, 2, 2); err != nil {
+		tb.Fatalf("NewMaxPool2DConfig returned error: %v", err)
+	}
+	if pooling, err = layer.NewMaxPool2D(poolingConfig); err != nil {
+		tb.Fatalf("NewMaxPool2D returned error: %v", err)
+	}
+	if flatten, err = layer.NewFlatten(pooling.OutputShape()); err != nil {
+		tb.Fatalf("NewFlatten returned error: %v", err)
+	}
+	if output, err = layer.NewDense(flatten.OutputSize(), 6, layer.XavierUniformWeights(random)); err != nil {
+		tb.Fatalf("NewDense returned error: %v", err)
+	}
+	if network, err = model.NewSequential(convolution, hiddenActivation, pooling, flatten, output); err != nil {
 		tb.Fatalf("NewSequential returned error: %v", err)
 	}
 
