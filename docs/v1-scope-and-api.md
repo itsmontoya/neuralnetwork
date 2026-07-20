@@ -103,3 +103,20 @@ introducing a general tensor API. The supported workflow is documented in
 [cnn.md](cnn.md); layout, shape, padding, stride, pooling, ownership,
 determinism, and serialization decisions are recorded in
 [cnn-design.md](cnn-design.md).
+
+## Recurrent Layers
+
+Recurrent layers remain outside the reviewed dense-network v1 surface. The
+initial RNN milestone is additive post-v1 work and does not revise the accepted
+ANN contract or the implemented CNN contract. `layer.Layer`,
+`model.Sequential`, and `data.Dataset` continue to exchange batched 2D
+matrices, and existing ANN/CNN constructors and serialized models remain
+compatible.
+
+The post-v1 RNN design represents each fixed-length sequence as one flattened
+matrix row in time-major order. A stateless `SimpleRNN` returns every hidden
+step, and `LastStep` provides an explicit many-to-one boundary before `Dense`.
+These additions compose through the stable matrix contract without introducing
+a general tensor or replacement sequence-container API. Layout, shape, state,
+backpropagation, ownership, determinism, and serialization decisions are
+recorded in [rnn-design.md](rnn-design.md).
