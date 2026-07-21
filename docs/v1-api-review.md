@@ -70,8 +70,9 @@ physical value order and batch rows. The detailed contract is recorded in
 
 The `model.Sequential.Save` and `model.LoadSequential` APIs are unchanged. The
 version `1` serialization vocabulary now also accepts `conv2d`, `max_pool2d`,
-and `flatten` layer records. ANN-only documents retain their existing encoding;
-older readers reject documents containing unknown additive CNN layer types.
+`flatten`, `simple_rnn`, and `last_step` layer records. Existing ANN- and
+CNN-only documents retain their encoding; older readers reject documents
+containing unknown additive CNN or RNN layer types.
 
 ## Constructor Review
 

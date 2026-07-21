@@ -163,14 +163,17 @@ target expectations, and confusion-matrix orientation are documented in
 Use `Sequential.Save` and `model.LoadSequential` to persist sequential models
 with the v1 JSON contract. The format is `neuralnetwork.sequential`, version
 `1`, and supports `dense`, `activation`, `dropout`, `batch_normalization`,
-`conv2d`, `max_pool2d`, and `flatten` layers. CNN layer names and fields are
-additive: existing ANN-only version `1` documents retain their encoding and
-compatibility.
+`conv2d`, `max_pool2d`, `flatten`, `simple_rnn`, and `last_step` layers. CNN and
+RNN layer names and fields are additive: existing ANN- and CNN-only version `1`
+documents retain their encoding and compatibility. Older readers reject RNN
+documents whose additive layer types they do not recognize.
 
 Serialization stores model structure and layer parameters. It does not store
 optimizer state, accumulated gradients, training history, callbacks,
-learning-rate schedules, or original random source state. Loaded dropout layers
-use deterministic local random sources.
+learning-rate schedules, forward caches, recurrent hidden histories, or
+original random source state. Loaded dropout layers use deterministic local
+random sources, and loaded recurrent layers begin with zero gradients and fresh
+forward state.
 
 ## Development
 

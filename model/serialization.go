@@ -20,7 +20,9 @@ const (
 	serializationLayerDense              = "dense"
 	serializationLayerDropout            = "dropout"
 	serializationLayerFlatten            = "flatten"
+	serializationLayerLastStep           = "last_step"
 	serializationLayerMaxPool2D          = "max_pool2d"
+	serializationLayerSimpleRNN          = "simple_rnn"
 	serializationDropoutSeed             = 1
 	serializationVersion                 = 1
 )
@@ -96,32 +98,36 @@ func (d sequentialDocument) model() (s *Sequential, err error) {
 }
 
 type serializedLayer struct {
-	Type            string            `json:"type"`
-	InputSize       int               `json:"input_size,omitempty"`
-	OutputSize      int               `json:"output_size,omitempty"`
-	FeatureSize     int               `json:"feature_size,omitempty"`
-	Activation      string            `json:"activation,omitempty"`
-	Rate            float32           `json:"rate,omitempty"`
-	Momentum        float32           `json:"momentum,omitempty"`
-	Epsilon         float32           `json:"epsilon,omitempty"`
-	Weights         *serializedMatrix `json:"weights,omitempty"`
-	Biases          *serializedMatrix `json:"biases,omitempty"`
-	Gamma           *serializedMatrix `json:"gamma,omitempty"`
-	Beta            *serializedMatrix `json:"beta,omitempty"`
-	RunningMean     *serializedMatrix `json:"running_mean,omitempty"`
-	RunningVariance *serializedMatrix `json:"running_variance,omitempty"`
-	InputChannels   int               `json:"input_channels,omitempty"`
-	InputHeight     int               `json:"input_height,omitempty"`
-	InputWidth      int               `json:"input_width,omitempty"`
-	OutputChannels  int               `json:"output_channels,omitempty"`
-	KernelHeight    int               `json:"kernel_height,omitempty"`
-	KernelWidth     int               `json:"kernel_width,omitempty"`
-	StrideHeight    int               `json:"stride_height,omitempty"`
-	StrideWidth     int               `json:"stride_width,omitempty"`
-	PaddingHeight   int               `json:"padding_height,omitempty"`
-	PaddingWidth    int               `json:"padding_width,omitempty"`
-	WindowHeight    int               `json:"window_height,omitempty"`
-	WindowWidth     int               `json:"window_width,omitempty"`
+	Type             string            `json:"type"`
+	InputSize        int               `json:"input_size,omitempty"`
+	OutputSize       int               `json:"output_size,omitempty"`
+	Steps            int               `json:"steps,omitempty"`
+	FeatureSize      int               `json:"feature_size,omitempty"`
+	HiddenSize       int               `json:"hidden_size,omitempty"`
+	Activation       string            `json:"activation,omitempty"`
+	Rate             float32           `json:"rate,omitempty"`
+	Momentum         float32           `json:"momentum,omitempty"`
+	Epsilon          float32           `json:"epsilon,omitempty"`
+	InputWeights     *serializedMatrix `json:"input_weights,omitempty"`
+	RecurrentWeights *serializedMatrix `json:"recurrent_weights,omitempty"`
+	Weights          *serializedMatrix `json:"weights,omitempty"`
+	Biases           *serializedMatrix `json:"biases,omitempty"`
+	Gamma            *serializedMatrix `json:"gamma,omitempty"`
+	Beta             *serializedMatrix `json:"beta,omitempty"`
+	RunningMean      *serializedMatrix `json:"running_mean,omitempty"`
+	RunningVariance  *serializedMatrix `json:"running_variance,omitempty"`
+	InputChannels    int               `json:"input_channels,omitempty"`
+	InputHeight      int               `json:"input_height,omitempty"`
+	InputWidth       int               `json:"input_width,omitempty"`
+	OutputChannels   int               `json:"output_channels,omitempty"`
+	KernelHeight     int               `json:"kernel_height,omitempty"`
+	KernelWidth      int               `json:"kernel_width,omitempty"`
+	StrideHeight     int               `json:"stride_height,omitempty"`
+	StrideWidth      int               `json:"stride_width,omitempty"`
+	PaddingHeight    int               `json:"padding_height,omitempty"`
+	PaddingWidth     int               `json:"padding_width,omitempty"`
+	WindowHeight     int               `json:"window_height,omitempty"`
+	WindowWidth      int               `json:"window_width,omitempty"`
 }
 
 func serializedLayerFromLayer(index int, currentLayer layerpkg.Layer) (serialized serializedLayer, err error) {
@@ -143,8 +149,12 @@ func serializedLayerFromLayer(index int, currentLayer layerpkg.Layer) (serialize
 		serialized, err = serializedDropoutLayer(index, current)
 	case *layerpkg.Flatten:
 		serialized, err = serializedFlattenLayer(index, current)
+	case *layerpkg.LastStep:
+		serialized, err = serializedLastStepLayer(index, current)
 	case *layerpkg.MaxPool2D:
 		serialized, err = serializedMaxPool2DLayer(index, current)
+	case *layerpkg.SimpleRNN:
+		serialized, err = serializedSimpleRNNLayer(index, current)
 	default:
 		err = fmt.Errorf("model: layer %d unsupported layer type %T", index, currentLayer)
 		return serialized, err
@@ -167,8 +177,12 @@ func (s serializedLayer) layer(index int) (currentLayer layerpkg.Layer, err erro
 		currentLayer, err = s.dropoutLayer(index)
 	case serializationLayerFlatten:
 		currentLayer, err = s.flattenLayer(index)
+	case serializationLayerLastStep:
+		currentLayer, err = s.lastStepLayer(index)
 	case serializationLayerMaxPool2D:
 		currentLayer, err = s.maxPool2DLayer(index)
+	case serializationLayerSimpleRNN:
+		currentLayer, err = s.simpleRNNLayer(index)
 	default:
 		err = fmt.Errorf("model: layer %d unknown layer type %q", index, s.Type)
 		return nil, err
@@ -625,6 +639,51 @@ func (s serializedLayer) flattenLayer(index int) (flattenLayer *layerpkg.Flatten
 	return flattenLayer, nil
 }
 
+func serializedLastStepLayer(index int, lastStepLayer *layerpkg.LastStep) (serialized serializedLayer, err error) {
+	var (
+		shape         layerpkg.SequenceShape
+		expectedShape layerpkg.SequenceShape
+	)
+
+	if lastStepLayer == nil {
+		err = fmt.Errorf("model: layer %d last step layer is nil", index)
+		return serialized, err
+	}
+
+	shape = lastStepLayer.InputShape()
+	if expectedShape, err = layerpkg.NewSequenceShape(shape.Steps(), shape.FeatureSize()); err != nil {
+		err = fmt.Errorf("model: layer %d last step input shape serialize failed: %w", index, err)
+		return serialized, err
+	}
+
+	if expectedShape != shape {
+		err = fmt.Errorf("model: layer %d last step input shape is inconsistent", index)
+		return serialized, err
+	}
+
+	serialized = serializedLayer{
+		Type:        serializationLayerLastStep,
+		Steps:       shape.Steps(),
+		FeatureSize: shape.FeatureSize(),
+	}
+	return serialized, nil
+}
+
+func (s serializedLayer) lastStepLayer(index int) (lastStepLayer *layerpkg.LastStep, err error) {
+	var inputShape layerpkg.SequenceShape
+
+	if inputShape, err = s.sequenceInputShape(index, serializationLayerLastStep); err != nil {
+		return nil, err
+	}
+
+	if lastStepLayer, err = layerpkg.NewLastStep(inputShape); err != nil {
+		err = fmt.Errorf("model: layer %d last step construct failed: %w", index, err)
+		return nil, err
+	}
+
+	return lastStepLayer, nil
+}
+
 func serializedMaxPool2DLayer(index int, poolLayer *layerpkg.MaxPool2D) (serialized serializedLayer, err error) {
 	var (
 		config         layerpkg.MaxPool2DConfig
@@ -695,6 +754,170 @@ func (s serializedLayer) maxPool2DLayer(index int) (poolLayer *layerpkg.MaxPool2
 	}
 
 	return poolLayer, nil
+}
+
+func serializedSimpleRNNLayer(index int, recurrentLayer *layerpkg.SimpleRNN) (serialized serializedLayer, err error) {
+	var (
+		config           layerpkg.SimpleRNNConfig
+		expectedConfig   layerpkg.SimpleRNNConfig
+		inputShape       layerpkg.SequenceShape
+		expectedShape    layerpkg.SequenceShape
+		inputWeights     serializedMatrix
+		recurrentWeights serializedMatrix
+		biases           serializedMatrix
+	)
+
+	if recurrentLayer == nil {
+		err = fmt.Errorf("model: layer %d simple rnn layer is nil", index)
+		return serialized, err
+	}
+
+	config = recurrentLayer.Config()
+	inputShape = config.InputShape()
+	if expectedShape, err = layerpkg.NewSequenceShape(inputShape.Steps(), inputShape.FeatureSize()); err != nil {
+		err = fmt.Errorf("model: layer %d simple rnn input shape serialize failed: %w", index, err)
+		return serialized, err
+	}
+
+	if expectedShape != inputShape {
+		err = fmt.Errorf("model: layer %d simple rnn input shape is inconsistent", index)
+		return serialized, err
+	}
+
+	if expectedConfig, err = layerpkg.NewSimpleRNNConfig(expectedShape, config.HiddenSize()); err != nil {
+		err = fmt.Errorf("model: layer %d simple rnn configuration serialize failed: %w", index, err)
+		return serialized, err
+	}
+
+	if expectedConfig != config {
+		err = fmt.Errorf("model: layer %d simple rnn configuration is inconsistent", index)
+		return serialized, err
+	}
+
+	if recurrentLayer.InputWeights() == nil {
+		err = fmt.Errorf("model: layer %d simple rnn input weights parameter is nil", index)
+		return serialized, err
+	}
+
+	if recurrentLayer.RecurrentWeights() == nil {
+		err = fmt.Errorf("model: layer %d simple rnn recurrent weights parameter is nil", index)
+		return serialized, err
+	}
+
+	if recurrentLayer.Biases() == nil {
+		err = fmt.Errorf("model: layer %d simple rnn biases parameter is nil", index)
+		return serialized, err
+	}
+
+	if inputWeights, err = serializedMatrixFromMatrix(recurrentLayer.InputWeights().Values()); err != nil {
+		err = fmt.Errorf("model: layer %d simple rnn input weights serialize failed: %w", index, err)
+		return serialized, err
+	}
+
+	if recurrentWeights, err = serializedMatrixFromMatrix(recurrentLayer.RecurrentWeights().Values()); err != nil {
+		err = fmt.Errorf("model: layer %d simple rnn recurrent weights serialize failed: %w", index, err)
+		return serialized, err
+	}
+
+	if biases, err = serializedMatrixFromMatrix(recurrentLayer.Biases().Values()); err != nil {
+		err = fmt.Errorf("model: layer %d simple rnn biases serialize failed: %w", index, err)
+		return serialized, err
+	}
+
+	serialized = serializedLayer{
+		Type:             serializationLayerSimpleRNN,
+		Steps:            inputShape.Steps(),
+		FeatureSize:      inputShape.FeatureSize(),
+		HiddenSize:       config.HiddenSize(),
+		InputWeights:     &inputWeights,
+		RecurrentWeights: &recurrentWeights,
+		Biases:           &biases,
+	}
+	return serialized, nil
+}
+
+func (s serializedLayer) simpleRNNLayer(index int) (recurrentLayer *layerpkg.SimpleRNN, err error) {
+	var (
+		inputShape       layerpkg.SequenceShape
+		config           layerpkg.SimpleRNNConfig
+		inputWeights     *matrixpkg.Matrix
+		recurrentWeights *matrixpkg.Matrix
+	)
+
+	if s.InputWeights == nil {
+		err = fmt.Errorf("model: layer %d simple rnn input weights are missing", index)
+		return nil, err
+	}
+
+	if s.RecurrentWeights == nil {
+		err = fmt.Errorf("model: layer %d simple rnn recurrent weights are missing", index)
+		return nil, err
+	}
+
+	if s.Biases == nil {
+		err = fmt.Errorf("model: layer %d simple rnn biases are missing", index)
+		return nil, err
+	}
+
+	if inputShape, err = s.sequenceInputShape(index, serializationLayerSimpleRNN); err != nil {
+		return nil, err
+	}
+
+	if config, err = layerpkg.NewSimpleRNNConfig(inputShape, s.HiddenSize); err != nil {
+		err = fmt.Errorf("model: layer %d simple rnn configuration load failed: %w", index, err)
+		return nil, err
+	}
+
+	if inputWeights, err = s.InputWeights.matrix(); err != nil {
+		err = fmt.Errorf("model: layer %d simple rnn input weights load failed: %w", index, err)
+		return nil, err
+	}
+
+	if recurrentWeights, err = s.RecurrentWeights.matrix(); err != nil {
+		err = fmt.Errorf("model: layer %d simple rnn recurrent weights load failed: %w", index, err)
+		return nil, err
+	}
+
+	if err = s.Biases.validate(); err != nil {
+		err = fmt.Errorf("model: layer %d simple rnn biases load failed: %w", index, err)
+		return nil, err
+	}
+
+	if recurrentLayer, err = layerpkg.NewSimpleRNN(
+		config,
+		func(inputSize, outputSize int) (initialized *matrixpkg.Matrix, err error) {
+			initialized = inputWeights
+			return initialized, nil
+		},
+		func(inputSize, outputSize int) (initialized *matrixpkg.Matrix, err error) {
+			initialized = recurrentWeights
+			return initialized, nil
+		},
+	); err != nil {
+		err = fmt.Errorf("model: layer %d simple rnn construct failed: %w", index, err)
+		return nil, err
+	}
+
+	if err = s.Biases.copyInto(recurrentLayer.Biases().Values()); err != nil {
+		err = fmt.Errorf("model: layer %d simple rnn biases copy failed: %w", index, err)
+		return nil, err
+	}
+
+	return recurrentLayer, nil
+}
+
+func (s serializedLayer) sequenceInputShape(index int, layerName string) (shape layerpkg.SequenceShape, err error) {
+	if s.Steps == 0 && s.FeatureSize == 0 {
+		err = fmt.Errorf("model: layer %d %s input shape is missing", index, layerName)
+		return shape, err
+	}
+
+	if shape, err = layerpkg.NewSequenceShape(s.Steps, s.FeatureSize); err != nil {
+		err = fmt.Errorf("model: layer %d %s input shape load failed: %w", index, layerName, err)
+		return shape, err
+	}
+
+	return shape, nil
 }
 
 func (s serializedLayer) spatialInputShape(index int, layerName string) (shape layerpkg.SpatialShape, err error) {
