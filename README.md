@@ -1,8 +1,9 @@
 # neuralnetwork
 
 `neuralnetwork` is a pure-Go neural network library for dense feed-forward
-artificial neural networks (ANNs) and an initial convolutional neural network
-(CNN) path trained with backpropagation.
+artificial neural networks (ANNs), an initial convolutional neural network
+(CNN) path, and an initial recurrent neural network (RNN) path trained with
+backpropagation.
 
 The project is currently an early implementation. The v1 scope and public API
 direction are documented in [docs/v1-scope-and-api.md](docs/v1-scope-and-api.md),
@@ -122,6 +123,20 @@ serialization, ownership, determinism, and current limitations. The runnable
 [minimal CNN example](examples/cnn/main.go) trains a deterministic classifier
 on synthetic horizontal and vertical line images without external downloads.
 
+## Recurrent Networks
+
+The initial RNN path represents each fixed-length sequence as one flattened
+matrix row in time-major `TF` order. A stateless, fixed-tanh `SimpleRNN`
+returns every hidden step, `LastStep` selects the final hidden vector, and an
+existing `Dense` layer produces a many-to-one prediction through the unchanged
+`model.Sequential` and `data.Dataset` APIs.
+
+See the [RNN guide](docs/rnn.md) for layout and recurrence formulas,
+construction, training, serialization, ownership, determinism, statelessness,
+and current limitations. The runnable
+[minimal RNN example](examples/rnn/main.go) trains a deterministic classifier
+whose label depends on temporal order, without external downloads.
+
 ## Training Controls
 
 `model.Sequential.Fit` is configured with `model.FitConfig`. In addition to the
@@ -141,9 +156,12 @@ Built-in regularizers include `optimizer.NewL1` and
 
 The `layer` package includes dense layers, activation layers, inverted dropout,
 per-feature batch normalization, trainable two-dimensional convolution,
-parameter-free two-dimensional max pooling, and a spatial-to-dense flatten
-adapter. `layer.NewSpatialShape`, `layer.NewConv2DConfig`, and
-`layer.NewMaxPool2DConfig` validate explicit channels-first spatial geometry.
+parameter-free two-dimensional max pooling, a spatial-to-dense flatten adapter,
+a stateless `SimpleRNN`, and a sequence-to-dense `LastStep` adapter.
+`layer.NewSpatialShape`, `layer.NewConv2DConfig`, and
+`layer.NewMaxPool2DConfig` validate explicit channels-first spatial geometry;
+`layer.NewSequenceShape` and `layer.NewSimpleRNNConfig` validate explicit
+time-major sequence geometry.
 `layer.NewDropout` requires a caller-owned random source for deterministic masks
 and follows training/evaluation mode. `layer.NewBatchNormalization` and
 `layer.NewBatchNormalizationWithConfig` manage trainable gamma and beta
@@ -198,6 +216,12 @@ Run the deterministic synthetic CNN classifier with:
 
 ```sh
 go run ./examples/cnn
+```
+
+Run the deterministic synthetic RNN temporal-order classifier with:
+
+```sh
+go run ./examples/rnn
 ```
 
 Run the XOR smoke test with:

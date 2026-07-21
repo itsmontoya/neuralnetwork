@@ -70,9 +70,33 @@ physical value order and batch rows. The detailed contract is recorded in
 
 The `model.Sequential.Save` and `model.LoadSequential` APIs are unchanged. The
 version `1` serialization vocabulary now also accepts `conv2d`, `max_pool2d`,
-`flatten`, `simple_rnn`, and `last_step` layer records. Existing ANN- and
-CNN-only documents retain their encoding; older readers reject documents
-containing unknown additive CNN or RNN layer types.
+and `flatten` layer records. Existing ANN-only documents retain their encoding;
+older readers reject documents containing unknown additive CNN layer types.
+
+## Additive Post-v1 RNN Surface
+
+The initial RNN milestone adds the following `layer` APIs without revising the
+accepted ANN v1 or additive CNN surfaces above:
+
+| Type | Additive APIs |
+| --- | --- |
+| Sequence shape | `NewSequenceShape`; `SequenceShape` with `Steps`, `FeatureSize`, and `Size`. |
+| Recurrent configuration | `NewSimpleRNNConfig`; `SimpleRNNConfig` with `InputShape`, `OutputShape`, and `HiddenSize`. |
+| Recurrent layer | `NewSimpleRNN`; `SimpleRNN` with `Forward`, `Backward`, `Config`, `InputShape`, `OutputShape`, `InputWeights`, `RecurrentWeights`, `Biases`, `Parameters`, `AppendParameters`, and `ResetGradients`. |
+| Last-step adapter | `NewLastStep`; `LastStep` with `Forward`, `Backward`, `InputShape`, and `OutputSize`. |
+
+These additions retain the v1 `layer.Layer` matrix contract. Fixed-length
+sequence values use flattened time-major rows, `SimpleRNN` is a stateless Elman
+recurrence with zero initial state and fixed tanh activation, and `LastStep`
+provides an explicit many-to-one transition before `Dense`. The detailed
+contract is recorded in [rnn-design.md](rnn-design.md), with construction and
+training guidance in [rnn.md](rnn.md).
+
+The `model.Sequential.Save` and `model.LoadSequential` APIs remain unchanged.
+The version `1` serialization vocabulary also accepts `simple_rnn` and
+`last_step` layer records. Existing ANN- and CNN-only documents retain their
+encoding; older readers reject documents containing unknown additive RNN layer
+types.
 
 ## Constructor Review
 
@@ -99,6 +123,8 @@ Randomness is caller-controlled through `*rand.Rand`:
 
 * Matrix random constructors require a random source.
 * Layer initializer helpers close over caller-provided random sources.
+* `SimpleRNN` requires separate caller-provided input and recurrent weight
+  initializers and creates no random source itself.
 * Dropout layers require a random source and expose training-mode control.
 * Serialized dropout layers are restored with deterministic local random
   sources.

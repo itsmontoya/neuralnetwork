@@ -1,8 +1,8 @@
 # RNN Architecture and Public Contract
 
-Status: proposed contract for maintainer review.
+Status: implemented additive post-v1 contract.
 
-This document freezes the public and behavioral contract for the initial
+This document records the public and behavioral contract for the initial
 recurrent neural network path. The milestone is additive to the reviewed
 dense-network v1 API and the implemented post-v1 CNN API. It does not change
 `layer.Layer`, `model.Sequential`, `data.Dataset`, losses, metrics, optimizers,

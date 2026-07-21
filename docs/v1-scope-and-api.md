@@ -113,10 +113,11 @@ ANN contract or the implemented CNN contract. `layer.Layer`,
 matrices, and existing ANN/CNN constructors and serialized models remain
 compatible.
 
-The post-v1 RNN design represents each fixed-length sequence as one flattened
-matrix row in time-major order. A stateless `SimpleRNN` returns every hidden
-step, and `LastStep` provides an explicit many-to-one boundary before `Dense`.
-These additions compose through the stable matrix contract without introducing
-a general tensor or replacement sequence-container API. Layout, shape, state,
+The implemented post-v1 RNN path represents each fixed-length sequence as one
+flattened matrix row in time-major order. A stateless `SimpleRNN` returns every
+hidden step, and `LastStep` provides an explicit many-to-one boundary before
+`Dense`. These additions compose through the stable matrix contract without
+introducing a general tensor or replacement sequence-container API. The
+supported workflow is documented in [rnn.md](rnn.md); layout, shape, state,
 backpropagation, ownership, determinism, and serialization decisions are
 recorded in [rnn-design.md](rnn-design.md).
