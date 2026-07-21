@@ -257,7 +257,7 @@ without reordering them. Backward before a valid forward call returns an error.
 | Composition | Existing activations, dropout, dense layers, datasets, losses, metrics, optimizers, training, and serialization | Channel-wise spatial batch normalization and spatial dropout |
 | Data loading | Caller-prepared flattened image rows | Image decoding, directory datasets, augmentation, and external dataset integrations |
 | Runtime | Clear pure-Go CPU reference kernels | SIMD, Metal, goroutine-parallel, and other accelerator-specific kernels |
-| Model families | Sequential CNN and ANN composition through `layer.Layer` | RNN layers, sequence state and masking, and automatic-differentiation graphs |
+| Model families | Sequential CNN and ANN composition through `layer.Layer`; the initial RNN path is documented separately | Combined spatial/temporal CNN-RNN layouts, richer recurrent state and masking, and automatic-differentiation graphs |
 
 Existing batch normalization remains per flattened matrix feature; it is not
 channel-wise spatial batch normalization.

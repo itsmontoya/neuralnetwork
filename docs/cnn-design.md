@@ -355,5 +355,7 @@ The following remain deferred:
 * SIMD, Metal, parallel, or other accelerator-specific convolution kernels.
 * A generic tensor abstraction or any change to the stable `layer.Layer`
   matrix contract.
-* RNN representations and layers, sequence masking or state, and a general
-  automatic-differentiation graph.
+* Combined spatial/temporal CNN-RNN pipelines, richer sequence masking or
+  state, and a general automatic-differentiation graph. The later initial RNN
+  path is documented separately in [rnn.md](rnn.md) and does not change this
+  CNN contract.
