@@ -199,11 +199,19 @@ static id<MTLBuffer> nn_metal_new_buffer(size_t bytes) {
 	return buffer;
 }
 
-static int nn_metal_wait(id<MTLCommandBuffer> commandBuffer) {
+static int nn_metal_wait(id<MTLCommandBuffer> commandBuffer, NNMetalCounters *counters) {
 	NSError *error = nil;
 
 	[commandBuffer commit];
+	if (counters != NULL) {
+		counters->commandSubmissions++;
+	}
+
 	[commandBuffer waitUntilCompleted];
+	if (counters != NULL) {
+		counters->waits++;
+	}
+
 	if ([commandBuffer status] == MTLCommandBufferStatusCompleted) {
 		return 1;
 	}
@@ -232,7 +240,8 @@ int nn_metal_matmul(
 	uint32_t rightCols,
 	uint32_t resultRows,
 	uint32_t resultCols,
-	uint32_t variant
+	uint32_t variant,
+	NNMetalCounters *counters
 ) {
 	NNMatMulParams params;
 	uint64_t leftCount = 0;
@@ -251,6 +260,10 @@ int nn_metal_matmul(
 	id<MTLCommandBuffer> commandBuffer = nil;
 	id<MTLComputeCommandEncoder> encoder = nil;
 	int ok = 0;
+
+	if (counters != NULL) {
+		memset(counters, 0, sizeof(*counters));
+	}
 
 	if (left == NULL || right == NULL || result == NULL) {
 		nn_metal_set_error("metal: nil matrix-multiply pointer");
@@ -271,8 +284,22 @@ int nn_metal_matmul(
 
 	@autoreleasepool {
 		leftBuffer = nn_metal_new_buffer_with_bytes(left, leftBytes);
+		if (leftBuffer != nil && counters != NULL) {
+			counters->bufferCreations++;
+			counters->inputUploads++;
+		}
+
 		rightBuffer = nn_metal_new_buffer_with_bytes(right, rightBytes);
+		if (rightBuffer != nil && counters != NULL) {
+			counters->bufferCreations++;
+			counters->inputUploads++;
+		}
+
 		resultBuffer = nn_metal_new_buffer(resultBytes);
+		if (resultBuffer != nil && counters != NULL) {
+			counters->bufferCreations++;
+		}
+
 		commandBuffer = [nnMetalCommandQueue commandBuffer];
 		encoder = [commandBuffer computeCommandEncoder];
 		if (leftBuffer == nil || rightBuffer == nil || resultBuffer == nil || commandBuffer == nil || encoder == nil) {
@@ -298,9 +325,12 @@ int nn_metal_matmul(
 			[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, threadHeight, 1)];
 			[encoder endEncoding];
 
-			ok = nn_metal_wait(commandBuffer);
+			ok = nn_metal_wait(commandBuffer, counters);
 			if (ok) {
 				nn_metal_copy_buffer_to_floats(resultBuffer, result, resultBytes);
+				if (counters != NULL) {
+					counters->resultDownloads++;
+				}
 			}
 		}
 
