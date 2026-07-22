@@ -35,33 +35,50 @@ type metalBridgeActivity struct {
 	waits              uint64
 }
 
-func metalRunMatMul(left, right, result *Matrix, variant uint32) (ok bool) {
-	var err error
+func metalRunMatMul(left, right, result *Matrix, variant uint32) (err error) {
+	var (
+		runtimeValue *device.Runtime
+		available    bool
+	)
 
 	if !metalMatMulSupported(left, right, result, variant) {
-		return false
+		err = matMulHost(left, right, result, variant)
+		return err
+	}
+	if runtimeValue, available, err = device.SharedRuntime(); err != nil {
+		err = fmt.Errorf("matrix: initialize Metal runtime: %w", err)
+		metalRecordFailure(err)
+		return err
+	}
+	if !available {
+		err = matMulHost(left, right, result, variant)
+		return err
 	}
 
-	if err = metalCallMatMul(left, right, result, variant); err != nil {
-		metalSetError(err)
-		metaltest.RecordFailure(err.Error())
-		return false
+	if err = metalCallMatMul(runtimeValue, left, right, result, variant); err != nil {
+		metalRecordFailure(err)
+		return err
 	}
-
-	ok = true
-	return ok
+	return nil
 }
 
-func metalCallMatMul(left, right, result *Matrix, variant uint32) (err error) {
+func metalCallMatMul(
+	runtimeValue *device.Runtime,
+	left,
+	right,
+	result *Matrix,
+	variant uint32,
+) (err error) {
 	var (
-		runtime      *device.Runtime
 		leftBuffer   *device.Buffer
 		rightBuffer  *device.Buffer
 		resultBuffer *device.Buffer
 		scope        *device.Scope
 		operation    device.Operation
 		activity     metalBridgeActivity
-		available    bool
+		allocated    bool
+		uploaded     bool
+		published    bool
 	)
 
 	if metaltest.Enabled() {
@@ -76,50 +93,34 @@ func metalCallMatMul(left, right, result *Matrix, variant uint32) (err error) {
 		}()
 	}
 
-	if runtime, available, err = device.SharedRuntime(); err != nil {
-		return fmt.Errorf("matrix: initialize Metal runtime: %w", err)
+	if operation, err = metalOperation(variant); err != nil {
+		return err
 	}
-	if !available {
-		return errors.New("matrix: Metal runtime unavailable: no default device")
+	if leftBuffer, allocated, uploaded, err = left.ensureDeviceBuffer(runtimeValue); err != nil {
+		return fmt.Errorf("matrix: prepare Metal left input: %w", err)
 	}
+	activity.recordDevicePreparation(allocated, uploaded)
+	if rightBuffer, allocated, uploaded, err = right.ensureDeviceBuffer(runtimeValue); err != nil {
+		return fmt.Errorf("matrix: prepare Metal right input: %w", err)
+	}
+	activity.recordDevicePreparation(allocated, uploaded)
+	if resultBuffer, allocated, err = result.beginDeviceWrite(runtimeValue); err != nil {
+		return fmt.Errorf("matrix: prepare Metal destination: %w", err)
+	}
+	if allocated {
+		activity.bufferCreations++
+	}
+	defer func() {
+		var cleanupErr error
+		if !published {
+			cleanupErr = result.failDeviceWrite(resultBuffer, err)
+			if cleanupErr != nil {
+				err = errors.Join(err, cleanupErr)
+			}
+		}
+	}()
 
-	switch variant {
-	case metalMatMulStandard:
-		operation = device.OperationMatMul
-	case metalMatMulLeftTranspose:
-		operation = device.OperationMatMulLeftTranspose
-	case metalMatMulRightTranspose:
-		operation = device.OperationMatMulRightTranspose
-	default:
-		return fmt.Errorf("matrix: unsupported Metal multiplication variant: %d", variant)
-	}
-
-	if leftBuffer, err = runtime.NewBuffer(uint64(len(left.data))); err != nil {
-		return fmt.Errorf("matrix: allocate Metal left input: %w", err)
-	}
-	activity.bufferCreations++
-	defer leftBuffer.Release()
-	if rightBuffer, err = runtime.NewBuffer(uint64(len(right.data))); err != nil {
-		return fmt.Errorf("matrix: allocate Metal right input: %w", err)
-	}
-	activity.bufferCreations++
-	defer rightBuffer.Release()
-	if resultBuffer, err = runtime.NewBuffer(uint64(len(result.data))); err != nil {
-		return fmt.Errorf("matrix: allocate Metal destination: %w", err)
-	}
-	activity.bufferCreations++
-	defer resultBuffer.Release()
-
-	if err = leftBuffer.Upload(left.data); err != nil {
-		return fmt.Errorf("matrix: upload Metal left input: %w", err)
-	}
-	activity.inputUploads++
-	if err = rightBuffer.Upload(right.data); err != nil {
-		return fmt.Errorf("matrix: upload Metal right input: %w", err)
-	}
-	activity.inputUploads++
-
-	if scope, err = runtime.NewScope(); err != nil {
+	if scope, err = runtimeValue.NewScope(); err != nil {
 		return fmt.Errorf("matrix: create Metal multiplication scope: %w", err)
 	}
 	defer func() {
@@ -152,12 +153,60 @@ func metalCallMatMul(left, right, result *Matrix, variant uint32) (err error) {
 		return fmt.Errorf("matrix: wait for Metal multiplication: %w", err)
 	}
 	activity.waits++
-	if err = resultBuffer.Download(result.data); err != nil {
-		return fmt.Errorf("matrix: download Metal multiplication result: %w", err)
+	if err = result.publishDeviceWrite(resultBuffer); err != nil {
+		return err
 	}
-	activity.resultDownloads++
+	published = true
+	return nil
+}
+
+func matMulHost(left, right, result *Matrix, variant uint32) (err error) {
+	if err = left.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = right.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
+		return err
+	}
+
+	switch variant {
+	case metalMatMulStandard:
+		matMulIntoPure(left, right, result)
+	case metalMatMulLeftTranspose:
+		matMulLeftTransposeIntoPure(left, right, result)
+	case metalMatMulRightTranspose:
+		matMulRightTransposeIntoPure(left, right, result)
+	default:
+		err = fmt.Errorf("matrix: unsupported Metal multiplication variant: %d", variant)
+		return err
+	}
 
 	return nil
+}
+
+func metalOperation(variant uint32) (operation device.Operation, err error) {
+	switch variant {
+	case metalMatMulStandard:
+		operation = device.OperationMatMul
+	case metalMatMulLeftTranspose:
+		operation = device.OperationMatMulLeftTranspose
+	case metalMatMulRightTranspose:
+		operation = device.OperationMatMulRightTranspose
+	default:
+		err = fmt.Errorf("matrix: unsupported Metal multiplication variant: %d", variant)
+	}
+	return operation, err
+}
+
+func (a *metalBridgeActivity) recordDevicePreparation(allocated, uploaded bool) {
+	if allocated {
+		a.bufferCreations++
+	}
+	if uploaded {
+		a.inputUploads++
+	}
 }
 
 func metalAvailable() (ok bool) {
@@ -185,6 +234,11 @@ func metalLastError() (message string) {
 	message = metalError
 	metalErrorMutex.Unlock()
 	return message
+}
+
+func metalRecordFailure(err error) {
+	metalSetError(err)
+	metaltest.RecordFailure(err.Error())
 }
 
 func metalSetError(err error) {

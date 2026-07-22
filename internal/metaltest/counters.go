@@ -19,7 +19,7 @@ var (
 	lastError          string
 )
 
-// Counters captures synchronous Metal bridge activity.
+// Counters captures private Metal matrix activity.
 type Counters struct {
 	BufferCreations    uint64
 	InputUploads       uint64

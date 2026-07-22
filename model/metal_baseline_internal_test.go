@@ -3,9 +3,9 @@
 package model_test
 
 import (
-	"strings"
 	"testing"
 
+	"github.com/itsmontoya/neuralnetwork/internal/device"
 	"github.com/itsmontoya/neuralnetwork/internal/metaltest"
 )
 
@@ -20,19 +20,27 @@ func Test_MetalBaselineSynchronousTransferCounts(t *testing.T) {
 	}
 
 	var tests []struct {
-		name            string
-		setup           func(testing.TB, metalBaselineShape) func() error
-		multiplications uint64
+		name      string
+		setup     func(testing.TB, metalBaselineShape) func() error
+		buffers   uint64
+		uploads   uint64
+		downloads uint64
+		commands  uint64
+		waits     uint64
 	}
 	tests = []struct {
-		name            string
-		setup           func(testing.TB, metalBaselineShape) func() error
-		multiplications uint64
+		name      string
+		setup     func(testing.TB, metalBaselineShape) func() error
+		buffers   uint64
+		uploads   uint64
+		downloads uint64
+		commands  uint64
+		waits     uint64
 	}{
-		{name: "Predict", setup: setupMetalBaselinePredict, multiplications: 2},
-		{name: "Backward", setup: setupMetalBaselineBackward, multiplications: 4},
-		{name: "TrainBatch", setup: setupMetalBaselineTrainBatch, multiplications: 6},
-		{name: "Fit", setup: setupMetalBaselineFit, multiplications: 8},
+		{name: "Predict", setup: setupMetalBaselinePredict, buffers: 6, uploads: 4, downloads: 2, commands: 2, waits: 2},
+		{name: "Backward", setup: setupMetalBaselineBackward, buffers: 8, uploads: 4, downloads: 3, commands: 4, waits: 4},
+		{name: "TrainBatch", setup: setupMetalBaselineTrainBatch, buffers: 14, uploads: 8, downloads: 5, commands: 6, waits: 6},
+		{name: "Fit", setup: setupMetalBaselineFit, buffers: 17, uploads: 12, downloads: 7, commands: 8, waits: 8},
 	}
 
 	metaltest.Enable()
@@ -40,15 +48,26 @@ func Test_MetalBaselineSynchronousTransferCounts(t *testing.T) {
 
 	var (
 		test struct {
-			name            string
-			setup           func(testing.TB, metalBaselineShape) func() error
-			multiplications uint64
+			name      string
+			setup     func(testing.TB, metalBaselineShape) func() error
+			buffers   uint64
+			uploads   uint64
+			downloads uint64
+			commands  uint64
+			waits     uint64
 		}
-		run      func() error
-		counters metaltest.Counters
-		err      error
+		run       func() error
+		counters  metaltest.Counters
+		available bool
+		err       error
 	)
 
+	if _, available, err = device.SharedRuntime(); err != nil {
+		t.Fatalf("SharedRuntime returned error: %v", err)
+	}
+	if !available {
+		t.Skip("Metal device unavailable")
+	}
 	run = setupMetalBaselinePredict(t, shape)
 	metaltest.Reset()
 	if err = run(); err != nil {
@@ -57,10 +76,6 @@ func Test_MetalBaselineSynchronousTransferCounts(t *testing.T) {
 
 	counters = metaltest.Snapshot()
 	if counters.CommandSubmissions == 0 {
-		if strings.Contains(counters.LastError, "no default device") {
-			t.Skipf("Metal device unavailable: %s", counters.LastError)
-		}
-
 		t.Fatalf("Metal execution unavailable: %s", counters.LastError)
 	}
 
@@ -73,7 +88,15 @@ func Test_MetalBaselineSynchronousTransferCounts(t *testing.T) {
 			}
 
 			counters = metaltest.Snapshot()
-			requireMetalBaselineCounters(t, counters, test.multiplications)
+			requireMetalBaselineCounters(
+				t,
+				counters,
+				test.buffers,
+				test.uploads,
+				test.downloads,
+				test.commands,
+				test.waits,
+			)
 		})
 	}
 }
@@ -104,30 +127,34 @@ func Test_MetalBaselineBelowThresholdUsesCPU(t *testing.T) {
 	}
 
 	counters = metaltest.Snapshot()
-	requireMetalBaselineCounters(t, counters, 0)
+	requireMetalBaselineCounters(t, counters, 0, 0, 0, 0, 0)
 }
 
-func requireMetalBaselineCounters(tb testing.TB, counters metaltest.Counters, multiplications uint64) {
+func requireMetalBaselineCounters(
+	tb testing.TB,
+	counters metaltest.Counters,
+	buffers,
+	uploads,
+	downloads,
+	commands,
+	waits uint64,
+) {
 	tb.Helper()
 
-	if counters.BufferCreations != multiplications*3 {
-		tb.Fatalf("buffer creations = %d, want %d", counters.BufferCreations, multiplications*3)
-	}
-
-	if counters.InputUploads != multiplications*2 {
-		tb.Fatalf("input uploads = %d, want %d", counters.InputUploads, multiplications*2)
-	}
-
-	if counters.ResultDownloads != multiplications {
-		tb.Fatalf("result downloads = %d, want %d", counters.ResultDownloads, multiplications)
-	}
-
-	if counters.CommandSubmissions != multiplications {
-		tb.Fatalf("command submissions = %d, want %d", counters.CommandSubmissions, multiplications)
-	}
-
-	if counters.Waits != multiplications {
-		tb.Fatalf("waits = %d, want %d", counters.Waits, multiplications)
+	if counters.BufferCreations != buffers ||
+		counters.InputUploads != uploads ||
+		counters.ResultDownloads != downloads ||
+		counters.CommandSubmissions != commands ||
+		counters.Waits != waits {
+		tb.Fatalf(
+			"Metal counters = %+v, want buffers=%d uploads=%d downloads=%d commands=%d waits=%d",
+			counters,
+			buffers,
+			uploads,
+			downloads,
+			commands,
+			waits,
+		)
 	}
 
 	if counters.LastError != "" {

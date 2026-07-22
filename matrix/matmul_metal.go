@@ -2,26 +2,17 @@
 
 package matrix
 
-func matMulInto(left, right, result *Matrix) {
-	if metalRunMatMul(left, right, result, metalMatMulStandard) {
-		return
-	}
-
-	matMulIntoPure(left, right, result)
+func matMulInto(left, right, result *Matrix) (err error) {
+	err = metalRunMatMul(left, right, result, metalMatMulStandard)
+	return err
 }
 
-func matMulLeftTransposeInto(left, right, result *Matrix) {
-	if metalRunMatMul(left, right, result, metalMatMulLeftTranspose) {
-		return
-	}
-
-	matMulLeftTransposeIntoPure(left, right, result)
+func matMulLeftTransposeInto(left, right, result *Matrix) (err error) {
+	err = metalRunMatMul(left, right, result, metalMatMulLeftTranspose)
+	return err
 }
 
-func matMulRightTransposeInto(left, right, result *Matrix) {
-	if metalRunMatMul(left, right, result, metalMatMulRightTranspose) {
-		return
-	}
-
-	matMulRightTransposeIntoPure(left, right, result)
+func matMulRightTransposeInto(left, right, result *Matrix) (err error) {
+	err = metalRunMatMul(left, right, result, metalMatMulRightTranspose)
+	return err
 }

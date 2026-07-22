@@ -2,9 +2,23 @@ package matrix_test
 
 import (
 	"testing"
+	"unsafe"
 
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
+
+func Test_MatrixMetadataSize(t *testing.T) {
+	var (
+		got  uintptr
+		want uintptr
+	)
+
+	got = unsafe.Sizeof(matrix.Matrix{})
+	want = 6 * unsafe.Sizeof(uintptr(0))
+	if got != want {
+		t.Fatalf("Matrix size = %d bytes, want %d bytes", got, want)
+	}
+}
 
 var allocationMatrixResult *matrix.Matrix
 var allocationMatrixValues []float32
