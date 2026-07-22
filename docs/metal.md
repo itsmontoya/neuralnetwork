@@ -1,6 +1,7 @@
 # Metal Design
 
 Captured on July 11, 2026.
+Updated on July 21, 2026 for hybrid CPU SIMD and Metal selection.
 
 ## Decision
 
@@ -27,8 +28,9 @@ dispatch, conversion, and copy overhead.
 
 Dot product and elementwise slice kernels do not dispatch to Metal. Benchmark
 samples showed that moving O(n) slice kernels through Metal dispatch and buffer
-copies was slower than CPU SIMD. In `metal` builds, the SIMD files are excluded
-and those slice kernels use scalar fallbacks instead.
+copies was slower than CPU SIMD. On `arm64` and `amd64`, `metal` builds retain
+the existing CPU SIMD wrappers for these operations. Unsupported architectures
+and `purego` builds retain the local scalar fallbacks.
 
 ## Build Tags
 
@@ -45,9 +47,10 @@ The Metal implementation is compiled only when all of these are true:
 * `metal`
 * not `purego`
 
-If `metal` is used on unsupported platforms, or with `purego`, the package
-builds with scalar fallbacks. The `purego` tag remains the explicit opt-out from
-both SIMD and Metal.
+If `metal` is used on an unsupported platform, matrix multiplication uses its
+portable fallback while eligible `arm64` and `amd64` CPU operations can still
+use SIMD. The `purego` tag remains the explicit opt-out from both SIMD and
+Metal, including when combined with `metal`.
 
 ## File Layout
 
@@ -59,7 +62,13 @@ matrix/matmul_metal.go          matrix multiplication wrappers for metal builds
 matrix/matmul_default.go        scalar matrix multiplication wrappers
 matrix/matmul_pure.go           scalar matrix multiplication helpers
 matrix/metal_internal_test.go   Metal integration tests
+internal/metaltest/counters.go  private synchronous bridge counters
 ```
+
+The private counters record buffer creation, input upload, result download,
+command submission, wait, and failure activity only while explicitly enabled
+by repository tests. They do not add a public diagnostics API or change the
+synchronous dispatch contract.
 
 ## Correctness Notes
 
