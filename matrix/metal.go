@@ -2,15 +2,12 @@
 
 package matrix
 
-/*
-#cgo LDFLAGS: -framework Foundation -framework Metal
-#include "metal_backend.h"
-*/
-import "C"
-
 import (
-	"unsafe"
+	"errors"
+	"fmt"
+	"sync"
 
+	"github.com/itsmontoya/neuralnetwork/internal/device"
 	"github.com/itsmontoya/neuralnetwork/internal/metaltest"
 )
 
@@ -25,33 +22,29 @@ const (
 	metalMatMulRightTranspose
 )
 
+var (
+	metalErrorMutex sync.Mutex
+	metalError      string
+)
+
+type metalBridgeActivity struct {
+	bufferCreations    uint64
+	inputUploads       uint64
+	resultDownloads    uint64
+	commandSubmissions uint64
+	waits              uint64
+}
+
 func metalRunMatMul(left, right, result *Matrix, variant uint32) (ok bool) {
+	var err error
+
 	if !metalMatMulSupported(left, right, result, variant) {
 		return false
 	}
 
-	if !metalAvailable() {
-		metaltest.RecordFailure(metalLastError())
-		return false
-	}
-
-	var status C.int
-	if metaltest.Enabled() {
-		var activity C.NNMetalCounters
-		status = metalCallMatMul(left, right, result, variant, &activity)
-		metaltest.RecordBridgeActivity(
-			uint64(activity.bufferCreations),
-			uint64(activity.inputUploads),
-			uint64(activity.resultDownloads),
-			uint64(activity.commandSubmissions),
-			uint64(activity.waits),
-		)
-	} else {
-		status = metalCallMatMul(left, right, result, variant, nil)
-	}
-
-	if status == 0 {
-		metaltest.RecordFailure(metalLastError())
+	if err = metalCallMatMul(left, right, result, variant); err != nil {
+		metalSetError(err)
+		metaltest.RecordFailure(err.Error())
 		return false
 	}
 
@@ -59,25 +52,127 @@ func metalRunMatMul(left, right, result *Matrix, variant uint32) (ok bool) {
 	return ok
 }
 
-func metalCallMatMul(left, right, result *Matrix, variant uint32, activity *C.NNMetalCounters) (status C.int) {
-	status = C.nn_metal_matmul(
-		(*C.float)(unsafe.Pointer(&left.data[0])),
-		(*C.float)(unsafe.Pointer(&right.data[0])),
-		(*C.float)(unsafe.Pointer(&result.data[0])),
-		C.uint32_t(left.rows),
-		C.uint32_t(left.cols),
-		C.uint32_t(right.rows),
-		C.uint32_t(right.cols),
-		C.uint32_t(result.rows),
-		C.uint32_t(result.cols),
-		C.uint32_t(variant),
-		activity,
+func metalCallMatMul(left, right, result *Matrix, variant uint32) (err error) {
+	var (
+		runtime      *device.Runtime
+		leftBuffer   *device.Buffer
+		rightBuffer  *device.Buffer
+		resultBuffer *device.Buffer
+		scope        *device.Scope
+		operation    device.Operation
+		activity     metalBridgeActivity
+		available    bool
 	)
-	return status
+
+	if metaltest.Enabled() {
+		defer func() {
+			metaltest.RecordBridgeActivity(
+				activity.bufferCreations,
+				activity.inputUploads,
+				activity.resultDownloads,
+				activity.commandSubmissions,
+				activity.waits,
+			)
+		}()
+	}
+
+	if runtime, available, err = device.SharedRuntime(); err != nil {
+		return fmt.Errorf("matrix: initialize Metal runtime: %w", err)
+	}
+	if !available {
+		return errors.New("matrix: Metal runtime unavailable: no default device")
+	}
+
+	switch variant {
+	case metalMatMulStandard:
+		operation = device.OperationMatMul
+	case metalMatMulLeftTranspose:
+		operation = device.OperationMatMulLeftTranspose
+	case metalMatMulRightTranspose:
+		operation = device.OperationMatMulRightTranspose
+	default:
+		return fmt.Errorf("matrix: unsupported Metal multiplication variant: %d", variant)
+	}
+
+	if leftBuffer, err = runtime.NewBuffer(uint64(len(left.data))); err != nil {
+		return fmt.Errorf("matrix: allocate Metal left input: %w", err)
+	}
+	activity.bufferCreations++
+	defer leftBuffer.Release()
+	if rightBuffer, err = runtime.NewBuffer(uint64(len(right.data))); err != nil {
+		return fmt.Errorf("matrix: allocate Metal right input: %w", err)
+	}
+	activity.bufferCreations++
+	defer rightBuffer.Release()
+	if resultBuffer, err = runtime.NewBuffer(uint64(len(result.data))); err != nil {
+		return fmt.Errorf("matrix: allocate Metal destination: %w", err)
+	}
+	activity.bufferCreations++
+	defer resultBuffer.Release()
+
+	if err = leftBuffer.Upload(left.data); err != nil {
+		return fmt.Errorf("matrix: upload Metal left input: %w", err)
+	}
+	activity.inputUploads++
+	if err = rightBuffer.Upload(right.data); err != nil {
+		return fmt.Errorf("matrix: upload Metal right input: %w", err)
+	}
+	activity.inputUploads++
+
+	if scope, err = runtime.NewScope(); err != nil {
+		return fmt.Errorf("matrix: create Metal multiplication scope: %w", err)
+	}
+	defer func() {
+		var releaseErr error
+		if releaseErr = scope.Release(); err == nil && releaseErr != nil {
+			err = fmt.Errorf("matrix: release Metal multiplication scope: %w", releaseErr)
+		}
+	}()
+
+	if err = scope.EncodeMatMul(
+		leftBuffer,
+		rightBuffer,
+		resultBuffer,
+		uint32(left.rows),
+		uint32(left.cols),
+		uint32(right.rows),
+		uint32(right.cols),
+		uint32(result.rows),
+		uint32(result.cols),
+		operation,
+	); err != nil {
+		return fmt.Errorf("matrix: encode Metal multiplication: %w", err)
+	}
+	if err = scope.Commit(); err != nil {
+		return fmt.Errorf("matrix: commit Metal multiplication: %w", err)
+	}
+	activity.commandSubmissions++
+	if err = scope.Wait(); err != nil {
+		activity.waits++
+		return fmt.Errorf("matrix: wait for Metal multiplication: %w", err)
+	}
+	activity.waits++
+	if err = resultBuffer.Download(result.data); err != nil {
+		return fmt.Errorf("matrix: download Metal multiplication result: %w", err)
+	}
+	activity.resultDownloads++
+
+	return nil
 }
 
 func metalAvailable() (ok bool) {
-	if C.nn_metal_available() == 0 {
+	var (
+		available bool
+		err       error
+	)
+
+	_, available, err = device.SharedRuntime()
+	if err != nil {
+		metalSetError(err)
+		return false
+	}
+	if !available {
+		metalSetError(errors.New("metal: no default device"))
 		return false
 	}
 
@@ -86,8 +181,16 @@ func metalAvailable() (ok bool) {
 }
 
 func metalLastError() (message string) {
-	message = C.GoString(C.nn_metal_last_error())
+	metalErrorMutex.Lock()
+	message = metalError
+	metalErrorMutex.Unlock()
 	return message
+}
+
+func metalSetError(err error) {
+	metalErrorMutex.Lock()
+	metalError = err.Error()
+	metalErrorMutex.Unlock()
 }
 
 func metalMatMulSupported(left, right, result *Matrix, variant uint32) (ok bool) {
