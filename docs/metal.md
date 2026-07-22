@@ -5,6 +5,9 @@ synchronous matrix-multiplication backend was captured on July 11, 2026. This
 document freezes the next implementation boundary before matrix storage,
 command lifetime, or model execution changes.
 
+Updated on July 21, 2026 after establishing hybrid CPU SIMD and Metal
+selection, private synchronous bridge counters, and end-to-end baselines.
+
 ## Decision Summary
 
 The `metal` build tag remains an implementation opt-in. Existing matrix,
@@ -64,12 +67,18 @@ matrix/matmul_metal.go          Metal-aware multiplication wrappers
 matrix/matmul_default.go        portable multiplication wrappers
 matrix/matmul_pure.go           pure-Go multiplication reference
 matrix/metal_internal_test.go   Metal integration tests
+internal/metaltest/counters.go  private synchronous bridge counters
 ```
 
-Current `metal` builds also select scalar dot-product and elementwise wrappers.
-Section 2 first establishes benchmark and transfer-count baselines, then makes
-Metal multiplication and architecture-specific CPU SIMD coexist without
-changing this synchronous behavior.
+The private counters record buffer creation, input upload, result download,
+command submission, wait, and failure activity only while explicitly enabled
+by repository tests. They do not add a public diagnostics API or change the
+synchronous dispatch contract.
+
+Current `metal` builds retain architecture-specific CPU SIMD for dot-product
+and elementwise work on `arm64` and `amd64`. Unsupported architectures and
+`purego` builds retain local scalar fallbacks. This hybrid selection does not
+change the synchronous Metal multiplication behavior described above.
 
 ## Compatibility Decision
 
@@ -461,7 +470,7 @@ The intended hybrid selection is:
 
 Objective-C and Metal framework files compile only for
 `darwin && cgo && metal && !purego`. The `metal` tag alone must remain portable.
-Section 2 narrows the current scalar-only Metal wrappers so enabling Metal no
+Section 2 removed the former scalar-only Metal wrappers, so enabling Metal no
 longer disables SIMD for CPU-resident operations. Backend stubs preserve the
 same private interfaces everywhere else.
 

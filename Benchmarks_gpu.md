@@ -567,3 +567,308 @@ about 9.6x faster than default SIMD for standard matmul and 10.6x faster for
 right-transposed matmul. SIMD remains valuable for CPU-only O(n) kernels:
 f32 dot product is about 7.5x faster than pure Go, and large elementwise kernels
 are about 3.7x to 3.9x faster than pure Go.
+
+## Step 4: Hybrid CPU and Metal Baselines
+
+Captured on July 21, 2026.
+
+### Environment
+
+| Field | Value |
+| --- | --- |
+| macOS version | 26.5.2 |
+| Darwin kernel | 25.5.0 |
+| Architecture | arm64 |
+| CPU | Apple M3 |
+| go.mod Go version | 1.26.1 |
+| Go toolchain | go1.26.5 darwin/arm64 |
+| cgo | enabled |
+
+### Workloads
+
+Every model benchmark uses the completion-target
+`Dense -> ReLU -> Dense -> Softmax` graph. `TrainBatch` and `Fit` use
+categorical cross entropy and SGD. The bounded `Fit` case runs one epoch with
+one batch, followed by the existing full-dataset evaluation.
+
+| Case | Batch | Input | Hidden | Classes | First dense work | Second dense work | Dispatch |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Small below threshold | 8 | 32 | 64 | 16 | 16,384 | 8,192 | CPU |
+| Directly below threshold | 63 | 128 | 128 | 128 | 1,032,192 | 1,032,192 | CPU |
+| At threshold | 64 | 128 | 128 | 128 | 1,048,576 | 1,048,576 | Metal when available |
+| Large above threshold | 128 | 256 | 128 | 128 | 4,194,304 | 2,097,152 | Metal when available |
+
+`ColdFirstUse` creates a fresh model and times the first requested operation;
+setup is outside the timed region. The first eligible Metal case also includes
+process-wide device, library, and pipeline initialization. Later cold-model
+cases in the same benchmark process reuse that global initialization.
+`Warmed` runs the operation once before measurement and reuses model scratch.
+
+### Commands
+
+Native build and correctness matrix:
+
+```sh
+go test ./...
+go test ./... -tags=purego
+go test ./... -tags=metal -count=1
+go test ./... -tags='metal purego'
+go test ./model -tags=metal -run '^Test_MetalBaseline' -v -count=1
+```
+
+Compile-time unsupported-platform and architecture fallbacks:
+
+```sh
+env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go test ./... -tags=metal -run '^$' -exec=/usr/bin/true
+env CGO_ENABLED=0 GOOS=linux GOARCH=386 go test ./... -tags=metal -run '^$' -exec=/usr/bin/true
+env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go test ./... -tags='metal purego' -run '^$' -exec=/usr/bin/true
+```
+
+Cold-model baselines:
+
+```sh
+go test ./model -run '^$' -bench='SequentialMetalBaseline/.*/.*/ColdFirstUse$' -benchmem -benchtime=1x -count=1
+go test ./model -tags=metal -run '^$' -bench='SequentialMetalBaseline/.*/.*/ColdFirstUse$' -benchmem -benchtime=1x -count=1
+```
+
+Warmed steady-state baselines:
+
+```sh
+go test ./model -run '^$' -bench='SequentialMetalBaseline/.*/.*/Warmed$' -benchmem -benchtime=100ms -count=1
+go test ./model -tags=metal -run '^$' -bench='SequentialMetalBaseline/.*/.*/Warmed$' -benchmem -benchtime=100ms -count=1
+```
+
+Hybrid CPU kernel controls:
+
+```sh
+go test ./matrix -run '^$' -bench='DotProduct/(Length4096|Length65537)$|ElementwiseCandidates/Large1024x1024/(AddInto|MultiplyElementsInto|MultiplyScalarInPlace)/Active$' -benchmem -benchtime=200ms -count=3
+go test ./matrix -tags=metal -run '^$' -bench='DotProduct/(Length4096|Length65537)$|ElementwiseCandidates/Large1024x1024/(AddInto|MultiplyElementsInto|MultiplyScalarInPlace)/Active$' -benchmem -benchtime=200ms -count=3
+go test ./matrix -tags='metal purego' -run '^$' -bench='DotProduct/(Length4096|Length65537)$|ElementwiseCandidates/Large1024x1024/(AddInto|MultiplyElementsInto|MultiplyScalarInPlace)/Active$' -benchmem -benchtime=200ms -count=1
+```
+
+Session verification:
+
+```sh
+go fmt ./...
+go vet ./...
+go test ./... -race
+```
+
+### Synchronous Transfer Counts
+
+Private, opt-in test counters observe the existing synchronous bridge without
+changing its `1 << 20` threshold. Each eligible multiplication creates two
+input buffers and one result buffer, uploads both inputs, submits and waits for
+one command, and downloads one result.
+
+| Operation | Multiplications | Buffers | Input uploads | Result downloads | Commands | Waits |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `Predict` | 2 | 6 | 4 | 2 | 2 | 2 |
+| `Backward` | 4 | 12 | 8 | 4 | 4 | 4 |
+| `TrainBatch` | 6 | 18 | 12 | 6 | 6 | 6 |
+| Bounded `Fit` | 8 | 24 | 16 | 8 | 8 | 8 |
+
+The directly-below-threshold `Predict` records zero buffers, transfers,
+commands, and waits. The counter integration test passed all five assertions
+for each operation on the available Metal device.
+
+### Summary
+
+| Operation and shape | Default ns/op | `metal` ns/op | Metal speedup | Default allocations | Metal allocations |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Predict, small | 16,484 | 17,026 | 0.97x | 0 | 0 |
+| Predict, directly below | 1,271,927 | 1,297,257 | 0.98x | 0 | 0 |
+| Predict, at threshold | 1,312,103 | 881,963 | 1.49x | 0 | 0 |
+| Predict, large | 3,843,082 | 677,978 | 5.67x | 0 | 0 |
+| Backward, small | 32,404 | 32,044 | 1.01x | 0 | 0 |
+| Backward, directly below | 2,687,194 | 2,755,953 | 0.97x | 0 | 0 |
+| Backward, at threshold | 2,785,703 | 910,740 | 3.06x | 0 | 0 |
+| Backward, large | 8,185,317 | 1,124,772 | 7.28x | 0 | 0 |
+| TrainBatch, small | 53,838 | 52,397 | 1.03x | 0 | 0 |
+| TrainBatch, directly below | 4,094,610 | 4,054,574 | 1.01x | 0 | 0 |
+| TrainBatch, at threshold | 4,166,698 | 1,618,061 | 2.58x | 0 | 0 |
+| TrainBatch, large | 12,172,718 | 2,039,388 | 5.97x | 0 | 0 |
+| Fit, small | 74,170 | 71,061 | 1.04x | 10 | 10 |
+| Fit, directly below | 5,441,817 | 5,434,212 | 1.00x | 10 | 10 |
+| Fit, at threshold | 5,476,875 | 2,184,204 | 2.51x | 10 | 10 |
+| Fit, large | 16,256,714 | 2,772,700 | 5.86x | 10 | 10 |
+
+### Raw Cold-Model Output
+
+Default:
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialMetalBaseline/Predict/SmallBelowThreshold/ColdFirstUse-8                 1       77916 ns/op     11136 B/op    16 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/DirectlyBelowThreshold/ColdFirstUse-8              1     3781333 ns/op    262528 B/op    16 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/AtThreshold/ColdFirstUse-8                         1     3676625 ns/op    262528 B/op    16 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/ColdFirstUse-8                 1     8674708 ns/op    590208 B/op    16 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/SmallBelowThreshold/ColdFirstUse-8                1       77458 ns/op     18208 B/op    12 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/DirectlyBelowThreshold/ColdFirstUse-8             1     4729209 ns/op    262432 B/op    12 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/AtThreshold/ColdFirstUse-8                        1     4262791 ns/op    262432 B/op    12 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/LargeAboveThreshold/ColdFirstUse-8                1    10735000 ns/op    524576 B/op    12 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/SmallBelowThreshold/ColdFirstUse-8              1      108875 ns/op     29952 B/op    32 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/DirectlyBelowThreshold/ColdFirstUse-8           1     4941292 ns/op    557824 B/op    32 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/AtThreshold/ColdFirstUse-8                      1     4828291 ns/op    557824 B/op    32 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/LargeAboveThreshold/ColdFirstUse-8              1    13252292 ns/op   1180416 B/op    32 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/SmallBelowThreshold/ColdFirstUse-8                     1       89875 ns/op     33328 B/op    42 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/DirectlyBelowThreshold/ColdFirstUse-8                  1     5545916 ns/op    689648 B/op    42 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/AtThreshold/ColdFirstUse-8                             1     5530582 ns/op    689648 B/op    42 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/ColdFirstUse-8                     1    15665668 ns/op   1574896 B/op    42 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/model  0.316s
+```
+
+Metal:
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialMetalBaseline/Predict/SmallBelowThreshold/ColdFirstUse-8                 1       86875 ns/op     11136 B/op    16 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/DirectlyBelowThreshold/ColdFirstUse-8              1     3744083 ns/op    262528 B/op    16 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/AtThreshold/ColdFirstUse-8                         1    46375541 ns/op    262528 B/op    16 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/ColdFirstUse-8                 1     1404542 ns/op    590208 B/op    16 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/SmallBelowThreshold/ColdFirstUse-8                1       49625 ns/op     18208 B/op    12 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/DirectlyBelowThreshold/ColdFirstUse-8             1     3365291 ns/op    262432 B/op    12 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/AtThreshold/ColdFirstUse-8                        1     1775624 ns/op    262432 B/op    12 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/LargeAboveThreshold/ColdFirstUse-8                1     2355833 ns/op    524576 B/op    12 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/SmallBelowThreshold/ColdFirstUse-8              1      100917 ns/op     29952 B/op    32 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/DirectlyBelowThreshold/ColdFirstUse-8           1     5012584 ns/op    557840 B/op    33 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/AtThreshold/ColdFirstUse-8                      1     2725833 ns/op    557824 B/op    32 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/LargeAboveThreshold/ColdFirstUse-8              1     7208084 ns/op   1180416 B/op    32 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/SmallBelowThreshold/ColdFirstUse-8                     1      104208 ns/op     33328 B/op    42 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/DirectlyBelowThreshold/ColdFirstUse-8                  1     6431334 ns/op    689648 B/op    42 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/AtThreshold/ColdFirstUse-8                             1     3295999 ns/op    689648 B/op    42 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/ColdFirstUse-8                     1     4949125 ns/op   1574896 B/op    42 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/model  0.316s
+```
+
+### Raw Warmed Output
+
+Default:
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialMetalBaseline/Predict/SmallBelowThreshold/Warmed-8                 7099       16484 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/DirectlyBelowThreshold/Warmed-8                97     1271927 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/AtThreshold/Warmed-8                           97     1312103 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8                   30     3843082 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/SmallBelowThreshold/Warmed-8                3903       32404 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/DirectlyBelowThreshold/Warmed-8               45     2687194 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/AtThreshold/Warmed-8                          45     2785703 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/LargeAboveThreshold/Warmed-8                  13     8185317 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/SmallBelowThreshold/Warmed-8              2332       53838 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/DirectlyBelowThreshold/Warmed-8             30     4094610 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/AtThreshold/Warmed-8                        27     4166698 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/LargeAboveThreshold/Warmed-8                 9    12172718 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/SmallBelowThreshold/Warmed-8                     1705       74170 ns/op      3376 B/op    10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/DirectlyBelowThreshold/Warmed-8                    21     5441817 ns/op    131824 B/op    10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/AtThreshold/Warmed-8                               20     5476875 ns/op    131824 B/op    10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/Warmed-8                        7    16256714 ns/op    394480 B/op    10 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/model  2.486s
+```
+
+Metal:
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialMetalBaseline/Predict/SmallBelowThreshold/Warmed-8                 7110       17026 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/DirectlyBelowThreshold/Warmed-8                92     1297257 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/AtThreshold/Warmed-8                          135      881963 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8                  152      677978 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/SmallBelowThreshold/Warmed-8                3849       32044 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/DirectlyBelowThreshold/Warmed-8               48     2755953 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/AtThreshold/Warmed-8                         129      910740 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Backward/LargeAboveThreshold/Warmed-8                 100     1124772 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/SmallBelowThreshold/Warmed-8              2428       52397 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/DirectlyBelowThreshold/Warmed-8             30     4054574 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/AtThreshold/Warmed-8                        73     1618061 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/LargeAboveThreshold/Warmed-8                60     2039388 ns/op         0 B/op     0 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/SmallBelowThreshold/Warmed-8                     1800       71061 ns/op      3376 B/op    10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/DirectlyBelowThreshold/Warmed-8                    21     5434212 ns/op    131824 B/op    10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/AtThreshold/Warmed-8                               54     2184204 ns/op    131824 B/op    10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/Warmed-8                       44     2772700 ns/op    394480 B/op    10 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/model  2.872s
+```
+
+### Raw Hybrid CPU Kernel Output
+
+The default and `metal` samples are three-run controls. `metal purego` confirms
+that `purego` still selects the scalar implementations.
+
+```text
+Default:
+Benchmark_DotProduct/Length4096-8                                  429384       470.5 ns/op       0 B/op   0 allocs/op
+Benchmark_DotProduct/Length4096-8                                  459110       473.4 ns/op       0 B/op   0 allocs/op
+Benchmark_DotProduct/Length4096-8                                  511426       469.2 ns/op       0 B/op   0 allocs/op
+Benchmark_DotProduct/Length65537-8                                  32323        7435 ns/op       0 B/op   0 allocs/op
+Benchmark_DotProduct/Length65537-8                                  32311        7465 ns/op       0 B/op   0 allocs/op
+Benchmark_DotProduct/Length65537-8                                  32322        7455 ns/op       0 B/op   0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddInto/Active-8      2234      112311 ns/op       0 B/op   0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddInto/Active-8      2168      112473 ns/op       0 B/op   0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddInto/Active-8      2233      112244 ns/op       0 B/op   0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyElementsInto/Active-8 2208 111418 ns/op 0 B/op 0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyElementsInto/Active-8 2160 111474 ns/op 0 B/op 0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyElementsInto/Active-8 2182 112287 ns/op 0 B/op 0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyScalarInPlace/Active-8 3561 71152 ns/op 0 B/op 0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyScalarInPlace/Active-8 3501 69918 ns/op 0 B/op 0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyScalarInPlace/Active-8 3420 70868 ns/op 0 B/op 0 allocs/op
+
+Metal:
+Benchmark_DotProduct/Length4096-8                                  429261       470.8 ns/op       0 B/op   0 allocs/op
+Benchmark_DotProduct/Length4096-8                                  496650       470.9 ns/op       0 B/op   0 allocs/op
+Benchmark_DotProduct/Length4096-8                                  510235       469.2 ns/op       0 B/op   0 allocs/op
+Benchmark_DotProduct/Length65537-8                                  32347        7529 ns/op       0 B/op   0 allocs/op
+Benchmark_DotProduct/Length65537-8                                  32347        7716 ns/op       0 B/op   0 allocs/op
+Benchmark_DotProduct/Length65537-8                                  32336        7593 ns/op       0 B/op   0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddInto/Active-8      2127      111814 ns/op       0 B/op   0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddInto/Active-8      2193      111385 ns/op       0 B/op   0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddInto/Active-8      2137      112758 ns/op       0 B/op   0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyElementsInto/Active-8 2206 112315 ns/op 0 B/op 0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyElementsInto/Active-8 2223 111487 ns/op 0 B/op 0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyElementsInto/Active-8 2179 112093 ns/op 0 B/op 0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyScalarInPlace/Active-8 3332 70643 ns/op 0 B/op 0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyScalarInPlace/Active-8 3619 71547 ns/op 0 B/op 0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyScalarInPlace/Active-8 3518 70315 ns/op 0 B/op 0 allocs/op
+
+Metal purego:
+Benchmark_DotProduct/Length4096-8                                   66452        3526 ns/op       0 B/op   0 allocs/op
+Benchmark_DotProduct/Length65537-8                                   4161       56850 ns/op       0 B/op   0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/AddInto/Active-8       598      409680 ns/op       0 B/op   0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyElementsInto/Active-8 598 413237 ns/op 0 B/op 0 allocs/op
+Benchmark_ElementwiseCandidates/Large1024x1024/MultiplyScalarInPlace/Active-8 925 262770 ns/op 0 B/op 0 allocs/op
+```
+
+### Interpretation
+
+The directly-below-threshold controls remain on CPU and match default timing
+and allocation behavior. The first threshold-eligible Metal prediction is
+slower when it pays global initialization (46.38 ms versus 3.68 ms), which
+confirms that cold dispatch must remain part of later eligibility work.
+
+After warm-up, synchronous Metal is already materially faster for the complete
+large graph despite transferring every multiplication: 5.67x for `Predict`,
+7.28x for `Backward`, 5.97x for `TrainBatch`, and 5.86x for bounded `Fit`. The
+same transfer counts also expose the residency opportunity: large
+`TrainBatch` still creates 18 buffers, performs 12 input uploads and 6 result
+downloads, and submits and waits for 6 separate commands.
+
+The `metal` dot-product and elementwise controls now match default SIMD timing
+and preserve zero allocations. The `metal purego` controls remain about 3.7x
+to 7.5x slower, confirming that the hybrid build selects SIMD while `purego`
+continues to select the scalar reference. No threshold or synchronous bridge
+behavior changed in this session.

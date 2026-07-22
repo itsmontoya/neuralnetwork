@@ -8,7 +8,11 @@ package matrix
 */
 import "C"
 
-import "unsafe"
+import (
+	"unsafe"
+
+	"github.com/itsmontoya/neuralnetwork/internal/metaltest"
+)
 
 const (
 	metalMatMulMinOperations = 1 << 20
@@ -27,10 +31,35 @@ func metalRunMatMul(left, right, result *Matrix, variant uint32) (ok bool) {
 	}
 
 	if !metalAvailable() {
+		metaltest.RecordFailure(metalLastError())
 		return false
 	}
 
 	var status C.int
+	if metaltest.Enabled() {
+		var activity C.NNMetalCounters
+		status = metalCallMatMul(left, right, result, variant, &activity)
+		metaltest.RecordBridgeActivity(
+			uint64(activity.bufferCreations),
+			uint64(activity.inputUploads),
+			uint64(activity.resultDownloads),
+			uint64(activity.commandSubmissions),
+			uint64(activity.waits),
+		)
+	} else {
+		status = metalCallMatMul(left, right, result, variant, nil)
+	}
+
+	if status == 0 {
+		metaltest.RecordFailure(metalLastError())
+		return false
+	}
+
+	ok = true
+	return ok
+}
+
+func metalCallMatMul(left, right, result *Matrix, variant uint32, activity *C.NNMetalCounters) (status C.int) {
 	status = C.nn_metal_matmul(
 		(*C.float)(unsafe.Pointer(&left.data[0])),
 		(*C.float)(unsafe.Pointer(&right.data[0])),
@@ -42,13 +71,9 @@ func metalRunMatMul(left, right, result *Matrix, variant uint32) (ok bool) {
 		C.uint32_t(result.rows),
 		C.uint32_t(result.cols),
 		C.uint32_t(variant),
+		activity,
 	)
-	if status == 0 {
-		return false
-	}
-
-	ok = true
-	return ok
+	return status
 }
 
 func metalAvailable() (ok bool) {

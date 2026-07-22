@@ -1,4 +1,4 @@
-//go:build arm64 && !purego && !metal
+//go:build arm64 && !purego
 
 package matrix
 

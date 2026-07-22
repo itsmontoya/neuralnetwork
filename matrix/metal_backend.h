@@ -9,6 +9,14 @@ enum {
 	NNMetalMatMulRightTranspose = 2,
 };
 
+typedef struct {
+	uint64_t bufferCreations;
+	uint64_t inputUploads;
+	uint64_t resultDownloads;
+	uint64_t commandSubmissions;
+	uint64_t waits;
+} NNMetalCounters;
+
 int nn_metal_available(void);
 int nn_metal_matmul(
 	const float *left,
@@ -20,7 +28,8 @@ int nn_metal_matmul(
 	uint32_t rightCols,
 	uint32_t resultRows,
 	uint32_t resultCols,
-	uint32_t variant
+	uint32_t variant,
+	NNMetalCounters *counters
 );
 const char *nn_metal_last_error(void);
 
