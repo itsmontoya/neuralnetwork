@@ -872,3 +872,83 @@ and preserve zero allocations. The `metal purego` controls remain about 3.7x
 to 7.5x slower, confirming that the hybrid build selects SIMD while `purego`
 continues to select the scalar reference. No threshold or synchronous bridge
 behavior changed in this session.
+
+## Step 3: Add a Persistent Metal Runtime
+
+Captured on July 22, 2026.
+
+### Environment
+
+| Field | Value |
+| --- | --- |
+| OS | macOS 26.5.2 (25F84) |
+| Architecture | arm64 |
+| CPU | Apple M3 |
+| go.mod Go version | 1.26.1 |
+| Go toolchain | go1.26.5 darwin/arm64 |
+| CGO | enabled |
+| Metal device | available |
+
+### Commands
+
+Focused runtime benchmark with ten samples:
+
+```sh
+go test ./internal/device -tags=metal -run '^$' -bench='^Benchmark_MetalRuntime' -benchmem -benchtime=200ms -count=10
+```
+
+The cold case allocates a 4 KiB buffer, uploads it, creates a scope, encodes a
+fill, commits and waits, downloads it, and releases both resources. The warm
+case retains the buffer and measures scope creation, fill encoding, commit,
+wait, and scope release.
+
+### Summary
+
+| Case | Median ns/op | Range ns/op | B/op | allocs/op |
+| --- | ---: | ---: | ---: | ---: |
+| Cold buffer and scope | 111,608 | 106,037–115,983 | 128 | 2 |
+| Warm buffer reuse | 106,519 | 100,942–108,694 | 64 | 1 |
+
+The medians are the averages of the fifth and sixth sorted samples because
+each case has ten measurements.
+
+### Raw Output
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/internal/device
+cpu: Apple M3
+Benchmark_MetalRuntime/ColdBufferAndScope-8          2114  110939 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalRuntime/ColdBufferAndScope-8          2166  113779 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalRuntime/ColdBufferAndScope-8          2265  113389 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalRuntime/ColdBufferAndScope-8          2252  112475 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalRuntime/ColdBufferAndScope-8          2335  108342 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalRuntime/ColdBufferAndScope-8          2344  106037 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalRuntime/ColdBufferAndScope-8          2082  110723 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalRuntime/ColdBufferAndScope-8          2229  111545 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalRuntime/ColdBufferAndScope-8          2041  111671 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalRuntime/ColdBufferAndScope-8          2232  115983 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalRuntime/WarmBufferReuse-8             2331  106696 ns/op   64 B/op  1 allocs/op
+Benchmark_MetalRuntime/WarmBufferReuse-8             2377  106355 ns/op   64 B/op  1 allocs/op
+Benchmark_MetalRuntime/WarmBufferReuse-8             2097  100942 ns/op   64 B/op  1 allocs/op
+Benchmark_MetalRuntime/WarmBufferReuse-8             2307  108694 ns/op   64 B/op  1 allocs/op
+Benchmark_MetalRuntime/WarmBufferReuse-8             2350  107581 ns/op   64 B/op  1 allocs/op
+Benchmark_MetalRuntime/WarmBufferReuse-8             2330  106683 ns/op   64 B/op  1 allocs/op
+Benchmark_MetalRuntime/WarmBufferReuse-8             2317  103996 ns/op   64 B/op  1 allocs/op
+Benchmark_MetalRuntime/WarmBufferReuse-8             2072  106918 ns/op   64 B/op  1 allocs/op
+Benchmark_MetalRuntime/WarmBufferReuse-8             2096  106121 ns/op   64 B/op  1 allocs/op
+Benchmark_MetalRuntime/WarmBufferReuse-8             2088  106204 ns/op   64 B/op  1 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/internal/device  5.830s
+```
+
+### Interpretation
+
+Reusing the persistent buffer removes one Go allocation and 64 bytes per
+operation. The median improvement is about 5%, while command creation,
+submission, and synchronization still dominate a single tiny fill. This is a
+runtime-primitives measurement, not an end-to-end resident-training claim. It
+supports keeping buffers resident and batching several kernels into one scope
+in later sections; the synchronous matrix adapter intentionally retains its
+existing transfer and wait behavior for now.

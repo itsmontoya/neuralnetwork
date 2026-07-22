@@ -8,6 +8,11 @@ command lifetime, or model execution changes.
 Updated on July 21, 2026 after establishing hybrid CPU SIMD and Metal
 selection, private synchronous bridge counters, and end-to-end baselines.
 
+Updated on July 22, 2026 after introducing the persistent runtime, buffer, and
+command-scope primitives. Matrix multiplication still uses its original
+synchronous transfer boundary through the new runtime adapter; matrix
+residency and model-level command batching remain later sections.
+
 ## Decision Summary
 
 The `metal` build tag remains an implementation opt-in. Existing matrix,
@@ -42,7 +47,7 @@ do not change results or surface a device error.
 
 ## Current Synchronous Baseline
 
-Before this milestone is implemented, Metal accelerates only `MatMul`,
+The matrix-facing Metal path currently accelerates only `MatMul`,
 `MatMulInto`, `MatMulLeftTransposeInto`, and
 `MatMulRightTransposeInto`. Each eligible multiplication allocates three
 shared `MTLBuffer` values, copies both host inputs, creates and commits one
@@ -50,9 +55,10 @@ command buffer, waits for it, copies the result to host storage, and releases
 the buffers. It uses the current custom naive multiplication shader and the
 `1 << 20` multiply-add threshold.
 
-The current bridge initializes one default device, queue, library, and
-multiplication pipeline. No matrix retains a buffer or revision. A failed or
-unavailable Metal attempt currently selects the scalar multiplication helper;
+The shared runtime initializes one default device, queue, library, fill
+pipeline, and multiplication pipeline. The matrix adapter uses those persistent
+fixed resources, but no matrix retains a buffer or revision yet. A failed or
+unavailable Metal multiplication attempt currently selects the scalar helper;
 the device-resident implementation will replace that conflation with the
 failure classification below. Existing Metal integration tests skip only for
 no default device and treat shader or command failures as test failures.
@@ -60,9 +66,14 @@ no default device and treat shader or command failures as test failures.
 The current implementation is located in:
 
 ```text
-matrix/metal.go                 Go cgo bridge and dispatch policy
-matrix/metal_backend.h          C interface for the Objective-C backend
-matrix/metal_backend.m          Metal resources, shader, and synchronous call
+internal/device/runtime.go      process runtime and resource construction
+internal/device/buffer.go       opaque buffer ownership and host transfers
+internal/device/scope.go        command-scope state and encoding API
+internal/device/backend.go      build-neutral backend boundary
+internal/device/backend_metal.go Go/cgo Metal adapter
+internal/device/metal_backend.h C interface for the Objective-C backend
+internal/device/metal_backend.m persistent Metal resources and command scopes
+matrix/metal.go                 synchronous multiplication runtime adapter
 matrix/matmul_metal.go          Metal-aware multiplication wrappers
 matrix/matmul_default.go        portable multiplication wrappers
 matrix/matmul_pure.go           pure-Go multiplication reference
@@ -79,6 +90,51 @@ Current `metal` builds retain architecture-specific CPU SIMD for dot-product
 and elementwise work on `arm64` and `amd64`. Unsupported architectures and
 `purego` builds retain local scalar fallbacks. This hybrid selection does not
 change the synchronous Metal multiplication behavior described above.
+
+## Persistent Runtime Boundary
+
+The build-neutral `internal/device` package now owns the private `Runtime`,
+`Buffer`, `Scope`, operation identifiers, and aggregate resource snapshots.
+The Darwin/cgo/`metal` backend implements those types with opaque C handles;
+other build combinations compile a backend that reports normal unavailability.
+No public neural-network package exposes a device handle.
+
+The process runtime initializes the default device, one command queue, one
+shader library, and immutable fill and multiplication pipelines once. A mutex
+protects initialization and its cached result. Independent scopes create and
+submit distinct command buffers through the thread-safe shared queue, while
+CPU fallback paths do not enter a runtime-wide execution lock. Bridge errors
+use thread-local storage so concurrent scopes do not overwrite one another's
+diagnostics.
+
+A `Buffer` owns exactly one shared-storage `MTLBuffer` and validates complete
+float32 uploads and downloads against its overflow-checked byte length.
+Release is explicit and idempotent. There is no idle buffer cache. Encoding a
+buffer retains its Objective-C resource in the scope until the command finishes,
+so releasing the Go buffer owner after encoding cannot invalidate pending GPU
+work.
+
+A `Scope` begins in the encoding state. It can encode ordered copy, float32
+fill/zero, and multiplication commands, then commit once, poll completion, wait,
+and release. Encoding or committing after submission and waiting before commit
+are state errors. Release waits for a submitted command when needed and is
+idempotent. Every Objective-C entry that creates temporary objects has an
+autorelease pool, and partial runtime, buffer, or scope construction releases
+the resources it acquired before reporting an error.
+
+Aggregate private diagnostics count live, peak, created, and released buffers
+and scopes, live and peak buffer bytes, and submitted and completed commands.
+Tests may reset these counters only with no live buffer or scope. The Section 3
+stress test performs 512 allocate/encode/wait/release cycles and requires live
+resources to return to zero, created and released counts to balance, and peaks
+to remain at one buffer, one scope, and 64 bytes.
+
+The matrix adapter allocates two input buffers and one result buffer, uploads
+both inputs, encodes and waits for one multiplication, downloads the result,
+and releases all transient resources. Its existing `1 << 20` threshold, CPU
+fallback behavior, numerical behavior, and private transfer counts therefore
+remain unchanged during this section. Persistent matrix-owned buffers begin in
+the coherence section that follows.
 
 ## Compatibility Decision
 
