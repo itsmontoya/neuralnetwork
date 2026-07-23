@@ -2,4 +2,4 @@
 
 package matrix
 
-func recordResidencyDownload() {}
+func recordResidencyDownload(uint64) {}

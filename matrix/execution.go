@@ -14,10 +14,40 @@ func init() {
 	adapter.Bind = bindMatrixExecution
 	adapter.Execution = matrixExecutionValue
 	adapter.Unbind = unbindMatrixExecution
+	adapter.ReLUForward = forwardReLUExecution
 	adapter.Record = recordExecutionActivity
 	if err = device.RegisterExecutionAdapter(adapter); err != nil {
 		panic(fmt.Sprintf("matrix: register device execution adapter: %v", err))
 	}
+}
+
+func forwardReLUExecution(input, output any) (handled bool, err error) {
+	var (
+		inputMatrix  *Matrix
+		outputMatrix *Matrix
+		ok           bool
+	)
+
+	if inputMatrix, ok = input.(*Matrix); !ok {
+		err = fmt.Errorf("matrix: ReLU input has type %T, want *matrix.Matrix", input)
+		return false, err
+	}
+	if outputMatrix, ok = output.(*Matrix); !ok {
+		err = fmt.Errorf("matrix: ReLU output has type %T, want *matrix.Matrix", output)
+		return false, err
+	}
+	if err = inputMatrix.validate(); err != nil {
+		return false, err
+	}
+	if err = outputMatrix.requireShape("destination", inputMatrix.rows, inputMatrix.cols); err != nil {
+		return false, err
+	}
+	if err = inheritExecution(outputMatrix, inputMatrix); err != nil {
+		return false, err
+	}
+
+	handled, err = reluForwardDevice(inputMatrix, outputMatrix)
+	return handled, err
 }
 
 func bindMatrixExecution(value any, execution *device.Execution) (key any, err error) {

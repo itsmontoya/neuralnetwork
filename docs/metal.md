@@ -20,6 +20,10 @@ matrix binding and propagation, dependent command batching, selective CPU
 fallback barriers, top-level completion, and failure cleanup. Device kernels
 beyond multiplication and copy remain later sections.
 
+Updated on July 23, 2026 after adding resident dense-forward bias, ReLU, and
+stable row-wise Softmax kernels, retaining all multiplication variants, and
+keeping the complete supported prediction chain in one command scope.
+
 ## Decision Summary
 
 The `metal` build tag remains an implementation opt-in. Existing matrix,
@@ -54,15 +58,16 @@ do not change results or surface a device error.
 
 ## Current Batched Execution Boundary
 
-The matrix-facing Metal path currently accelerates only `MatMul`,
-`MatMulInto`, `MatMulLeftTransposeInto`, and
-`MatMulRightTransposeInto`, plus resident matrix copies. Eligible standalone
+The matrix-facing Metal path currently accelerates `MatMul`, `MatMulInto`,
+`MatMulLeftTransposeInto`, and `MatMulRightTransposeInto`, plus resident
+matrix copies, row-vector bias addition, built-in ReLU forward, and stable
+row-wise Softmax forward. Eligible standalone multiplication and copy
 operations remain synchronous: they create a private execution, encode,
 commit, wait, publish completed staging, and detach before returning success.
-Inside a model execution, dependent operations share bounded command buffers
-and publish together at a required boundary. Completion alone does not
+Inside a model execution, dependent forward operations share bounded command
+buffers and publish together at a required boundary. Completion alone does not
 download results. The path retains the custom naive multiplication shader and
-the `1 << 20` multiply-add threshold.
+the `1 << 20` initial multiplication threshold.
 
 The shared runtime initializes one default device, queue, library, fill
 pipeline, and multiplication pipeline. On an available Metal build, a model
@@ -70,7 +75,10 @@ execution lazily attaches private build-neutral residency records while
 binding matrices, but creates no Metal buffer or command scope until an
 eligible operation encodes. Each record owns at most one committed buffer plus
 staging during a proposed write. Unsupported shapes, unavailable devices, and
-work below the threshold select CPU/SIMD before encoding. Initialization,
+a graph whose multiplications never reach the threshold select CPU/SIMD before
+encoding. Once a qualifying multiplication activates an execution, smaller
+dependent multiplications and the approved forward kernels remain on the
+device to avoid a transfer boundary. Initialization,
 allocation, upload, encoding, command, synchronization, and download failures
 after an eligible attempt are returned instead of being silently replayed on
 CPU.
@@ -101,6 +109,7 @@ matrix/residency.go             host/device coherence hooks
 matrix/execution.go             matrix binding, propagation, and barriers
 matrix/metal.go                 resident batched multiplication adapter
 matrix/copy_metal.go            independent device-newer matrix copies
+matrix/forward_device_metal.go  resident bias, ReLU, and Softmax adapters
 matrix/matmul_metal.go          Metal-aware multiplication wrappers
 matrix/matmul_default.go        portable multiplication wrappers
 matrix/matmul_pure.go           pure-Go multiplication reference
@@ -109,11 +118,12 @@ internal/metaltest/counters.go  private matrix transfer and command counters
 model/sequential.go             top-level execution ownership and propagation
 ```
 
-The private counters record buffer creation, input upload, result download,
-command submission, wait, and failure activity only while explicitly enabled
-by repository tests. Per-matrix snapshots additionally record revisions,
-proposals, publications, discarded publications, avoided uploads, downloads,
-and device copies. Neither mechanism adds a public diagnostics API.
+The private counters record buffer creation, input upload and bytes, result
+download and bytes, command submission, wait, and failure activity only while
+explicitly enabled by repository tests. Per-matrix snapshots additionally
+record revisions, proposals, publications, discarded publications, avoided
+uploads, downloads, and device copies. Neither mechanism adds a public
+diagnostics API.
 
 Current `metal` builds retain architecture-specific CPU SIMD for dot-product
 and elementwise work on `arm64` and `amd64`. Unsupported architectures and
@@ -299,10 +309,11 @@ barrier before reading host data and makes any destination host-newer.
 | `Apply`, `ApplyInto`, `Pairwise`, `PairwiseInto` | CPU fallback | Arbitrary Go callbacks are never assumed to be shaders. Callback order, error propagation, and currently permitted destination aliasing remain unchanged. Built-in ReLU and categorical loss use separate private typed operations. |
 
 This classification describes the complete milestone vocabulary. At the
-current Section 5 boundary, only multiplication variants and resident copies
-encode Metal work. Those operations can now share a sequential execution;
-every other matrix method participates in propagation and coherence but uses
-its existing CPU/SIMD implementation until its later kernel section.
+current Section 6 boundary, multiplication variants, resident copies,
+row-vector bias addition, built-in ReLU forward, and row-wise Softmax forward
+encode Metal work. Those operations share a sequential prediction execution;
+backward, loss, and update operations continue through their existing
+CPU/SIMD implementations until their owning sections.
 
 ## Device Operation Vocabulary
 

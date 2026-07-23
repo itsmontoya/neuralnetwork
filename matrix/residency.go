@@ -34,9 +34,9 @@ func (m *Matrix) ensureHostCurrent() (err error) {
 	}
 	if downloaded {
 		if execution != nil {
-			execution.RecordDownload()
+			execution.RecordDownload(uint64(len(m.data)) * 4)
 		} else {
-			recordResidencyDownload()
+			recordResidencyDownload(uint64(len(m.data)) * 4)
 		}
 	}
 	return nil

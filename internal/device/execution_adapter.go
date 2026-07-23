@@ -16,10 +16,11 @@ var (
 // The adapter is registered once by the matrix package during initialization.
 // Per-call execution state remains on the values and is never stored globally.
 type ExecutionAdapter struct {
-	Bind      func(value any, execution *Execution) (key any, err error)
-	Execution func(value any) (execution *Execution, err error)
-	Unbind    func(key any, execution *Execution) (err error)
-	Record    func(snapshot ExecutionSnapshot)
+	Bind        func(value any, execution *Execution) (key any, err error)
+	Execution   func(value any) (execution *Execution, err error)
+	Unbind      func(key any, execution *Execution) (err error)
+	ReLUForward func(input, output any) (handled bool, err error)
+	Record      func(snapshot ExecutionSnapshot)
 }
 
 // RegisterExecutionAdapter installs the process-wide immutable matrix adapter.
@@ -54,6 +55,21 @@ func BoundExecution(value any) (execution *Execution, err error) {
 
 	execution, err = adapter.Execution(value)
 	return execution, err
+}
+
+// ReLUForward attempts the private built-in ReLU device operation.
+func ReLUForward(input, output any) (handled bool, err error) {
+	var adapter ExecutionAdapter
+
+	if adapter, err = currentExecutionAdapter(); err != nil {
+		return false, err
+	}
+	if adapter.ReLUForward == nil {
+		return false, nil
+	}
+
+	handled, err = adapter.ReLUForward(input, output)
+	return handled, err
 }
 
 func currentExecutionAdapter() (adapter ExecutionAdapter, err error) {

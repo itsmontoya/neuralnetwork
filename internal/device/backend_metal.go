@@ -190,6 +190,116 @@ func (m *metalBackend) encodeFill(scope, buffer any, value float32, count uint64
 	return nil
 }
 
+func (m *metalBackend) encodeAddRowVector(
+	scope,
+	values,
+	rowVector any,
+	rows,
+	cols uint32,
+) (err error) {
+	var (
+		scopeHandle     C.NNMetalScope
+		valuesHandle    C.NNMetalBuffer
+		rowVectorHandle C.NNMetalBuffer
+		status          C.int
+	)
+
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if valuesHandle, err = m.bufferHandle(values); err != nil {
+		return err
+	}
+	if rowVectorHandle, err = m.bufferHandle(rowVector); err != nil {
+		return err
+	}
+
+	status = C.nn_metal_scope_encode_add_row_vector(
+		scopeHandle,
+		valuesHandle,
+		rowVectorHandle,
+		C.uint32_t(rows),
+		C.uint32_t(cols),
+	)
+	if status != C.NNMetalStatusSuccess {
+		err = m.lastError("encode Metal row-vector addition")
+		return err
+	}
+
+	return nil
+}
+
+func (m *metalBackend) encodeReLU(scope, input, result any, count uint32) (err error) {
+	var (
+		scopeHandle  C.NNMetalScope
+		inputHandle  C.NNMetalBuffer
+		resultHandle C.NNMetalBuffer
+		status       C.int
+	)
+
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if inputHandle, err = m.bufferHandle(input); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	status = C.nn_metal_scope_encode_relu(
+		scopeHandle,
+		inputHandle,
+		resultHandle,
+		C.uint32_t(count),
+	)
+	if status != C.NNMetalStatusSuccess {
+		err = m.lastError("encode Metal ReLU")
+		return err
+	}
+
+	return nil
+}
+
+func (m *metalBackend) encodeSoftmaxRows(
+	scope,
+	input,
+	result any,
+	rows,
+	cols uint32,
+) (err error) {
+	var (
+		scopeHandle  C.NNMetalScope
+		inputHandle  C.NNMetalBuffer
+		resultHandle C.NNMetalBuffer
+		status       C.int
+	)
+
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if inputHandle, err = m.bufferHandle(input); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	status = C.nn_metal_scope_encode_softmax_rows(
+		scopeHandle,
+		inputHandle,
+		resultHandle,
+		C.uint32_t(rows),
+		C.uint32_t(cols),
+	)
+	if status != C.NNMetalStatusSuccess {
+		err = m.lastError("encode Metal row-wise Softmax")
+		return err
+	}
+
+	return nil
+}
+
 func (m *metalBackend) encodeMatMul(
 	scope,
 	left,
