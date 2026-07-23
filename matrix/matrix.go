@@ -344,6 +344,9 @@ func (m *Matrix) SelectRows(indexes []int) (result *Matrix, err error) {
 	if result, err = New(len(indexes), m.cols); err != nil {
 		return nil, err
 	}
+	if err = inheritExecution(result, m); err != nil {
+		return nil, err
+	}
 	if err = m.ensureHostCurrent(); err != nil {
 		return nil, err
 	}
@@ -373,6 +376,9 @@ func (m *Matrix) SelectRowsInto(indexes []int, destination *Matrix) (err error) 
 	}
 
 	if err = destination.requireShape("selected rows destination", len(indexes), m.cols); err != nil {
+		return err
+	}
+	if err = inheritExecution(destination, m); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {
@@ -435,6 +441,9 @@ func (m *Matrix) Add(other *Matrix) (result *Matrix, err error) {
 	}
 
 	result = m.newLike()
+	if err = inheritExecution(result, m, other); err != nil {
+		return nil, err
+	}
 
 	addInto(m.data, other.data, result.data)
 	return result, nil
@@ -450,6 +459,9 @@ func (m *Matrix) AddInto(other, result *Matrix) (err error) {
 	}
 
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = inheritExecution(result, m, other); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {
@@ -479,6 +491,9 @@ func (m *Matrix) AddScaledInPlace(other *Matrix, scale float32) (err error) {
 	if err = m.sameShape(other); err != nil {
 		return err
 	}
+	if err = inheritExecution(m, m, other); err != nil {
+		return err
+	}
 	if err = m.ensureHostCurrent(); err != nil {
 		return err
 	}
@@ -506,6 +521,9 @@ func (m *Matrix) AddMappedInPlace(other *Matrix, fn func(float32) float32) (err 
 	}
 
 	if err = m.sameShape(other); err != nil {
+		return err
+	}
+	if err = inheritExecution(m, m, other); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {
@@ -578,6 +596,15 @@ func (m *Matrix) AdamUpdateInPlace(
 		err = errors.New("matrix: adam second correction must be nonzero")
 		return err
 	}
+	if err = inheritExecution(m, m, gradient, firstMoment, secondMoment); err != nil {
+		return err
+	}
+	if err = inheritExecution(firstMoment, m, gradient, secondMoment); err != nil {
+		return err
+	}
+	if err = inheritExecution(secondMoment, m, gradient, firstMoment); err != nil {
+		return err
+	}
 	if err = m.ensureHostCurrent(); err != nil {
 		return err
 	}
@@ -644,6 +671,9 @@ func (m *Matrix) Subtract(other *Matrix) (result *Matrix, err error) {
 	}
 
 	result = m.newLike()
+	if err = inheritExecution(result, m, other); err != nil {
+		return nil, err
+	}
 
 	subtractInto(m.data, other.data, result.data)
 	return result, nil
@@ -659,6 +689,9 @@ func (m *Matrix) SubtractInto(other, result *Matrix) (err error) {
 	}
 
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = inheritExecution(result, m, other); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {
@@ -688,6 +721,9 @@ func (m *Matrix) MultiplyElements(other *Matrix) (result *Matrix, err error) {
 	}
 
 	result = m.newLike()
+	if err = inheritExecution(result, m, other); err != nil {
+		return nil, err
+	}
 
 	multiplyElementsInto(m.data, other.data, result.data)
 	return result, nil
@@ -703,6 +739,9 @@ func (m *Matrix) MultiplyElementsInto(other, result *Matrix) (err error) {
 	}
 
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = inheritExecution(result, m, other); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {
@@ -732,6 +771,9 @@ func (m *Matrix) DivideElements(other *Matrix) (result *Matrix, err error) {
 	}
 
 	result = m.newLike()
+	if err = inheritExecution(result, m, other); err != nil {
+		return nil, err
+	}
 
 	var index int
 	for index = range result.data {
@@ -758,6 +800,9 @@ func (m *Matrix) DivideElementsInto(other, result *Matrix) (err error) {
 	}
 
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = inheritExecution(result, m, other); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {
@@ -796,6 +841,9 @@ func (m *Matrix) AddScalar(value float32) (result *Matrix, err error) {
 	}
 
 	result = m.newLike()
+	if err = inheritExecution(result, m); err != nil {
+		return nil, err
+	}
 
 	addScalarInto(m.data, value, result.data)
 	return result, nil
@@ -811,6 +859,9 @@ func (m *Matrix) AddScalarInto(value float32, result *Matrix) (err error) {
 	}
 
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = inheritExecution(result, m); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {
@@ -834,6 +885,9 @@ func (m *Matrix) MultiplyScalar(value float32) (result *Matrix, err error) {
 	}
 
 	result = m.newLike()
+	if err = inheritExecution(result, m); err != nil {
+		return nil, err
+	}
 
 	multiplyScalarInto(m.data, value, result.data)
 	return result, nil
@@ -849,6 +903,9 @@ func (m *Matrix) MultiplyScalarInto(value float32, result *Matrix) (err error) {
 	}
 
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = inheritExecution(result, m); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {
@@ -877,6 +934,9 @@ func (m *Matrix) DivideScalar(value float32) (result *Matrix, err error) {
 	}
 
 	result = m.newLike()
+	if err = inheritExecution(result, m); err != nil {
+		return nil, err
+	}
 
 	var index int
 	for index = range result.data {
@@ -901,6 +961,9 @@ func (m *Matrix) DivideScalarInto(value float32, result *Matrix) (err error) {
 	}
 
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = inheritExecution(result, m); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {
@@ -929,6 +992,9 @@ func (m *Matrix) SoftmaxRowsInto(result *Matrix) (err error) {
 	}
 
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = inheritExecution(result, m); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {
@@ -964,6 +1030,9 @@ func (m *Matrix) SoftmaxRowsBackwardInto(outputGradient, result *Matrix) (err er
 
 	if result == outputGradient {
 		err = errors.New("matrix: destination must not alias output gradient")
+		return err
+	}
+	if err = inheritExecution(result, m, outputGradient); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {
@@ -1179,6 +1248,9 @@ func (m *Matrix) TransposeInto(result *Matrix) (err error) {
 	if err = result.requireShape("transpose destination", m.cols, m.rows); err != nil {
 		return err
 	}
+	if err = inheritExecution(result, m); err != nil {
+		return err
+	}
 	if err = m.ensureHostCurrent(); err != nil {
 		return err
 	}
@@ -1239,6 +1311,9 @@ func (m *Matrix) RowSumsInto(result *Matrix) (err error) {
 	}
 
 	if err = result.requireShape("row sums destination", m.rows, 1); err != nil {
+		return err
+	}
+	if err = inheritExecution(result, m); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {
@@ -1304,6 +1379,9 @@ func (m *Matrix) ColumnSumsInto(result *Matrix) (err error) {
 	if err = result.requireShape("column sums destination", 1, m.cols); err != nil {
 		return err
 	}
+	if err = inheritExecution(result, m); err != nil {
+		return err
+	}
 	if err = m.ensureHostCurrent(); err != nil {
 		return err
 	}
@@ -1353,6 +1431,9 @@ func (m *Matrix) AccumulateColumnSumsInto(result *Matrix) (err error) {
 	}
 
 	if err = result.requireShape("column sums destination", 1, m.cols); err != nil {
+		return err
+	}
+	if err = inheritExecution(result, m); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {
@@ -1441,6 +1522,9 @@ func (m *Matrix) Apply(fn func(float32) float32) (result *Matrix, err error) {
 	}
 
 	result = m.newLike()
+	if err = inheritExecution(result, m); err != nil {
+		return nil, err
+	}
 
 	var index int
 	for index = range result.data {
@@ -1465,6 +1549,9 @@ func (m *Matrix) ApplyInto(fn func(float32) float32, result *Matrix) (err error)
 	}
 
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = inheritExecution(result, m); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {
@@ -1539,6 +1626,9 @@ func (m *Matrix) PairwiseInto(
 	}
 
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = inheritExecution(result, m, other); err != nil {
 		return err
 	}
 	if err = m.ensureHostCurrent(); err != nil {

@@ -1156,3 +1156,100 @@ has a 247,051 ns/op median versus the recorded 250,808 ns/op synchronous
 median; its three additional small Go allocations are the lazy residency
 record, staging-buffer owner, and command-scope owner. Later batching and
 buffer-pool tuning, not this coherence session, own those per-command costs.
+
+## Step 5: Batch Metal Commands Across Sequential Execution
+
+Captured on July 22, 2026.
+
+### Environment
+
+| Field | Value |
+| --- | --- |
+| OS | macOS 26.5.2 (25F84) |
+| Architecture | arm64 |
+| CPU | Apple M3 |
+| go.mod Go version | 1.26.1 |
+| Go toolchain | go1.26.5 darwin/arm64 |
+| CGO | enabled |
+| Metal device | available outside the filesystem sandbox |
+
+### Commands
+
+Focused dependent-command and CPU-fallback benchmark with ten samples:
+
+```sh
+GOCACHE=/tmp/neuralnetwork-go-cache go test ./matrix -tags=metal -run '^$' -bench='^Benchmark_MetalCommandBatch$' -benchmem -benchtime=200ms -count=10
+```
+
+The standalone control invokes the existing public matrix boundary twice. The
+batched case binds the same inputs to one private outer execution and encodes
+the two dependent multiplications before finishing. The fallback case inserts
+a CPU scalar addition between the multiplications, which requires completion
+and one result download before lazily uploading the CPU-written matrix.
+
+### Summary
+
+| Case | Median ns/op | Commands/op | Waits/op | Downloads/op | Uploads/op | B/op | allocs/op |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Two standalone multiplications | 436,040 | 2 | 2 | 0 | 0 | 1,216 | 22 |
+| Two batched multiplications | 243,923 | 1 | 1 | 0 | 0 | 816 | 16 |
+| CPU fallback boundary | 430,578 | 2 | 2 | 1 | 1 | 976 | 19 |
+
+The medians average the fifth and sixth sorted samples. Inputs and parameters
+were already resident by the measured benchmark passes, so the two directly
+comparable cases report zero uploads. The CPU fallback intentionally writes a
+new host revision on every operation and therefore reports one upload.
+
+### Raw Output
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_MetalCommandBatch/StandaloneTwoMatMuls-8          277   799207 ns/op  2.000 commands/op  0 downloads/op  0 uploads/op  2.000 waits/op  1216 B/op  22 allocs/op
+Benchmark_MetalCommandBatch/StandaloneTwoMatMuls-8          414   510737 ns/op  2.000 commands/op  0 downloads/op  0 uploads/op  2.000 waits/op  1216 B/op  22 allocs/op
+Benchmark_MetalCommandBatch/StandaloneTwoMatMuls-8          367   664707 ns/op  2.000 commands/op  0 downloads/op  0 uploads/op  2.000 waits/op  1216 B/op  22 allocs/op
+Benchmark_MetalCommandBatch/StandaloneTwoMatMuls-8          579   438527 ns/op  2.000 commands/op  0 downloads/op  0 uploads/op  2.000 waits/op  1216 B/op  22 allocs/op
+Benchmark_MetalCommandBatch/StandaloneTwoMatMuls-8          562   448539 ns/op  2.000 commands/op  0 downloads/op  0 uploads/op  2.000 waits/op  1216 B/op  22 allocs/op
+Benchmark_MetalCommandBatch/StandaloneTwoMatMuls-8          561   427017 ns/op  2.000 commands/op  0 downloads/op  0 uploads/op  2.000 waits/op  1216 B/op  22 allocs/op
+Benchmark_MetalCommandBatch/StandaloneTwoMatMuls-8          550   424839 ns/op  2.000 commands/op  0 downloads/op  0 uploads/op  2.000 waits/op  1216 B/op  22 allocs/op
+Benchmark_MetalCommandBatch/StandaloneTwoMatMuls-8          564   433553 ns/op  2.000 commands/op  0 downloads/op  0 uploads/op  2.000 waits/op  1216 B/op  22 allocs/op
+Benchmark_MetalCommandBatch/StandaloneTwoMatMuls-8          567   423142 ns/op  2.000 commands/op  0 downloads/op  0 uploads/op  2.000 waits/op  1216 B/op  22 allocs/op
+Benchmark_MetalCommandBatch/StandaloneTwoMatMuls-8          564   424627 ns/op  2.000 commands/op  0 downloads/op  0 uploads/op  2.000 waits/op  1216 B/op  22 allocs/op
+Benchmark_MetalCommandBatch/BatchedTwoMatMuls-8            1002   238740 ns/op  1.000 commands/op  0 downloads/op  0 uploads/op  1.000 waits/op   816 B/op  16 allocs/op
+Benchmark_MetalCommandBatch/BatchedTwoMatMuls-8            1017   246078 ns/op  1.000 commands/op  0 downloads/op  0 uploads/op  1.000 waits/op   816 B/op  16 allocs/op
+Benchmark_MetalCommandBatch/BatchedTwoMatMuls-8             984   324422 ns/op  1.000 commands/op  0 downloads/op  0 uploads/op  1.000 waits/op   816 B/op  16 allocs/op
+Benchmark_MetalCommandBatch/BatchedTwoMatMuls-8             885   245250 ns/op  1.000 commands/op  0 downloads/op  0 uploads/op  1.000 waits/op   816 B/op  16 allocs/op
+Benchmark_MetalCommandBatch/BatchedTwoMatMuls-8            1036   242595 ns/op  1.000 commands/op  0 downloads/op  0 uploads/op  1.000 waits/op   816 B/op  16 allocs/op
+Benchmark_MetalCommandBatch/BatchedTwoMatMuls-8            1002   237408 ns/op  1.000 commands/op  0 downloads/op  0 uploads/op  1.000 waits/op   816 B/op  16 allocs/op
+Benchmark_MetalCommandBatch/BatchedTwoMatMuls-8            1015   237943 ns/op  1.000 commands/op  0 downloads/op  0 uploads/op  1.000 waits/op   816 B/op  16 allocs/op
+Benchmark_MetalCommandBatch/BatchedTwoMatMuls-8            1003   240494 ns/op  1.000 commands/op  0 downloads/op  0 uploads/op  1.000 waits/op   816 B/op  16 allocs/op
+Benchmark_MetalCommandBatch/BatchedTwoMatMuls-8            1000   247585 ns/op  1.000 commands/op  0 downloads/op  0 uploads/op  1.000 waits/op   816 B/op  16 allocs/op
+Benchmark_MetalCommandBatch/BatchedTwoMatMuls-8            1012   255704 ns/op  1.000 commands/op  0 downloads/op  0 uploads/op  1.000 waits/op   816 B/op  16 allocs/op
+Benchmark_MetalCommandBatch/CPUFallbackBoundary-8           549   424577 ns/op  2.000 commands/op  1.000 downloads/op  1.000 uploads/op  2.000 waits/op   976 B/op  19 allocs/op
+Benchmark_MetalCommandBatch/CPUFallbackBoundary-8           566   428482 ns/op  2.000 commands/op  1.000 downloads/op  1.000 uploads/op  2.000 waits/op   976 B/op  19 allocs/op
+Benchmark_MetalCommandBatch/CPUFallbackBoundary-8           578   432153 ns/op  2.000 commands/op  1.000 downloads/op  1.000 uploads/op  2.000 waits/op   976 B/op  19 allocs/op
+Benchmark_MetalCommandBatch/CPUFallbackBoundary-8           559   432545 ns/op  2.000 commands/op  1.000 downloads/op  1.000 uploads/op  2.000 waits/op   976 B/op  19 allocs/op
+Benchmark_MetalCommandBatch/CPUFallbackBoundary-8           562   425656 ns/op  2.000 commands/op  1.000 downloads/op  1.000 uploads/op  2.000 waits/op   976 B/op  19 allocs/op
+Benchmark_MetalCommandBatch/CPUFallbackBoundary-8           549   433857 ns/op  2.000 commands/op  1.000 downloads/op  1.000 uploads/op  2.000 waits/op   976 B/op  19 allocs/op
+Benchmark_MetalCommandBatch/CPUFallbackBoundary-8           525   592308 ns/op  2.000 commands/op  1.000 downloads/op  1.000 uploads/op  2.000 waits/op   976 B/op  19 allocs/op
+Benchmark_MetalCommandBatch/CPUFallbackBoundary-8           570   429395 ns/op  2.000 commands/op  1.000 downloads/op  1.000 uploads/op  2.000 waits/op   976 B/op  19 allocs/op
+Benchmark_MetalCommandBatch/CPUFallbackBoundary-8           564   428477 ns/op  2.000 commands/op  1.000 downloads/op  1.000 uploads/op  2.000 waits/op   976 B/op  19 allocs/op
+Benchmark_MetalCommandBatch/CPUFallbackBoundary-8           559   431760 ns/op  2.000 commands/op  1.000 downloads/op  1.000 uploads/op  2.000 waits/op   976 B/op  19 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/matrix  9.002s
+```
+
+### Interpretation
+
+Batching the two dependent resident multiplications removes one command
+submission, one wait, six Go allocations, and 400 bytes per operation. Its
+median is about 44% lower than the two-call standalone boundary. This is a
+synthetic supported-command-chain result, not an end-to-end dense prediction
+or training claim; the non-multiplication kernels remain assigned to later
+sections.
+
+The explicit CPU boundary restores two submissions and waits and adds exactly
+one download plus one lazy re-upload, demonstrating that fallback preserves
+coherence without downloading unrelated resident inputs.

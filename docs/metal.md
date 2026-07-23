@@ -13,8 +13,12 @@ command-scope primitives.
 
 Updated on July 22, 2026 after adding transparent matrix residency, revision
 tracking, staged standalone writes, host-observation barriers, coherent CPU
-fallbacks, device copies, and scratch-eviction cleanup. Model-level command
-batching and non-multiplication kernels remain later sections.
+fallbacks, device copies, and scratch-eviction cleanup.
+
+Updated on July 22, 2026 after adding bounded sequential executions, explicit
+matrix binding and propagation, dependent command batching, selective CPU
+fallback barriers, top-level completion, and failure cleanup. Device kernels
+beyond multiplication and copy remain later sections.
 
 ## Decision Summary
 
@@ -48,26 +52,35 @@ Metal absence, an unsupported build, an unsupported operation, or a workload
 below the measured dispatch threshold is a normal CPU/SIMD path. These cases
 do not change results or surface a device error.
 
-## Current Matrix Residency Boundary
+## Current Batched Execution Boundary
 
 The matrix-facing Metal path currently accelerates only `MatMul`,
 `MatMulInto`, `MatMulLeftTransposeInto`, and
-`MatMulRightTransposeInto`. Each eligible standalone multiplication uploads an
-input only when its host revision is newer, reuses current input buffers,
-writes into separate staging, creates and commits one command buffer, waits,
-and atomically publishes the completed result as device-newer. It does not
-download the result until a host observation or CPU fallback reads it. The
-path retains the custom naive multiplication shader and the `1 << 20`
-multiply-add threshold.
+`MatMulRightTransposeInto`, plus resident matrix copies. Eligible standalone
+operations remain synchronous: they create a private execution, encode,
+commit, wait, publish completed staging, and detach before returning success.
+Inside a model execution, dependent operations share bounded command buffers
+and publish together at a required boundary. Completion alone does not
+download results. The path retains the custom naive multiplication shader and
+the `1 << 20` multiply-add threshold.
 
 The shared runtime initializes one default device, queue, library, fill
-pipeline, and multiplication pipeline. A matrix lazily attaches one private
-build-neutral residency record only after an eligible available-device use.
-The record owns at most one committed buffer plus staging during a proposed
-write. Unsupported shapes, unavailable devices, and work below the threshold
-select CPU/SIMD before encoding. Initialization, allocation, upload, encoding,
-command, synchronization, and download failures after an eligible attempt are
-returned instead of being silently replayed on CPU.
+pipeline, and multiplication pipeline. On an available Metal build, a model
+execution lazily attaches private build-neutral residency records while
+binding matrices, but creates no Metal buffer or command scope until an
+eligible operation encodes. Each record owns at most one committed buffer plus
+staging during a proposed write. Unsupported shapes, unavailable devices, and
+work below the threshold select CPU/SIMD before encoding. Initialization,
+allocation, upload, encoding, command, synchronization, and download failures
+after an eligible attempt are returned instead of being silently replayed on
+CPU.
+
+Host observations wait only when their matrix has a pending producer. Host
+mutations also wait when the current command scope reads that matrix. CPU
+destinations inherit the execution binding, so later eligible operations
+upload the CPU-written revision lazily. Unsupported and custom implementations
+continue through their existing public methods; the model does not bypass
+them with type switches.
 
 The current implementation is located in:
 
@@ -75,6 +88,9 @@ The current implementation is located in:
 internal/device/runtime.go      process runtime and resource construction
 internal/device/buffer.go       opaque buffer ownership and host transfers
 internal/device/scope.go        command-scope state and encoding API
+internal/device/execution.go    bounded multi-command execution lifecycle
+internal/device/execution_adapter.go immutable opaque-value adapter registry
+internal/device/execution_snapshot.go per-execution batching diagnostics
 internal/device/residency.go    revisions, committed buffers, and staged writes
 internal/device/residency_snapshot.go private coherence diagnostics
 internal/device/backend.go      build-neutral backend boundary
@@ -82,13 +98,15 @@ internal/device/backend_metal.go Go/cgo Metal adapter
 internal/device/metal_backend.h C interface for the Objective-C backend
 internal/device/metal_backend.m persistent Metal resources and command scopes
 matrix/residency.go             host/device coherence hooks
-matrix/metal.go                 resident standalone multiplication adapter
+matrix/execution.go             matrix binding, propagation, and barriers
+matrix/metal.go                 resident batched multiplication adapter
 matrix/copy_metal.go            independent device-newer matrix copies
 matrix/matmul_metal.go          Metal-aware multiplication wrappers
 matrix/matmul_default.go        portable multiplication wrappers
 matrix/matmul_pure.go           pure-Go multiplication reference
 matrix/metal_internal_test.go   Metal integration tests
 internal/metaltest/counters.go  private matrix transfer and command counters
+model/sequential.go             top-level execution ownership and propagation
 ```
 
 The private counters record buffer creation, input upload, result download,
@@ -141,13 +159,13 @@ stress test performs 512 allocate/encode/wait/release cycles and requires live
 resources to return to zero, created and released counts to balance, and peaks
 to remain at one buffer, one scope, and 64 bytes.
 
-The matrix adapter now retains committed input and result buffers through each
+The matrix adapter retains committed input and result buffers through each
 matrix's residency record. A full device destination uses staging so a command
 failure cannot corrupt its last committed value. After a successful wait, the
 record swaps staging into the committed slot and releases the replaced buffer.
 The returned matrix may remain device-newer. The existing `1 << 20` threshold
-and numerical kernel remain unchanged; model-level calls still invoke one
-standalone command and wait per eligible multiplication.
+and numerical kernel remain unchanged. Model-level calls now share an outer
+execution while standalone matrix calls retain their synchronous boundary.
 
 ## Compatibility Decision
 
@@ -156,23 +174,26 @@ error contracts, so this milestone does not add a public execution API.
 
 The private design has three parts:
 
-* A build-neutral package under `internal/device` owns opaque execution scopes,
-  buffers, residency records, operation identifiers, and private snapshots. It
-  imports none of the public neural-network packages.
-* `matrix` holds an optional private residency pointer and owns the hooks that
-  classify host observations, host mutations, device operations, and CPU
-  fallbacks. Build-specific adapters inspect that record without exposing a
-  handle or adding a public API.
-* `model` creates scopes and binds inputs and targets through the internal
-  adapter. Matrix operations propagate the bound scope to their destinations.
+* A build-neutral package under `internal/device` owns opaque executions,
+  command scopes, buffers, residency records, operation identifiers, private
+  snapshots, and one immutable adapter registry. It imports none of the public
+  neural-network packages.
+* `matrix` holds an optional private residency pointer, registers the only
+  checked adapter, and owns the hooks that bind executions, classify host
+  observations and mutations, propagate CPU destinations, and invoke
+  build-specific device operations without exposing a handle or public API.
+* `model` creates executions and binds inputs and targets through the internal
+  adapter. Matrix operations propagate the bound execution to destinations.
   `activation`, `loss`, and `optimizer` request the few specialized private
   operations they own through `internal/device`. `layer` continues to call its
   existing matrix and activation APIs.
 
-`Sequential` will use private `predict` and `backward` helpers that accept a
-scope. Public standalone calls create and finish one scope; `TrainBatch`
-creates an outer scope and reuses it for its private predict, loss, backward,
-and update phases. This makes scope propagation explicit without changing
+`Sequential` uses private `predict` and `backward` helpers that accept an
+execution. Public standalone calls create and finish one execution;
+`TrainBatch` creates an outer execution and reuses it for its private predict,
+loss, backward, and update phases. Nested calls detect and borrow the execution
+bound to their input, while only the outer owner finishes or aborts it. This
+makes propagation explicit without changing
 `layer.Layer`, storing a current scope on a goroutine, or using package-global
 per-call state. The internal adapter uses checked opaque values to avoid an
 import cycle; a missing or mismatched adapter is an internal error, not a CPU
@@ -278,10 +299,10 @@ barrier before reading host data and makes any destination host-newer.
 | `Apply`, `ApplyInto`, `Pairwise`, `PairwiseInto` | CPU fallback | Arbitrary Go callbacks are never assumed to be shaders. Callback order, error propagation, and currently permitted destination aliasing remain unchanged. Built-in ReLU and categorical loss use separate private typed operations. |
 
 This classification describes the complete milestone vocabulary. At the
-current Section 4 boundary, only multiplication variants and device-newer
-copies encode Metal work. Every other matrix method already participates in
-coherence but executes through its existing CPU/SIMD implementation until its
-own later kernel section.
+current Section 5 boundary, only multiplication variants and resident copies
+encode Metal work. Those operations can now share a sequential execution;
+every other matrix method participates in propagation and coherence but uses
+its existing CPU/SIMD implementation until its later kernel section.
 
 ## Device Operation Vocabulary
 
