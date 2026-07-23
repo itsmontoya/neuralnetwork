@@ -15,6 +15,7 @@ import (
 
 var (
 	benchmarkMetalBaselineMatrix  *matrix.Matrix
+	benchmarkMetalBaselineValues  []float32
 	benchmarkMetalBaselineMetrics model.TrainMetrics
 	benchmarkMetalBaselineHistory model.TrainingHistory
 )
@@ -70,6 +71,19 @@ func Benchmark_SequentialMetalBaseline(b *testing.B) {
 	}
 }
 
+func Benchmark_SequentialMetalDispatch(b *testing.B) {
+	var shape metalBaselineShape
+
+	shape.name = "ReadyThreshold"
+	shape.batchSize = 256
+	shape.inputSize = 128
+	shape.hiddenSize = 128
+	shape.classCount = 128
+	b.Run("Predict/"+shape.name+"/ColdFirstUse", func(b *testing.B) {
+		benchmarkMetalBaselineCold(b, shape, setupMetalBaselinePredict)
+	})
+}
+
 func Benchmark_SequentialResidentPredict(b *testing.B) {
 	var tests []metalBaselineShape
 	tests = []metalBaselineShape{
@@ -85,6 +99,23 @@ func Benchmark_SequentialResidentPredict(b *testing.B) {
 		})
 		b.Run(test.name+"/Warmed", func(b *testing.B) {
 			benchmarkResidentPredictWarmed(b, test)
+		})
+	}
+}
+
+func Benchmark_SequentialResidentPredictObserved(b *testing.B) {
+	var tests []metalBaselineShape
+	tests = []metalBaselineShape{
+		{name: "Large", batchSize: 256, inputSize: 512, hiddenSize: 512, classCount: 64},
+		{name: "WarmThreshold", batchSize: 256, inputSize: 128, hiddenSize: 128, classCount: 128},
+		{name: "ObservedBelowThreshold", batchSize: 64, inputSize: 128, hiddenSize: 128, classCount: 16},
+		{name: "Small", batchSize: 16, inputSize: 32, hiddenSize: 64, classCount: 10},
+	}
+
+	var test metalBaselineShape
+	for _, test = range tests {
+		b.Run(test.name+"/Warmed", func(b *testing.B) {
+			benchmarkResidentPredictObservedWarmed(b, test)
 		})
 	}
 }
@@ -284,6 +315,36 @@ func benchmarkResidentPredictWarmed(b *testing.B, shape metalBaselineShape) {
 	for index = 0; index < b.N; index++ {
 		if err = run(); err != nil {
 			b.Fatalf("warmed prediction returned error: %v", err)
+		}
+	}
+	b.StopTimer()
+}
+
+func benchmarkResidentPredictObservedWarmed(b *testing.B, shape metalBaselineShape) {
+	var (
+		run   func() error
+		err   error
+		index int
+	)
+
+	run = setupMetalBaselinePredict(b, shape)
+	if err = run(); err != nil {
+		b.Fatalf("prediction warm-up returned error: %v", err)
+	}
+	if benchmarkMetalBaselineValues, err = benchmarkMetalBaselineMatrix.Values(); err != nil {
+		b.Fatalf("observation warm-up returned error: %v", err)
+	}
+
+	beginResidentPredictMetrics()
+	defer endResidentPredictMetrics(b)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for index = 0; index < b.N; index++ {
+		if err = run(); err != nil {
+			b.Fatalf("warmed prediction returned error: %v", err)
+		}
+		if benchmarkMetalBaselineValues, err = benchmarkMetalBaselineMatrix.Values(); err != nil {
+			b.Fatalf("warmed observation returned error: %v", err)
 		}
 	}
 	b.StopTimer()

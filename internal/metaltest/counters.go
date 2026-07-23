@@ -15,8 +15,11 @@ var (
 	inputUploadBytes    atomic.Uint64
 	resultDownloads     atomic.Uint64
 	resultDownloadBytes atomic.Uint64
+	kernelEncodes       atomic.Uint64
 	commandSubmissions  atomic.Uint64
 	waits               atomic.Uint64
+	barriers            atomic.Uint64
+	fallbackBarriers    atomic.Uint64
 	errorMutex          sync.Mutex
 	lastError           string
 )
@@ -28,8 +31,11 @@ type Counters struct {
 	InputUploadBytes    uint64
 	ResultDownloads     uint64
 	ResultDownloadBytes uint64
+	KernelEncodes       uint64
 	CommandSubmissions  uint64
 	Waits               uint64
+	Barriers            uint64
+	FallbackBarriers    uint64
 	LastError           string
 }
 
@@ -57,8 +63,11 @@ func Reset() {
 	inputUploadBytes.Store(0)
 	resultDownloads.Store(0)
 	resultDownloadBytes.Store(0)
+	kernelEncodes.Store(0)
 	commandSubmissions.Store(0)
 	waits.Store(0)
+	barriers.Store(0)
+	fallbackBarriers.Store(0)
 
 	errorMutex.Lock()
 	lastError = ""
@@ -72,8 +81,11 @@ func RecordBridgeActivity(
 	uploadedBytes,
 	downloadedResults,
 	downloadedBytes,
+	encodedKernels,
 	submittedCommands,
-	waitedCommands uint64,
+	waitedCommands,
+	completionBarriers,
+	cpuFallbackBarriers uint64,
 ) {
 	if !enabled.Load() {
 		return
@@ -84,8 +96,11 @@ func RecordBridgeActivity(
 	inputUploadBytes.Add(uploadedBytes)
 	resultDownloads.Add(downloadedResults)
 	resultDownloadBytes.Add(downloadedBytes)
+	kernelEncodes.Add(encodedKernels)
 	commandSubmissions.Add(submittedCommands)
 	waits.Add(waitedCommands)
+	barriers.Add(completionBarriers)
+	fallbackBarriers.Add(cpuFallbackBarriers)
 }
 
 // RecordFailure records the latest Metal bridge failure.
@@ -106,8 +121,11 @@ func Snapshot() (counters Counters) {
 	counters.InputUploadBytes = inputUploadBytes.Load()
 	counters.ResultDownloads = resultDownloads.Load()
 	counters.ResultDownloadBytes = resultDownloadBytes.Load()
+	counters.KernelEncodes = kernelEncodes.Load()
 	counters.CommandSubmissions = commandSubmissions.Load()
 	counters.Waits = waits.Load()
+	counters.Barriers = barriers.Load()
+	counters.FallbackBarriers = fallbackBarriers.Load()
 
 	errorMutex.Lock()
 	counters.LastError = lastError

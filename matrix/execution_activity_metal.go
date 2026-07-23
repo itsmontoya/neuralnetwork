@@ -14,7 +14,10 @@ func recordExecutionActivity(snapshot device.ExecutionSnapshot) {
 		snapshot.InputUploadBytes,
 		snapshot.ResultDownloads,
 		snapshot.ResultDownloadBytes,
+		snapshot.KernelEncodes,
 		snapshot.CommandSubmissions,
 		snapshot.Waits,
+		snapshot.Barriers,
+		snapshot.FallbackBarriers,
 	)
 }
