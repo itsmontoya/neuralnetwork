@@ -1253,3 +1253,265 @@ sections.
 The explicit CPU boundary restores two submissions and waits and adds exactly
 one download plus one lazy re-upload, demonstrating that fallback preserves
 coherence without downloading unrelated resident inputs.
+
+## Step 6: Keep Dense Inference Device-Resident
+
+Captured on July 23, 2026.
+
+### Environment
+
+| Field | Value |
+| --- | --- |
+| OS | macOS 26.5.2 (25F84) |
+| Architecture | arm64 |
+| CPU | Apple M3 |
+| go.mod Go version | 1.26.1 |
+| Go toolchain | go1.26.5 darwin/arm64 |
+| CGO | enabled |
+| Metal device | available outside the filesystem sandbox |
+
+### Workloads and Commands
+
+The small workload is `16x32 -> Dense(32,64) -> ReLU -> Dense(64,10)
+-> Softmax`. Both multiplications remain below the dispatch threshold. The
+large workload is the representative `256x512 -> Dense(512,512) -> ReLU
+-> Dense(512,64) -> Softmax` graph. Cold cases use a fresh logical model for
+each prediction while reusing the process runtime after its first
+initialization. Warmed cases reuse the model, parameters, matrix residency, and
+layer scratch.
+
+Ten default and Metal samples:
+
+```sh
+GOCACHE=/tmp/neuralnetwork-section6-go-cache go test ./model -run '^$' -bench='^Benchmark_SequentialResidentPredict/(Small|Large)/(ColdFirstUse|Warmed)$' -benchmem -benchtime=100ms -count=10
+GOCACHE=/tmp/neuralnetwork-section6-go-cache go test ./model -tags=metal -run '^$' -bench='^Benchmark_SequentialResidentPredict/(Small|Large)/(ColdFirstUse|Warmed)$' -benchmem -benchtime=100ms -count=10
+```
+
+The longer command confirms the noisy large warmed Metal median:
+
+```sh
+GOCACHE=/tmp/neuralnetwork-section6-go-cache go test ./model -tags=metal -run '^$' -bench='^Benchmark_SequentialResidentPredict/Large/Warmed$' -benchmem -benchtime=1s -count=10
+```
+
+The historical Section 2 synchronous comparison uses its unchanged legacy
+`128x256 -> Dense(256,128) -> ReLU -> Dense(128,128) -> Softmax` shape.
+Current default and resident controls use:
+
+```sh
+GOCACHE=/tmp/neuralnetwork-section6-go-cache go test ./model -run '^$' -bench='^Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed$' -benchmem -benchtime=200ms -count=10
+GOCACHE=/tmp/neuralnetwork-section6-go-cache go test ./model -tags=metal -run '^$' -bench='^Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed$' -benchmem -benchtime=200ms -count=10
+```
+
+### Summary
+
+Ten-sample medians average the fifth and sixth sorted samples.
+
+| Workload | Default median ns/op | Resident Metal median ns/op | Speedup | Resident transfers | Resident commands/waits | Default B/op, allocs | Resident B/op, allocs |
+| --- | ---: | ---: | ---: | --- | --- | ---: | ---: |
+| Small cold | 34,525 | 35,385 | 0.98x | 0 uploads, 0 downloads | 0 / 0 | 20,736, 16 | 23,104, 31 |
+| Small warm | 31,359 | 30,406 | 1.03x | 0 uploads, 0 downloads | 0 / 0 | 0, 0 | 0, 0 |
+| Large cold | 42,712,230 | 1,581,198 | 27.01x | 5 uploads / 1,706,240 bytes, 0 downloads | 1 / 1 | 2,818,432, 16 | 2,823,271, 73 |
+| Large warm | 42,622,722 | 4,125,990 | 10.33x | 0 uploads / 0 bytes, 0 downloads / 0 bytes | 1 / 1 | 0, 0 | 960, 25 |
+
+The longer large warmed Metal run produced a 4,127,368 ns/op median, within
+0.04% of the short-run median. Its individual samples still ranged from
+3,450,272 to 4,601,772 ns/op.
+
+The legacy-shape comparison is:
+
+| Implementation | Median or recorded ns/op | Transfers and commands |
+| --- | ---: | --- |
+| Historical Section 2 default | 3,843,082 | CPU |
+| Historical Section 2 synchronous Metal | 677,978 | 4 uploads, 2 downloads, 2 commands, 2 waits |
+| Current default control | 3,853,573 | CPU |
+| Current resident Metal | 1,547,023 | 0 warmed uploads/downloads, 1 command, 1 wait |
+
+The historical synchronous and current resident samples were captured on
+different dates and are not treated as a tuning claim. They show that the
+smaller legacy shape remains sensitive to staging allocation and GPU operating
+state even though the resident path is 2.49x faster than its same-session
+default control.
+
+### Raw Default Output
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3070  35082 ns/op  20736 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3417  34627 ns/op  20737 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3496  34535 ns/op  20736 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3471  34780 ns/op  20736 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3525  34286 ns/op  20736 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3531  34262 ns/op  20736 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3489  34514 ns/op  20736 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3505  34397 ns/op  20736 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3468  34504 ns/op  20736 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3525  34545 ns/op  20736 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                3823  32374 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4273  32505 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4010  29957 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4065  32186 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                3948  31135 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                3992  31588 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4017  30157 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4026  31582 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                3932  30188 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4046  30212 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8             3  43038348 ns/op  2818432 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8             3  42474236 ns/op  2818437 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8             3  42253820 ns/op  2818437 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8             3  42410750 ns/op  2818432 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8             3  42662167 ns/op  2818432 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8             3  42826069 ns/op  2818506 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8             3  42762292 ns/op  2818432 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8             3  42553972 ns/op  2818432 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8             3  43085055 ns/op  2818432 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8             3  42818972 ns/op  2818432 B/op  16 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                   3  42583667 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                   3  42562333 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                   3  42674306 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                   3  42637597 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                   3  43020764 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                   3  42664667 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                   3  42607847 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                   3  42493236 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                   3  42584945 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                   3  42897333 ns/op        0 B/op   0 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/model  11.407s
+```
+
+### Raw Metal Output
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          2809  35793 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23104 B/op  31 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3190  35184 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23104 B/op  31 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3321  34917 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23104 B/op  31 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3274  35239 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23104 B/op  31 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3271  35599 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23104 B/op  31 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3291  35781 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23104 B/op  31 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3313  35422 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23104 B/op  31 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3331  35569 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23104 B/op  31 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3303  35348 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23104 B/op  31 allocs/op
+Benchmark_SequentialResidentPredict/Small/ColdFirstUse-8          3336  35339 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23104 B/op  31 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4096  30411 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4129  30512 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                3866  30462 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4164  30401 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4161  30398 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4094  30354 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4142  30348 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4126  30410 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4166  30375 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Small/Warmed-8                4086  30572 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8            64  1600811 ns/op  13.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  1706240 upload-bytes/op  5.000 uploads/op  1.000 waits/op  2823271 B/op  73 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8            78  1569969 ns/op  13.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  1706240 upload-bytes/op  5.000 uploads/op  1.000 waits/op  2823271 B/op  73 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8            80  1603633 ns/op  13.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  1706240 upload-bytes/op  5.000 uploads/op  1.000 waits/op  2823339 B/op  73 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8            79  1579264 ns/op  13.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  1706240 upload-bytes/op  5.000 uploads/op  1.000 waits/op  2823272 B/op  73 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8            75  1576124 ns/op  13.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  1706240 upload-bytes/op  5.000 uploads/op  1.000 waits/op  2823275 B/op  73 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8            79  1552305 ns/op  13.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  1706240 upload-bytes/op  5.000 uploads/op  1.000 waits/op  2823273 B/op  73 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8            79  1583132 ns/op  13.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  1706240 upload-bytes/op  5.000 uploads/op  1.000 waits/op  2823271 B/op  73 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8            79  3521234 ns/op  13.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  1706240 upload-bytes/op  5.000 uploads/op  1.000 waits/op  2823272 B/op  73 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8            68  1596787 ns/op  13.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  1706240 upload-bytes/op  5.000 uploads/op  1.000 waits/op  2823270 B/op  73 allocs/op
+Benchmark_SequentialResidentPredict/Large/ColdFirstUse-8            78  1565937 ns/op  13.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  1706240 upload-bytes/op  5.000 uploads/op  1.000 waits/op  2823271 B/op  73 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                 100  1100267 ns/op   8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op        0 upload-bytes/op  0 uploads/op  1.000 waits/op      960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                 100  1862844 ns/op   8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op        0 upload-bytes/op  0 uploads/op  1.000 waits/op      960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                  32  4360263 ns/op   8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op        0 upload-bytes/op  0 uploads/op  1.000 waits/op      960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                  31  4321859 ns/op   8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op        0 upload-bytes/op  0 uploads/op  1.000 waits/op      960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                  31  4490876 ns/op   8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op        0 upload-bytes/op  0 uploads/op  1.000 waits/op      960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                  32  4171798 ns/op   8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op        0 upload-bytes/op  0 uploads/op  1.000 waits/op      960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                  26  4835551 ns/op   8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op        0 upload-bytes/op  0 uploads/op  1.000 waits/op      960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                  75  1845369 ns/op   8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op        0 upload-bytes/op  0 uploads/op  1.000 waits/op      960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                  62  2589017 ns/op   8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op        0 upload-bytes/op  0 uploads/op  1.000 waits/op      960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8                  51  4080181 ns/op   8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op        0 upload-bytes/op  0 uploads/op  1.000 waits/op      960 B/op  25 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/model  9.633s
+```
+
+Longer warmed confirmation:
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialResidentPredict/Large/Warmed-8  613  3988034 ns/op  8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8  247  4601772 ns/op  8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8  284  4506562 ns/op  8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8  432  3450272 ns/op  8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8  286  4451659 ns/op  8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8  446  3740127 ns/op  8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8  496  3918201 ns/op  8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8  302  4391673 ns/op  8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8  616  3604161 ns/op  8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  960 B/op  25 allocs/op
+Benchmark_SequentialResidentPredict/Large/Warmed-8  373  4266702 ns/op  8.000 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  960 B/op  25 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/model  22.057s
+```
+
+### Legacy-Shape Raw Output
+
+Default:
+
+```text
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  57  3826366 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  66  3826826 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  66  3864615 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  66  3818186 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  66  3853115 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  61  3854030 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  66  3869438 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  66  3873658 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  61  3843649 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  66  3859083 ns/op  0 B/op  0 allocs/op
+```
+
+Resident Metal:
+
+```text
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  243  1178022 ns/op  960 B/op  25 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  152  1568839 ns/op  960 B/op  25 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  153  1893487 ns/op  960 B/op  25 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  145  1638577 ns/op  960 B/op  25 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  189  1519660 ns/op  960 B/op  25 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  152  1559439 ns/op  960 B/op  25 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  151  1455127 ns/op  960 B/op  25 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  136  1534606 ns/op  960 B/op  25 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  146  1575034 ns/op  960 B/op  25 allocs/op
+Benchmark_SequentialMetalBaseline/Predict/LargeAboveThreshold/Warmed-8  184  1404730 ns/op  960 B/op  25 allocs/op
+```
+
+### Interpretation
+
+The supported large graph now encodes both multiplications, both bias
+additions, ReLU, Softmax, and four layer-cache copies into one command buffer.
+Its first prediction uploads exactly the caller input and four parameters.
+Warmed predictions upload and download nothing; every parameter buffer is
+reused, and the returned Softmax matrix remains device-newer until observed.
+The eight warmed buffer creations are failure-atomic destination staging for
+four layer outputs and four caches, not operand re-uploads.
+
+The small graph records no Metal buffer, transfer, command, wait, byte, or Go
+allocation activity after warm-up. Its Metal-tag median is about 3% faster
+than default in this sample, so transparent eligibility does not impose the
+material small-workload regression defined by the design.
+
+The representative large warmed graph is about 10.3x faster than default even
+with the current naive multiplication shader. The shorter legacy graph is only
+2.49x faster than its same-session default control and is slower than the
+historical synchronous sample, which keeps staging allocation and dispatch
+tuning explicitly assigned to Section 9.
+
+Metal Performance Shaders remains outside the approved Section 1 contract. A
+tiled custom multiplication kernel was not adopted here: the end-to-end large
+result already materially favors Metal, while these samples do not isolate
+matrix arithmetic from destination allocation and GPU operating-state
+variance well enough to justify a second, more complex shader. The existing
+naive kernel and all three multiplication variants remain the maintainable
+baseline for the backward and hardening sections.
