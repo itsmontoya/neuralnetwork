@@ -433,19 +433,12 @@ func (m *Matrix) Add(other *Matrix) (result *Matrix, err error) {
 	if err = m.sameShape(other); err != nil {
 		return nil, err
 	}
-	if err = m.ensureHostCurrent(); err != nil {
-		return nil, err
-	}
-	if err = other.ensureHostCurrent(); err != nil {
-		return nil, err
-	}
 
 	result = m.newLike()
-	if err = inheritExecution(result, m, other); err != nil {
+	if err = m.AddInto(other, result); err != nil {
 		return nil, err
 	}
 
-	addInto(m.data, other.data, result.data)
 	return result, nil
 }
 
@@ -454,6 +447,8 @@ func (m *Matrix) Add(other *Matrix) (result *Matrix, err error) {
 // The destination must match the input shape. The destination is caller-owned
 // and may alias either input because each element is read before it is written.
 func (m *Matrix) AddInto(other, result *Matrix) (err error) {
+	var handled bool
+
 	if err = m.sameShape(other); err != nil {
 		return err
 	}
@@ -463,6 +458,12 @@ func (m *Matrix) AddInto(other, result *Matrix) (err error) {
 	}
 	if err = inheritExecution(result, m, other); err != nil {
 		return err
+	}
+	if handled, err = addIntoDevice(m, other, result); err != nil {
+		return err
+	}
+	if handled {
+		return nil
 	}
 	if err = m.ensureHostCurrent(); err != nil {
 		return err
@@ -1024,6 +1025,8 @@ func (m *Matrix) SoftmaxRowsInto(result *Matrix) (err error) {
 // overwrite the caller-owned destination without allocating or retaining any
 // matrix.
 func (m *Matrix) SoftmaxRowsBackwardInto(outputGradient, result *Matrix) (err error) {
+	var handled bool
+
 	if err = m.validate(); err != nil {
 		return err
 	}
@@ -1042,6 +1045,12 @@ func (m *Matrix) SoftmaxRowsBackwardInto(outputGradient, result *Matrix) (err er
 	}
 	if err = inheritExecution(result, m, outputGradient); err != nil {
 		return err
+	}
+	if handled, err = softmaxRowsBackwardIntoDevice(m, outputGradient, result); err != nil {
+		return err
+	}
+	if handled {
+		return nil
 	}
 	if err = m.ensureHostCurrent(); err != nil {
 		return err
@@ -1375,6 +1384,8 @@ func (m *Matrix) ColumnSums() (sums []float32, err error) {
 //
 // The destination is caller-owned and must not alias m.
 func (m *Matrix) ColumnSumsInto(result *Matrix) (err error) {
+	var handled bool
+
 	if err = m.validate(); err != nil {
 		return err
 	}
@@ -1389,6 +1400,12 @@ func (m *Matrix) ColumnSumsInto(result *Matrix) (err error) {
 	}
 	if err = inheritExecution(result, m); err != nil {
 		return err
+	}
+	if handled, err = columnSumsIntoDevice(m, result); err != nil {
+		return err
+	}
+	if handled {
+		return nil
 	}
 	if err = m.ensureHostCurrent(); err != nil {
 		return err
@@ -1429,6 +1446,8 @@ func (m *Matrix) ColumnSumsInto(result *Matrix) (err error) {
 //
 // The destination is caller-owned and must not alias m.
 func (m *Matrix) AccumulateColumnSumsInto(result *Matrix) (err error) {
+	var handled bool
+
 	if err = m.validate(); err != nil {
 		return err
 	}
@@ -1443,6 +1462,12 @@ func (m *Matrix) AccumulateColumnSumsInto(result *Matrix) (err error) {
 	}
 	if err = inheritExecution(result, m); err != nil {
 		return err
+	}
+	if handled, err = accumulateColumnSumsIntoDevice(m, result); err != nil {
+		return err
+	}
+	if handled {
+		return nil
 	}
 	if err = m.ensureHostCurrent(); err != nil {
 		return err

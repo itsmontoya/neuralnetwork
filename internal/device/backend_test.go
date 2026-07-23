@@ -198,6 +198,40 @@ func (b *testBackend) encodeAddRowVector(
 	return nil
 }
 
+func (b *testBackend) encodeAddScaled(
+	scope,
+	left,
+	right,
+	result any,
+	scale float32,
+	_ uint32,
+) (err error) {
+	var (
+		commandScope *testScope
+		leftBuffer   *testBuffer
+		rightBuffer  *testBuffer
+		resultBuffer *testBuffer
+	)
+
+	if b.encodeErr != nil {
+		return b.encodeErr
+	}
+	commandScope = testScopeHandle(scope)
+	leftBuffer = testBufferHandle(left)
+	rightBuffer = testBufferHandle(right)
+	resultBuffer = testBufferHandle(result)
+	if commandScope == nil || leftBuffer == nil || rightBuffer == nil || resultBuffer == nil {
+		return errors.New("test backend: nil scaled addition handle")
+	}
+	commandScope.commands = append(commandScope.commands, func() {
+		var index int
+		for index = range resultBuffer.values {
+			resultBuffer.values[index] = leftBuffer.values[index] + scale*rightBuffer.values[index]
+		}
+	})
+	return nil
+}
+
 func (b *testBackend) encodeReLU(scope, input, result any, _ uint32) (err error) {
 	var (
 		commandScope *testScope
@@ -225,6 +259,47 @@ func (b *testBackend) encodeReLU(scope, input, result any, _ uint32) (err error)
 			} else {
 				resultBuffer.values[index] = 0
 			}
+		}
+	})
+	return nil
+}
+
+func (b *testBackend) encodeReLUBackward(
+	scope,
+	input,
+	outputGradient,
+	result any,
+	_ uint32,
+) (err error) {
+	var (
+		commandScope         *testScope
+		inputBuffer          *testBuffer
+		outputGradientBuffer *testBuffer
+		resultBuffer         *testBuffer
+	)
+
+	if b.encodeErr != nil {
+		return b.encodeErr
+	}
+	commandScope = testScopeHandle(scope)
+	inputBuffer = testBufferHandle(input)
+	outputGradientBuffer = testBufferHandle(outputGradient)
+	resultBuffer = testBufferHandle(result)
+	if commandScope == nil || inputBuffer == nil ||
+		outputGradientBuffer == nil || resultBuffer == nil {
+		return errors.New("test backend: nil ReLU backward handle")
+	}
+	commandScope.commands = append(commandScope.commands, func() {
+		var (
+			index      int
+			derivative float32
+		)
+		for index = range resultBuffer.values {
+			derivative = 0
+			if inputBuffer.values[index] > 0 {
+				derivative = 1
+			}
+			resultBuffer.values[index] = derivative * outputGradientBuffer.values[index]
 		}
 	})
 	return nil
@@ -278,6 +353,114 @@ func (b *testBackend) encodeSoftmaxRows(
 			}
 			for col = 0; col < cols; col++ {
 				resultBuffer.values[offset+col] /= sum
+			}
+		}
+	})
+	return nil
+}
+
+func (b *testBackend) encodeSoftmaxRowsBackward(
+	scope,
+	input,
+	outputGradient,
+	result any,
+	rows,
+	cols uint32,
+) (err error) {
+	var (
+		commandScope         *testScope
+		inputBuffer          *testBuffer
+		outputGradientBuffer *testBuffer
+		resultBuffer         *testBuffer
+	)
+
+	if b.encodeErr != nil {
+		return b.encodeErr
+	}
+	commandScope = testScopeHandle(scope)
+	inputBuffer = testBufferHandle(input)
+	outputGradientBuffer = testBufferHandle(outputGradient)
+	resultBuffer = testBufferHandle(result)
+	if commandScope == nil || inputBuffer == nil ||
+		outputGradientBuffer == nil || resultBuffer == nil {
+		return errors.New("test backend: nil Softmax backward handle")
+	}
+	commandScope.commands = append(commandScope.commands, func() {
+		var (
+			row      uint32
+			col      uint32
+			offset   uint32
+			maxValue float32
+			value    float32
+			sum      float32
+			dot      float32
+		)
+		for row = 0; row < rows; row++ {
+			offset = row * cols
+			maxValue = inputBuffer.values[offset]
+			for col = 1; col < cols; col++ {
+				value = inputBuffer.values[offset+col]
+				if value > maxValue {
+					maxValue = value
+				}
+			}
+			sum = 0
+			for col = 0; col < cols; col++ {
+				value = float32(math.Exp(float64(inputBuffer.values[offset+col] - maxValue)))
+				resultBuffer.values[offset+col] = value
+				sum += value
+			}
+			dot = 0
+			for col = 0; col < cols; col++ {
+				resultBuffer.values[offset+col] /= sum
+				dot += outputGradientBuffer.values[offset+col] * resultBuffer.values[offset+col]
+			}
+			for col = 0; col < cols; col++ {
+				resultBuffer.values[offset+col] *= outputGradientBuffer.values[offset+col] - dot
+			}
+		}
+	})
+	return nil
+}
+
+func (b *testBackend) encodeColumnSums(
+	scope,
+	input,
+	result any,
+	rows,
+	cols uint32,
+	accumulate bool,
+) (err error) {
+	var (
+		commandScope *testScope
+		inputBuffer  *testBuffer
+		resultBuffer *testBuffer
+	)
+
+	if b.encodeErr != nil {
+		return b.encodeErr
+	}
+	commandScope = testScopeHandle(scope)
+	inputBuffer = testBufferHandle(input)
+	resultBuffer = testBufferHandle(result)
+	if commandScope == nil || inputBuffer == nil || resultBuffer == nil {
+		return errors.New("test backend: nil column sums handle")
+	}
+	commandScope.commands = append(commandScope.commands, func() {
+		var (
+			row uint32
+			col uint32
+			sum float32
+		)
+		for col = 0; col < cols; col++ {
+			sum = 0
+			for row = 0; row < rows; row++ {
+				sum += inputBuffer.values[row*cols+col]
+			}
+			if accumulate {
+				resultBuffer.values[col] += sum
+			} else {
+				resultBuffer.values[col] = sum
 			}
 		}
 	})

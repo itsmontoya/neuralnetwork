@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/itsmontoya/neuralnetwork/internal/device"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
@@ -71,8 +72,16 @@ func (p *Parameter) AccumulateGradient(gradient *matrix.Matrix) (err error) {
 
 // ResetGradient sets every accumulated gradient value to zero.
 func (p *Parameter) ResetGradient() (err error) {
+	var handled bool
+
 	if err = p.validate(); err != nil {
 		return err
+	}
+	if handled, err = device.Reset(p.gradient); err != nil {
+		return err
+	}
+	if handled {
+		return nil
 	}
 
 	err = p.gradient.Fill(0)

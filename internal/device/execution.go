@@ -349,6 +349,37 @@ func (e *Execution) EncodeAddRowVector(
 	return nil
 }
 
+// EncodeAddScaled appends scaled elementwise addition and its destination publication.
+func (e *Execution) EncodeAddScaled(
+	left,
+	right,
+	result *Buffer,
+	scale float32,
+	transientBytes uint64,
+	publication Publication,
+) (err error) {
+	if e == nil {
+		err = errors.New("device: encode scaled addition execution is nil")
+		return err
+	}
+	if err = publication.validate(); err != nil {
+		return err
+	}
+
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if err = e.prepareLocked(transientBytes, publication); err != nil {
+		return err
+	}
+	if err = e.scope.EncodeAddScaled(left, right, result, scale); err != nil {
+		err = fmt.Errorf("device: execution encode scaled addition: %w", err)
+		e.failBatchLocked(err)
+		return err
+	}
+	e.recordEncodeLocked(transientBytes)
+	return nil
+}
+
 // EncodeReLU appends a ReLU forward operation and destination publication.
 func (e *Execution) EncodeReLU(
 	input,
@@ -371,6 +402,36 @@ func (e *Execution) EncodeReLU(
 	}
 	if err = e.scope.EncodeReLU(input, result); err != nil {
 		err = fmt.Errorf("device: execution encode ReLU: %w", err)
+		e.failBatchLocked(err)
+		return err
+	}
+	e.recordEncodeLocked(transientBytes)
+	return nil
+}
+
+// EncodeReLUBackward appends a ReLU derivative and its destination publication.
+func (e *Execution) EncodeReLUBackward(
+	input,
+	outputGradient,
+	result *Buffer,
+	transientBytes uint64,
+	publication Publication,
+) (err error) {
+	if e == nil {
+		err = errors.New("device: encode ReLU backward execution is nil")
+		return err
+	}
+	if err = publication.validate(); err != nil {
+		return err
+	}
+
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if err = e.prepareLocked(transientBytes, publication); err != nil {
+		return err
+	}
+	if err = e.scope.EncodeReLUBackward(input, outputGradient, result); err != nil {
+		err = fmt.Errorf("device: execution encode ReLU backward: %w", err)
 		e.failBatchLocked(err)
 		return err
 	}
@@ -406,6 +467,101 @@ func (e *Execution) EncodeSoftmaxRows(
 		return err
 	}
 	e.recordEncodeLocked(transientBytes)
+	return nil
+}
+
+// EncodeSoftmaxRowsBackward appends a Softmax Jacobian product and destination publication.
+func (e *Execution) EncodeSoftmaxRowsBackward(
+	input,
+	outputGradient,
+	result *Buffer,
+	rows,
+	cols uint32,
+	transientBytes uint64,
+	publication Publication,
+) (err error) {
+	if e == nil {
+		err = errors.New("device: encode Softmax backward execution is nil")
+		return err
+	}
+	if err = publication.validate(); err != nil {
+		return err
+	}
+
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if err = e.prepareLocked(transientBytes, publication); err != nil {
+		return err
+	}
+	if err = e.scope.EncodeSoftmaxRowsBackward(
+		input,
+		outputGradient,
+		result,
+		rows,
+		cols,
+	); err != nil {
+		err = fmt.Errorf("device: execution encode Softmax backward: %w", err)
+		e.failBatchLocked(err)
+		return err
+	}
+	e.recordEncodeLocked(transientBytes)
+	return nil
+}
+
+// EncodeColumnSums appends a column reduction and destination publication.
+func (e *Execution) EncodeColumnSums(
+	input,
+	result *Buffer,
+	rows,
+	cols uint32,
+	transientBytes uint64,
+	publication Publication,
+) (err error) {
+	if e == nil {
+		err = errors.New("device: encode column sums execution is nil")
+		return err
+	}
+	if err = publication.validate(); err != nil {
+		return err
+	}
+
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if err = e.prepareLocked(transientBytes, publication); err != nil {
+		return err
+	}
+	if err = e.scope.EncodeColumnSums(input, result, rows, cols, false); err != nil {
+		err = fmt.Errorf("device: execution encode column sums: %w", err)
+		e.failBatchLocked(err)
+		return err
+	}
+	e.recordEncodeLocked(transientBytes)
+	return nil
+}
+
+// EncodeAccumulateColumnSums appends an in-place reduction to pending staging.
+func (e *Execution) EncodeAccumulateColumnSums(
+	input,
+	result *Buffer,
+	rows,
+	cols uint32,
+) (err error) {
+	if e == nil {
+		err = errors.New("device: encode accumulated column sums execution is nil")
+		return err
+	}
+
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if err = e.prepareDependentLocked(); err != nil {
+		return err
+	}
+	if err = e.scope.EncodeColumnSums(input, result, rows, cols, true); err != nil {
+		err = fmt.Errorf("device: execution encode accumulated column sums: %w", err)
+		e.failBatchLocked(err)
+		return err
+	}
+	e.recordEncodeLocked(0)
 	return nil
 }
 

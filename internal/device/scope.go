@@ -134,6 +134,56 @@ func (s *Scope) EncodeAddRowVector(
 	return nil
 }
 
+// EncodeAddScaled appends result=left+scale*right to the scope.
+func (s *Scope) EncodeAddScaled(
+	left,
+	right,
+	result *Buffer,
+	scale float32,
+) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(left, "scaled addition left input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(right, "scaled addition right input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "scaled addition destination"); err != nil {
+		return err
+	}
+	if left.count != right.count || left.count != result.count {
+		err = fmt.Errorf(
+			"device: scaled addition buffer length mismatch: left=%d right=%d destination=%d",
+			left.count,
+			right.count,
+			result.count,
+		)
+		return err
+	}
+	if left.count > uint64(^uint32(0)) {
+		err = fmt.Errorf("device: scaled addition element count exceeds uint32: %d", left.count)
+		return err
+	}
+	if err = s.runtime.backend.encodeAddScaled(
+		s.handle,
+		left.handle,
+		right.handle,
+		result.handle,
+		scale,
+		uint32(left.count),
+	); err != nil {
+		err = fmt.Errorf("device: encode scaled addition: %w", err)
+		s.fail(err)
+		return err
+	}
+
+	return nil
+}
+
 // EncodeReLU appends a rectified-linear-unit forward operation to the scope.
 func (s *Scope) EncodeReLU(input, result *Buffer) (err error) {
 	if err = s.lockForEncoding(); err != nil {
@@ -166,6 +216,54 @@ func (s *Scope) EncodeReLU(input, result *Buffer) (err error) {
 		uint32(input.count),
 	); err != nil {
 		err = fmt.Errorf("device: encode ReLU: %w", err)
+		s.fail(err)
+		return err
+	}
+
+	return nil
+}
+
+// EncodeReLUBackward appends a rectified-linear-unit derivative operation.
+func (s *Scope) EncodeReLUBackward(
+	input,
+	outputGradient,
+	result *Buffer,
+) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(input, "ReLU backward input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(outputGradient, "ReLU backward output gradient"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "ReLU backward destination"); err != nil {
+		return err
+	}
+	if input.count != outputGradient.count || input.count != result.count {
+		err = fmt.Errorf(
+			"device: ReLU backward buffer length mismatch: input=%d gradient=%d destination=%d",
+			input.count,
+			outputGradient.count,
+			result.count,
+		)
+		return err
+	}
+	if input.count > uint64(^uint32(0)) {
+		err = fmt.Errorf("device: ReLU backward element count exceeds uint32: %d", input.count)
+		return err
+	}
+	if err = s.runtime.backend.encodeReLUBackward(
+		s.handle,
+		input.handle,
+		outputGradient.handle,
+		result.handle,
+		uint32(input.count),
+	); err != nil {
+		err = fmt.Errorf("device: encode ReLU backward: %w", err)
 		s.fail(err)
 		return err
 	}
@@ -221,6 +319,123 @@ func (s *Scope) EncodeSoftmaxRows(
 		cols,
 	); err != nil {
 		err = fmt.Errorf("device: encode Softmax: %w", err)
+		s.fail(err)
+		return err
+	}
+
+	return nil
+}
+
+// EncodeSoftmaxRowsBackward appends a stable row-wise Softmax Jacobian product.
+func (s *Scope) EncodeSoftmaxRowsBackward(
+	input,
+	outputGradient,
+	result *Buffer,
+	rows,
+	cols uint32,
+) (err error) {
+	var expectedCount uint64
+
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(input, "Softmax backward input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(outputGradient, "Softmax backward output gradient"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "Softmax backward destination"); err != nil {
+		return err
+	}
+	if rows == 0 || cols == 0 {
+		err = errors.New("device: Softmax backward dimensions must be positive")
+		return err
+	}
+
+	expectedCount = uint64(rows) * uint64(cols)
+	if expectedCount > uint64(^uint32(0)) {
+		err = fmt.Errorf("device: Softmax backward element count exceeds uint32: %d", expectedCount)
+		return err
+	}
+	if input.count != expectedCount ||
+		outputGradient.count != expectedCount ||
+		result.count != expectedCount {
+		err = fmt.Errorf(
+			"device: Softmax backward buffer length mismatch: input=%d/%d gradient=%d/%d destination=%d/%d",
+			input.count,
+			expectedCount,
+			outputGradient.count,
+			expectedCount,
+			result.count,
+			expectedCount,
+		)
+		return err
+	}
+	if err = s.runtime.backend.encodeSoftmaxRowsBackward(
+		s.handle,
+		input.handle,
+		outputGradient.handle,
+		result.handle,
+		rows,
+		cols,
+	); err != nil {
+		err = fmt.Errorf("device: encode Softmax backward: %w", err)
+		s.fail(err)
+		return err
+	}
+
+	return nil
+}
+
+// EncodeColumnSums appends a deterministic column reduction.
+func (s *Scope) EncodeColumnSums(
+	input,
+	result *Buffer,
+	rows,
+	cols uint32,
+	accumulate bool,
+) (err error) {
+	var expectedCount uint64
+
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(input, "column sums input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "column sums destination"); err != nil {
+		return err
+	}
+	if rows == 0 || cols == 0 {
+		err = errors.New("device: column sums dimensions must be positive")
+		return err
+	}
+
+	expectedCount = uint64(rows) * uint64(cols)
+	if input.count != expectedCount || result.count != uint64(cols) {
+		err = fmt.Errorf(
+			"device: column sums buffer length mismatch: input=%d/%d destination=%d/%d",
+			input.count,
+			expectedCount,
+			result.count,
+			cols,
+		)
+		return err
+	}
+	if err = s.runtime.backend.encodeColumnSums(
+		s.handle,
+		input.handle,
+		result.handle,
+		rows,
+		cols,
+		accumulate,
+	); err != nil {
+		err = fmt.Errorf("device: encode column sums: %w", err)
 		s.fail(err)
 		return err
 	}

@@ -15,6 +15,8 @@ func init() {
 	adapter.Execution = matrixExecutionValue
 	adapter.Unbind = unbindMatrixExecution
 	adapter.ReLUForward = forwardReLUExecution
+	adapter.ReLUBackward = backwardReLUExecution
+	adapter.Reset = resetMatrixExecution
 	adapter.Record = recordExecutionActivity
 	if err = device.RegisterExecutionAdapter(adapter); err != nil {
 		panic(fmt.Sprintf("matrix: register device execution adapter: %v", err))
@@ -47,6 +49,75 @@ func forwardReLUExecution(input, output any) (handled bool, err error) {
 	}
 
 	handled, err = reluForwardDevice(inputMatrix, outputMatrix)
+	return handled, err
+}
+
+func backwardReLUExecution(
+	input,
+	outputGradient,
+	inputGradient any,
+) (handled bool, err error) {
+	var (
+		inputMatrix          *Matrix
+		outputGradientMatrix *Matrix
+		inputGradientMatrix  *Matrix
+		ok                   bool
+	)
+
+	if inputMatrix, ok = input.(*Matrix); !ok {
+		err = fmt.Errorf("matrix: ReLU input has type %T, want *matrix.Matrix", input)
+		return false, err
+	}
+	if outputGradientMatrix, ok = outputGradient.(*Matrix); !ok {
+		err = fmt.Errorf("matrix: ReLU output gradient has type %T, want *matrix.Matrix", outputGradient)
+		return false, err
+	}
+	if inputGradientMatrix, ok = inputGradient.(*Matrix); !ok {
+		err = fmt.Errorf("matrix: ReLU input gradient has type %T, want *matrix.Matrix", inputGradient)
+		return false, err
+	}
+	if err = inputMatrix.validate(); err != nil {
+		return false, err
+	}
+	if err = outputGradientMatrix.requireShape(
+		"output gradient",
+		inputMatrix.rows,
+		inputMatrix.cols,
+	); err != nil {
+		return false, err
+	}
+	if err = inputGradientMatrix.requireShape(
+		"destination",
+		inputMatrix.rows,
+		inputMatrix.cols,
+	); err != nil {
+		return false, err
+	}
+	if inputGradientMatrix == outputGradientMatrix {
+		err = errors.New("matrix: ReLU input gradient must not alias output gradient")
+		return false, err
+	}
+	if err = inheritExecution(inputGradientMatrix, inputMatrix, outputGradientMatrix); err != nil {
+		return false, err
+	}
+
+	handled, err = reluBackwardDevice(inputMatrix, outputGradientMatrix, inputGradientMatrix)
+	return handled, err
+}
+
+func resetMatrixExecution(value any) (handled bool, err error) {
+	var matrixValue *Matrix
+	var ok bool
+
+	if matrixValue, ok = value.(*Matrix); !ok {
+		err = fmt.Errorf("matrix: reset value has type %T, want *matrix.Matrix", value)
+		return false, err
+	}
+	if err = matrixValue.validate(); err != nil {
+		return false, err
+	}
+
+	handled, err = resetDevice(matrixValue)
 	return handled, err
 }
 

@@ -38,9 +38,9 @@ func Test_MetalBatchedExecutionTransferCounts(t *testing.T) {
 		waits     uint64
 	}{
 		{name: "Predict", setup: setupMetalBaselinePredict, buffers: 13, uploads: 5, downloads: 0, commands: 1, waits: 1},
-		{name: "Backward", setup: setupMetalBaselineBackward, buffers: 6, uploads: 2, downloads: 5, commands: 2, waits: 2},
-		{name: "TrainBatch", setup: setupMetalBaselineTrainBatch, buffers: 19, uploads: 7, downloads: 6, commands: 3, waits: 3},
-		{name: "Fit", setup: setupMetalBaselineFit, buffers: 28, uploads: 12, downloads: 7, commands: 4, waits: 4},
+		{name: "Backward", setup: setupMetalBaselineBackward, buffers: 15, uploads: 5, downloads: 0, commands: 1, waits: 1},
+		{name: "TrainBatch", setup: setupMetalBaselineTrainBatch, buffers: 28, uploads: 10, downloads: 5, commands: 2, waits: 2},
+		{name: "Fit", setup: setupMetalBaselineFit, buffers: 37, uploads: 15, downloads: 6, commands: 3, waits: 3},
 	}
 
 	metaltest.Enable()

@@ -229,6 +229,51 @@ func (m *metalBackend) encodeAddRowVector(
 	return nil
 }
 
+func (m *metalBackend) encodeAddScaled(
+	scope,
+	left,
+	right,
+	result any,
+	scale float32,
+	count uint32,
+) (err error) {
+	var (
+		scopeHandle  C.NNMetalScope
+		leftHandle   C.NNMetalBuffer
+		rightHandle  C.NNMetalBuffer
+		resultHandle C.NNMetalBuffer
+		status       C.int
+	)
+
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if leftHandle, err = m.bufferHandle(left); err != nil {
+		return err
+	}
+	if rightHandle, err = m.bufferHandle(right); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	status = C.nn_metal_scope_encode_add_scaled(
+		scopeHandle,
+		leftHandle,
+		rightHandle,
+		resultHandle,
+		C.float(scale),
+		C.uint32_t(count),
+	)
+	if status != C.NNMetalStatusSuccess {
+		err = m.lastError("encode Metal scaled addition")
+		return err
+	}
+
+	return nil
+}
+
 func (m *metalBackend) encodeReLU(scope, input, result any, count uint32) (err error) {
 	var (
 		scopeHandle  C.NNMetalScope
@@ -255,6 +300,49 @@ func (m *metalBackend) encodeReLU(scope, input, result any, count uint32) (err e
 	)
 	if status != C.NNMetalStatusSuccess {
 		err = m.lastError("encode Metal ReLU")
+		return err
+	}
+
+	return nil
+}
+
+func (m *metalBackend) encodeReLUBackward(
+	scope,
+	input,
+	outputGradient,
+	result any,
+	count uint32,
+) (err error) {
+	var (
+		scopeHandle          C.NNMetalScope
+		inputHandle          C.NNMetalBuffer
+		outputGradientHandle C.NNMetalBuffer
+		resultHandle         C.NNMetalBuffer
+		status               C.int
+	)
+
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if inputHandle, err = m.bufferHandle(input); err != nil {
+		return err
+	}
+	if outputGradientHandle, err = m.bufferHandle(outputGradient); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	status = C.nn_metal_scope_encode_relu_backward(
+		scopeHandle,
+		inputHandle,
+		outputGradientHandle,
+		resultHandle,
+		C.uint32_t(count),
+	)
+	if status != C.NNMetalStatusSuccess {
+		err = m.lastError("encode Metal ReLU backward")
 		return err
 	}
 
@@ -294,6 +382,96 @@ func (m *metalBackend) encodeSoftmaxRows(
 	)
 	if status != C.NNMetalStatusSuccess {
 		err = m.lastError("encode Metal row-wise Softmax")
+		return err
+	}
+
+	return nil
+}
+
+func (m *metalBackend) encodeSoftmaxRowsBackward(
+	scope,
+	input,
+	outputGradient,
+	result any,
+	rows,
+	cols uint32,
+) (err error) {
+	var (
+		scopeHandle          C.NNMetalScope
+		inputHandle          C.NNMetalBuffer
+		outputGradientHandle C.NNMetalBuffer
+		resultHandle         C.NNMetalBuffer
+		status               C.int
+	)
+
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if inputHandle, err = m.bufferHandle(input); err != nil {
+		return err
+	}
+	if outputGradientHandle, err = m.bufferHandle(outputGradient); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	status = C.nn_metal_scope_encode_softmax_rows_backward(
+		scopeHandle,
+		inputHandle,
+		outputGradientHandle,
+		resultHandle,
+		C.uint32_t(rows),
+		C.uint32_t(cols),
+	)
+	if status != C.NNMetalStatusSuccess {
+		err = m.lastError("encode Metal row-wise Softmax backward")
+		return err
+	}
+
+	return nil
+}
+
+func (m *metalBackend) encodeColumnSums(
+	scope,
+	input,
+	result any,
+	rows,
+	cols uint32,
+	accumulate bool,
+) (err error) {
+	var (
+		scopeHandle     C.NNMetalScope
+		inputHandle     C.NNMetalBuffer
+		resultHandle    C.NNMetalBuffer
+		accumulateValue C.uint32_t
+		status          C.int
+	)
+
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if inputHandle, err = m.bufferHandle(input); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+	if accumulate {
+		accumulateValue = 1
+	}
+
+	status = C.nn_metal_scope_encode_column_sums(
+		scopeHandle,
+		inputHandle,
+		resultHandle,
+		C.uint32_t(rows),
+		C.uint32_t(cols),
+		accumulateValue,
+	)
+	if status != C.NNMetalStatusSuccess {
+		err = m.lastError("encode Metal column sums")
 		return err
 	}
 
