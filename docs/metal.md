@@ -24,6 +24,10 @@ Updated on July 23, 2026 after adding resident dense-forward bias, ReLU, and
 stable row-wise Softmax kernels, retaining all multiplication variants, and
 keeping the complete supported prediction chain in one command scope.
 
+Updated on July 23, 2026 after adding resident dense and activation backward
+kernels, parameter-gradient accumulation and reset, column reductions, and
+selective backward observation boundaries.
+
 ## Decision Summary
 
 The `metal` build tag remains an implementation opt-in. Existing matrix,
@@ -61,13 +65,17 @@ do not change results or surface a device error.
 The matrix-facing Metal path currently accelerates `MatMul`, `MatMulInto`,
 `MatMulLeftTransposeInto`, and `MatMulRightTransposeInto`, plus resident
 matrix copies, row-vector bias addition, built-in ReLU forward, and stable
-row-wise Softmax forward. Eligible standalone multiplication and copy
+row-wise Softmax forward. Dense backward additionally keeps both transpose
+multiplications, built-in ReLU and Softmax derivatives, matrix gradient
+addition, and accumulated column sums resident. Eligible standalone
+multiplication, copy, and device-current gradient reset
 operations remain synchronous: they create a private execution, encode,
 commit, wait, publish completed staging, and detach before returning success.
 Inside a model execution, dependent forward operations share bounded command
-buffers and publish together at a required boundary. Completion alone does not
-download results. The path retains the custom naive multiplication shader and
-the `1 << 20` initial multiplication threshold.
+buffers, and a supported backward pass from resident forward caches uses one
+command buffer. Completion alone does not download results. The path retains
+the custom naive multiplication shader and the `1 << 20` initial
+multiplication threshold.
 
 The shared runtime initializes one default device, queue, library, fill
 pipeline, and multiplication pipeline. On an available Metal build, a model
@@ -110,6 +118,7 @@ matrix/execution.go             matrix binding, propagation, and barriers
 matrix/metal.go                 resident batched multiplication adapter
 matrix/copy_metal.go            independent device-newer matrix copies
 matrix/forward_device_metal.go  resident bias, ReLU, and Softmax adapters
+matrix/backward_device_metal.go resident derivatives, reductions, and accumulation
 matrix/matmul_metal.go          Metal-aware multiplication wrappers
 matrix/matmul_default.go        portable multiplication wrappers
 matrix/matmul_pure.go           pure-Go multiplication reference
@@ -309,11 +318,13 @@ barrier before reading host data and makes any destination host-newer.
 | `Apply`, `ApplyInto`, `Pairwise`, `PairwiseInto` | CPU fallback | Arbitrary Go callbacks are never assumed to be shaders. Callback order, error propagation, and currently permitted destination aliasing remain unchanged. Built-in ReLU and categorical loss use separate private typed operations. |
 
 This classification describes the complete milestone vocabulary. At the
-current Section 6 boundary, multiplication variants, resident copies,
-row-vector bias addition, built-in ReLU forward, and row-wise Softmax forward
-encode Metal work. Those operations share a sequential prediction execution;
-backward, loss, and update operations continue through their existing
-CPU/SIMD implementations until their owning sections.
+current Section 7 boundary, multiplication variants, resident copies,
+row-vector bias addition, built-in ReLU and Softmax forward and backward,
+matrix gradient addition, accumulated column sums, and explicit
+device-current gradient reset encode Metal work. Prediction and supported
+backward propagation each use one command scope after warm-up. Loss and
+parameter-update operations continue through their existing CPU/SIMD
+implementations until their owning section.
 
 ## Device Operation Vocabulary
 
