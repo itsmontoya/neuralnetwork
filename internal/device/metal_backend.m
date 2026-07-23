@@ -56,6 +56,18 @@ static const char *nnMetalShaderSource =
 	"        values[index] += rowVector[index % cols];\n"
 	"    }\n"
 	"}\n"
+	"kernel void nn_add_scaled(\n"
+	"    const device float *left [[buffer(0)]],\n"
+	"    const device float *right [[buffer(1)]],\n"
+	"    device float *result [[buffer(2)]],\n"
+	"    constant float &scale [[buffer(3)]],\n"
+	"    constant uint &count [[buffer(4)]],\n"
+	"    uint index [[thread_position_in_grid]]\n"
+	") {\n"
+	"    if (index < count) {\n"
+	"        result[index] = left[index] + scale * right[index];\n"
+	"    }\n"
+	"}\n"
 	"kernel void nn_relu(\n"
 	"    const device float *input [[buffer(0)]],\n"
 	"    device float *result [[buffer(1)]],\n"
@@ -65,6 +77,18 @@ static const char *nnMetalShaderSource =
 	"    if (index < count) {\n"
 	"        float value = input[index];\n"
 	"        result[index] = value > 0.0f ? value : 0.0f;\n"
+	"    }\n"
+	"}\n"
+	"kernel void nn_relu_backward(\n"
+	"    const device float *input [[buffer(0)]],\n"
+	"    const device float *outputGradient [[buffer(1)]],\n"
+	"    device float *result [[buffer(2)]],\n"
+	"    constant uint &count [[buffer(3)]],\n"
+	"    uint index [[thread_position_in_grid]]\n"
+	") {\n"
+	"    if (index < count) {\n"
+	"        float derivative = input[index] > 0.0f ? 1.0f : 0.0f;\n"
+	"        result[index] = derivative * outputGradient[index];\n"
 	"    }\n"
 	"}\n"
 	"kernel void nn_softmax_rows(\n"
@@ -94,6 +118,58 @@ static const char *nnMetalShaderSource =
 	"    for (uint col = 0; col < cols; col++) {\n"
 	"        result[offset + col] /= sum;\n"
 	"    }\n"
+	"}\n"
+	"kernel void nn_softmax_rows_backward(\n"
+	"    const device float *input [[buffer(0)]],\n"
+	"    const device float *outputGradient [[buffer(1)]],\n"
+	"    device float *result [[buffer(2)]],\n"
+	"    constant uint &rows [[buffer(3)]],\n"
+	"    constant uint &cols [[buffer(4)]],\n"
+	"    uint row [[thread_position_in_grid]]\n"
+	") {\n"
+	"    if (row >= rows) {\n"
+	"        return;\n"
+	"    }\n"
+	"    uint offset = row * cols;\n"
+	"    float maxValue = input[offset];\n"
+	"    for (uint col = 1; col < cols; col++) {\n"
+	"        float value = input[offset + col];\n"
+	"        if (value > maxValue) {\n"
+	"            maxValue = value;\n"
+	"        }\n"
+	"    }\n"
+	"    float sum = 0.0f;\n"
+	"    for (uint col = 0; col < cols; col++) {\n"
+	"        float probability = exp(input[offset + col] - maxValue);\n"
+	"        result[offset + col] = probability;\n"
+	"        sum += probability;\n"
+	"    }\n"
+	"    float dot = 0.0f;\n"
+	"    for (uint col = 0; col < cols; col++) {\n"
+	"        float probability = result[offset + col] / sum;\n"
+	"        result[offset + col] = probability;\n"
+	"        dot += outputGradient[offset + col] * probability;\n"
+	"    }\n"
+	"    for (uint col = 0; col < cols; col++) {\n"
+	"        result[offset + col] *= outputGradient[offset + col] - dot;\n"
+	"    }\n"
+	"}\n"
+	"kernel void nn_column_sums(\n"
+	"    const device float *input [[buffer(0)]],\n"
+	"    device float *result [[buffer(1)]],\n"
+	"    constant uint &rows [[buffer(2)]],\n"
+	"    constant uint &cols [[buffer(3)]],\n"
+	"    constant uint &accumulate [[buffer(4)]],\n"
+	"    uint col [[thread_position_in_grid]]\n"
+	") {\n"
+	"    if (col >= cols) {\n"
+	"        return;\n"
+	"    }\n"
+	"    float sum = 0.0f;\n"
+	"    for (uint row = 0; row < rows; row++) {\n"
+	"        sum += input[row * cols + col];\n"
+	"    }\n"
+	"    result[col] = accumulate != 0 ? result[col] + sum : sum;\n"
 	"}\n"
 	"kernel void nn_matmul(\n"
 	"    const device float *left [[buffer(0)]],\n"
@@ -141,8 +217,12 @@ static id<MTLCommandQueue> nnMetalCommandQueue = nil;
 static id<MTLLibrary> nnMetalLibrary = nil;
 static id<MTLComputePipelineState> nnMetalFillPipeline = nil;
 static id<MTLComputePipelineState> nnMetalAddRowVectorPipeline = nil;
+static id<MTLComputePipelineState> nnMetalAddScaledPipeline = nil;
 static id<MTLComputePipelineState> nnMetalReLUPipeline = nil;
+static id<MTLComputePipelineState> nnMetalReLUBackwardPipeline = nil;
 static id<MTLComputePipelineState> nnMetalSoftmaxRowsPipeline = nil;
+static id<MTLComputePipelineState> nnMetalSoftmaxRowsBackwardPipeline = nil;
+static id<MTLComputePipelineState> nnMetalColumnSumsPipeline = nil;
 static id<MTLComputePipelineState> nnMetalMatMulPipeline = nil;
 static NNMetalResourceSnapshot nnMetalResources;
 
@@ -172,16 +252,24 @@ static void nn_metal_cache_runtime_error(void) {
 
 static void nn_metal_release_runtime_resources(void) {
 	[nnMetalMatMulPipeline release];
+	[nnMetalColumnSumsPipeline release];
+	[nnMetalSoftmaxRowsBackwardPipeline release];
 	[nnMetalSoftmaxRowsPipeline release];
+	[nnMetalReLUBackwardPipeline release];
 	[nnMetalReLUPipeline release];
+	[nnMetalAddScaledPipeline release];
 	[nnMetalAddRowVectorPipeline release];
 	[nnMetalFillPipeline release];
 	[nnMetalLibrary release];
 	[nnMetalCommandQueue release];
 	[nnMetalDevice release];
 	nnMetalMatMulPipeline = nil;
+	nnMetalColumnSumsPipeline = nil;
+	nnMetalSoftmaxRowsBackwardPipeline = nil;
 	nnMetalSoftmaxRowsPipeline = nil;
+	nnMetalReLUBackwardPipeline = nil;
 	nnMetalReLUPipeline = nil;
+	nnMetalAddScaledPipeline = nil;
 	nnMetalAddRowVectorPipeline = nil;
 	nnMetalFillPipeline = nil;
 	nnMetalLibrary = nil;
@@ -259,18 +347,32 @@ static int nn_metal_initialize(void) {
 				nnMetalAddRowVectorPipeline = nn_metal_new_pipeline(@"nn_add_row_vector");
 			}
 			if (nnMetalAddRowVectorPipeline != nil) {
+				nnMetalAddScaledPipeline = nn_metal_new_pipeline(@"nn_add_scaled");
+			}
+			if (nnMetalAddScaledPipeline != nil) {
 				nnMetalReLUPipeline = nn_metal_new_pipeline(@"nn_relu");
 			}
 			if (nnMetalReLUPipeline != nil) {
+				nnMetalReLUBackwardPipeline = nn_metal_new_pipeline(@"nn_relu_backward");
+			}
+			if (nnMetalReLUBackwardPipeline != nil) {
 				nnMetalSoftmaxRowsPipeline = nn_metal_new_pipeline(@"nn_softmax_rows");
 			}
 			if (nnMetalSoftmaxRowsPipeline != nil) {
+				nnMetalSoftmaxRowsBackwardPipeline = nn_metal_new_pipeline(@"nn_softmax_rows_backward");
+			}
+			if (nnMetalSoftmaxRowsBackwardPipeline != nil) {
+				nnMetalColumnSumsPipeline = nn_metal_new_pipeline(@"nn_column_sums");
+			}
+			if (nnMetalColumnSumsPipeline != nil) {
 				nnMetalMatMulPipeline = nn_metal_new_pipeline(@"nn_matmul");
 			}
 
 			if (nnMetalCommandQueue != nil && nnMetalLibrary != nil &&
 				nnMetalFillPipeline != nil && nnMetalAddRowVectorPipeline != nil &&
-				nnMetalReLUPipeline != nil && nnMetalSoftmaxRowsPipeline != nil &&
+				nnMetalAddScaledPipeline != nil && nnMetalReLUPipeline != nil &&
+				nnMetalReLUBackwardPipeline != nil && nnMetalSoftmaxRowsPipeline != nil &&
+				nnMetalSoftmaxRowsBackwardPipeline != nil && nnMetalColumnSumsPipeline != nil &&
 				nnMetalMatMulPipeline != nil) {
 				nnMetalRuntimeState = NNMetalRuntimeReady;
 				status = NNMetalStatusSuccess;
@@ -657,6 +759,56 @@ int nn_metal_scope_encode_add_row_vector(
 	return NNMetalStatusSuccess;
 }
 
+int nn_metal_scope_encode_add_scaled(
+	NNMetalScope scope,
+	NNMetalBuffer left,
+	NNMetalBuffer right,
+	NNMetalBuffer result,
+	float scale,
+	uint32_t count
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *leftRecord = nn_metal_buffer_record(left);
+	NNMetalBufferRecord *rightRecord = nn_metal_buffer_record(right);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+	id<MTLComputeCommandEncoder> encoder = nil;
+	NSUInteger threadWidth = 0;
+	NSUInteger groupCount = 0;
+	uint64_t bytes = (uint64_t)count * sizeof(float);
+
+	if (scopeRecord == NULL || leftRecord == NULL || rightRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode scaled addition: nil handle");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || count == 0 || bytes != leftRecord->bytes ||
+		bytes != rightRecord->bytes || bytes != resultRecord->bytes) {
+		nn_metal_set_error("metal: encode scaled addition: invalid state, element count, or buffer length");
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode scaled addition: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		threadWidth = MIN((NSUInteger)256, [nnMetalAddScaledPipeline maxTotalThreadsPerThreadgroup]);
+		groupCount = ((NSUInteger)count + threadWidth - 1) / threadWidth;
+		[encoder setComputePipelineState:nnMetalAddScaledPipeline];
+		[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+		[encoder setBytes:&scale length:sizeof(scale) atIndex:3];
+		[encoder setBytes:&count length:sizeof(count) atIndex:4];
+		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:leftRecord->value];
+		[scopeRecord->retainedResources addObject:rightRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
 int nn_metal_scope_encode_relu(
 	NNMetalScope scope,
 	NNMetalBuffer input,
@@ -695,6 +847,54 @@ int nn_metal_scope_encode_relu(
 		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
 		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_relu_backward(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer outputGradient,
+	NNMetalBuffer result,
+	uint32_t count
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *inputRecord = nn_metal_buffer_record(input);
+	NNMetalBufferRecord *outputGradientRecord = nn_metal_buffer_record(outputGradient);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+	id<MTLComputeCommandEncoder> encoder = nil;
+	NSUInteger threadWidth = 0;
+	NSUInteger groupCount = 0;
+	uint64_t bytes = (uint64_t)count * sizeof(float);
+
+	if (scopeRecord == NULL || inputRecord == NULL || outputGradientRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode ReLU backward: nil handle");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || count == 0 || bytes != inputRecord->bytes ||
+		bytes != outputGradientRecord->bytes || bytes != resultRecord->bytes) {
+		nn_metal_set_error("metal: encode ReLU backward: invalid state, element count, or buffer length");
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode ReLU backward: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		threadWidth = MIN((NSUInteger)256, [nnMetalReLUBackwardPipeline maxTotalThreadsPerThreadgroup]);
+		groupCount = ((NSUInteger)count + threadWidth - 1) / threadWidth;
+		[encoder setComputePipelineState:nnMetalReLUBackwardPipeline];
+		[encoder setBuffer:inputRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:outputGradientRecord->value offset:0 atIndex:1];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+		[encoder setBytes:&count length:sizeof(count) atIndex:3];
+		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:inputRecord->value];
+		[scopeRecord->retainedResources addObject:outputGradientRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
 	return NNMetalStatusSuccess;
@@ -739,6 +939,107 @@ int nn_metal_scope_encode_softmax_rows(
 		[encoder setBuffer:resultRecord->value offset:0 atIndex:1];
 		[encoder setBytes:&rows length:sizeof(rows) atIndex:2];
 		[encoder setBytes:&cols length:sizeof(cols) atIndex:3];
+		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:inputRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_softmax_rows_backward(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer outputGradient,
+	NNMetalBuffer result,
+	uint32_t rows,
+	uint32_t cols
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *inputRecord = nn_metal_buffer_record(input);
+	NNMetalBufferRecord *outputGradientRecord = nn_metal_buffer_record(outputGradient);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+	id<MTLComputeCommandEncoder> encoder = nil;
+	NSUInteger threadWidth = 0;
+	NSUInteger groupCount = 0;
+	uint64_t count = (uint64_t)rows * cols;
+	uint64_t bytes = count * sizeof(float);
+
+	if (scopeRecord == NULL || inputRecord == NULL || outputGradientRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode Softmax backward: nil handle");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || rows == 0 || cols == 0 || count > UINT32_MAX ||
+		bytes != inputRecord->bytes || bytes != outputGradientRecord->bytes ||
+		bytes != resultRecord->bytes) {
+		nn_metal_set_error("metal: encode Softmax backward: invalid state, dimensions, or buffer length");
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode Softmax backward: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		threadWidth = MIN((NSUInteger)256, [nnMetalSoftmaxRowsBackwardPipeline maxTotalThreadsPerThreadgroup]);
+		groupCount = ((NSUInteger)rows + threadWidth - 1) / threadWidth;
+		[encoder setComputePipelineState:nnMetalSoftmaxRowsBackwardPipeline];
+		[encoder setBuffer:inputRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:outputGradientRecord->value offset:0 atIndex:1];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+		[encoder setBytes:&rows length:sizeof(rows) atIndex:3];
+		[encoder setBytes:&cols length:sizeof(cols) atIndex:4];
+		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:inputRecord->value];
+		[scopeRecord->retainedResources addObject:outputGradientRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_column_sums(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer result,
+	uint32_t rows,
+	uint32_t cols,
+	uint32_t accumulate
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *inputRecord = nn_metal_buffer_record(input);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+	id<MTLComputeCommandEncoder> encoder = nil;
+	NSUInteger threadWidth = 0;
+	NSUInteger groupCount = 0;
+	uint64_t inputBytes = (uint64_t)rows * cols * sizeof(float);
+	uint64_t resultBytes = (uint64_t)cols * sizeof(float);
+
+	if (scopeRecord == NULL || inputRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode column sums: nil handle");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || rows == 0 || cols == 0 || accumulate > 1 ||
+		inputBytes != inputRecord->bytes || resultBytes != resultRecord->bytes) {
+		nn_metal_set_error("metal: encode column sums: invalid state, dimensions, or buffer length");
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode column sums: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		threadWidth = MIN((NSUInteger)256, [nnMetalColumnSumsPipeline maxTotalThreadsPerThreadgroup]);
+		groupCount = ((NSUInteger)cols + threadWidth - 1) / threadWidth;
+		[encoder setComputePipelineState:nnMetalColumnSumsPipeline];
+		[encoder setBuffer:inputRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:1];
+		[encoder setBytes:&rows length:sizeof(rows) atIndex:2];
+		[encoder setBytes:&cols length:sizeof(cols) atIndex:3];
+		[encoder setBytes:&accumulate length:sizeof(accumulate) atIndex:4];
 		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
 		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];

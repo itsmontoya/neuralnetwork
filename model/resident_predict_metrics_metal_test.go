@@ -29,3 +29,11 @@ func endResidentPredictMetrics(b *testing.B) {
 	b.ReportMetric(float64(counters.CommandSubmissions)/iterations, "commands/op")
 	b.ReportMetric(float64(counters.Waits)/iterations, "waits/op")
 }
+
+func beginResidentBackwardMetrics() {
+	beginResidentPredictMetrics()
+}
+
+func endResidentBackwardMetrics(b *testing.B) {
+	endResidentPredictMetrics(b)
+}

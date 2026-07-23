@@ -16,11 +16,13 @@ var (
 // The adapter is registered once by the matrix package during initialization.
 // Per-call execution state remains on the values and is never stored globally.
 type ExecutionAdapter struct {
-	Bind        func(value any, execution *Execution) (key any, err error)
-	Execution   func(value any) (execution *Execution, err error)
-	Unbind      func(key any, execution *Execution) (err error)
-	ReLUForward func(input, output any) (handled bool, err error)
-	Record      func(snapshot ExecutionSnapshot)
+	Bind         func(value any, execution *Execution) (key any, err error)
+	Execution    func(value any) (execution *Execution, err error)
+	Unbind       func(key any, execution *Execution) (err error)
+	ReLUForward  func(input, output any) (handled bool, err error)
+	ReLUBackward func(input, outputGradient, inputGradient any) (handled bool, err error)
+	Reset        func(value any) (handled bool, err error)
+	Record       func(snapshot ExecutionSnapshot)
 }
 
 // RegisterExecutionAdapter installs the process-wide immutable matrix adapter.
@@ -69,6 +71,36 @@ func ReLUForward(input, output any) (handled bool, err error) {
 	}
 
 	handled, err = adapter.ReLUForward(input, output)
+	return handled, err
+}
+
+// ReLUBackward attempts the private built-in ReLU device operation.
+func ReLUBackward(input, outputGradient, inputGradient any) (handled bool, err error) {
+	var adapter ExecutionAdapter
+
+	if adapter, err = currentExecutionAdapter(); err != nil {
+		return false, err
+	}
+	if adapter.ReLUBackward == nil {
+		return false, nil
+	}
+
+	handled, err = adapter.ReLUBackward(input, outputGradient, inputGradient)
+	return handled, err
+}
+
+// Reset attempts a private device-resident zero fill.
+func Reset(value any) (handled bool, err error) {
+	var adapter ExecutionAdapter
+
+	if adapter, err = currentExecutionAdapter(); err != nil {
+		return false, err
+	}
+	if adapter.Reset == nil {
+		return false, nil
+	}
+
+	handled, err = adapter.Reset(value)
 	return handled, err
 }
 

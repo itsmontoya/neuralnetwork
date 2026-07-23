@@ -1,6 +1,7 @@
 package activation
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/itsmontoya/neuralnetwork/internal/device"
@@ -53,14 +54,45 @@ func (r ReLU) ForwardInto(input, output *matrix.Matrix) (err error) {
 
 // Backward multiplies outputGradient by the ReLU derivative at input.
 func (r ReLU) Backward(input, outputGradient *matrix.Matrix) (inputGradient *matrix.Matrix, err error) {
-	inputGradient, err = applyDerivative(input, outputGradient, reLUDerivative)
-	return inputGradient, err
+	var (
+		rows int
+		cols int
+	)
+
+	if rows, cols, err = matrixPairShape(input, outputGradient); err != nil {
+		return nil, err
+	}
+	if inputGradient, err = matrix.New(rows, cols); err != nil {
+		return nil, err
+	}
+	if err = r.BackwardInto(input, outputGradient, inputGradient); err != nil {
+		return nil, err
+	}
+
+	return inputGradient, nil
 }
 
 // BackwardInto writes the propagated ReLU gradient into inputGradient.
 // It follows DestinationActivation's destination and alias contract without
 // allocating.
 func (r ReLU) BackwardInto(input, outputGradient, inputGradient *matrix.Matrix) (err error) {
+	var handled bool
+
+	if _, _, err = matrixPairShape(input, outputGradient); err != nil {
+		return err
+	}
+	if inputGradient == outputGradient {
+		err = errors.New("activation: input gradient must not alias output gradient")
+		return err
+	}
+	if handled, err = device.ReLUBackward(input, outputGradient, inputGradient); err != nil {
+		err = fmt.Errorf("activation: input gradient matrix invalid: %w", err)
+		return err
+	}
+	if handled {
+		return nil
+	}
+
 	err = applyDerivativeInto(input, outputGradient, inputGradient, reLUDerivative)
 	return err
 }

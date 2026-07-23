@@ -89,6 +89,70 @@ func Benchmark_SequentialResidentPredict(b *testing.B) {
 	}
 }
 
+func Benchmark_SequentialResidentBackward(b *testing.B) {
+	var tests []metalBaselineShape
+	tests = []metalBaselineShape{
+		{name: "Small", batchSize: 16, inputSize: 32, hiddenSize: 64, classCount: 10},
+		{name: "Uneven", batchSize: 127, inputSize: 257, hiddenSize: 263, classCount: 19},
+		{name: "Large", batchSize: 256, inputSize: 512, hiddenSize: 512, classCount: 64},
+	}
+
+	var test metalBaselineShape
+	for _, test = range tests {
+		b.Run(test.name+"/ColdFirstUse", func(b *testing.B) {
+			benchmarkResidentBackwardCold(b, test)
+		})
+		b.Run(test.name+"/Warmed", func(b *testing.B) {
+			benchmarkResidentBackwardWarmed(b, test)
+		})
+	}
+}
+
+func benchmarkResidentBackwardCold(b *testing.B, shape metalBaselineShape) {
+	var (
+		run   func() error
+		err   error
+		index int
+	)
+
+	beginResidentBackwardMetrics()
+	defer endResidentBackwardMetrics(b)
+	b.ReportAllocs()
+	for index = 0; index < b.N; index++ {
+		b.StopTimer()
+		run = setupMetalBaselineBackward(b, shape)
+		b.StartTimer()
+		if err = run(); err != nil {
+			b.Fatalf("cold backward returned error: %v", err)
+		}
+	}
+	b.StopTimer()
+}
+
+func benchmarkResidentBackwardWarmed(b *testing.B, shape metalBaselineShape) {
+	var (
+		run   func() error
+		err   error
+		index int
+	)
+
+	run = setupMetalBaselineBackward(b, shape)
+	if err = run(); err != nil {
+		b.Fatalf("warm-up returned error: %v", err)
+	}
+
+	beginResidentBackwardMetrics()
+	defer endResidentBackwardMetrics(b)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for index = 0; index < b.N; index++ {
+		if err = run(); err != nil {
+			b.Fatalf("warmed backward returned error: %v", err)
+		}
+	}
+	b.StopTimer()
+}
+
 func benchmarkResidentPredictCold(b *testing.B, shape metalBaselineShape) {
 	var (
 		run   func() error

@@ -62,9 +62,24 @@ int nn_metal_scope_encode_add_row_vector(
 	uint32_t rows,
 	uint32_t cols
 );
+int nn_metal_scope_encode_add_scaled(
+	NNMetalScope scope,
+	NNMetalBuffer left,
+	NNMetalBuffer right,
+	NNMetalBuffer result,
+	float scale,
+	uint32_t count
+);
 int nn_metal_scope_encode_relu(
 	NNMetalScope scope,
 	NNMetalBuffer input,
+	NNMetalBuffer result,
+	uint32_t count
+);
+int nn_metal_scope_encode_relu_backward(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer outputGradient,
 	NNMetalBuffer result,
 	uint32_t count
 );
@@ -74,6 +89,22 @@ int nn_metal_scope_encode_softmax_rows(
 	NNMetalBuffer result,
 	uint32_t rows,
 	uint32_t cols
+);
+int nn_metal_scope_encode_softmax_rows_backward(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer outputGradient,
+	NNMetalBuffer result,
+	uint32_t rows,
+	uint32_t cols
+);
+int nn_metal_scope_encode_column_sums(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer result,
+	uint32_t rows,
+	uint32_t cols,
+	uint32_t accumulate
 );
 int nn_metal_scope_encode_matmul(
 	NNMetalScope scope,

@@ -43,11 +43,27 @@ func (unavailableBackend) encodeAddRowVector(any, any, any, uint32, uint32) (err
 	return ErrUnavailable
 }
 
+func (unavailableBackend) encodeAddScaled(any, any, any, any, float32, uint32) (err error) {
+	return ErrUnavailable
+}
+
 func (unavailableBackend) encodeReLU(any, any, any, uint32) (err error) {
 	return ErrUnavailable
 }
 
+func (unavailableBackend) encodeReLUBackward(any, any, any, any, uint32) (err error) {
+	return ErrUnavailable
+}
+
 func (unavailableBackend) encodeSoftmaxRows(any, any, any, uint32, uint32) (err error) {
+	return ErrUnavailable
+}
+
+func (unavailableBackend) encodeSoftmaxRowsBackward(any, any, any, any, uint32, uint32) (err error) {
+	return ErrUnavailable
+}
+
+func (unavailableBackend) encodeColumnSums(any, any, any, uint32, uint32, bool) (err error) {
 	return ErrUnavailable
 }
 

@@ -1515,3 +1515,157 @@ matrix arithmetic from destination allocation and GPU operating-state
 variance well enough to justify a second, more complex shader. The existing
 naive kernel and all three multiplication variants remain the maintainable
 baseline for the backward and hardening sections.
+
+## Step 7: Keep Dense Backpropagation Device-Resident
+
+Date: July 23, 2026
+
+Environment:
+
+```text
+Hardware: Apple M3
+OS: macOS 26.5.2 (25F84)
+Architecture: arm64
+Go: go1.26.5 darwin/arm64
+CGO: enabled
+Metal device: available
+Power mode: not explicitly controlled
+```
+
+Commands:
+
+```sh
+go test ./model -run '^$' -bench='SequentialResidentBackward/(Small|Large)/(ColdFirstUse|Warmed)$' -benchmem -benchtime=100ms -count=10
+go test ./model -tags=metal -run '^$' -bench='SequentialResidentBackward/(Small|Large)/(ColdFirstUse|Warmed)$' -benchmem -benchtime=100ms -count=10
+```
+
+The cold case constructs a fresh model, runs the required resident forward
+pass outside the timer, and times its first backward call. Its Metal counters
+intentionally include both preparation calls because recording begins before
+setup. The warmed case performs one complete untimed backward call, then times
+repeated accumulation into the same parameter gradients. Medians below are
+calculated from the ten recorded `ns/op` samples.
+
+### Summary
+
+| Case | Default median ns/op | `metal` median ns/op | Comparison | Metal transfers | Metal commands/waits | Allocations |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| Small cold | 67,271 | 69,492 | `metal` 1.03x slower | 0 uploads, 0 downloads | 0 / 0 | default 12; `metal` 23 |
+| Small warmed | 56,974 | 58,929 | `metal` 1.03x slower | 0 uploads, 0 downloads | 0 / 0 | both 0 |
+| Large cold | 102,185,417 | 4,321,493 | `metal` 23.65x faster | 10 uploads, 0 downloads | 2 / 2 | default 12; `metal` 62 |
+| Large warmed | 104,215,333 | 4,254,676 | `metal` 24.49x faster | 0 uploads, 0 downloads | 1 / 1 | default 0; `metal` 31 |
+
+The Small shape stays entirely on CPU/SIMD under the `metal` tag. Its warmed
+median is about 3.4% and 2 microseconds slower than default, below the design's
+material-regression boundary of both 10% and 5 microseconds.
+
+The Large warmed backward pass encodes Softmax backward, both dense backward
+chains, ReLU backward, four matrix multiplications, gradient additions, and
+bias reductions in one command buffer. It creates ten failure-atomic staging
+buffers per call, but performs no upload or download after warm-up. The cold
+counter includes the preceding forward pass and records 28 buffers, ten
+uploads totaling 2,953,728 bytes, two commands, two waits, and no downloads.
+The large timing remains variable with GPU operating state, but every sampled
+resident result is more than 17x faster than its corresponding default sample.
+
+### Raw Default Output
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1742  67237 ns/op  22048 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1783  67065 ns/op  22048 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1782  67324 ns/op  22048 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1812  67383 ns/op  22048 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1796  67305 ns/op  22048 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1776  68169 ns/op  22048 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1794  67386 ns/op  22048 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1777  67214 ns/op  22048 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1780  66931 ns/op  22048 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1791  66584 ns/op  22048 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2086  57124 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2179  56587 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2047  56680 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2216  75265 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2074  57265 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2118  56655 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2228  56625 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2149  57281 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2109  56823 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2244  57316 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8       1  100067291 ns/op  2818336 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8       1  102789126 ns/op  2818336 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8       1  100327874 ns/op  2818336 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8       1  101719459 ns/op  2818336 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8       1  100091083 ns/op  2818336 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8       1  102094791 ns/op  2818336 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8       1  102375542 ns/op  2818336 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8       1  103792792 ns/op  2818336 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8       2  103013271 ns/op  2818336 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8       1  102276042 ns/op  2818336 B/op  12 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8             1  106793458 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8             2  105275750 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8             2   99456500 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8             2  105083125 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8             1  100493167 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8             1  104100500 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8             1  100171250 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8             1  104632667 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8             2   98997896 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8             1  104330166 ns/op        0 B/op   0 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/model  10.361s
+```
+
+### Raw Metal Output
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1513  69096 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23987 B/op  23 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1714  69628 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23984 B/op  23 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1776  69959 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23984 B/op  23 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1728  69741 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23984 B/op  23 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1744  69692 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23984 B/op  23 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1700  68154 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23984 B/op  23 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1768  69453 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23984 B/op  23 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1725  69398 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23984 B/op  23 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1726  68128 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23984 B/op  23 allocs/op
+Benchmark_SequentialResidentBackward/Small/ColdFirstUse-8    1726  69531 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  23987 B/op  23 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2088  59124 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2122  59087 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2058  58534 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2028  58503 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2026  59212 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2112  58671 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2037  58770 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2042  76303 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2080  58581 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Small/Warmed-8          2089  59334 ns/op   0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8      39  2667041 ns/op  28.00 buffers/op  2.000 commands/op  0 download-bytes/op  0 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  2822802 B/op  62 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8      52  2647790 ns/op  28.00 buffers/op  2.000 commands/op  0 download-bytes/op  0 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  2822800 B/op  62 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8      55  2442030 ns/op  28.00 buffers/op  2.000 commands/op  0 download-bytes/op  0 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  2822800 B/op  62 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8      49  5608722 ns/op  28.00 buffers/op  2.000 commands/op  0 download-bytes/op  0 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  2822806 B/op  62 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8      25  4430265 ns/op  28.00 buffers/op  2.000 commands/op  0 download-bytes/op  0 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  2822808 B/op  62 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8      54  4212721 ns/op  28.00 buffers/op  2.000 commands/op  0 download-bytes/op  0 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  2822804 B/op  62 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8      22  5707746 ns/op  28.00 buffers/op  2.000 commands/op  0 download-bytes/op  0 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  2822800 B/op  62 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8      32  3984586 ns/op  28.00 buffers/op  2.000 commands/op  0 download-bytes/op  0 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  2822800 B/op  62 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8      52  4430571 ns/op  28.00 buffers/op  2.000 commands/op  0 download-bytes/op  0 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  2822800 B/op  62 allocs/op
+Benchmark_SequentialResidentBackward/Large/ColdFirstUse-8      27  4774069 ns/op  28.00 buffers/op  2.000 commands/op  0 download-bytes/op  0 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  2822808 B/op  62 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8            24  5745196 ns/op  10.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  1184 B/op  31 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8            18  5745576 ns/op  10.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  1184 B/op  31 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8            24  4556337 ns/op  10.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  1184 B/op  31 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8            27  4342944 ns/op  10.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  1184 B/op  31 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8            28  5700754 ns/op  10.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  1184 B/op  31 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8            30  4166408 ns/op  10.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  1184 B/op  31 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8            36  4015096 ns/op  10.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  1184 B/op  31 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8            30  4097750 ns/op  10.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  1184 B/op  31 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8            32  4056811 ns/op  10.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  1184 B/op  31 allocs/op
+Benchmark_SequentialResidentBackward/Large/Warmed-8            31  3621923 ns/op  10.00 buffers/op  1.000 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  1.000 waits/op  1184 B/op  31 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/model  10.442s
+```

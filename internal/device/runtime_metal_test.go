@@ -202,6 +202,117 @@ func Test_MetalDenseForwardKernels(t *testing.T) {
 	)
 }
 
+func Test_MetalDenseBackwardKernels(t *testing.T) {
+	var (
+		runtime        *Runtime
+		input          *Buffer
+		outputGradient *Buffer
+		relu           *Buffer
+		softmax        *Buffer
+		columnSums     *Buffer
+		accumulated    *Buffer
+		added          *Buffer
+		scope          *Scope
+		got            []float32
+		err            error
+	)
+
+	runtime = requireMetalRuntime(t)
+	if input, err = runtime.NewBuffer(6); err != nil {
+		t.Fatalf("NewBuffer input returned error: %v", err)
+	}
+	defer input.Release()
+	if outputGradient, err = runtime.NewBuffer(6); err != nil {
+		t.Fatalf("NewBuffer output gradient returned error: %v", err)
+	}
+	defer outputGradient.Release()
+	if relu, err = runtime.NewBuffer(6); err != nil {
+		t.Fatalf("NewBuffer ReLU returned error: %v", err)
+	}
+	defer relu.Release()
+	if softmax, err = runtime.NewBuffer(6); err != nil {
+		t.Fatalf("NewBuffer Softmax returned error: %v", err)
+	}
+	defer softmax.Release()
+	if columnSums, err = runtime.NewBuffer(3); err != nil {
+		t.Fatalf("NewBuffer column sums returned error: %v", err)
+	}
+	defer columnSums.Release()
+	if accumulated, err = runtime.NewBuffer(3); err != nil {
+		t.Fatalf("NewBuffer accumulated column sums returned error: %v", err)
+	}
+	defer accumulated.Release()
+	if added, err = runtime.NewBuffer(6); err != nil {
+		t.Fatalf("NewBuffer addition returned error: %v", err)
+	}
+	defer added.Release()
+
+	if err = input.Upload([]float32{-1, 0, 2, 1, -2, 3}); err != nil {
+		t.Fatalf("Upload input returned error: %v", err)
+	}
+	if err = outputGradient.Upload([]float32{1, 2, 3, 4, 5, 6}); err != nil {
+		t.Fatalf("Upload output gradient returned error: %v", err)
+	}
+	if err = accumulated.Upload([]float32{10, 20, 30}); err != nil {
+		t.Fatalf("Upload accumulated column sums returned error: %v", err)
+	}
+	if scope, err = runtime.NewScope(); err != nil {
+		t.Fatalf("NewScope returned error: %v", err)
+	}
+	defer scope.Release()
+
+	if err = scope.EncodeReLUBackward(input, outputGradient, relu); err != nil {
+		t.Fatalf("EncodeReLUBackward returned error: %v", err)
+	}
+	if err = scope.EncodeSoftmaxRowsBackward(input, outputGradient, softmax, 2, 3); err != nil {
+		t.Fatalf("EncodeSoftmaxRowsBackward returned error: %v", err)
+	}
+	if err = scope.EncodeColumnSums(outputGradient, columnSums, 2, 3, false); err != nil {
+		t.Fatalf("EncodeColumnSums returned error: %v", err)
+	}
+	if err = scope.EncodeColumnSums(outputGradient, accumulated, 2, 3, true); err != nil {
+		t.Fatalf("EncodeColumnSums accumulated returned error: %v", err)
+	}
+	if err = scope.EncodeAddScaled(input, outputGradient, added, 0.5); err != nil {
+		t.Fatalf("EncodeAddScaled returned error: %v", err)
+	}
+	if err = scope.Commit(); err != nil {
+		t.Fatalf("Commit returned error: %v", err)
+	}
+	if err = scope.Wait(); err != nil {
+		t.Fatalf("Wait returned error: %v", err)
+	}
+
+	got = make([]float32, 6)
+	if err = relu.Download(got); err != nil {
+		t.Fatalf("Download ReLU backward returned error: %v", err)
+	}
+	requireMetalValuesAlmostEqual(t, got, []float32{0, 0, 3, 4, 0, 6}, 0)
+	if err = softmax.Download(got); err != nil {
+		t.Fatalf("Download Softmax backward returned error: %v", err)
+	}
+	requireMetalValuesAlmostEqual(
+		t,
+		got,
+		[]float32{-0.075693, -0.09156, 0.167253, -0.208216, -0.004467, 0.212683},
+		2e-5,
+	)
+	if err = added.Download(got); err != nil {
+		t.Fatalf("Download scaled addition returned error: %v", err)
+	}
+	requireMetalValuesAlmostEqual(t, got, []float32{-0.5, 1, 3.5, 3, 0.5, 6}, 0)
+
+	got = make([]float32, 3)
+	if err = columnSums.Download(got); err != nil {
+		t.Fatalf("Download column sums returned error: %v", err)
+	}
+	requireMetalValuesAlmostEqual(t, got, []float32{5, 7, 9}, 0)
+	if err = accumulated.Download(got); err != nil {
+		t.Fatalf("Download accumulated column sums returned error: %v", err)
+	}
+	requireMetalValuesAlmostEqual(t, got, []float32{15, 27, 39}, 0)
+}
+
 func Test_MetalScopeRetainsReleasedBuffer(t *testing.T) {
 	var (
 		runtime *Runtime
