@@ -3,6 +3,7 @@ package device
 import (
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 )
 
@@ -436,6 +437,142 @@ func (s *Scope) EncodeColumnSums(
 		accumulate,
 	); err != nil {
 		err = fmt.Errorf("device: encode column sums: %w", err)
+		s.fail(err)
+		return err
+	}
+
+	return nil
+}
+
+// EncodeCategoricalCrossEntropy appends one validated mean loss reduction.
+func (s *Scope) EncodeCategoricalCrossEntropy(
+	predictions,
+	targets,
+	result *Buffer,
+	rows,
+	cols uint32,
+	epsilon float32,
+) (err error) {
+	var expectedCount uint64
+
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(predictions, "categorical predictions"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(targets, "categorical targets"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "categorical result"); err != nil {
+		return err
+	}
+	if rows == 0 || cols == 0 {
+		err = errors.New("device: categorical dimensions must be positive")
+		return err
+	}
+	if epsilon <= 0 || epsilon >= 0.5 ||
+		math.IsNaN(float64(epsilon)) || math.IsInf(float64(epsilon), 0) {
+		err = fmt.Errorf("device: categorical epsilon must be between 0 and 0.5: %g", epsilon)
+		return err
+	}
+
+	expectedCount = uint64(rows) * uint64(cols)
+	if predictions.count != expectedCount || targets.count != expectedCount ||
+		result.count != CategoricalCrossEntropyResultCount {
+		err = fmt.Errorf(
+			"device: categorical buffer length mismatch: predictions=%d/%d targets=%d/%d result=%d/%d",
+			predictions.count,
+			expectedCount,
+			targets.count,
+			expectedCount,
+			result.count,
+			CategoricalCrossEntropyResultCount,
+		)
+		return err
+	}
+	if err = s.runtime.backend.encodeCategoricalCrossEntropy(
+		s.handle,
+		predictions.handle,
+		targets.handle,
+		result.handle,
+		rows,
+		cols,
+		epsilon,
+	); err != nil {
+		err = fmt.Errorf("device: encode categorical cross entropy: %w", err)
+		s.fail(err)
+		return err
+	}
+
+	return nil
+}
+
+// EncodeCategoricalCrossEntropyGradient appends a mean prediction gradient.
+func (s *Scope) EncodeCategoricalCrossEntropyGradient(
+	predictions,
+	targets,
+	result *Buffer,
+	rows,
+	cols uint32,
+	epsilon float32,
+) (err error) {
+	var expectedCount uint64
+
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(predictions, "categorical gradient predictions"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(targets, "categorical gradient targets"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "categorical gradient destination"); err != nil {
+		return err
+	}
+	if rows == 0 || cols == 0 {
+		err = errors.New("device: categorical gradient dimensions must be positive")
+		return err
+	}
+	if epsilon <= 0 || epsilon >= 0.5 ||
+		math.IsNaN(float64(epsilon)) || math.IsInf(float64(epsilon), 0) {
+		err = fmt.Errorf("device: categorical gradient epsilon must be between 0 and 0.5: %g", epsilon)
+		return err
+	}
+
+	expectedCount = uint64(rows) * uint64(cols)
+	if expectedCount > uint64(^uint32(0)) {
+		err = fmt.Errorf("device: categorical gradient element count exceeds uint32: %d", expectedCount)
+		return err
+	}
+	if predictions.count != expectedCount || targets.count != expectedCount ||
+		result.count != expectedCount {
+		err = fmt.Errorf(
+			"device: categorical gradient buffer length mismatch: predictions=%d/%d targets=%d/%d destination=%d/%d",
+			predictions.count,
+			expectedCount,
+			targets.count,
+			expectedCount,
+			result.count,
+			expectedCount,
+		)
+		return err
+	}
+	if err = s.runtime.backend.encodeCategoricalCrossEntropyGradient(
+		s.handle,
+		predictions.handle,
+		targets.handle,
+		result.handle,
+		rows,
+		cols,
+		epsilon,
+	); err != nil {
+		err = fmt.Errorf("device: encode categorical cross entropy gradient: %w", err)
 		s.fail(err)
 		return err
 	}

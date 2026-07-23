@@ -467,6 +467,131 @@ func (b *testBackend) encodeColumnSums(
 	return nil
 }
 
+func (b *testBackend) encodeCategoricalCrossEntropy(
+	scope,
+	predictions,
+	targets,
+	result any,
+	rows,
+	cols uint32,
+	epsilon float32,
+) (err error) {
+	var (
+		commandScope     *testScope
+		predictionBuffer *testBuffer
+		targetBuffer     *testBuffer
+		resultBuffer     *testBuffer
+	)
+
+	if b.encodeErr != nil {
+		return b.encodeErr
+	}
+	commandScope = testScopeHandle(scope)
+	predictionBuffer = testBufferHandle(predictions)
+	targetBuffer = testBufferHandle(targets)
+	resultBuffer = testBufferHandle(result)
+	if commandScope == nil || predictionBuffer == nil || targetBuffer == nil || resultBuffer == nil {
+		return errors.New("test backend: nil categorical cross entropy handle")
+	}
+	commandScope.commands = append(commandScope.commands, func() {
+		var (
+			row        uint32
+			col        uint32
+			offset     uint32
+			ones       uint32
+			prediction float32
+			target     float32
+			value      float32
+		)
+
+		clear(resultBuffer.values)
+		for row = 0; row < rows; row++ {
+			offset = row * cols
+			ones = 0
+			for col = 0; col < cols; col++ {
+				target = targetBuffer.values[offset+col]
+				if target == 1 {
+					ones++
+					prediction = predictionBuffer.values[offset+col]
+					if prediction < epsilon {
+						prediction = epsilon
+					} else if prediction > 1-epsilon {
+						prediction = 1 - epsilon
+					}
+					value -= float32(math.Log(float64(prediction)))
+					continue
+				}
+				if target != 0 {
+					resultBuffer.values[1] = math.Float32frombits(1)
+					resultBuffer.values[2] = math.Float32frombits(row)
+					resultBuffer.values[3] = math.Float32frombits(col)
+					resultBuffer.values[4] = target
+					return
+				}
+			}
+			if ones != 1 {
+				resultBuffer.values[1] = math.Float32frombits(2)
+				resultBuffer.values[2] = math.Float32frombits(row)
+				resultBuffer.values[3] = math.Float32frombits(ones)
+				return
+			}
+		}
+		resultBuffer.values[0] = value / float32(rows)
+	})
+	return nil
+}
+
+func (b *testBackend) encodeCategoricalCrossEntropyGradient(
+	scope,
+	predictions,
+	targets,
+	result any,
+	rows,
+	cols uint32,
+	epsilon float32,
+) (err error) {
+	var (
+		commandScope     *testScope
+		predictionBuffer *testBuffer
+		targetBuffer     *testBuffer
+		resultBuffer     *testBuffer
+	)
+
+	if b.encodeErr != nil {
+		return b.encodeErr
+	}
+	commandScope = testScopeHandle(scope)
+	predictionBuffer = testBufferHandle(predictions)
+	targetBuffer = testBufferHandle(targets)
+	resultBuffer = testBufferHandle(result)
+	if commandScope == nil || predictionBuffer == nil || targetBuffer == nil || resultBuffer == nil {
+		return errors.New("test backend: nil categorical cross entropy gradient handle")
+	}
+	commandScope.commands = append(commandScope.commands, func() {
+		var (
+			index      int
+			prediction float32
+			target     float32
+		)
+
+		for index = range resultBuffer.values {
+			target = targetBuffer.values[index]
+			if target == 0 {
+				resultBuffer.values[index] = 0
+				continue
+			}
+			prediction = predictionBuffer.values[index]
+			if prediction < epsilon {
+				prediction = epsilon
+			} else if prediction > 1-epsilon {
+				prediction = 1 - epsilon
+			}
+			resultBuffer.values[index] = -target / prediction / float32(rows)
+		}
+	})
+	return nil
+}
+
 func (b *testBackend) encodeMatMul(
 	any,
 	any,

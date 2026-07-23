@@ -16,13 +16,16 @@ var (
 // The adapter is registered once by the matrix package during initialization.
 // Per-call execution state remains on the values and is never stored globally.
 type ExecutionAdapter struct {
-	Bind         func(value any, execution *Execution) (key any, err error)
-	Execution    func(value any) (execution *Execution, err error)
-	Unbind       func(key any, execution *Execution) (err error)
-	ReLUForward  func(input, output any) (handled bool, err error)
-	ReLUBackward func(input, outputGradient, inputGradient any) (handled bool, err error)
-	Reset        func(value any) (handled bool, err error)
-	Record       func(snapshot ExecutionSnapshot)
+	Bind                            func(value any, execution *Execution) (key any, err error)
+	Execution                       func(value any) (execution *Execution, err error)
+	Unbind                          func(key any, execution *Execution) (err error)
+	ReLUForward                     func(input, output any) (handled bool, err error)
+	ReLUBackward                    func(input, outputGradient, inputGradient any) (handled bool, err error)
+	CategoricalCrossEntropyValue    func(predictions, targets any, epsilon float32) (value float32, handled bool, err error)
+	CategoricalCrossEntropyGradient func(predictions, targets, gradient any, epsilon float32) (handled bool, err error)
+	SGD                             func(updates []ParameterUpdate, learningRate float32) (handled bool, err error)
+	Reset                           func(value any) (handled bool, err error)
+	Record                          func(snapshot ExecutionSnapshot)
 }
 
 // RegisterExecutionAdapter installs the process-wide immutable matrix adapter.
@@ -86,6 +89,65 @@ func ReLUBackward(input, outputGradient, inputGradient any) (handled bool, err e
 	}
 
 	handled, err = adapter.ReLUBackward(input, outputGradient, inputGradient)
+	return handled, err
+}
+
+// CategoricalCrossEntropyValue attempts the private device-resident loss operation.
+func CategoricalCrossEntropyValue(
+	predictions,
+	targets any,
+	epsilon float32,
+) (value float32, handled bool, err error) {
+	var adapter ExecutionAdapter
+
+	if adapter, err = currentExecutionAdapter(); err != nil {
+		return 0, false, err
+	}
+	if adapter.CategoricalCrossEntropyValue == nil {
+		return 0, false, nil
+	}
+
+	value, handled, err = adapter.CategoricalCrossEntropyValue(predictions, targets, epsilon)
+	return value, handled, err
+}
+
+// CategoricalCrossEntropyGradient attempts the private device-resident loss-gradient operation.
+func CategoricalCrossEntropyGradient(
+	predictions,
+	targets,
+	gradient any,
+	epsilon float32,
+) (handled bool, err error) {
+	var adapter ExecutionAdapter
+
+	if adapter, err = currentExecutionAdapter(); err != nil {
+		return false, err
+	}
+	if adapter.CategoricalCrossEntropyGradient == nil {
+		return false, nil
+	}
+
+	handled, err = adapter.CategoricalCrossEntropyGradient(
+		predictions,
+		targets,
+		gradient,
+		epsilon,
+	)
+	return handled, err
+}
+
+// SGD attempts one private device-resident parameter update transaction.
+func SGD(updates []ParameterUpdate, learningRate float32) (handled bool, err error) {
+	var adapter ExecutionAdapter
+
+	if adapter, err = currentExecutionAdapter(); err != nil {
+		return false, err
+	}
+	if adapter.SGD == nil {
+		return false, nil
+	}
+
+	handled, err = adapter.SGD(updates, learningRate)
 	return handled, err
 }
 

@@ -478,6 +478,100 @@ func (m *metalBackend) encodeColumnSums(
 	return nil
 }
 
+func (m *metalBackend) encodeCategoricalCrossEntropy(
+	scope,
+	predictions,
+	targets,
+	result any,
+	rows,
+	cols uint32,
+	epsilon float32,
+) (err error) {
+	var (
+		scopeHandle      C.NNMetalScope
+		predictionHandle C.NNMetalBuffer
+		targetHandle     C.NNMetalBuffer
+		resultHandle     C.NNMetalBuffer
+		status           C.int
+	)
+
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if predictionHandle, err = m.bufferHandle(predictions); err != nil {
+		return err
+	}
+	if targetHandle, err = m.bufferHandle(targets); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	status = C.nn_metal_scope_encode_categorical_cross_entropy(
+		scopeHandle,
+		predictionHandle,
+		targetHandle,
+		resultHandle,
+		C.uint32_t(rows),
+		C.uint32_t(cols),
+		C.float(epsilon),
+	)
+	if status != C.NNMetalStatusSuccess {
+		err = m.lastError("encode Metal categorical cross entropy")
+		return err
+	}
+
+	return nil
+}
+
+func (m *metalBackend) encodeCategoricalCrossEntropyGradient(
+	scope,
+	predictions,
+	targets,
+	result any,
+	rows,
+	cols uint32,
+	epsilon float32,
+) (err error) {
+	var (
+		scopeHandle      C.NNMetalScope
+		predictionHandle C.NNMetalBuffer
+		targetHandle     C.NNMetalBuffer
+		resultHandle     C.NNMetalBuffer
+		status           C.int
+	)
+
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if predictionHandle, err = m.bufferHandle(predictions); err != nil {
+		return err
+	}
+	if targetHandle, err = m.bufferHandle(targets); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	status = C.nn_metal_scope_encode_categorical_cross_entropy_gradient(
+		scopeHandle,
+		predictionHandle,
+		targetHandle,
+		resultHandle,
+		C.uint32_t(rows),
+		C.uint32_t(cols),
+		C.float(epsilon),
+	)
+	if status != C.NNMetalStatusSuccess {
+		err = m.lastError("encode Metal categorical cross entropy gradient")
+		return err
+	}
+
+	return nil
+}
+
 func (m *metalBackend) encodeMatMul(
 	scope,
 	left,

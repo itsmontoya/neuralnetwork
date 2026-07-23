@@ -16,6 +16,24 @@ type backend interface {
 	encodeSoftmaxRows(scope, input, result any, rows, cols uint32) (err error)
 	encodeSoftmaxRowsBackward(scope, input, outputGradient, result any, rows, cols uint32) (err error)
 	encodeColumnSums(scope, input, result any, rows, cols uint32, accumulate bool) (err error)
+	encodeCategoricalCrossEntropy(
+		scope,
+		predictions,
+		targets,
+		result any,
+		rows,
+		cols uint32,
+		epsilon float32,
+	) (err error)
+	encodeCategoricalCrossEntropyGradient(
+		scope,
+		predictions,
+		targets,
+		result any,
+		rows,
+		cols uint32,
+		epsilon float32,
+	) (err error)
 	encodeMatMul(scope, left, right, result any, dimensions matMulDimensions, operation Operation) (err error)
 	commit(scope any) (err error)
 	completed(scope any) (complete bool, err error)
