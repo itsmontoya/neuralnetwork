@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand"
 
+	"github.com/itsmontoya/neuralnetwork/internal/device"
 	"github.com/itsmontoya/neuralnetwork/internal/f32"
 )
 
@@ -147,9 +148,10 @@ func NewHeNormal(fanIn, fanOut int, random *rand.Rand) (out *Matrix, err error) 
 
 // Matrix stores dense float32 values in row-major order.
 type Matrix struct {
-	rows int
-	cols int
-	data []float32
+	rows      int
+	cols      int
+	data      []float32
+	residency *device.Residency
 }
 
 // Rows returns the matrix row count.
@@ -194,6 +196,9 @@ func (m *Matrix) Values() (values []float32, err error) {
 	if err = m.validate(); err != nil {
 		return nil, err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return nil, err
+	}
 
 	values = make([]float32, len(m.data))
 	copy(values, m.data)
@@ -213,6 +218,9 @@ func (m *Matrix) ValuesInto(destination []float32) (err error) {
 		err = fmt.Errorf("matrix: destination length mismatch: got %d, want %d", len(destination), len(m.data))
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
 
 	copy(destination, m.data)
 	return nil
@@ -225,6 +233,9 @@ func (m *Matrix) At(row, col int) (value float32, err error) {
 	}
 
 	if err = m.validateIndex(row, col); err != nil {
+		return 0, err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
 		return 0, err
 	}
 
@@ -241,6 +252,12 @@ func (m *Matrix) Set(row, col int, value float32) (err error) {
 	if err = m.validateIndex(row, col); err != nil {
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = m.markHostWrite(); err != nil {
+		return err
+	}
 
 	m.data[m.index(row, col)] = value
 	return nil
@@ -249,6 +266,9 @@ func (m *Matrix) Set(row, col int, value float32) (err error) {
 // Fill sets every matrix value to value.
 func (m *Matrix) Fill(value float32) (err error) {
 	if err = m.validate(); err != nil {
+		return err
+	}
+	if err = m.markHostWrite(); err != nil {
 		return err
 	}
 
@@ -267,7 +287,9 @@ func (m *Matrix) Clone() (clone *Matrix, err error) {
 	}
 
 	clone = m.newLike()
-	copy(clone.data, m.data)
+	if err = copyMatrix(m, clone); err != nil {
+		return nil, err
+	}
 	return clone, nil
 }
 
@@ -276,9 +298,13 @@ func (m *Matrix) CopyFrom(source *Matrix) (err error) {
 	if err = m.sameShape(source); err != nil {
 		return err
 	}
+	if m == source {
+		err = m.detachDevice()
+		return err
+	}
 
-	copy(m.data, source.data)
-	return nil
+	err = copyMatrix(source, m)
+	return err
 }
 
 // CopyValuesFrom copies row-major values into m.
@@ -292,6 +318,9 @@ func (m *Matrix) CopyValuesFrom(values []float32) (err error) {
 
 	if len(values) != len(m.data) {
 		err = fmt.Errorf("matrix: values length mismatch: got %d, want %d", len(values), len(m.data))
+		return err
+	}
+	if err = m.markHostWrite(); err != nil {
 		return err
 	}
 
@@ -313,6 +342,9 @@ func (m *Matrix) SelectRows(indexes []int) (result *Matrix, err error) {
 	}
 
 	if result, err = New(len(indexes), m.cols); err != nil {
+		return nil, err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
 		return nil, err
 	}
 
@@ -341,6 +373,12 @@ func (m *Matrix) SelectRowsInto(indexes []int, destination *Matrix) (err error) 
 	}
 
 	if err = destination.requireShape("selected rows destination", len(indexes), m.cols); err != nil {
+		return err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = destination.markHostWrite(); err != nil {
 		return err
 	}
 
@@ -389,6 +427,12 @@ func (m *Matrix) Add(other *Matrix) (result *Matrix, err error) {
 	if err = m.sameShape(other); err != nil {
 		return nil, err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return nil, err
+	}
+	if err = other.ensureHostCurrent(); err != nil {
+		return nil, err
+	}
 
 	result = m.newLike()
 
@@ -406,6 +450,15 @@ func (m *Matrix) AddInto(other, result *Matrix) (err error) {
 	}
 
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = other.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
 		return err
 	}
 
@@ -426,6 +479,15 @@ func (m *Matrix) AddScaledInPlace(other *Matrix, scale float32) (err error) {
 	if err = m.sameShape(other); err != nil {
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = other.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = m.markHostWrite(); err != nil {
+		return err
+	}
 
 	addScaledInPlace(m.data, other.data, scale)
 	return nil
@@ -444,6 +506,15 @@ func (m *Matrix) AddMappedInPlace(other *Matrix, fn func(float32) float32) (err 
 	}
 
 	if err = m.sameShape(other); err != nil {
+		return err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = other.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = m.markHostWrite(); err != nil {
 		return err
 	}
 
@@ -507,6 +578,27 @@ func (m *Matrix) AdamUpdateInPlace(
 		err = errors.New("matrix: adam second correction must be nonzero")
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = gradient.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = firstMoment.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = secondMoment.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = m.markHostWrite(); err != nil {
+		return err
+	}
+	if err = firstMoment.markHostWrite(); err != nil {
+		return err
+	}
+	if err = secondMoment.markHostWrite(); err != nil {
+		return err
+	}
 
 	for index = range m.data {
 		gradientValue = gradient.data[index]
@@ -528,6 +620,12 @@ func (m *Matrix) MultiplyScalarInPlace(value float32) (err error) {
 	if err = m.validate(); err != nil {
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = m.markHostWrite(); err != nil {
+		return err
+	}
 
 	multiplyScalarInPlace(m.data, value)
 	return nil
@@ -536,6 +634,12 @@ func (m *Matrix) MultiplyScalarInPlace(value float32) (err error) {
 // Subtract returns the elementwise difference of m and other.
 func (m *Matrix) Subtract(other *Matrix) (result *Matrix, err error) {
 	if err = m.sameShape(other); err != nil {
+		return nil, err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return nil, err
+	}
+	if err = other.ensureHostCurrent(); err != nil {
 		return nil, err
 	}
 
@@ -557,6 +661,15 @@ func (m *Matrix) SubtractInto(other, result *Matrix) (err error) {
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = other.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
+		return err
+	}
 
 	subtractInto(m.data, other.data, result.data)
 	return nil
@@ -565,6 +678,12 @@ func (m *Matrix) SubtractInto(other, result *Matrix) (err error) {
 // MultiplyElements returns the elementwise product of m and other.
 func (m *Matrix) MultiplyElements(other *Matrix) (result *Matrix, err error) {
 	if err = m.sameShape(other); err != nil {
+		return nil, err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return nil, err
+	}
+	if err = other.ensureHostCurrent(); err != nil {
 		return nil, err
 	}
 
@@ -586,6 +705,15 @@ func (m *Matrix) MultiplyElementsInto(other, result *Matrix) (err error) {
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = other.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
+		return err
+	}
 
 	multiplyElementsInto(m.data, other.data, result.data)
 	return nil
@@ -594,6 +722,12 @@ func (m *Matrix) MultiplyElementsInto(other, result *Matrix) (err error) {
 // DivideElements returns the elementwise quotient of m and other.
 func (m *Matrix) DivideElements(other *Matrix) (result *Matrix, err error) {
 	if err = m.sameShape(other); err != nil {
+		return nil, err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return nil, err
+	}
+	if err = other.ensureHostCurrent(); err != nil {
 		return nil, err
 	}
 
@@ -617,11 +751,19 @@ func (m *Matrix) DivideElements(other *Matrix) (result *Matrix, err error) {
 // The destination must match the input shape. The destination is caller-owned
 // and may alias either input because each element is read before it is written.
 func (m *Matrix) DivideElementsInto(other, result *Matrix) (err error) {
+	var wrote bool
+
 	if err = m.sameShape(other); err != nil {
 		return err
 	}
 
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = other.ensureHostCurrent(); err != nil {
 		return err
 	}
 
@@ -630,6 +772,12 @@ func (m *Matrix) DivideElementsInto(other, result *Matrix) (err error) {
 		if other.data[index] == 0 {
 			err = fmt.Errorf("matrix: division by zero at row %d column %d", index/m.cols, index%m.cols)
 			return err
+		}
+		if !wrote {
+			if err = result.markHostWrite(); err != nil {
+				return err
+			}
+			wrote = true
 		}
 
 		result.data[index] = m.data[index] / other.data[index]
@@ -641,6 +789,9 @@ func (m *Matrix) DivideElementsInto(other, result *Matrix) (err error) {
 // AddScalar returns a matrix with value added to every element.
 func (m *Matrix) AddScalar(value float32) (result *Matrix, err error) {
 	if err = m.validate(); err != nil {
+		return nil, err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
 		return nil, err
 	}
 
@@ -662,6 +813,12 @@ func (m *Matrix) AddScalarInto(value float32, result *Matrix) (err error) {
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
+		return err
+	}
 
 	addScalarInto(m.data, value, result.data)
 	return nil
@@ -670,6 +827,9 @@ func (m *Matrix) AddScalarInto(value float32, result *Matrix) (err error) {
 // MultiplyScalar returns a matrix with every element multiplied by value.
 func (m *Matrix) MultiplyScalar(value float32) (result *Matrix, err error) {
 	if err = m.validate(); err != nil {
+		return nil, err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
 		return nil, err
 	}
 
@@ -691,6 +851,12 @@ func (m *Matrix) MultiplyScalarInto(value float32, result *Matrix) (err error) {
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
+		return err
+	}
 
 	multiplyScalarInto(m.data, value, result.data)
 	return nil
@@ -704,6 +870,9 @@ func (m *Matrix) DivideScalar(value float32) (result *Matrix, err error) {
 
 	if value == 0 {
 		err = errors.New("matrix: division by zero scalar")
+		return nil, err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
 		return nil, err
 	}
 
@@ -734,6 +903,12 @@ func (m *Matrix) DivideScalarInto(value float32, result *Matrix) (err error) {
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
+		return err
+	}
 
 	var index int
 	for index = range result.data {
@@ -754,6 +929,12 @@ func (m *Matrix) SoftmaxRowsInto(result *Matrix) (err error) {
 	}
 
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
 		return err
 	}
 
@@ -783,6 +964,15 @@ func (m *Matrix) SoftmaxRowsBackwardInto(outputGradient, result *Matrix) (err er
 
 	if result == outputGradient {
 		err = errors.New("matrix: destination must not alias output gradient")
+		return err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = outputGradient.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
 		return err
 	}
 
@@ -839,7 +1029,9 @@ func (m *Matrix) MatMul(other *Matrix) (result *Matrix, err error) {
 	next.data = make([]float32, m.rows*other.cols)
 	result = &next
 
-	matMulInto(m, other, result)
+	if err = matMulInto(m, other, result); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
@@ -876,8 +1068,8 @@ func (m *Matrix) MatMulInto(other, result *Matrix) (err error) {
 		return err
 	}
 
-	matMulInto(m, other, result)
-	return nil
+	err = matMulInto(m, other, result)
+	return err
 }
 
 // MatMulLeftTransposeInto writes the matrix product of m transposed and other into result.
@@ -913,8 +1105,8 @@ func (m *Matrix) MatMulLeftTransposeInto(other, result *Matrix) (err error) {
 		return err
 	}
 
-	matMulLeftTransposeInto(m, other, result)
-	return nil
+	err = matMulLeftTransposeInto(m, other, result)
+	return err
 }
 
 // MatMulRightTransposeInto writes the matrix product of m and other transposed into result.
@@ -950,8 +1142,8 @@ func (m *Matrix) MatMulRightTransposeInto(other, result *Matrix) (err error) {
 		return err
 	}
 
-	matMulRightTransposeInto(m, other, result)
-	return nil
+	err = matMulRightTransposeInto(m, other, result)
+	return err
 }
 
 // Transpose returns a matrix with rows and columns swapped.
@@ -987,6 +1179,12 @@ func (m *Matrix) TransposeInto(result *Matrix) (err error) {
 	if err = result.requireShape("transpose destination", m.cols, m.rows); err != nil {
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
+		return err
+	}
 
 	var (
 		row int
@@ -1005,6 +1203,9 @@ func (m *Matrix) TransposeInto(result *Matrix) (err error) {
 // RowSums returns one sum for each row.
 func (m *Matrix) RowSums() (sums []float32, err error) {
 	if err = m.validate(); err != nil {
+		return nil, err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
 		return nil, err
 	}
 
@@ -1040,6 +1241,12 @@ func (m *Matrix) RowSumsInto(result *Matrix) (err error) {
 	if err = result.requireShape("row sums destination", m.rows, 1); err != nil {
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
+		return err
+	}
 
 	var (
 		row int
@@ -1059,6 +1266,9 @@ func (m *Matrix) RowSumsInto(result *Matrix) (err error) {
 // ColumnSums returns one sum for each column.
 func (m *Matrix) ColumnSums() (sums []float32, err error) {
 	if err = m.validate(); err != nil {
+		return nil, err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
 		return nil, err
 	}
 
@@ -1092,6 +1302,12 @@ func (m *Matrix) ColumnSumsInto(result *Matrix) (err error) {
 	}
 
 	if err = result.requireShape("column sums destination", 1, m.cols); err != nil {
+		return err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
 		return err
 	}
 
@@ -1139,6 +1355,15 @@ func (m *Matrix) AccumulateColumnSumsInto(result *Matrix) (err error) {
 	if err = result.requireShape("column sums destination", 1, m.cols); err != nil {
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
+		return err
+	}
 
 	var (
 		row      int
@@ -1175,6 +1400,15 @@ func (m *Matrix) AddRowVectorInPlace(rowVector *Matrix) (err error) {
 	if err = rowVector.requireShape("row vector", 1, m.cols); err != nil {
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = rowVector.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = m.markHostWrite(); err != nil {
+		return err
+	}
 
 	var (
 		row         int
@@ -1200,6 +1434,9 @@ func (m *Matrix) Apply(fn func(float32) float32) (result *Matrix, err error) {
 	}
 
 	if err = m.validate(); err != nil {
+		return nil, err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
 		return nil, err
 	}
 
@@ -1230,6 +1467,12 @@ func (m *Matrix) ApplyInto(fn func(float32) float32, result *Matrix) (err error)
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
 		return err
 	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
+		return err
+	}
 
 	var index int
 	for index = range result.data {
@@ -1250,6 +1493,12 @@ func (m *Matrix) Pairwise(other *Matrix, fn func(row, col int, left, right float
 	}
 
 	if err = m.sameShape(other); err != nil {
+		return err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = other.ensureHostCurrent(); err != nil {
 		return err
 	}
 
@@ -1290,6 +1539,15 @@ func (m *Matrix) PairwiseInto(
 	}
 
 	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = other.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
 		return err
 	}
 

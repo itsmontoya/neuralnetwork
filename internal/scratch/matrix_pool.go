@@ -32,7 +32,9 @@ func (p *MatrixPool) Get(rows, cols int) (out *matrix.Matrix, reused bool, err e
 		return nil, false, err
 	}
 
-	p.retain(out)
+	if err = p.retain(out); err != nil {
+		return nil, false, err
+	}
 	return out, false, nil
 }
 
@@ -43,13 +45,18 @@ func (p *MatrixPool) moveToMostRecent(index int) {
 	p.entries[p.count-1] = entry
 }
 
-func (p *MatrixPool) retain(entry *matrix.Matrix) {
+func (p *MatrixPool) retain(entry *matrix.Matrix) (err error) {
 	if p.count < poolEntryLimit {
 		p.entries[p.count] = entry
 		p.count++
-		return
+		return nil
 	}
 
+	// A self-copy preserves dirty values while detaching private device storage.
+	if err = p.entries[0].CopyFrom(p.entries[0]); err != nil {
+		return err
+	}
 	copy(p.entries[:poolEntryLimit-1], p.entries[1:])
 	p.entries[poolEntryLimit-1] = entry
+	return nil
 }

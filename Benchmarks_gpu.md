@@ -952,3 +952,207 @@ runtime-primitives measurement, not an end-to-end resident-training claim. It
 supports keeping buffers resident and batching several kernels into one scope
 in later sections; the synchronous matrix adapter intentionally retains its
 existing transfer and wait behavior for now.
+
+## Step 4: Add Coherent Metal Matrix Residency
+
+Captured on July 22, 2026.
+
+### Environment
+
+| Field | Value |
+| --- | --- |
+| OS | macOS 26.5.2 (25F84) |
+| Architecture | arm64 |
+| CPU | Apple M3 |
+| go.mod Go version | 1.26.1 |
+| Go toolchain | go1.26.5 darwin/arm64 |
+| CGO | enabled |
+| Metal device | available |
+
+### Commands
+
+CPU, `purego`, and Metal-tagged CPU-fallback controls with five samples:
+
+```sh
+go test ./matrix -run '^$' -bench='^Benchmark_(MatMulInto|AddInto|Values)$' -benchmem -benchtime=200ms -count=5
+go test ./matrix -tags=purego -run '^$' -bench='^Benchmark_(MatMulInto|AddInto|Values)$' -benchmem -benchtime=200ms -count=5
+go test ./matrix -tags=metal -run '^$' -bench='^Benchmark_(MatMulInto|AddInto|Values)$' -benchmem -benchtime=200ms -count=5
+```
+
+Warmed resident multiplication with and without an explicit host observation,
+plus the existing allocating benchmark used by the synchronous baseline:
+
+```sh
+go test ./matrix -tags=metal -run '^$' -bench='^Benchmark_MetalMatrixResidency$' -benchmem -benchtime=200ms -count=10
+go test ./matrix -tags=metal -run '^$' -bench='^Benchmark_MatMulShapes/Large128x256x128$' -benchmem -benchtime=200ms -count=10
+```
+
+### Summary
+
+| Build/case | Benchmark | Median ns/op | B/op | allocs/op |
+| --- | --- | ---: | ---: | ---: |
+| Default | `MatMulInto` | 148,870 | 0 | 0 |
+| `purego` | `MatMulInto` | 148,812 | 0 | 0 |
+| Metal CPU fallback | `MatMulInto` | 149,132 | 0 | 0 |
+| Default | `Values` | 13,752 | 262,147 | 1 |
+| `purego` | `Values` | 14,271 | 262,145 | 1 |
+| Metal CPU fallback | `Values` | 13,041 | 262,144 | 1 |
+| Default | `AddInto` | 6,992 | 0 | 0 |
+| `purego` | `AddInto` | 26,071 | 0 | 0 |
+| Metal CPU fallback | `AddInto` | 7,010 | 0 | 0 |
+| Resident Metal | Warmed unobserved | 221,176 | 128 | 2 |
+| Resident Metal | Warmed observed | 230,491 | 128 | 2 |
+| Resident allocating Metal | `Large128x256x128` | 247,051 | 65,888 | 5 |
+
+Ten-sample medians average the fifth and sixth sorted samples. Five-sample
+medians use the third sorted sample. Byte counts in the table use the median
+sample when benchmark sink escape accounting varied by a few bytes.
+
+### Raw CPU-Fallback Output
+
+Default:
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_MatMulInto-8       1536  148870 ns/op       0 B/op  0 allocs/op
+Benchmark_MatMulInto-8       1668  148778 ns/op       0 B/op  0 allocs/op
+Benchmark_MatMulInto-8       1620  149384 ns/op       0 B/op  0 allocs/op
+Benchmark_MatMulInto-8       1636  148299 ns/op       0 B/op  0 allocs/op
+Benchmark_MatMulInto-8       1647  148988 ns/op       0 B/op  0 allocs/op
+Benchmark_Values-8          19584   12495 ns/op  262144 B/op  1 allocs/op
+Benchmark_Values-8          18250   13830 ns/op  262146 B/op  1 allocs/op
+Benchmark_Values-8          17366   13661 ns/op  262147 B/op  1 allocs/op
+Benchmark_Values-8          17702   14094 ns/op  262147 B/op  1 allocs/op
+Benchmark_Values-8          17400   13752 ns/op  262147 B/op  1 allocs/op
+Benchmark_AddInto-8         46666    7054 ns/op       0 B/op  0 allocs/op
+Benchmark_AddInto-8         34542    6843 ns/op       0 B/op  0 allocs/op
+Benchmark_AddInto-8         34452    6963 ns/op       0 B/op  0 allocs/op
+Benchmark_AddInto-8         34446    6992 ns/op       0 B/op  0 allocs/op
+Benchmark_AddInto-8         34455    6994 ns/op       0 B/op  0 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/matrix  5.427s
+```
+
+`purego`:
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_MatMulInto-8       1513  149061 ns/op       0 B/op  0 allocs/op
+Benchmark_MatMulInto-8       1609  148283 ns/op       0 B/op  0 allocs/op
+Benchmark_MatMulInto-8       1636  148812 ns/op       0 B/op  0 allocs/op
+Benchmark_MatMulInto-8       1611  148227 ns/op       0 B/op  0 allocs/op
+Benchmark_MatMulInto-8       1653  149332 ns/op       0 B/op  0 allocs/op
+Benchmark_Values-8          15046   14131 ns/op  262146 B/op  1 allocs/op
+Benchmark_Values-8          16995   14271 ns/op  262145 B/op  1 allocs/op
+Benchmark_Values-8          14743   15336 ns/op  262144 B/op  1 allocs/op
+Benchmark_Values-8          16284   14193 ns/op  262145 B/op  1 allocs/op
+Benchmark_Values-8          16833   15875 ns/op  262144 B/op  1 allocs/op
+Benchmark_AddInto-8          9225   26067 ns/op       0 B/op  0 allocs/op
+Benchmark_AddInto-8          9188   26035 ns/op       0 B/op  0 allocs/op
+Benchmark_AddInto-8          9756   26071 ns/op       0 B/op  0 allocs/op
+Benchmark_AddInto-8          9584   26169 ns/op       0 B/op  0 allocs/op
+Benchmark_AddInto-8          9115   26471 ns/op       0 B/op  0 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/matrix  4.806s
+```
+
+Metal-tagged CPU fallback:
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_MatMulInto-8       1524  148764 ns/op       0 B/op  0 allocs/op
+Benchmark_MatMulInto-8       1646  149113 ns/op       0 B/op  0 allocs/op
+Benchmark_MatMulInto-8       1578  150740 ns/op       0 B/op  0 allocs/op
+Benchmark_MatMulInto-8       1627  149940 ns/op       0 B/op  0 allocs/op
+Benchmark_MatMulInto-8       1623  149132 ns/op       0 B/op  0 allocs/op
+Benchmark_Values-8          16849   12949 ns/op  262144 B/op  1 allocs/op
+Benchmark_Values-8          18716   12925 ns/op  262144 B/op  1 allocs/op
+Benchmark_Values-8          18436   13041 ns/op  262144 B/op  1 allocs/op
+Benchmark_Values-8          18637   13485 ns/op  262147 B/op  1 allocs/op
+Benchmark_Values-8          17908   13290 ns/op  262148 B/op  1 allocs/op
+Benchmark_AddInto-8         33927    7004 ns/op       0 B/op  0 allocs/op
+Benchmark_AddInto-8         34246    7010 ns/op       0 B/op  0 allocs/op
+Benchmark_AddInto-8         34215    7099 ns/op       0 B/op  0 allocs/op
+Benchmark_AddInto-8         34353    7008 ns/op       0 B/op  0 allocs/op
+Benchmark_AddInto-8         34248    7069 ns/op       0 B/op  0 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/matrix  5.127s
+```
+
+### Raw Resident Metal Output
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_MetalMatrixResidency/WarmedUnobserved-8   417   601761 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedUnobserved-8   955   215378 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedUnobserved-8  1156   211221 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedUnobserved-8  1154   215755 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedUnobserved-8  1095   223667 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedUnobserved-8  1114   227445 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedUnobserved-8  1039   226148 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedUnobserved-8  1112   224155 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedUnobserved-8  1142   218684 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedUnobserved-8  1094   217191 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedObserved-8    1062   231493 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedObserved-8    1113   225115 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedObserved-8    1059   227695 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedObserved-8    1028   232487 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedObserved-8    1052   232755 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedObserved-8    1053   227775 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedObserved-8    1046   232976 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedObserved-8    1075   232878 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedObserved-8    1023   229489 ns/op  128 B/op  2 allocs/op
+Benchmark_MetalMatrixResidency/WarmedObserved-8    1095   225536 ns/op  128 B/op  2 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/matrix  5.761s
+```
+
+Existing allocating benchmark:
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/matrix
+cpu: Apple M3
+Benchmark_MatMulShapes/Large128x256x128-8  464  463098 ns/op  65889 B/op  5 allocs/op
+Benchmark_MatMulShapes/Large128x256x128-8  966  247387 ns/op  65888 B/op  5 allocs/op
+Benchmark_MatMulShapes/Large128x256x128-8  964  244410 ns/op  65888 B/op  5 allocs/op
+Benchmark_MatMulShapes/Large128x256x128-8  968  246971 ns/op  65889 B/op  5 allocs/op
+Benchmark_MatMulShapes/Large128x256x128-8  956  246890 ns/op  65888 B/op  5 allocs/op
+Benchmark_MatMulShapes/Large128x256x128-8  960  247939 ns/op  65888 B/op  5 allocs/op
+Benchmark_MatMulShapes/Large128x256x128-8  967  245684 ns/op  65888 B/op  5 allocs/op
+Benchmark_MatMulShapes/Large128x256x128-8  984  246462 ns/op  65888 B/op  5 allocs/op
+Benchmark_MatMulShapes/Large128x256x128-8  964  247400 ns/op  65888 B/op  5 allocs/op
+Benchmark_MatMulShapes/Large128x256x128-8  962  247131 ns/op  65888 B/op  5 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/matrix  3.096s
+```
+
+### Interpretation
+
+The optional residency pointer grows `Matrix` to six machine words, but the
+existing CPU destination operations remain allocation-free. Default
+`MatMulInto` is within 0.1% of the recorded 148,775 ns/op baseline, and the
+Metal-tagged below-threshold controls match default SIMD timing. `purego`
+retains the same zero-allocation contracts and expected scalar elementwise
+selection.
+
+For the large resident multiplication, inputs upload only on first use and the
+destination remains device-newer. An explicit `ValuesInto` boundary adds about
+4.2% to the warmed median. The directly comparable allocating Metal benchmark
+has a 247,051 ns/op median versus the recorded 250,808 ns/op synchronous
+median; its three additional small Go allocations are the lazy residency
+record, staging-buffer owner, and command-scope owner. Later batching and
+buffer-pool tuning, not this coherence session, own those per-command costs.

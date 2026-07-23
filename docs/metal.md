@@ -9,9 +9,12 @@ Updated on July 21, 2026 after establishing hybrid CPU SIMD and Metal
 selection, private synchronous bridge counters, and end-to-end baselines.
 
 Updated on July 22, 2026 after introducing the persistent runtime, buffer, and
-command-scope primitives. Matrix multiplication still uses its original
-synchronous transfer boundary through the new runtime adapter; matrix
-residency and model-level command batching remain later sections.
+command-scope primitives.
+
+Updated on July 22, 2026 after adding transparent matrix residency, revision
+tracking, staged standalone writes, host-observation barriers, coherent CPU
+fallbacks, device copies, and scratch-eviction cleanup. Model-level command
+batching and non-multiplication kernels remain later sections.
 
 ## Decision Summary
 
@@ -45,23 +48,26 @@ Metal absence, an unsupported build, an unsupported operation, or a workload
 below the measured dispatch threshold is a normal CPU/SIMD path. These cases
 do not change results or surface a device error.
 
-## Current Synchronous Baseline
+## Current Matrix Residency Boundary
 
 The matrix-facing Metal path currently accelerates only `MatMul`,
 `MatMulInto`, `MatMulLeftTransposeInto`, and
-`MatMulRightTransposeInto`. Each eligible multiplication allocates three
-shared `MTLBuffer` values, copies both host inputs, creates and commits one
-command buffer, waits for it, copies the result to host storage, and releases
-the buffers. It uses the current custom naive multiplication shader and the
-`1 << 20` multiply-add threshold.
+`MatMulRightTransposeInto`. Each eligible standalone multiplication uploads an
+input only when its host revision is newer, reuses current input buffers,
+writes into separate staging, creates and commits one command buffer, waits,
+and atomically publishes the completed result as device-newer. It does not
+download the result until a host observation or CPU fallback reads it. The
+path retains the custom naive multiplication shader and the `1 << 20`
+multiply-add threshold.
 
 The shared runtime initializes one default device, queue, library, fill
-pipeline, and multiplication pipeline. The matrix adapter uses those persistent
-fixed resources, but no matrix retains a buffer or revision yet. A failed or
-unavailable Metal multiplication attempt currently selects the scalar helper;
-the device-resident implementation will replace that conflation with the
-failure classification below. Existing Metal integration tests skip only for
-no default device and treat shader or command failures as test failures.
+pipeline, and multiplication pipeline. A matrix lazily attaches one private
+build-neutral residency record only after an eligible available-device use.
+The record owns at most one committed buffer plus staging during a proposed
+write. Unsupported shapes, unavailable devices, and work below the threshold
+select CPU/SIMD before encoding. Initialization, allocation, upload, encoding,
+command, synchronization, and download failures after an eligible attempt are
+returned instead of being silently replayed on CPU.
 
 The current implementation is located in:
 
@@ -69,32 +75,38 @@ The current implementation is located in:
 internal/device/runtime.go      process runtime and resource construction
 internal/device/buffer.go       opaque buffer ownership and host transfers
 internal/device/scope.go        command-scope state and encoding API
+internal/device/residency.go    revisions, committed buffers, and staged writes
+internal/device/residency_snapshot.go private coherence diagnostics
 internal/device/backend.go      build-neutral backend boundary
 internal/device/backend_metal.go Go/cgo Metal adapter
 internal/device/metal_backend.h C interface for the Objective-C backend
 internal/device/metal_backend.m persistent Metal resources and command scopes
-matrix/metal.go                 synchronous multiplication runtime adapter
+matrix/residency.go             host/device coherence hooks
+matrix/metal.go                 resident standalone multiplication adapter
+matrix/copy_metal.go            independent device-newer matrix copies
 matrix/matmul_metal.go          Metal-aware multiplication wrappers
 matrix/matmul_default.go        portable multiplication wrappers
 matrix/matmul_pure.go           pure-Go multiplication reference
 matrix/metal_internal_test.go   Metal integration tests
-internal/metaltest/counters.go  private synchronous bridge counters
+internal/metaltest/counters.go  private matrix transfer and command counters
 ```
 
 The private counters record buffer creation, input upload, result download,
 command submission, wait, and failure activity only while explicitly enabled
-by repository tests. They do not add a public diagnostics API or change the
-synchronous dispatch contract.
+by repository tests. Per-matrix snapshots additionally record revisions,
+proposals, publications, discarded publications, avoided uploads, downloads,
+and device copies. Neither mechanism adds a public diagnostics API.
 
 Current `metal` builds retain architecture-specific CPU SIMD for dot-product
 and elementwise work on `arm64` and `amd64`. Unsupported architectures and
 `purego` builds retain local scalar fallbacks. This hybrid selection does not
-change the synchronous Metal multiplication behavior described above.
+change the standalone synchronization boundary described above.
 
 ## Persistent Runtime Boundary
 
 The build-neutral `internal/device` package now owns the private `Runtime`,
-`Buffer`, `Scope`, operation identifiers, and aggregate resource snapshots.
+`Buffer`, `Scope`, `Residency`, operation identifiers, coherence snapshots,
+and aggregate resource snapshots.
 The Darwin/cgo/`metal` backend implements those types with opaque C handles;
 other build combinations compile a backend that reports normal unavailability.
 No public neural-network package exposes a device handle.
@@ -129,12 +141,13 @@ stress test performs 512 allocate/encode/wait/release cycles and requires live
 resources to return to zero, created and released counts to balance, and peaks
 to remain at one buffer, one scope, and 64 bytes.
 
-The matrix adapter allocates two input buffers and one result buffer, uploads
-both inputs, encodes and waits for one multiplication, downloads the result,
-and releases all transient resources. Its existing `1 << 20` threshold, CPU
-fallback behavior, numerical behavior, and private transfer counts therefore
-remain unchanged during this section. Persistent matrix-owned buffers begin in
-the coherence section that follows.
+The matrix adapter now retains committed input and result buffers through each
+matrix's residency record. A full device destination uses staging so a command
+failure cannot corrupt its last committed value. After a successful wait, the
+record swaps staging into the committed slot and releases the replaced buffer.
+The returned matrix may remain device-newer. The existing `1 << 20` threshold
+and numerical kernel remain unchanged; model-level calls still invoke one
+standalone command and wait per eligible multiplication.
 
 ## Compatibility Decision
 
@@ -143,13 +156,13 @@ error contracts, so this milestone does not add a public execution API.
 
 The private design has three parts:
 
-* A build-neutral package under `internal/device` owns an opaque execution
-  scope, operation identifiers, private counters, and an immutable adapter
-  registry. It imports none of the public neural-network packages.
-* `matrix` owns matrix coherence metadata and registers the only adapter that
-  can attach a private scope to a matrix, inspect residency, and invoke the
-  build-specific backend. The adapter is process-global and immutable after
-  initialization; per-call scopes and errors are never global.
+* A build-neutral package under `internal/device` owns opaque execution scopes,
+  buffers, residency records, operation identifiers, and private snapshots. It
+  imports none of the public neural-network packages.
+* `matrix` holds an optional private residency pointer and owns the hooks that
+  classify host observations, host mutations, device operations, and CPU
+  fallbacks. Build-specific adapters inspect that record without exposing a
+  handle or adding a public API.
 * `model` creates scopes and binds inputs and targets through the internal
   adapter. Matrix operations propagate the bound scope to their destinations.
   `activation`, `loss`, and `optimizer` request the few specialized private
@@ -263,6 +276,12 @@ barrier before reading host data and makes any destination host-newer.
 | `ColumnSumsInto`, `AccumulateColumnSumsInto` | Device operation | Support dense bias gradients. Destinations cannot alias the input; overwrite versus accumulation semantics remain distinct. |
 | `AddRowVectorInPlace` | Device operation | Supports dense bias addition and preserves the `[1, Cols]` validation and receiver ownership. |
 | `Apply`, `ApplyInto`, `Pairwise`, `PairwiseInto` | CPU fallback | Arbitrary Go callbacks are never assumed to be shaders. Callback order, error propagation, and currently permitted destination aliasing remain unchanged. Built-in ReLU and categorical loss use separate private typed operations. |
+
+This classification describes the complete milestone vocabulary. At the
+current Section 4 boundary, only multiplication variants and device-newer
+copies encode Metal work. Every other matrix method already participates in
+coherence but executes through its existing CPU/SIMD implementation until its
+own later kernel section.
 
 ## Device Operation Vocabulary
 
