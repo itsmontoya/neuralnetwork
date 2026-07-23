@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/itsmontoya/neuralnetwork/internal/device"
 	"github.com/itsmontoya/neuralnetwork/internal/metaltest"
 )
 
@@ -200,6 +201,176 @@ func Test_MetalMatrixResidencyCoherence(t *testing.T) {
 		t.Fatalf("result At after clone mutation returned error: %v", err)
 	}
 	requireMetalFloat(t, resultValue, cloneValue, 0)
+}
+
+func Test_MetalExecutionBatchesDependentMultiplications(t *testing.T) {
+	var (
+		execution    *device.Execution
+		left         *Matrix
+		right        *Matrix
+		intermediate *Matrix
+		result       *Matrix
+		wantFirst    *Matrix
+		want         *Matrix
+		counters     metaltest.Counters
+		available    bool
+		err          error
+	)
+
+	requireMetalAvailable(t)
+	left = metalTestMatrix(t, 64, 128, 0.25)
+	right = metalTestMatrix(t, 128, 128, -0.5)
+	if intermediate, err = New(64, 128); err != nil {
+		t.Fatalf("New intermediate returned error: %v", err)
+	}
+	if result, err = New(64, 128); err != nil {
+		t.Fatalf("New result returned error: %v", err)
+	}
+	if wantFirst, err = New(64, 128); err != nil {
+		t.Fatalf("New first reference returned error: %v", err)
+	}
+	if want, err = New(64, 128); err != nil {
+		t.Fatalf("New reference returned error: %v", err)
+	}
+	matMulIntoPure(left, right, wantFirst)
+	matMulIntoPure(wantFirst, right, want)
+
+	if execution, available, err = device.NewSharedExecution(); err != nil {
+		t.Fatalf("NewSharedExecution returned error: %v", err)
+	}
+	if !available {
+		t.Fatal("NewSharedExecution reported Metal unavailable after availability check")
+	}
+	if err = execution.Bind(left); err != nil {
+		t.Fatalf("Bind input returned error: %v", err)
+	}
+
+	metaltest.Enable()
+	defer metaltest.Disable()
+	if err = left.MatMulInto(right, intermediate); err != nil {
+		t.Fatalf("first MatMulInto returned error: %v", err)
+	}
+	if err = intermediate.MatMulInto(right, result); err != nil {
+		t.Fatalf("dependent MatMulInto returned error: %v", err)
+	}
+	if counters = metaltest.Snapshot(); counters.CommandSubmissions != 0 || counters.Waits != 0 {
+		t.Fatalf("counters before Finish = %+v, want no submission or wait", counters)
+	}
+	if err = execution.Finish(); err != nil {
+		t.Fatalf("Finish returned error: %v", err)
+	}
+
+	counters = metaltest.Snapshot()
+	requireMetalCounters(t, counters, 4, 2, 0, 1, 1)
+	requireMetalMatrixValues(t, result, want, metalMatMulTestEpsilon)
+	counters = metaltest.Snapshot()
+	requireMetalCounters(t, counters, 4, 2, 1, 1, 1)
+}
+
+func Test_MetalExecutionSynchronizesCPUFallbackAndResumes(t *testing.T) {
+	var (
+		execution    *device.Execution
+		left         *Matrix
+		right        *Matrix
+		intermediate *Matrix
+		fallback     *Matrix
+		result       *Matrix
+		counters     metaltest.Counters
+		available    bool
+		err          error
+	)
+
+	requireMetalAvailable(t)
+	left = metalTestMatrix(t, 64, 128, 0.125)
+	right = metalTestMatrix(t, 128, 128, -0.25)
+	if intermediate, err = New(64, 128); err != nil {
+		t.Fatalf("New intermediate returned error: %v", err)
+	}
+	if fallback, err = New(64, 128); err != nil {
+		t.Fatalf("New fallback returned error: %v", err)
+	}
+	if result, err = New(64, 128); err != nil {
+		t.Fatalf("New result returned error: %v", err)
+	}
+	if execution, available, err = device.NewSharedExecution(); err != nil {
+		t.Fatalf("NewSharedExecution returned error: %v", err)
+	}
+	if !available {
+		t.Fatal("NewSharedExecution reported Metal unavailable after availability check")
+	}
+	if err = execution.Bind(left); err != nil {
+		t.Fatalf("Bind input returned error: %v", err)
+	}
+
+	metaltest.Enable()
+	defer metaltest.Disable()
+	if err = left.MatMulInto(right, intermediate); err != nil {
+		t.Fatalf("first MatMulInto returned error: %v", err)
+	}
+	if err = intermediate.AddScalarInto(1, fallback); err != nil {
+		t.Fatalf("AddScalarInto fallback returned error: %v", err)
+	}
+	if err = fallback.MatMulInto(right, result); err != nil {
+		t.Fatalf("MatMulInto after fallback returned error: %v", err)
+	}
+	if err = execution.Finish(); err != nil {
+		t.Fatalf("Finish returned error: %v", err)
+	}
+
+	counters = metaltest.Snapshot()
+	requireMetalCounters(t, counters, 5, 3, 1, 2, 2)
+	if _, err = result.Values(); err != nil {
+		t.Fatalf("result Values returned error: %v", err)
+	}
+}
+
+func Test_MetalExecutionCompletesRepeatedDestinationWrites(t *testing.T) {
+	var (
+		execution *device.Execution
+		left      *Matrix
+		right     *Matrix
+		result    *Matrix
+		want      *Matrix
+		counters  metaltest.Counters
+		available bool
+		err       error
+	)
+
+	requireMetalAvailable(t)
+	left = metalTestMatrix(t, 64, 128, 0.375)
+	right = metalTestMatrix(t, 128, 128, -0.125)
+	if result, err = New(64, 128); err != nil {
+		t.Fatalf("New result returned error: %v", err)
+	}
+	if want, err = New(64, 128); err != nil {
+		t.Fatalf("New reference returned error: %v", err)
+	}
+	matMulIntoPure(left, right, want)
+	if execution, available, err = device.NewSharedExecution(); err != nil {
+		t.Fatalf("NewSharedExecution returned error: %v", err)
+	}
+	if !available {
+		t.Fatal("NewSharedExecution reported Metal unavailable after availability check")
+	}
+	if err = execution.Bind(left); err != nil {
+		t.Fatalf("Bind input returned error: %v", err)
+	}
+
+	metaltest.Enable()
+	defer metaltest.Disable()
+	if err = left.MatMulInto(right, result); err != nil {
+		t.Fatalf("first MatMulInto returned error: %v", err)
+	}
+	if err = left.MatMulInto(right, result); err != nil {
+		t.Fatalf("repeated MatMulInto returned error: %v", err)
+	}
+	if err = execution.Finish(); err != nil {
+		t.Fatalf("Finish returned error: %v", err)
+	}
+
+	counters = metaltest.Snapshot()
+	requireMetalCounters(t, counters, 4, 2, 0, 2, 2)
+	requireMetalMatrixValues(t, result, want, metalMatMulTestEpsilon)
 }
 
 func Test_MetalMatrixResidencyHostBoundaries(t *testing.T) {

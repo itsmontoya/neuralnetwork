@@ -7,11 +7,24 @@ import (
 	"fmt"
 
 	"github.com/itsmontoya/neuralnetwork/internal/device"
-	"github.com/itsmontoya/neuralnetwork/internal/metaltest"
 )
 
 func copyMatrix(source, destination *Matrix) (err error) {
-	var snapshot device.ResidencySnapshot
+	var (
+		execution *device.Execution
+		snapshot  device.ResidencySnapshot
+	)
+
+	if execution, err = compatibleExecution(source, destination); err != nil {
+		return err
+	}
+	if execution != nil && execution.Activated() {
+		err = copyMatrixDevice(source, destination, execution, false)
+		if err != nil {
+			metalRecordFailure(err)
+		}
+		return err
+	}
 
 	if source.residency == nil {
 		return copyMatrixHost(source, destination)
@@ -23,83 +36,82 @@ func copyMatrix(source, destination *Matrix) (err error) {
 		return copyMatrixHost(source, destination)
 	}
 
-	err = copyMatrixDevice(source, destination)
+	err = copyMatrixDevice(source, destination, nil, true)
 	if err != nil {
 		metalRecordFailure(err)
 	}
 	return err
 }
 
-func copyMatrixDevice(source, destination *Matrix) (err error) {
+func copyMatrixDevice(
+	source,
+	destination *Matrix,
+	execution *device.Execution,
+	owned bool,
+) (err error) {
 	var (
-		runtimeValue      *device.Runtime
 		sourceBuffer      *device.Buffer
 		destinationBuffer *device.Buffer
-		scope             *device.Scope
-		activity          metalBridgeActivity
+		publication       device.Publication
 		allocated         bool
 		uploaded          bool
-		published         bool
 	)
 
-	runtimeValue = source.residency.Runtime()
-	if metaltest.Enabled() {
-		defer func() {
-			metaltest.RecordBridgeActivity(
-				activity.bufferCreations,
-				activity.inputUploads,
-				activity.resultDownloads,
-				activity.commandSubmissions,
-				activity.waits,
-			)
-		}()
+	if execution == nil {
+		execution = device.NewExecution(source.residency.Runtime())
 	}
-
-	if sourceBuffer, allocated, uploaded, err = source.ensureDeviceBuffer(runtimeValue); err != nil {
-		return fmt.Errorf("matrix: prepare Metal copy source: %w", err)
-	}
-	activity.recordDevicePreparation(allocated, uploaded)
-	if destinationBuffer, allocated, err = destination.beginDeviceWrite(runtimeValue); err != nil {
-		return fmt.Errorf("matrix: prepare Metal copy destination: %w", err)
-	}
-	if allocated {
-		activity.bufferCreations++
-	}
-	defer func() {
-		var cleanupErr error
-		if !published {
-			cleanupErr = destination.failDeviceWrite(destinationBuffer, err)
-			if cleanupErr != nil {
-				err = errors.Join(err, cleanupErr)
-			}
-		}
-	}()
-
-	if scope, err = runtimeValue.NewScope(); err != nil {
-		return fmt.Errorf("matrix: create Metal copy scope: %w", err)
-	}
-	defer func() {
-		var releaseErr error
-		if releaseErr = scope.Release(); err == nil && releaseErr != nil {
-			err = fmt.Errorf("matrix: release Metal copy scope: %w", releaseErr)
-		}
-	}()
-	if err = scope.EncodeCopy(sourceBuffer, destinationBuffer); err != nil {
-		return fmt.Errorf("matrix: encode Metal copy: %w", err)
-	}
-	if err = scope.Commit(); err != nil {
-		return fmt.Errorf("matrix: commit Metal copy: %w", err)
-	}
-	activity.commandSubmissions++
-	if err = scope.Wait(); err != nil {
-		activity.waits++
-		return fmt.Errorf("matrix: wait for Metal copy: %w", err)
-	}
-	activity.waits++
-	if err = destination.publishDeviceWrite(destinationBuffer); err != nil {
+	if execution == nil {
+		err = errors.New("matrix: create Metal copy execution: runtime is nil")
 		return err
 	}
-	destination.residency.RecordDeviceCopy()
-	published = true
+	if owned {
+		defer func() {
+			if err != nil && execution.Active() {
+				err = errors.Join(err, execution.Abort(err))
+			}
+		}()
+	}
+	if err = execution.Bind(source); err != nil {
+		return fmt.Errorf("matrix: bind Metal copy source: %w", err)
+	}
+	if err = execution.Bind(destination); err != nil {
+		return fmt.Errorf("matrix: bind Metal copy destination: %w", err)
+	}
+
+	if sourceBuffer, allocated, uploaded, err = source.ensureExecutionDeviceBuffer(execution); err != nil {
+		return fmt.Errorf("matrix: prepare Metal copy source: %w", err)
+	}
+	execution.RecordDevicePreparation(allocated, uploaded)
+	if destinationBuffer, allocated, err = destination.beginExecutionDeviceWrite(execution); err != nil {
+		return fmt.Errorf("matrix: prepare Metal copy destination: %w", err)
+	}
+	execution.RecordDevicePreparation(allocated, false)
+	publication.Publish = func() (publishErr error) {
+		if publishErr = destination.publishDeviceWrite(destinationBuffer); publishErr != nil {
+			return publishErr
+		}
+		destination.residency.RecordDeviceCopy()
+		return nil
+	}
+	publication.Discard = func(cause error) (discardErr error) {
+		discardErr = destination.failDeviceWrite(destinationBuffer, cause)
+		return discardErr
+	}
+	if err = execution.EncodeCopy(
+		sourceBuffer,
+		destinationBuffer,
+		uint64(len(destination.data))*4,
+		publication,
+	); err != nil {
+		return fmt.Errorf("matrix: encode Metal copy: %w", err)
+	}
+	if err = execution.MarkRead(source); err != nil {
+		return fmt.Errorf("matrix: record Metal copy source use: %w", err)
+	}
+	if owned {
+		if err = execution.Finish(); err != nil {
+			return fmt.Errorf("matrix: finish Metal copy execution: %w", err)
+		}
+	}
 	return nil
 }
