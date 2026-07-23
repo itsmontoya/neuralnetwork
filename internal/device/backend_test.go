@@ -2,6 +2,7 @@ package device
 
 import (
 	"errors"
+	"math"
 	"sync"
 )
 
@@ -154,6 +155,130 @@ func (b *testBackend) encodeFill(scope, handle any, value float32, _ uint64) (er
 		var index int
 		for index = range buffer.values {
 			buffer.values[index] = value
+		}
+	})
+	return nil
+}
+
+func (b *testBackend) encodeAddRowVector(
+	scope,
+	values,
+	rowVector any,
+	rows,
+	cols uint32,
+) (err error) {
+	var (
+		commandScope    *testScope
+		valuesBuffer    *testBuffer
+		rowVectorBuffer *testBuffer
+	)
+
+	if b.encodeErr != nil {
+		return b.encodeErr
+	}
+	commandScope = testScopeHandle(scope)
+	valuesBuffer = testBufferHandle(values)
+	rowVectorBuffer = testBufferHandle(rowVector)
+	if commandScope == nil || valuesBuffer == nil || rowVectorBuffer == nil {
+		return errors.New("test backend: nil row-vector addition handle")
+	}
+	commandScope.commands = append(commandScope.commands, func() {
+		var (
+			row    uint32
+			col    uint32
+			offset uint32
+		)
+		for row = 0; row < rows; row++ {
+			offset = row * cols
+			for col = 0; col < cols; col++ {
+				valuesBuffer.values[offset+col] += rowVectorBuffer.values[col]
+			}
+		}
+	})
+	return nil
+}
+
+func (b *testBackend) encodeReLU(scope, input, result any, _ uint32) (err error) {
+	var (
+		commandScope *testScope
+		inputBuffer  *testBuffer
+		resultBuffer *testBuffer
+	)
+
+	if b.encodeErr != nil {
+		return b.encodeErr
+	}
+	commandScope = testScopeHandle(scope)
+	inputBuffer = testBufferHandle(input)
+	resultBuffer = testBufferHandle(result)
+	if commandScope == nil || inputBuffer == nil || resultBuffer == nil {
+		return errors.New("test backend: nil ReLU handle")
+	}
+	commandScope.commands = append(commandScope.commands, func() {
+		var (
+			index int
+			value float32
+		)
+		for index, value = range inputBuffer.values {
+			if value > 0 {
+				resultBuffer.values[index] = value
+			} else {
+				resultBuffer.values[index] = 0
+			}
+		}
+	})
+	return nil
+}
+
+func (b *testBackend) encodeSoftmaxRows(
+	scope,
+	input,
+	result any,
+	rows,
+	cols uint32,
+) (err error) {
+	var (
+		commandScope *testScope
+		inputBuffer  *testBuffer
+		resultBuffer *testBuffer
+	)
+
+	if b.encodeErr != nil {
+		return b.encodeErr
+	}
+	commandScope = testScopeHandle(scope)
+	inputBuffer = testBufferHandle(input)
+	resultBuffer = testBufferHandle(result)
+	if commandScope == nil || inputBuffer == nil || resultBuffer == nil {
+		return errors.New("test backend: nil Softmax handle")
+	}
+	commandScope.commands = append(commandScope.commands, func() {
+		var (
+			row      uint32
+			col      uint32
+			offset   uint32
+			maxValue float32
+			value    float32
+			sum      float32
+		)
+		for row = 0; row < rows; row++ {
+			offset = row * cols
+			maxValue = inputBuffer.values[offset]
+			for col = 1; col < cols; col++ {
+				value = inputBuffer.values[offset+col]
+				if value > maxValue {
+					maxValue = value
+				}
+			}
+			sum = 0
+			for col = 0; col < cols; col++ {
+				value = float32(math.Exp(float64(inputBuffer.values[offset+col] - maxValue)))
+				resultBuffer.values[offset+col] = value
+				sum += value
+			}
+			for col = 0; col < cols; col++ {
+				resultBuffer.values[offset+col] /= sum
+			}
 		}
 	})
 	return nil

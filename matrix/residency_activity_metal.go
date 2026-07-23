@@ -4,6 +4,6 @@ package matrix
 
 import "github.com/itsmontoya/neuralnetwork/internal/metaltest"
 
-func recordResidencyDownload() {
-	metaltest.RecordBridgeActivity(0, 0, 1, 0, 0)
+func recordResidencyDownload(bytes uint64) {
+	metaltest.RecordBridgeActivity(0, 0, 0, 1, bytes, 0, 0)
 }

@@ -32,17 +32,22 @@ func metalRunMatMul(left, right, result *Matrix, variant uint32) (err error) {
 		runtimeValue *device.Runtime
 		execution    *device.Execution
 		available    bool
+		eligible     bool
 		owned        bool
 	)
 
-	if !metalMatMulSupported(left, right, result, variant) {
+	if execution, err = compatibleExecution(left, right, result); err != nil {
+		return err
+	}
+	eligible = metalMatMulSupported(left, right, result, variant)
+	if execution != nil && execution.Activated() {
+		eligible = metalMatMulDimensionsSupported(left, right, result, variant)
+	}
+	if !eligible {
 		if err = inheritExecution(result, left, right); err != nil {
 			return err
 		}
 		err = matMulHost(left, right, result, variant)
-		return err
-	}
-	if execution, err = compatibleExecution(left, right, result); err != nil {
 		return err
 	}
 	if execution == nil {
@@ -114,15 +119,15 @@ func metalCallMatMul(
 	if leftBuffer, allocated, uploaded, err = left.ensureExecutionDeviceBuffer(execution); err != nil {
 		return fmt.Errorf("matrix: prepare Metal left input: %w", err)
 	}
-	execution.RecordDevicePreparation(allocated, uploaded)
+	execution.RecordDevicePreparation(allocated, uploaded, uint64(len(left.data))*4)
 	if rightBuffer, allocated, uploaded, err = right.ensureExecutionDeviceBuffer(execution); err != nil {
 		return fmt.Errorf("matrix: prepare Metal right input: %w", err)
 	}
-	execution.RecordDevicePreparation(allocated, uploaded)
+	execution.RecordDevicePreparation(allocated, uploaded, uint64(len(right.data))*4)
 	if resultBuffer, allocated, err = result.beginExecutionDeviceWrite(execution); err != nil {
 		return fmt.Errorf("matrix: prepare Metal destination: %w", err)
 	}
-	execution.RecordDevicePreparation(allocated, false)
+	execution.RecordDevicePreparation(allocated, false, 0)
 	publication.Publish = func() (publishErr error) {
 		publishErr = result.publishDeviceWrite(resultBuffer)
 		return publishErr
@@ -243,16 +248,7 @@ func metalMatMulSupported(left, right, result *Matrix, variant uint32) (ok bool)
 		operation uint64
 	)
 
-	if len(left.data) == 0 || len(right.data) == 0 || len(result.data) == 0 {
-		return false
-	}
-
-	if !metalDimensionSupported(left.rows) ||
-		!metalDimensionSupported(left.cols) ||
-		!metalDimensionSupported(right.rows) ||
-		!metalDimensionSupported(right.cols) ||
-		!metalDimensionSupported(result.rows) ||
-		!metalDimensionSupported(result.cols) {
+	if !metalMatMulDimensionsSupported(left, right, result, variant) {
 		return false
 	}
 
@@ -274,6 +270,26 @@ func metalMatMulSupported(left, right, result *Matrix, variant uint32) (ok bool)
 
 	ok = true
 	return ok
+}
+
+func metalMatMulDimensionsSupported(left, right, result *Matrix, variant uint32) (ok bool) {
+	if left == nil || right == nil || result == nil ||
+		len(left.data) == 0 || len(right.data) == 0 || len(result.data) == 0 {
+		return false
+	}
+	if variant > metalMatMulRightTranspose {
+		return false
+	}
+	if !metalDimensionSupported(left.rows) ||
+		!metalDimensionSupported(left.cols) ||
+		!metalDimensionSupported(right.rows) ||
+		!metalDimensionSupported(right.cols) ||
+		!metalDimensionSupported(result.rows) ||
+		!metalDimensionSupported(result.cols) {
+		return false
+	}
+
+	return true
 }
 
 func metalDimensionSupported(dimension int) (ok bool) {

@@ -179,6 +179,83 @@ func Test_ScopeOrdersCommands(t *testing.T) {
 	requireFloat32Values(t, got, []float32{7, 7, 7})
 }
 
+func Test_ScopeDenseForwardOperations(t *testing.T) {
+	var (
+		runtime   *Runtime
+		values    *Buffer
+		rowVector *Buffer
+		relu      *Buffer
+		softmax   *Buffer
+		scope     *Scope
+		got       []float32
+		err       error
+	)
+
+	runtime = newRuntime(newTestBackend())
+	if values, err = runtime.NewBuffer(6); err != nil {
+		t.Fatalf("NewBuffer values returned error: %v", err)
+	}
+	defer values.Release()
+	if rowVector, err = runtime.NewBuffer(3); err != nil {
+		t.Fatalf("NewBuffer row vector returned error: %v", err)
+	}
+	defer rowVector.Release()
+	if relu, err = runtime.NewBuffer(6); err != nil {
+		t.Fatalf("NewBuffer ReLU returned error: %v", err)
+	}
+	defer relu.Release()
+	if softmax, err = runtime.NewBuffer(6); err != nil {
+		t.Fatalf("NewBuffer Softmax returned error: %v", err)
+	}
+	defer softmax.Release()
+
+	if err = values.Upload([]float32{-3, -1, 1, 2, 4, 6}); err != nil {
+		t.Fatalf("Upload values returned error: %v", err)
+	}
+	if err = rowVector.Upload([]float32{1, -2, 3}); err != nil {
+		t.Fatalf("Upload row vector returned error: %v", err)
+	}
+	if scope, err = runtime.NewScope(); err != nil {
+		t.Fatalf("NewScope returned error: %v", err)
+	}
+	defer scope.Release()
+
+	if err = scope.EncodeAddRowVector(values, rowVector, 2, 3); err != nil {
+		t.Fatalf("EncodeAddRowVector returned error: %v", err)
+	}
+	if err = scope.EncodeReLU(values, relu); err != nil {
+		t.Fatalf("EncodeReLU returned error: %v", err)
+	}
+	if err = scope.EncodeSoftmaxRows(relu, softmax, 2, 3); err != nil {
+		t.Fatalf("EncodeSoftmaxRows returned error: %v", err)
+	}
+	if err = scope.Commit(); err != nil {
+		t.Fatalf("Commit returned error: %v", err)
+	}
+	if err = scope.Wait(); err != nil {
+		t.Fatalf("Wait returned error: %v", err)
+	}
+
+	got = make([]float32, 6)
+	if err = values.Download(got); err != nil {
+		t.Fatalf("Download biased values returned error: %v", err)
+	}
+	requireFloat32Values(t, got, []float32{-2, -3, 4, 3, 2, 9})
+	if err = relu.Download(got); err != nil {
+		t.Fatalf("Download ReLU returned error: %v", err)
+	}
+	requireFloat32Values(t, got, []float32{0, 0, 4, 3, 2, 9})
+	if err = softmax.Download(got); err != nil {
+		t.Fatalf("Download Softmax returned error: %v", err)
+	}
+	requireFloat32ValuesAlmostEqual(
+		t,
+		got,
+		[]float32{0.017668422, 0.017668422, 0.96466315, 0.002472318, 0.000909011, 0.9966187},
+		2e-5,
+	)
+}
+
 func Test_ScopeInvalidTransitions(t *testing.T) {
 	var (
 		runtime *Runtime
@@ -327,6 +404,20 @@ func requireFloat32Values(tb testing.TB, got, want []float32) {
 	}
 	for index = range want {
 		if got[index] != want[index] {
+			tb.Fatalf("value %d = %g, want %g", index, got[index], want[index])
+		}
+	}
+}
+
+func requireFloat32ValuesAlmostEqual(tb testing.TB, got, want []float32, epsilon float32) {
+	tb.Helper()
+
+	var index int
+	if len(got) != len(want) {
+		tb.Fatalf("value length = %d, want %d", len(got), len(want))
+	}
+	for index = range want {
+		if float32(math.Abs(float64(got[index]-want[index]))) > epsilon {
 			tb.Fatalf("value %d = %g, want %g", index, got[index], want[index])
 		}
 	}

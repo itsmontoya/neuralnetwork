@@ -81,11 +81,11 @@ func copyMatrixDevice(
 	if sourceBuffer, allocated, uploaded, err = source.ensureExecutionDeviceBuffer(execution); err != nil {
 		return fmt.Errorf("matrix: prepare Metal copy source: %w", err)
 	}
-	execution.RecordDevicePreparation(allocated, uploaded)
+	execution.RecordDevicePreparation(allocated, uploaded, uint64(len(source.data))*4)
 	if destinationBuffer, allocated, err = destination.beginExecutionDeviceWrite(execution); err != nil {
 		return fmt.Errorf("matrix: prepare Metal copy destination: %w", err)
 	}
-	execution.RecordDevicePreparation(allocated, false)
+	execution.RecordDevicePreparation(allocated, false, 0)
 	publication.Publish = func() (publishErr error) {
 		if publishErr = destination.publishDeviceWrite(destinationBuffer); publishErr != nil {
 			return publishErr

@@ -9,24 +9,28 @@ import (
 )
 
 var (
-	enabled            atomic.Bool
-	bufferCreations    atomic.Uint64
-	inputUploads       atomic.Uint64
-	resultDownloads    atomic.Uint64
-	commandSubmissions atomic.Uint64
-	waits              atomic.Uint64
-	errorMutex         sync.Mutex
-	lastError          string
+	enabled             atomic.Bool
+	bufferCreations     atomic.Uint64
+	inputUploads        atomic.Uint64
+	inputUploadBytes    atomic.Uint64
+	resultDownloads     atomic.Uint64
+	resultDownloadBytes atomic.Uint64
+	commandSubmissions  atomic.Uint64
+	waits               atomic.Uint64
+	errorMutex          sync.Mutex
+	lastError           string
 )
 
 // Counters captures private Metal matrix activity.
 type Counters struct {
-	BufferCreations    uint64
-	InputUploads       uint64
-	ResultDownloads    uint64
-	CommandSubmissions uint64
-	Waits              uint64
-	LastError          string
+	BufferCreations     uint64
+	InputUploads        uint64
+	InputUploadBytes    uint64
+	ResultDownloads     uint64
+	ResultDownloadBytes uint64
+	CommandSubmissions  uint64
+	Waits               uint64
+	LastError           string
 }
 
 // Enable starts recording Metal bridge activity.
@@ -50,7 +54,9 @@ func Enabled() (ok bool) {
 func Reset() {
 	bufferCreations.Store(0)
 	inputUploads.Store(0)
+	inputUploadBytes.Store(0)
 	resultDownloads.Store(0)
+	resultDownloadBytes.Store(0)
 	commandSubmissions.Store(0)
 	waits.Store(0)
 
@@ -63,7 +69,9 @@ func Reset() {
 func RecordBridgeActivity(
 	createdBuffers,
 	uploadedInputs,
+	uploadedBytes,
 	downloadedResults,
+	downloadedBytes,
 	submittedCommands,
 	waitedCommands uint64,
 ) {
@@ -73,7 +81,9 @@ func RecordBridgeActivity(
 
 	bufferCreations.Add(createdBuffers)
 	inputUploads.Add(uploadedInputs)
+	inputUploadBytes.Add(uploadedBytes)
 	resultDownloads.Add(downloadedResults)
+	resultDownloadBytes.Add(downloadedBytes)
 	commandSubmissions.Add(submittedCommands)
 	waits.Add(waitedCommands)
 }
@@ -93,7 +103,9 @@ func RecordFailure(message string) {
 func Snapshot() (counters Counters) {
 	counters.BufferCreations = bufferCreations.Load()
 	counters.InputUploads = inputUploads.Load()
+	counters.InputUploadBytes = inputUploadBytes.Load()
 	counters.ResultDownloads = resultDownloads.Load()
+	counters.ResultDownloadBytes = resultDownloadBytes.Load()
 	counters.CommandSubmissions = commandSubmissions.Load()
 	counters.Waits = waits.Load()
 

@@ -83,6 +83,151 @@ func (s *Scope) EncodeFill(buffer *Buffer, value float32) (err error) {
 	return nil
 }
 
+// EncodeAddRowVector appends an in-place row-vector addition to the scope.
+func (s *Scope) EncodeAddRowVector(
+	values,
+	rowVector *Buffer,
+	rows,
+	cols uint32,
+) (err error) {
+	var expectedValues uint64
+
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(values, "row-vector addition values"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(rowVector, "row-vector addition row vector"); err != nil {
+		return err
+	}
+	if rows == 0 || cols == 0 {
+		err = errors.New("device: row-vector addition dimensions must be positive")
+		return err
+	}
+
+	expectedValues = uint64(rows) * uint64(cols)
+	if values.count != expectedValues || rowVector.count != uint64(cols) {
+		err = fmt.Errorf(
+			"device: row-vector addition buffer length mismatch: values=%d/%d rowVector=%d/%d",
+			values.count,
+			expectedValues,
+			rowVector.count,
+			cols,
+		)
+		return err
+	}
+	if err = s.runtime.backend.encodeAddRowVector(
+		s.handle,
+		values.handle,
+		rowVector.handle,
+		rows,
+		cols,
+	); err != nil {
+		err = fmt.Errorf("device: encode row-vector addition: %w", err)
+		s.fail(err)
+		return err
+	}
+
+	return nil
+}
+
+// EncodeReLU appends a rectified-linear-unit forward operation to the scope.
+func (s *Scope) EncodeReLU(input, result *Buffer) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(input, "ReLU input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "ReLU destination"); err != nil {
+		return err
+	}
+	if input.count != result.count {
+		err = fmt.Errorf(
+			"device: ReLU buffer length mismatch: input=%d destination=%d",
+			input.count,
+			result.count,
+		)
+		return err
+	}
+	if input.count > uint64(^uint32(0)) {
+		err = fmt.Errorf("device: ReLU element count exceeds uint32: %d", input.count)
+		return err
+	}
+	if err = s.runtime.backend.encodeReLU(
+		s.handle,
+		input.handle,
+		result.handle,
+		uint32(input.count),
+	); err != nil {
+		err = fmt.Errorf("device: encode ReLU: %w", err)
+		s.fail(err)
+		return err
+	}
+
+	return nil
+}
+
+// EncodeSoftmaxRows appends a stable row-wise Softmax operation to the scope.
+func (s *Scope) EncodeSoftmaxRows(
+	input,
+	result *Buffer,
+	rows,
+	cols uint32,
+) (err error) {
+	var expectedCount uint64
+
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(input, "Softmax input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "Softmax destination"); err != nil {
+		return err
+	}
+	if rows == 0 || cols == 0 {
+		err = errors.New("device: Softmax dimensions must be positive")
+		return err
+	}
+
+	expectedCount = uint64(rows) * uint64(cols)
+	if expectedCount > uint64(^uint32(0)) {
+		err = fmt.Errorf("device: Softmax element count exceeds uint32: %d", expectedCount)
+		return err
+	}
+	if input.count != expectedCount || result.count != expectedCount {
+		err = fmt.Errorf(
+			"device: Softmax buffer length mismatch: input=%d/%d destination=%d/%d",
+			input.count,
+			expectedCount,
+			result.count,
+			expectedCount,
+		)
+		return err
+	}
+	if err = s.runtime.backend.encodeSoftmaxRows(
+		s.handle,
+		input.handle,
+		result.handle,
+		rows,
+		cols,
+	); err != nil {
+		err = fmt.Errorf("device: encode Softmax: %w", err)
+		s.fail(err)
+		return err
+	}
+
+	return nil
+}
+
 // EncodeMatMul appends a matrix multiplication to the scope.
 func (s *Scope) EncodeMatMul(
 	left,

@@ -55,6 +55,26 @@ int nn_metal_scope_encode_fill(
 	float value,
 	uint64_t count
 );
+int nn_metal_scope_encode_add_row_vector(
+	NNMetalScope scope,
+	NNMetalBuffer values,
+	NNMetalBuffer rowVector,
+	uint32_t rows,
+	uint32_t cols
+);
+int nn_metal_scope_encode_relu(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer result,
+	uint32_t count
+);
+int nn_metal_scope_encode_softmax_rows(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer result,
+	uint32_t rows,
+	uint32_t cols
+);
 int nn_metal_scope_encode_matmul(
 	NNMetalScope scope,
 	NNMetalBuffer left,

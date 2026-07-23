@@ -11,7 +11,9 @@ func recordExecutionActivity(snapshot device.ExecutionSnapshot) {
 	metaltest.RecordBridgeActivity(
 		snapshot.BufferCreations,
 		snapshot.InputUploads,
+		snapshot.InputUploadBytes,
 		snapshot.ResultDownloads,
+		snapshot.ResultDownloadBytes,
 		snapshot.CommandSubmissions,
 		snapshot.Waits,
 	)

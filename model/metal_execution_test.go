@@ -50,7 +50,8 @@ func Test_SequentialPredictBatchesAcrossCustomCPUFallback(t *testing.T) {
 		t.Fatalf("first output shape = %dx%d, want 64x128", output.Rows(), output.Cols())
 	}
 	counters = metaltest.Snapshot()
-	requireModelMetalCounters(t, counters, 8, 4, 2, 3, 3)
+	requireModelMetalCounters(t, counters, 10, 6, 1, 2, 2)
+	requireRecordingFallbackOutput(t, output, 0.25)
 
 	metaltest.Reset()
 	if _, err = network.Predict(input); err != nil {
@@ -60,8 +61,46 @@ func Test_SequentialPredictBatchesAcrossCustomCPUFallback(t *testing.T) {
 	if counters.InputUploads != 1 {
 		t.Fatalf("warmed input uploads = %d, want only the custom CPU output upload", counters.InputUploads)
 	}
-	if counters.CommandSubmissions != 3 || counters.Waits != 3 {
-		t.Fatalf("warmed command counters = %+v, want three submissions and waits", counters)
+	if counters.CommandSubmissions != 2 || counters.Waits != 2 {
+		t.Fatalf("warmed command counters = %+v, want two submissions and waits", counters)
+	}
+}
+
+func requireRecordingFallbackOutput(tb testing.TB, output *matrix.Matrix, inputScale float32) {
+	tb.Helper()
+
+	var (
+		values      []float32
+		row         int
+		col         int
+		inputCol    int
+		inputSum    float32
+		firstOutput float32
+		want        float32
+		err         error
+	)
+
+	if values, err = output.Values(); err != nil {
+		tb.Fatalf("fallback output Values returned error: %v", err)
+	}
+	for row = 0; row < output.Rows(); row++ {
+		inputSum = 0
+		for inputCol = 0; inputCol < 128; inputCol++ {
+			inputSum += inputScale * float32((row*128+inputCol)%17-8)
+		}
+		firstOutput = 0.001 * inputSum
+		want = 0.128 * (firstOutput + 1)
+		for col = 0; col < output.Cols(); col++ {
+			if difference := values[row*output.Cols()+col] - want; difference < -1e-5 || difference > 1e-5 {
+				tb.Fatalf(
+					"fallback output row %d col %d = %g, want %g",
+					row,
+					col,
+					values[row*output.Cols()+col],
+					want,
+				)
+			}
+		}
 	}
 }
 

@@ -987,6 +987,8 @@ func (m *Matrix) DivideScalarInto(value float32, result *Matrix) (err error) {
 // maximum input value for numerical stability. Valid calls fully overwrite the
 // caller-owned destination without allocating or retaining either matrix.
 func (m *Matrix) SoftmaxRowsInto(result *Matrix) (err error) {
+	var handled bool
+
 	if err = m.validate(); err != nil {
 		return err
 	}
@@ -996,6 +998,12 @@ func (m *Matrix) SoftmaxRowsInto(result *Matrix) (err error) {
 	}
 	if err = inheritExecution(result, m); err != nil {
 		return err
+	}
+	if handled, err = softmaxRowsIntoDevice(m, result); err != nil {
+		return err
+	}
+	if handled {
+		return nil
 	}
 	if err = m.ensureHostCurrent(); err != nil {
 		return err
@@ -1474,12 +1482,23 @@ func (m *Matrix) AccumulateColumnSumsInto(result *Matrix) (err error) {
 //
 // The receiver is updated in place. The row vector is read but not retained.
 func (m *Matrix) AddRowVectorInPlace(rowVector *Matrix) (err error) {
+	var handled bool
+
 	if err = m.validate(); err != nil {
 		return err
 	}
 
 	if err = rowVector.requireShape("row vector", 1, m.cols); err != nil {
 		return err
+	}
+	if err = inheritExecution(m, rowVector); err != nil {
+		return err
+	}
+	if handled, err = addRowVectorInPlaceDevice(m, rowVector); err != nil {
+		return err
+	}
+	if handled {
+		return nil
 	}
 	if err = m.ensureHostCurrent(); err != nil {
 		return err

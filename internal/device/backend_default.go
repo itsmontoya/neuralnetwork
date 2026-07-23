@@ -39,6 +39,18 @@ func (unavailableBackend) encodeFill(any, any, float32, uint64) (err error) {
 	return ErrUnavailable
 }
 
+func (unavailableBackend) encodeAddRowVector(any, any, any, uint32, uint32) (err error) {
+	return ErrUnavailable
+}
+
+func (unavailableBackend) encodeReLU(any, any, any, uint32) (err error) {
+	return ErrUnavailable
+}
+
+func (unavailableBackend) encodeSoftmaxRows(any, any, any, uint32, uint32) (err error) {
+	return ErrUnavailable
+}
+
 func (unavailableBackend) encodeMatMul(
 	any,
 	any,

@@ -234,7 +234,7 @@ func (e *Execution) Error() (err error) {
 }
 
 // RecordDevicePreparation adds buffer allocation and upload diagnostics.
-func (e *Execution) RecordDevicePreparation(allocated, uploaded bool) {
+func (e *Execution) RecordDevicePreparation(allocated, uploaded bool, bytes uint64) {
 	if e == nil {
 		return
 	}
@@ -245,18 +245,20 @@ func (e *Execution) RecordDevicePreparation(allocated, uploaded bool) {
 	}
 	if uploaded {
 		e.snapshot.InputUploads++
+		e.snapshot.InputUploadBytes += bytes
 	}
 	e.mutex.Unlock()
 }
 
 // RecordDownload adds one host download diagnostic.
-func (e *Execution) RecordDownload() {
+func (e *Execution) RecordDownload(bytes uint64) {
 	if e == nil {
 		return
 	}
 
 	e.mutex.Lock()
 	e.snapshot.ResultDownloads++
+	e.snapshot.ResultDownloadBytes += bytes
 	e.mutex.Unlock()
 }
 
@@ -311,6 +313,95 @@ func (e *Execution) EncodeFill(
 	}
 	if err = e.scope.EncodeFill(destination, value); err != nil {
 		err = fmt.Errorf("device: execution encode fill: %w", err)
+		e.failBatchLocked(err)
+		return err
+	}
+	e.recordEncodeLocked(transientBytes)
+	return nil
+}
+
+// EncodeAddRowVector appends a dependent in-place row-vector addition.
+//
+// The values buffer must belong to a pending publication already encoded in
+// the current command scope.
+func (e *Execution) EncodeAddRowVector(
+	values,
+	rowVector *Buffer,
+	rows,
+	cols uint32,
+) (err error) {
+	if e == nil {
+		err = errors.New("device: encode row-vector addition execution is nil")
+		return err
+	}
+
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if err = e.prepareDependentLocked(); err != nil {
+		return err
+	}
+	if err = e.scope.EncodeAddRowVector(values, rowVector, rows, cols); err != nil {
+		err = fmt.Errorf("device: execution encode row-vector addition: %w", err)
+		e.failBatchLocked(err)
+		return err
+	}
+	e.recordEncodeLocked(0)
+	return nil
+}
+
+// EncodeReLU appends a ReLU forward operation and destination publication.
+func (e *Execution) EncodeReLU(
+	input,
+	result *Buffer,
+	transientBytes uint64,
+	publication Publication,
+) (err error) {
+	if e == nil {
+		err = errors.New("device: encode ReLU execution is nil")
+		return err
+	}
+	if err = publication.validate(); err != nil {
+		return err
+	}
+
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if err = e.prepareLocked(transientBytes, publication); err != nil {
+		return err
+	}
+	if err = e.scope.EncodeReLU(input, result); err != nil {
+		err = fmt.Errorf("device: execution encode ReLU: %w", err)
+		e.failBatchLocked(err)
+		return err
+	}
+	e.recordEncodeLocked(transientBytes)
+	return nil
+}
+
+// EncodeSoftmaxRows appends a stable row-wise Softmax and destination publication.
+func (e *Execution) EncodeSoftmaxRows(
+	input,
+	result *Buffer,
+	rows,
+	cols uint32,
+	transientBytes uint64,
+	publication Publication,
+) (err error) {
+	if e == nil {
+		err = errors.New("device: encode Softmax execution is nil")
+		return err
+	}
+	if err = publication.validate(); err != nil {
+		return err
+	}
+
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if err = e.prepareLocked(transientBytes, publication); err != nil {
+		return err
+	}
+	if err = e.scope.EncodeSoftmaxRows(input, result, rows, cols); err != nil {
+		err = fmt.Errorf("device: execution encode Softmax: %w", err)
 		e.failBatchLocked(err)
 		return err
 	}
@@ -494,6 +585,26 @@ func (e *Execution) prepareLocked(transientBytes uint64, publication Publication
 	}
 
 	e.publications = append(e.publications, publication)
+	return nil
+}
+
+func (e *Execution) prepareDependentLocked() (err error) {
+	if e.closed {
+		err = errors.New("device: encode dependent command on closed execution")
+		return err
+	}
+	if e.err != nil {
+		return e.err
+	}
+	if e.runtime == nil {
+		err = errors.New("device: execution runtime is nil")
+		return err
+	}
+	if e.scope == nil || len(e.publications) == 0 {
+		err = errors.New("device: dependent command requires a pending publication")
+		return err
+	}
+
 	return nil
 }
 
