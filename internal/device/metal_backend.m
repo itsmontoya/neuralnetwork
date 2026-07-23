@@ -171,6 +171,80 @@ static const char *nnMetalShaderSource =
 	"    }\n"
 	"    result[col] = accumulate != 0 ? result[col] + sum : sum;\n"
 	"}\n"
+	"kernel void nn_categorical_cross_entropy(\n"
+	"    const device float *predictions [[buffer(0)]],\n"
+	"    const device float *targets [[buffer(1)]],\n"
+	"    device float *result [[buffer(2)]],\n"
+	"    constant uint &rows [[buffer(3)]],\n"
+	"    constant uint &cols [[buffer(4)]],\n"
+	"    constant float &epsilon [[buffer(5)]],\n"
+	"    uint index [[thread_position_in_grid]]\n"
+	") {\n"
+	"    if (index != 0) {\n"
+	"        return;\n"
+	"    }\n"
+	"    result[0] = 0.0f;\n"
+	"    result[1] = as_type<float>(0u);\n"
+	"    result[2] = as_type<float>(0u);\n"
+	"    result[3] = as_type<float>(0u);\n"
+	"    result[4] = 0.0f;\n"
+	"    float loss = 0.0f;\n"
+	"    for (uint row = 0; row < rows; row++) {\n"
+	"        uint offset = row * cols;\n"
+	"        uint ones = 0;\n"
+	"        for (uint col = 0; col < cols; col++) {\n"
+	"            float target = targets[offset + col];\n"
+	"            if (target == 1.0f) {\n"
+	"                ones++;\n"
+	"                float prediction = predictions[offset + col];\n"
+	"                if (prediction < epsilon) {\n"
+	"                    prediction = epsilon;\n"
+	"                } else if (prediction > 1.0f - epsilon) {\n"
+	"                    prediction = 1.0f - epsilon;\n"
+	"                }\n"
+	"                loss -= log(prediction);\n"
+	"            } else if (target != 0.0f) {\n"
+	"                result[1] = as_type<float>(1u);\n"
+	"                result[2] = as_type<float>(row);\n"
+	"                result[3] = as_type<float>(col);\n"
+	"                result[4] = target;\n"
+	"                return;\n"
+	"            }\n"
+	"        }\n"
+	"        if (ones != 1) {\n"
+	"            result[1] = as_type<float>(2u);\n"
+	"            result[2] = as_type<float>(row);\n"
+	"            result[3] = as_type<float>(ones);\n"
+	"            return;\n"
+	"        }\n"
+	"    }\n"
+	"    result[0] = loss / float(rows);\n"
+	"}\n"
+	"kernel void nn_categorical_cross_entropy_gradient(\n"
+	"    const device float *predictions [[buffer(0)]],\n"
+	"    const device float *targets [[buffer(1)]],\n"
+	"    device float *result [[buffer(2)]],\n"
+	"    constant uint &count [[buffer(3)]],\n"
+	"    constant uint &rows [[buffer(4)]],\n"
+	"    constant float &epsilon [[buffer(5)]],\n"
+	"    uint index [[thread_position_in_grid]]\n"
+	") {\n"
+	"    if (index >= count) {\n"
+	"        return;\n"
+	"    }\n"
+	"    float target = targets[index];\n"
+	"    if (target == 0.0f) {\n"
+	"        result[index] = 0.0f;\n"
+	"        return;\n"
+	"    }\n"
+	"    float prediction = predictions[index];\n"
+	"    if (prediction < epsilon) {\n"
+	"        prediction = epsilon;\n"
+	"    } else if (prediction > 1.0f - epsilon) {\n"
+	"        prediction = 1.0f - epsilon;\n"
+	"    }\n"
+	"    result[index] = -target / prediction / float(rows);\n"
+	"}\n"
 	"kernel void nn_matmul(\n"
 	"    const device float *left [[buffer(0)]],\n"
 	"    const device float *right [[buffer(1)]],\n"
@@ -223,6 +297,8 @@ static id<MTLComputePipelineState> nnMetalReLUBackwardPipeline = nil;
 static id<MTLComputePipelineState> nnMetalSoftmaxRowsPipeline = nil;
 static id<MTLComputePipelineState> nnMetalSoftmaxRowsBackwardPipeline = nil;
 static id<MTLComputePipelineState> nnMetalColumnSumsPipeline = nil;
+static id<MTLComputePipelineState> nnMetalCategoricalCrossEntropyPipeline = nil;
+static id<MTLComputePipelineState> nnMetalCategoricalCrossEntropyGradientPipeline = nil;
 static id<MTLComputePipelineState> nnMetalMatMulPipeline = nil;
 static NNMetalResourceSnapshot nnMetalResources;
 
@@ -252,6 +328,8 @@ static void nn_metal_cache_runtime_error(void) {
 
 static void nn_metal_release_runtime_resources(void) {
 	[nnMetalMatMulPipeline release];
+	[nnMetalCategoricalCrossEntropyGradientPipeline release];
+	[nnMetalCategoricalCrossEntropyPipeline release];
 	[nnMetalColumnSumsPipeline release];
 	[nnMetalSoftmaxRowsBackwardPipeline release];
 	[nnMetalSoftmaxRowsPipeline release];
@@ -264,6 +342,8 @@ static void nn_metal_release_runtime_resources(void) {
 	[nnMetalCommandQueue release];
 	[nnMetalDevice release];
 	nnMetalMatMulPipeline = nil;
+	nnMetalCategoricalCrossEntropyGradientPipeline = nil;
+	nnMetalCategoricalCrossEntropyPipeline = nil;
 	nnMetalColumnSumsPipeline = nil;
 	nnMetalSoftmaxRowsBackwardPipeline = nil;
 	nnMetalSoftmaxRowsPipeline = nil;
@@ -365,6 +445,13 @@ static int nn_metal_initialize(void) {
 				nnMetalColumnSumsPipeline = nn_metal_new_pipeline(@"nn_column_sums");
 			}
 			if (nnMetalColumnSumsPipeline != nil) {
+				nnMetalCategoricalCrossEntropyPipeline = nn_metal_new_pipeline(@"nn_categorical_cross_entropy");
+			}
+			if (nnMetalCategoricalCrossEntropyPipeline != nil) {
+				nnMetalCategoricalCrossEntropyGradientPipeline =
+					nn_metal_new_pipeline(@"nn_categorical_cross_entropy_gradient");
+			}
+			if (nnMetalCategoricalCrossEntropyGradientPipeline != nil) {
 				nnMetalMatMulPipeline = nn_metal_new_pipeline(@"nn_matmul");
 			}
 
@@ -373,6 +460,8 @@ static int nn_metal_initialize(void) {
 				nnMetalAddScaledPipeline != nil && nnMetalReLUPipeline != nil &&
 				nnMetalReLUBackwardPipeline != nil && nnMetalSoftmaxRowsPipeline != nil &&
 				nnMetalSoftmaxRowsBackwardPipeline != nil && nnMetalColumnSumsPipeline != nil &&
+				nnMetalCategoricalCrossEntropyPipeline != nil &&
+				nnMetalCategoricalCrossEntropyGradientPipeline != nil &&
 				nnMetalMatMulPipeline != nil) {
 				nnMetalRuntimeState = NNMetalRuntimeReady;
 				status = NNMetalStatusSuccess;
@@ -1043,6 +1132,121 @@ int nn_metal_scope_encode_column_sums(
 		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
 		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_categorical_cross_entropy(
+	NNMetalScope scope,
+	NNMetalBuffer predictions,
+	NNMetalBuffer targets,
+	NNMetalBuffer result,
+	uint32_t rows,
+	uint32_t cols,
+	float epsilon
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *predictionRecord = nn_metal_buffer_record(predictions);
+	NNMetalBufferRecord *targetRecord = nn_metal_buffer_record(targets);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+	id<MTLComputeCommandEncoder> encoder = nil;
+	uint64_t valueBytes = (uint64_t)rows * cols * sizeof(float);
+
+	if (scopeRecord == NULL || predictionRecord == NULL ||
+		targetRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode categorical cross entropy: nil handle");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || rows == 0 || cols == 0 ||
+		!(epsilon > 0.0f && epsilon < 0.5f) ||
+		valueBytes != predictionRecord->bytes ||
+		valueBytes != targetRecord->bytes ||
+		5 * sizeof(float) != resultRecord->bytes) {
+		nn_metal_set_error("metal: encode categorical cross entropy: invalid state, dimensions, epsilon, or buffer length");
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode categorical cross entropy: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		[encoder setComputePipelineState:nnMetalCategoricalCrossEntropyPipeline];
+		[encoder setBuffer:predictionRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:targetRecord->value offset:0 atIndex:1];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+		[encoder setBytes:&rows length:sizeof(rows) atIndex:3];
+		[encoder setBytes:&cols length:sizeof(cols) atIndex:4];
+		[encoder setBytes:&epsilon length:sizeof(epsilon) atIndex:5];
+		[encoder dispatchThreadgroups:MTLSizeMake(1, 1, 1) threadsPerThreadgroup:MTLSizeMake(1, 1, 1)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:predictionRecord->value];
+		[scopeRecord->retainedResources addObject:targetRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_categorical_cross_entropy_gradient(
+	NNMetalScope scope,
+	NNMetalBuffer predictions,
+	NNMetalBuffer targets,
+	NNMetalBuffer result,
+	uint32_t rows,
+	uint32_t cols,
+	float epsilon
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *predictionRecord = nn_metal_buffer_record(predictions);
+	NNMetalBufferRecord *targetRecord = nn_metal_buffer_record(targets);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+	id<MTLComputeCommandEncoder> encoder = nil;
+	NSUInteger threadWidth = 0;
+	NSUInteger groupCount = 0;
+	uint64_t countValue = (uint64_t)rows * cols;
+	uint64_t bytes = countValue * sizeof(float);
+	uint32_t count = 0;
+
+	if (scopeRecord == NULL || predictionRecord == NULL ||
+		targetRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode categorical cross entropy gradient: nil handle");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || rows == 0 || cols == 0 ||
+		countValue > UINT32_MAX ||
+		!(epsilon > 0.0f && epsilon < 0.5f) ||
+		bytes != predictionRecord->bytes ||
+		bytes != targetRecord->bytes ||
+		bytes != resultRecord->bytes) {
+		nn_metal_set_error("metal: encode categorical cross entropy gradient: invalid state, dimensions, epsilon, or buffer length");
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		count = (uint32_t)countValue;
+		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode categorical cross entropy gradient: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		threadWidth = MIN(
+			(NSUInteger)256,
+			[nnMetalCategoricalCrossEntropyGradientPipeline maxTotalThreadsPerThreadgroup]
+		);
+		groupCount = ((NSUInteger)count + threadWidth - 1) / threadWidth;
+		[encoder setComputePipelineState:nnMetalCategoricalCrossEntropyGradientPipeline];
+		[encoder setBuffer:predictionRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:targetRecord->value offset:0 atIndex:1];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+		[encoder setBytes:&count length:sizeof(count) atIndex:3];
+		[encoder setBytes:&rows length:sizeof(rows) atIndex:4];
+		[encoder setBytes:&epsilon length:sizeof(epsilon) atIndex:5];
+		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:predictionRecord->value];
+		[scopeRecord->retainedResources addObject:targetRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
 	return NNMetalStatusSuccess;

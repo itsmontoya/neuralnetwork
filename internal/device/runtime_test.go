@@ -256,6 +256,160 @@ func Test_ScopeDenseForwardOperations(t *testing.T) {
 	)
 }
 
+func Test_ScopeCategoricalCrossEntropyOperations(t *testing.T) {
+	var (
+		runtime     *Runtime
+		predictions *Buffer
+		targets     *Buffer
+		lossResult  *Buffer
+		gradient    *Buffer
+		scope       *Scope
+		got         []float32
+		err         error
+	)
+
+	runtime = newRuntime(newTestBackend())
+	if predictions, err = runtime.NewBuffer(6); err != nil {
+		t.Fatalf("NewBuffer predictions returned error: %v", err)
+	}
+	defer predictions.Release()
+	if targets, err = runtime.NewBuffer(6); err != nil {
+		t.Fatalf("NewBuffer targets returned error: %v", err)
+	}
+	defer targets.Release()
+	if lossResult, err = runtime.NewBuffer(CategoricalCrossEntropyResultCount); err != nil {
+		t.Fatalf("NewBuffer loss result returned error: %v", err)
+	}
+	defer lossResult.Release()
+	if gradient, err = runtime.NewBuffer(6); err != nil {
+		t.Fatalf("NewBuffer gradient returned error: %v", err)
+	}
+	defer gradient.Release()
+	if err = predictions.Upload([]float32{0.7, 0.2, 0.1, 0.1, 0.6, 0.3}); err != nil {
+		t.Fatalf("Upload predictions returned error: %v", err)
+	}
+	if err = targets.Upload([]float32{1, 0, 0, 0, 1, 0}); err != nil {
+		t.Fatalf("Upload targets returned error: %v", err)
+	}
+	if scope, err = runtime.NewScope(); err != nil {
+		t.Fatalf("NewScope returned error: %v", err)
+	}
+	defer scope.Release()
+
+	if err = scope.EncodeCategoricalCrossEntropy(
+		predictions,
+		targets,
+		lossResult,
+		2,
+		3,
+		1e-7,
+	); err != nil {
+		t.Fatalf("EncodeCategoricalCrossEntropy returned error: %v", err)
+	}
+	if err = scope.EncodeCategoricalCrossEntropyGradient(
+		predictions,
+		targets,
+		gradient,
+		2,
+		3,
+		1e-7,
+	); err != nil {
+		t.Fatalf("EncodeCategoricalCrossEntropyGradient returned error: %v", err)
+	}
+	if err = scope.Commit(); err != nil {
+		t.Fatalf("Commit returned error: %v", err)
+	}
+	if err = scope.Wait(); err != nil {
+		t.Fatalf("Wait returned error: %v", err)
+	}
+
+	got = make([]float32, CategoricalCrossEntropyResultCount)
+	if err = lossResult.Download(got); err != nil {
+		t.Fatalf("Download loss result returned error: %v", err)
+	}
+	requireFloat32ValuesAlmostEqual(
+		t,
+		got,
+		[]float32{0.43375027, 0, 0, 0, 0},
+		1e-6,
+	)
+	got = make([]float32, 6)
+	if err = gradient.Download(got); err != nil {
+		t.Fatalf("Download gradient returned error: %v", err)
+	}
+	requireFloat32ValuesAlmostEqual(
+		t,
+		got,
+		[]float32{-0.71428573, 0, 0, 0, -0.8333333, 0},
+		1e-6,
+	)
+}
+
+func Test_ScopeCategoricalCrossEntropyValidatesArguments(t *testing.T) {
+	var (
+		runtime     *Runtime
+		predictions *Buffer
+		targets     *Buffer
+		lossResult  *Buffer
+		gradient    *Buffer
+		scope       *Scope
+		err         error
+	)
+
+	runtime = newRuntime(newTestBackend())
+	if predictions, err = runtime.NewBuffer(6); err != nil {
+		t.Fatalf("NewBuffer predictions returned error: %v", err)
+	}
+	defer predictions.Release()
+	if targets, err = runtime.NewBuffer(6); err != nil {
+		t.Fatalf("NewBuffer targets returned error: %v", err)
+	}
+	defer targets.Release()
+	if lossResult, err = runtime.NewBuffer(CategoricalCrossEntropyResultCount); err != nil {
+		t.Fatalf("NewBuffer loss result returned error: %v", err)
+	}
+	defer lossResult.Release()
+	if gradient, err = runtime.NewBuffer(6); err != nil {
+		t.Fatalf("NewBuffer gradient returned error: %v", err)
+	}
+	defer gradient.Release()
+	if scope, err = runtime.NewScope(); err != nil {
+		t.Fatalf("NewScope returned error: %v", err)
+	}
+	defer scope.Release()
+
+	if err = scope.EncodeCategoricalCrossEntropy(
+		nil,
+		targets,
+		lossResult,
+		2,
+		3,
+		1e-7,
+	); err == nil || !strings.Contains(err.Error(), "nil") {
+		t.Fatalf("nil prediction error = %v, want nil error", err)
+	}
+	if err = scope.EncodeCategoricalCrossEntropy(
+		predictions,
+		targets,
+		lossResult,
+		2,
+		3,
+		float32(math.NaN()),
+	); err == nil || !strings.Contains(err.Error(), "epsilon") {
+		t.Fatalf("NaN epsilon error = %v, want epsilon error", err)
+	}
+	if err = scope.EncodeCategoricalCrossEntropyGradient(
+		predictions,
+		targets,
+		gradient,
+		3,
+		2,
+		1e-7,
+	); err != nil {
+		t.Fatalf("alternate valid shape returned error: %v", err)
+	}
+}
+
 func Test_ScopeInvalidTransitions(t *testing.T) {
 	var (
 		runtime *Runtime

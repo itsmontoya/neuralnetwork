@@ -46,6 +46,7 @@ type Execution struct {
 	publications   []Publication
 	bindings       []any
 	reads          []any
+	validations    []executionValidation
 	kernelCount    uint64
 	transientBytes uint64
 	activated      bool
@@ -79,6 +80,8 @@ func (e *Execution) Reset(runtimeValue *Runtime) (err error) {
 	e.closed = false
 	e.err = nil
 	e.snapshot = ExecutionSnapshot{}
+	clear(e.validations)
+	e.validations = e.validations[:0]
 	return nil
 }
 
@@ -262,6 +265,76 @@ func (e *Execution) RecordDownload(bytes uint64) {
 	e.mutex.Unlock()
 }
 
+// RecordValidation retains one successful value revision validation.
+func (e *Execution) RecordValidation(value any, revision uint64) (err error) {
+	var (
+		key        any
+		validation executionValidation
+	)
+
+	if e == nil {
+		err = errors.New("device: record validation execution is nil")
+		return err
+	}
+	if key, err = e.bind(value); err != nil {
+		return err
+	}
+
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	for _, validation = range e.validations {
+		if validation.key == key && validation.revision == revision {
+			return nil
+		}
+	}
+	validation.key = key
+	validation.revision = revision
+	e.validations = append(e.validations, validation)
+	return nil
+}
+
+// Validated reports whether value's logical revision passed validation.
+func (e *Execution) Validated(value any, revision uint64) (validated bool, err error) {
+	var (
+		key        any
+		validation executionValidation
+	)
+
+	if e == nil {
+		return false, nil
+	}
+	if key, err = e.bind(value); err != nil {
+		return false, err
+	}
+
+	e.mutex.Lock()
+	for _, validation = range e.validations {
+		if validation.key == key && validation.revision == revision {
+			validated = true
+			break
+		}
+	}
+	e.mutex.Unlock()
+	return validated, nil
+}
+
+// CanEncodeAtomic reports whether one unbroken publication batch fits the execution limits.
+func (e *Execution) CanEncodeAtomic(kernelCount, transientBytes uint64) (ok bool) {
+	if e == nil || kernelCount == 0 {
+		return false
+	}
+
+	e.mutex.Lock()
+	ok = !e.closed &&
+		e.err == nil &&
+		e.kernelCount <= executionKernelLimit &&
+		kernelCount <= executionKernelLimit-e.kernelCount &&
+		e.transientBytes <= executionTransientBytesLimit &&
+		transientBytes <= executionTransientBytesLimit-e.transientBytes
+	e.mutex.Unlock()
+	return ok
+}
+
 // EncodeCopy appends a device copy and its destination publication.
 func (e *Execution) EncodeCopy(
 	source,
@@ -317,6 +390,27 @@ func (e *Execution) EncodeFill(
 		return err
 	}
 	e.recordEncodeLocked(transientBytes)
+	return nil
+}
+
+// EncodeDependentFill appends an in-place fill to a pending publication.
+func (e *Execution) EncodeDependentFill(destination *Buffer, value float32) (err error) {
+	if e == nil {
+		err = errors.New("device: encode dependent fill execution is nil")
+		return err
+	}
+
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if err = e.prepareDependentLocked(); err != nil {
+		return err
+	}
+	if err = e.scope.EncodeFill(destination, value); err != nil {
+		err = fmt.Errorf("device: execution encode dependent fill: %w", err)
+		e.failBatchLocked(err)
+		return err
+	}
+	e.recordEncodeLocked(0)
 	return nil
 }
 
@@ -562,6 +656,86 @@ func (e *Execution) EncodeAccumulateColumnSums(
 		return err
 	}
 	e.recordEncodeLocked(0)
+	return nil
+}
+
+// EncodeCategoricalCrossEntropy appends a validated scalar loss reduction.
+func (e *Execution) EncodeCategoricalCrossEntropy(
+	predictions,
+	targets,
+	result *Buffer,
+	rows,
+	cols uint32,
+	epsilon float32,
+	transientBytes uint64,
+	publication Publication,
+) (err error) {
+	if e == nil {
+		err = errors.New("device: encode categorical cross entropy execution is nil")
+		return err
+	}
+	if err = publication.validate(); err != nil {
+		return err
+	}
+
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if err = e.prepareLocked(transientBytes, publication); err != nil {
+		return err
+	}
+	if err = e.scope.EncodeCategoricalCrossEntropy(
+		predictions,
+		targets,
+		result,
+		rows,
+		cols,
+		epsilon,
+	); err != nil {
+		err = fmt.Errorf("device: execution encode categorical cross entropy: %w", err)
+		e.failBatchLocked(err)
+		return err
+	}
+	e.recordEncodeLocked(transientBytes)
+	return nil
+}
+
+// EncodeCategoricalCrossEntropyGradient appends a mean gradient and publication.
+func (e *Execution) EncodeCategoricalCrossEntropyGradient(
+	predictions,
+	targets,
+	result *Buffer,
+	rows,
+	cols uint32,
+	epsilon float32,
+	transientBytes uint64,
+	publication Publication,
+) (err error) {
+	if e == nil {
+		err = errors.New("device: encode categorical cross entropy gradient execution is nil")
+		return err
+	}
+	if err = publication.validate(); err != nil {
+		return err
+	}
+
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if err = e.prepareLocked(transientBytes, publication); err != nil {
+		return err
+	}
+	if err = e.scope.EncodeCategoricalCrossEntropyGradient(
+		predictions,
+		targets,
+		result,
+		rows,
+		cols,
+		epsilon,
+	); err != nil {
+		err = fmt.Errorf("device: execution encode categorical cross entropy gradient: %w", err)
+		e.failBatchLocked(err)
+		return err
+	}
+	e.recordEncodeLocked(transientBytes)
 	return nil
 }
 

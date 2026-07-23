@@ -435,7 +435,7 @@ func (s *Sequential) TrainBatch(
 		err = fmt.Errorf("model: backward failed: %w", err)
 		return metrics, err
 	}
-	if execution != nil {
+	if execution != nil && !supportsResidentUpdate(optimizerRule) {
 		if err = execution.Barrier(device.BoundaryCPUFallback); err != nil {
 			err = fmt.Errorf("model: complete backward execution before optimizer update: %w", err)
 			return metrics, err
@@ -448,6 +448,11 @@ func (s *Sequential) TrainBatch(
 	}
 
 	return metrics, nil
+}
+
+func supportsResidentUpdate(optimizerRule optimizer.Optimizer) (supported bool) {
+	_, supported = optimizerRule.(*optimizer.SGD)
+	return supported
 }
 
 func (s *Sequential) beginExecution(

@@ -67,6 +67,30 @@ func (unavailableBackend) encodeColumnSums(any, any, any, uint32, uint32, bool) 
 	return ErrUnavailable
 }
 
+func (unavailableBackend) encodeCategoricalCrossEntropy(
+	any,
+	any,
+	any,
+	any,
+	uint32,
+	uint32,
+	float32,
+) (err error) {
+	return ErrUnavailable
+}
+
+func (unavailableBackend) encodeCategoricalCrossEntropyGradient(
+	any,
+	any,
+	any,
+	any,
+	uint32,
+	uint32,
+	float32,
+) (err error) {
+	return ErrUnavailable
+}
+
 func (unavailableBackend) encodeMatMul(
 	any,
 	any,

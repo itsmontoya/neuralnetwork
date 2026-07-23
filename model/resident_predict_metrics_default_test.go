@@ -11,3 +11,7 @@ func endResidentPredictMetrics(*testing.B) {}
 func beginResidentBackwardMetrics() {}
 
 func endResidentBackwardMetrics(*testing.B) {}
+
+func beginResidentTrainingMetrics() {}
+
+func endResidentTrainingMetrics(*testing.B) {}

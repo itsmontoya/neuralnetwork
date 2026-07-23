@@ -106,6 +106,24 @@ int nn_metal_scope_encode_column_sums(
 	uint32_t cols,
 	uint32_t accumulate
 );
+int nn_metal_scope_encode_categorical_cross_entropy(
+	NNMetalScope scope,
+	NNMetalBuffer predictions,
+	NNMetalBuffer targets,
+	NNMetalBuffer result,
+	uint32_t rows,
+	uint32_t cols,
+	float epsilon
+);
+int nn_metal_scope_encode_categorical_cross_entropy_gradient(
+	NNMetalScope scope,
+	NNMetalBuffer predictions,
+	NNMetalBuffer targets,
+	NNMetalBuffer result,
+	uint32_t rows,
+	uint32_t cols,
+	float epsilon
+);
 int nn_metal_scope_encode_matmul(
 	NNMetalScope scope,
 	NNMetalBuffer left,

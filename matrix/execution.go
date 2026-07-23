@@ -16,11 +16,88 @@ func init() {
 	adapter.Unbind = unbindMatrixExecution
 	adapter.ReLUForward = forwardReLUExecution
 	adapter.ReLUBackward = backwardReLUExecution
+	adapter.CategoricalCrossEntropyValue = categoricalCrossEntropyValueExecution
+	adapter.CategoricalCrossEntropyGradient = categoricalCrossEntropyGradientExecution
+	adapter.SGD = sgdExecution
 	adapter.Reset = resetMatrixExecution
 	adapter.Record = recordExecutionActivity
 	if err = device.RegisterExecutionAdapter(adapter); err != nil {
 		panic(fmt.Sprintf("matrix: register device execution adapter: %v", err))
 	}
+}
+
+func categoricalCrossEntropyValueExecution(
+	predictions,
+	targets any,
+	epsilon float32,
+) (value float32, handled bool, err error) {
+	var (
+		predictionMatrix *Matrix
+		targetMatrix     *Matrix
+		ok               bool
+	)
+
+	if predictionMatrix, ok = predictions.(*Matrix); !ok {
+		err = fmt.Errorf("matrix: categorical predictions have type %T, want *matrix.Matrix", predictions)
+		return 0, false, err
+	}
+	if targetMatrix, ok = targets.(*Matrix); !ok {
+		err = fmt.Errorf("matrix: categorical targets have type %T, want *matrix.Matrix", targets)
+		return 0, false, err
+	}
+	if err = predictionMatrix.sameShape(targetMatrix); err != nil {
+		return 0, false, err
+	}
+
+	value, handled, err = categoricalCrossEntropyValueDevice(
+		predictionMatrix,
+		targetMatrix,
+		epsilon,
+	)
+	return value, handled, err
+}
+
+func categoricalCrossEntropyGradientExecution(
+	predictions,
+	targets,
+	gradient any,
+	epsilon float32,
+) (handled bool, err error) {
+	var (
+		predictionMatrix *Matrix
+		targetMatrix     *Matrix
+		gradientMatrix   *Matrix
+		ok               bool
+	)
+
+	if predictionMatrix, ok = predictions.(*Matrix); !ok {
+		err = fmt.Errorf("matrix: categorical gradient predictions have type %T, want *matrix.Matrix", predictions)
+		return false, err
+	}
+	if targetMatrix, ok = targets.(*Matrix); !ok {
+		err = fmt.Errorf("matrix: categorical gradient targets have type %T, want *matrix.Matrix", targets)
+		return false, err
+	}
+	if gradientMatrix, ok = gradient.(*Matrix); !ok {
+		err = fmt.Errorf("matrix: categorical gradient destination has type %T, want *matrix.Matrix", gradient)
+		return false, err
+	}
+	if err = predictionMatrix.sameShape(targetMatrix); err != nil {
+		return false, err
+	}
+
+	handled, err = categoricalCrossEntropyGradientDevice(
+		predictionMatrix,
+		targetMatrix,
+		gradientMatrix,
+		epsilon,
+	)
+	return handled, err
+}
+
+func sgdExecution(updates []device.ParameterUpdate, learningRate float32) (handled bool, err error) {
+	handled, err = sgdDevice(updates, learningRate)
+	return handled, err
 }
 
 func forwardReLUExecution(input, output any) (handled bool, err error) {

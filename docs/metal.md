@@ -318,13 +318,13 @@ barrier before reading host data and makes any destination host-newer.
 | `Apply`, `ApplyInto`, `Pairwise`, `PairwiseInto` | CPU fallback | Arbitrary Go callbacks are never assumed to be shaders. Callback order, error propagation, and currently permitted destination aliasing remain unchanged. Built-in ReLU and categorical loss use separate private typed operations. |
 
 This classification describes the complete milestone vocabulary. At the
-current Section 7 boundary, multiplication variants, resident copies,
-row-vector bias addition, built-in ReLU and Softmax forward and backward,
-matrix gradient addition, accumulated column sums, and explicit
-device-current gradient reset encode Metal work. Prediction and supported
-backward propagation each use one command scope after warm-up. Loss and
-parameter-update operations continue through their existing CPU/SIMD
-implementations until their owning section.
+current Section 8 boundary, the supported graph also encodes categorical
+target validation, scalar loss reduction, prediction gradients, SGD updates,
+and gradient reset. A warmed training step synchronizes once for its combined
+loss and diagnostic result, then publishes backward gradients, every staged
+parameter update, and every gradient reset atomically after a second command
+scope completes. Unsupported losses and optimizers continue through explicit
+CPU fallback barriers.
 
 ## Device Operation Vocabulary
 
