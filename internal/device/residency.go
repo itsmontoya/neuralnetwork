@@ -66,6 +66,7 @@ type Residency struct {
 	downloads              uint64
 	avoidedUploads         uint64
 	deviceCopies           uint64
+	execution              *Execution
 }
 
 // Runtime reports the runtime that owns the residency buffers.
@@ -78,6 +79,77 @@ func (r *Residency) Runtime() (runtimeValue *Runtime) {
 	runtimeValue = r.runtime
 	r.mutex.Unlock()
 	return runtimeValue
+}
+
+// BindExecution attaches one active execution to the residency record.
+func (r *Residency) BindExecution(execution *Execution) (err error) {
+	if r == nil {
+		err = errors.New("device: bind execution: residency is nil")
+		return err
+	}
+	if execution == nil {
+		err = errors.New("device: bind execution: execution is nil")
+		return err
+	}
+
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	if r.execution != nil && r.execution != execution {
+		err = errors.New("device: residency is bound to another execution")
+		return err
+	}
+	if execution.Runtime() != r.runtime {
+		err = errors.New("device: residency execution belongs to another runtime")
+		return err
+	}
+	r.execution = execution
+	return nil
+}
+
+// Execution returns the active execution bound to the residency record.
+func (r *Residency) Execution() (execution *Execution) {
+	if r == nil {
+		return nil
+	}
+
+	r.mutex.Lock()
+	execution = r.execution
+	r.mutex.Unlock()
+	return execution
+}
+
+// UnbindExecution removes execution when it still owns the binding.
+func (r *Residency) UnbindExecution(execution *Execution) (err error) {
+	if r == nil {
+		return nil
+	}
+
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	if r.execution == nil {
+		return nil
+	}
+	if r.execution != execution {
+		err = errors.New("device: unbind execution: binding owner mismatch")
+		return err
+	}
+	r.execution = nil
+	return nil
+}
+
+// PendingBuffer returns the proposed value owned by execution.
+func (r *Residency) PendingBuffer(execution *Execution) (buffer *Buffer, ok bool) {
+	if r == nil || execution == nil {
+		return nil, false
+	}
+
+	r.mutex.Lock()
+	if r.execution == execution && r.state == residencyStatePending && r.pendingBuffer != nil {
+		buffer = r.pendingBuffer
+		ok = true
+	}
+	r.mutex.Unlock()
+	return buffer, ok
 }
 
 // EnsureDevice returns a device buffer containing the latest logical values.

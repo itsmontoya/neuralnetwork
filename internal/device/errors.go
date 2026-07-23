@@ -9,4 +9,6 @@ var (
 	ErrReleased = errors.New("device: resource is released")
 	// ErrInvalidState reports an invalid command-scope transition.
 	ErrInvalidState = errors.New("device: invalid command scope state")
+	// ErrInvalidPublication reports incomplete device-write completion hooks.
+	ErrInvalidPublication = errors.New("device: invalid write publication")
 )
