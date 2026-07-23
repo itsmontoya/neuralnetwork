@@ -115,12 +115,12 @@ func Test_MetalMatrixResidencyCoherence(t *testing.T) {
 	)
 
 	requireMetalAvailable(t)
-	left = metalTestMatrix(t, 64, 128, 0.25)
+	left = metalTestMatrix(t, 256, 128, 0.25)
 	right = metalTestMatrix(t, 128, 128, -0.5)
-	if result, err = New(64, 128); err != nil {
+	if result, err = New(256, 128); err != nil {
 		t.Fatalf("New result returned error: %v", err)
 	}
-	if cpuResult, err = New(64, 128); err != nil {
+	if cpuResult, err = New(256, 128); err != nil {
 		t.Fatalf("New CPU result returned error: %v", err)
 	}
 
@@ -132,8 +132,8 @@ func Test_MetalMatrixResidencyCoherence(t *testing.T) {
 	counters = metaltest.Snapshot()
 	requireMetalCounters(t, counters, 3, 2, 0, 1, 1)
 
-	if result.Rows() != 64 || result.Cols() != 128 {
-		t.Fatalf("result shape = %dx%d, want 64x128", result.Rows(), result.Cols())
+	if result.Rows() != 256 || result.Cols() != 128 {
+		t.Fatalf("result shape = %dx%d, want 256x128", result.Rows(), result.Cols())
 	}
 	if err = result.Validate(); err != nil {
 		t.Fatalf("device-newer Validate returned error: %v", err)
@@ -218,18 +218,18 @@ func Test_MetalExecutionBatchesDependentMultiplications(t *testing.T) {
 	)
 
 	requireMetalAvailable(t)
-	left = metalTestMatrix(t, 64, 128, 0.25)
+	left = metalTestMatrix(t, 256, 128, 0.25)
 	right = metalTestMatrix(t, 128, 128, -0.5)
-	if intermediate, err = New(64, 128); err != nil {
+	if intermediate, err = New(256, 128); err != nil {
 		t.Fatalf("New intermediate returned error: %v", err)
 	}
-	if result, err = New(64, 128); err != nil {
+	if result, err = New(256, 128); err != nil {
 		t.Fatalf("New result returned error: %v", err)
 	}
-	if wantFirst, err = New(64, 128); err != nil {
+	if wantFirst, err = New(256, 128); err != nil {
 		t.Fatalf("New first reference returned error: %v", err)
 	}
-	if want, err = New(64, 128); err != nil {
+	if want, err = New(256, 128); err != nil {
 		t.Fatalf("New reference returned error: %v", err)
 	}
 	matMulIntoPure(left, right, wantFirst)
@@ -281,15 +281,15 @@ func Test_MetalExecutionSynchronizesCPUFallbackAndResumes(t *testing.T) {
 	)
 
 	requireMetalAvailable(t)
-	left = metalTestMatrix(t, 64, 128, 0.125)
+	left = metalTestMatrix(t, 256, 128, 0.125)
 	right = metalTestMatrix(t, 128, 128, -0.25)
-	if intermediate, err = New(64, 128); err != nil {
+	if intermediate, err = New(256, 128); err != nil {
 		t.Fatalf("New intermediate returned error: %v", err)
 	}
-	if fallback, err = New(64, 128); err != nil {
+	if fallback, err = New(256, 128); err != nil {
 		t.Fatalf("New fallback returned error: %v", err)
 	}
-	if result, err = New(64, 128); err != nil {
+	if result, err = New(256, 128); err != nil {
 		t.Fatalf("New result returned error: %v", err)
 	}
 	if execution, available, err = device.NewSharedExecution(); err != nil {
@@ -337,12 +337,12 @@ func Test_MetalExecutionCompletesRepeatedDestinationWrites(t *testing.T) {
 	)
 
 	requireMetalAvailable(t)
-	left = metalTestMatrix(t, 64, 128, 0.375)
+	left = metalTestMatrix(t, 256, 128, 0.375)
 	right = metalTestMatrix(t, 128, 128, -0.125)
-	if result, err = New(64, 128); err != nil {
+	if result, err = New(256, 128); err != nil {
 		t.Fatalf("New result returned error: %v", err)
 	}
-	if want, err = New(64, 128); err != nil {
+	if want, err = New(256, 128); err != nil {
 		t.Fatalf("New reference returned error: %v", err)
 	}
 	matMulIntoPure(left, right, want)
@@ -393,13 +393,13 @@ func Test_MetalMatrixResidencyHostBoundaries(t *testing.T) {
 	)
 
 	requireMetalAvailable(t)
-	left = metalTestMatrix(t, 64, 128, 0.125)
+	left = metalTestMatrix(t, 256, 128, 0.125)
 	right = metalTestMatrix(t, 128, 128, -0.25)
-	other = metalTestMatrix(t, 64, 128, 0.5)
-	if result, err = New(64, 128); err != nil {
+	other = metalTestMatrix(t, 256, 128, 0.5)
+	if result, err = New(256, 128); err != nil {
 		t.Fatalf("New result returned error: %v", err)
 	}
-	values = make([]float32, 64*128)
+	values = make([]float32, 256*128)
 	tests = []testcase{
 		{
 			name:      "Values",
@@ -515,9 +515,9 @@ func Test_MetalMatrixResidencyLongReuse(t *testing.T) {
 	)
 
 	requireMetalAvailable(t)
-	left = metalTestMatrix(t, 64, 128, 0.375)
+	left = metalTestMatrix(t, 256, 128, 0.375)
 	right = metalTestMatrix(t, 128, 128, -0.125)
-	if result, err = New(64, 128); err != nil {
+	if result, err = New(256, 128); err != nil {
 		t.Fatalf("New result returned error: %v", err)
 	}
 

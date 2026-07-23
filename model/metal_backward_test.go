@@ -54,7 +54,7 @@ func Test_SequentialResidentBackwardParityAndTransfers(t *testing.T) {
 	requireModelMetal(t)
 	shape = metalInferenceShape{
 		name:       "threshold",
-		batchSize:  64,
+		batchSize:  256,
 		inputSize:  128,
 		hiddenSize: 128,
 		classCount: 16,
@@ -146,7 +146,7 @@ func Test_SequentialResidentBackwardAccumulationResetAndRecovery(t *testing.T) {
 	requireModelMetal(t)
 	shape = metalInferenceShape{
 		name:       "accumulation",
-		batchSize:  64,
+		batchSize:  256,
 		inputSize:  128,
 		hiddenSize: 128,
 		classCount: 16,
@@ -345,7 +345,7 @@ func Test_SequentialResidentBackwardCustomFallback(t *testing.T) {
 	requireModelMetal(t)
 	shape = metalInferenceShape{
 		name:       "custom fallback",
-		batchSize:  64,
+		batchSize:  256,
 		inputSize:  128,
 		hiddenSize: 128,
 		classCount: 16,

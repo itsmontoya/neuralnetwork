@@ -13,7 +13,7 @@ func Test_MetalBatchedExecutionTransferCounts(t *testing.T) {
 	var shape metalBaselineShape
 	shape = metalBaselineShape{
 		name:       "AtThreshold",
-		batchSize:  64,
+		batchSize:  256,
 		inputSize:  128,
 		hiddenSize: 128,
 		classCount: 128,
@@ -105,7 +105,7 @@ func Test_MetalBaselineBelowThresholdUsesCPU(t *testing.T) {
 	var shape metalBaselineShape
 	shape = metalBaselineShape{
 		name:       "DirectlyBelowThreshold",
-		batchSize:  63,
+		batchSize:  255,
 		inputSize:  128,
 		hiddenSize: 128,
 		classCount: 128,

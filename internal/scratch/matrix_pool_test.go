@@ -48,6 +48,38 @@ func Test_MatrixPool_ZeroValueAndDirtyReuse(t *testing.T) {
 	}
 }
 
+func Test_MatrixPool_ReleaseEmptiesRetainedEntries(t *testing.T) {
+	var (
+		pool        scratch.MatrixPool
+		first       *matrix.Matrix
+		replacement *matrix.Matrix
+		reused      bool
+		err         error
+	)
+
+	if first, reused, err = pool.Get(2, 3); err != nil {
+		t.Fatalf("first Get returned error: %v", err)
+	}
+	if reused {
+		t.Fatal("first Get reused a matrix")
+	}
+	if err = pool.Release(); err != nil {
+		t.Fatalf("Release returned error: %v", err)
+	}
+	if err = pool.Release(); err != nil {
+		t.Fatalf("second Release returned error: %v", err)
+	}
+	if replacement, reused, err = pool.Get(2, 3); err != nil {
+		t.Fatalf("Get after Release returned error: %v", err)
+	}
+	if reused {
+		t.Fatal("Get after Release reused a matrix")
+	}
+	if replacement == first {
+		t.Fatal("Get after Release returned the released entry")
+	}
+}
+
 func Test_MatrixPool_FourShapeWarmupAndNoAliasing(t *testing.T) {
 	type shape struct {
 		rows int

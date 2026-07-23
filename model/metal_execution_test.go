@@ -39,15 +39,15 @@ func Test_SequentialPredictBatchesAcrossCustomCPUFallback(t *testing.T) {
 	); err != nil {
 		t.Fatalf("NewSequential returned error: %v", err)
 	}
-	input = metalExecutionMatrix(t, 64, 128, 0.25)
+	input = metalExecutionMatrix(t, 256, 128, 0.25)
 
 	metaltest.Enable()
 	defer metaltest.Disable()
 	if output, err = network.Predict(input); err != nil {
 		t.Fatalf("first Predict returned error: %v", err)
 	}
-	if output.Rows() != 64 || output.Cols() != 128 {
-		t.Fatalf("first output shape = %dx%d, want 64x128", output.Rows(), output.Cols())
+	if output.Rows() != 256 || output.Cols() != 128 {
+		t.Fatalf("first output shape = %dx%d, want 256x128", output.Rows(), output.Cols())
 	}
 	counters = metaltest.Snapshot()
 	requireModelMetalCounters(t, counters, 10, 6, 1, 2, 2)
@@ -205,7 +205,7 @@ func Test_SequentialPredictAbortsPendingWorkOnLayerError(t *testing.T) {
 	if err = network.SetTraining(false); err != nil {
 		t.Fatalf("SetTraining returned error: %v", err)
 	}
-	input = metalExecutionMatrix(t, 64, 128, 0.125)
+	input = metalExecutionMatrix(t, 256, 128, 0.125)
 	before = runtimeValue.ResourceSnapshot()
 
 	if _, err = network.Predict(input); err == nil || !strings.Contains(err.Error(), "injected layer failure") {
@@ -242,7 +242,7 @@ func Test_SequentialPredictReleasesPendingWorkOnPanic(t *testing.T) {
 	if network, err = model.NewSequential(dense, panickingLayer{}); err != nil {
 		t.Fatalf("NewSequential returned error: %v", err)
 	}
-	input = metalExecutionMatrix(t, 64, 128, 0.375)
+	input = metalExecutionMatrix(t, 256, 128, 0.375)
 	before = runtimeValue.ResourceSnapshot()
 
 	func() {

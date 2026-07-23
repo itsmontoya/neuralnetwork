@@ -114,7 +114,9 @@ func (unavailableBackend) wait(any) (err error) {
 	return ErrUnavailable
 }
 
-func (unavailableBackend) releaseScope(any) {}
+func (unavailableBackend) releaseScope(any) (err error) {
+	return nil
+}
 
 func (unavailableBackend) resourceSnapshot() (snapshot ResourceSnapshot) {
 	return snapshot

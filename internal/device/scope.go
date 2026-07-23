@@ -729,6 +729,8 @@ func (s *Scope) Wait() (err error) {
 
 // Release waits when necessary and releases all command-scope resources.
 func (s *Scope) Release() (err error) {
+	var releaseErr error
+
 	if s == nil {
 		return nil
 	}
@@ -747,7 +749,10 @@ func (s *Scope) Release() (err error) {
 		}
 	}
 	if s.runtime != nil && s.runtime.backend != nil && s.handle != nil {
-		s.runtime.backend.releaseScope(s.handle)
+		if releaseErr = s.runtime.backend.releaseScope(s.handle); releaseErr != nil {
+			releaseErr = fmt.Errorf("device: release command scope: %w", releaseErr)
+			err = errors.Join(err, releaseErr)
+		}
 	}
 	s.handle = nil
 	s.state = scopeStateReleased

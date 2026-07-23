@@ -734,7 +734,7 @@ func Test_SequentialResidentTrainingUnsupportedFallbacks(t *testing.T) {
 
 func metalTrainingShape() (shape metalInferenceShape) {
 	shape.name = "training"
-	shape.batchSize = 64
+	shape.batchSize = 256
 	shape.inputSize = 128
 	shape.hiddenSize = 128
 	shape.classCount = 16

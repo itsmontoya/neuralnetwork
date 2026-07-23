@@ -31,9 +31,9 @@ func Test_MatrixPool_EvictionReleasesResidency(t *testing.T) {
 	if !available {
 		t.Skip("Metal device unavailable")
 	}
-	left = matrixPoolMetalMatrix(t, 64, 128, 0.25)
+	left = matrixPoolMetalMatrix(t, 256, 128, 0.25)
 	right = matrixPoolMetalMatrix(t, 128, 128, -0.5)
-	if result, reused, err = pool.Get(64, 128); err != nil {
+	if result, reused, err = pool.Get(256, 128); err != nil {
 		t.Fatalf("Get result returned error: %v", err)
 	}
 	if reused {
@@ -66,7 +66,7 @@ func Test_MatrixPool_EvictionReleasesResidency(t *testing.T) {
 	}
 
 	metaltest.Reset()
-	if next, err = matrix.New(64, 128); err != nil {
+	if next, err = matrix.New(256, 128); err != nil {
 		t.Fatalf("New next returned error: %v", err)
 	}
 	if err = result.MatMulInto(right, next); err != nil {
