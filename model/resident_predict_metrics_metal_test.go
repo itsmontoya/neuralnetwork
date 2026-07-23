@@ -37,3 +37,11 @@ func beginResidentBackwardMetrics() {
 func endResidentBackwardMetrics(b *testing.B) {
 	endResidentPredictMetrics(b)
 }
+
+func beginResidentTrainingMetrics() {
+	beginResidentPredictMetrics()
+}
+
+func endResidentTrainingMetrics(b *testing.B) {
+	endResidentPredictMetrics(b)
+}

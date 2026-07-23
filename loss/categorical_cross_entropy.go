@@ -3,6 +3,7 @@ package loss
 import (
 	"fmt"
 
+	"github.com/itsmontoya/neuralnetwork/internal/device"
 	"github.com/itsmontoya/neuralnetwork/internal/f32"
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
@@ -23,10 +24,21 @@ func (c CategoricalCrossEntropy) Value(predictions, targets *matrix.Matrix) (val
 		ones       int
 		prediction float32
 		target     float32
+		handled    bool
 	)
 
 	if rows, _, err = matrixShapePair(predictions, targets); err != nil {
 		return 0, err
+	}
+	if value, handled, err = device.CategoricalCrossEntropyValue(
+		predictions,
+		targets,
+		predictionEpsilon,
+	); err != nil {
+		return 0, err
+	}
+	if handled {
+		return value, nil
 	}
 
 	currentRow = -1
@@ -77,7 +89,7 @@ func (c CategoricalCrossEntropy) Gradient(predictions, targets *matrix.Matrix) (
 		cols int
 	)
 
-	if rows, cols, err = c.shape(predictions, targets); err != nil {
+	if rows, cols, err = matrixShapePair(predictions, targets); err != nil {
 		return nil, err
 	}
 
@@ -98,7 +110,7 @@ func (c CategoricalCrossEntropy) Gradient(predictions, targets *matrix.Matrix) (
 func (c CategoricalCrossEntropy) GradientInto(predictions, targets, destination *matrix.Matrix) (err error) {
 	var rows int
 
-	if rows, _, err = c.shape(predictions, targets); err != nil {
+	if rows, _, err = matrixShapePair(predictions, targets); err != nil {
 		return err
 	}
 
@@ -116,7 +128,23 @@ func (c CategoricalCrossEntropy) gradientInto(
 		prediction float32
 		target     float32
 		scale      float32
+		handled    bool
 	)
+
+	if handled, err = device.CategoricalCrossEntropyGradient(
+		predictions,
+		targets,
+		destination,
+		predictionEpsilon,
+	); err != nil {
+		return err
+	}
+	if handled {
+		return nil
+	}
+	if err = validateOneHotTargets(targets); err != nil {
+		return err
+	}
 
 	scale = 1 / float32(rows)
 	err = predictions.PairwiseInto(targets, destination, func(row, col int, left, right float32) (value float32, err error) {
@@ -136,19 +164,6 @@ func (c CategoricalCrossEntropy) gradientInto(
 
 	return nil
 }
-
-func (c CategoricalCrossEntropy) shape(predictions, targets *matrix.Matrix) (rows, cols int, err error) {
-	if rows, cols, err = matrixShapePair(predictions, targets); err != nil {
-		return 0, 0, err
-	}
-
-	if err = validateOneHotTargets(targets); err != nil {
-		return 0, 0, err
-	}
-
-	return rows, cols, nil
-}
-
 func validateOneHotTargets(targets *matrix.Matrix) (err error) {
 	var (
 		currentRow int
