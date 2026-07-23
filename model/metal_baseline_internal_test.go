@@ -9,7 +9,7 @@ import (
 	"github.com/itsmontoya/neuralnetwork/internal/metaltest"
 )
 
-func Test_MetalBaselineSynchronousTransferCounts(t *testing.T) {
+func Test_MetalBatchedExecutionTransferCounts(t *testing.T) {
 	var shape metalBaselineShape
 	shape = metalBaselineShape{
 		name:       "AtThreshold",
@@ -37,10 +37,10 @@ func Test_MetalBaselineSynchronousTransferCounts(t *testing.T) {
 		commands  uint64
 		waits     uint64
 	}{
-		{name: "Predict", setup: setupMetalBaselinePredict, buffers: 6, uploads: 4, downloads: 2, commands: 2, waits: 2},
-		{name: "Backward", setup: setupMetalBaselineBackward, buffers: 8, uploads: 4, downloads: 3, commands: 4, waits: 4},
-		{name: "TrainBatch", setup: setupMetalBaselineTrainBatch, buffers: 14, uploads: 8, downloads: 5, commands: 6, waits: 6},
-		{name: "Fit", setup: setupMetalBaselineFit, buffers: 17, uploads: 12, downloads: 7, commands: 8, waits: 8},
+		{name: "Predict", setup: setupMetalBaselinePredict, buffers: 10, uploads: 6, downloads: 2, commands: 3, waits: 3},
+		{name: "Backward", setup: setupMetalBaselineBackward, buffers: 6, uploads: 2, downloads: 5, commands: 2, waits: 2},
+		{name: "TrainBatch", setup: setupMetalBaselineTrainBatch, buffers: 16, uploads: 8, downloads: 7, commands: 5, waits: 5},
+		{name: "Fit", setup: setupMetalBaselineFit, buffers: 23, uploads: 14, downloads: 9, commands: 8, waits: 8},
 	}
 
 	metaltest.Enable()

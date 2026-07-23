@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/itsmontoya/neuralnetwork/data"
+	"github.com/itsmontoya/neuralnetwork/internal/device"
 	"github.com/itsmontoya/neuralnetwork/internal/scratch"
 	"github.com/itsmontoya/neuralnetwork/layer"
 	"github.com/itsmontoya/neuralnetwork/loss"
@@ -62,6 +63,7 @@ type Sequential struct {
 	layers          []layer.Layer
 	parameterBuffer []*optimizer.Parameter
 	gradientPool    scratch.MatrixPool
+	execution       *device.Execution
 	training        bool
 }
 
@@ -91,6 +93,51 @@ func (s *Sequential) Add(next layer.Layer) (err error) {
 // Predict runs a forward pass through every layer.
 func (s *Sequential) Predict(input *matrix.Matrix) (output *matrix.Matrix, err error) {
 	var (
+		execution *device.Execution
+		owned     bool
+	)
+
+	if execution, owned, err = s.beginExecution(input); err != nil {
+		return nil, fmt.Errorf("model: begin prediction execution: %w", err)
+	}
+	defer func() {
+		var (
+			panicValue any
+			cleanupErr error
+		)
+
+		panicValue = recover()
+		if panicValue != nil {
+			if owned {
+				execution.Abort(errors.New("model: prediction panicked"))
+			}
+			panic(panicValue)
+		}
+		if !owned {
+			return
+		}
+		if err != nil {
+			if cleanupErr = execution.Abort(err); cleanupErr != nil {
+				err = errors.Join(err, fmt.Errorf("model: abort prediction execution: %w", cleanupErr))
+			}
+			output = nil
+			return
+		}
+		if cleanupErr = execution.Finish(); cleanupErr != nil {
+			err = fmt.Errorf("model: finish prediction execution: %w", cleanupErr)
+			output = nil
+		}
+	}()
+
+	output, err = s.predict(input, execution)
+	return output, err
+}
+
+func (s *Sequential) predict(
+	input *matrix.Matrix,
+	execution *device.Execution,
+) (output *matrix.Matrix, err error) {
+	var (
 		index   int
 		current layer.Layer
 	)
@@ -108,12 +155,22 @@ func (s *Sequential) Predict(input *matrix.Matrix) (output *matrix.Matrix, err e
 		err = fmt.Errorf("model: input matrix invalid: %w", err)
 		return nil, err
 	}
+	if execution != nil {
+		if err = execution.Bind(input); err != nil {
+			return nil, fmt.Errorf("model: bind prediction input: %w", err)
+		}
+	}
 
 	output = input
 	for index, current = range s.layers {
 		if output, err = current.Forward(output); err != nil {
 			err = fmt.Errorf("model: layer %d forward failed: %w", index, err)
 			return nil, err
+		}
+		if execution != nil {
+			if err = execution.Bind(output); err != nil {
+				return nil, fmt.Errorf("model: bind layer %d output: %w", index, err)
+			}
 		}
 	}
 
@@ -122,6 +179,51 @@ func (s *Sequential) Predict(input *matrix.Matrix) (output *matrix.Matrix, err e
 
 // Backward runs a backward pass through every layer in reverse order.
 func (s *Sequential) Backward(outputGradient *matrix.Matrix) (inputGradient *matrix.Matrix, err error) {
+	var (
+		execution *device.Execution
+		owned     bool
+	)
+
+	if execution, owned, err = s.beginExecution(outputGradient); err != nil {
+		return nil, fmt.Errorf("model: begin backward execution: %w", err)
+	}
+	defer func() {
+		var (
+			panicValue any
+			cleanupErr error
+		)
+
+		panicValue = recover()
+		if panicValue != nil {
+			if owned {
+				execution.Abort(errors.New("model: backward panicked"))
+			}
+			panic(panicValue)
+		}
+		if !owned {
+			return
+		}
+		if err != nil {
+			if cleanupErr = execution.Abort(err); cleanupErr != nil {
+				err = errors.Join(err, fmt.Errorf("model: abort backward execution: %w", cleanupErr))
+			}
+			inputGradient = nil
+			return
+		}
+		if cleanupErr = execution.Finish(); cleanupErr != nil {
+			err = fmt.Errorf("model: finish backward execution: %w", cleanupErr)
+			inputGradient = nil
+		}
+	}()
+
+	inputGradient, err = s.backward(outputGradient, execution)
+	return inputGradient, err
+}
+
+func (s *Sequential) backward(
+	outputGradient *matrix.Matrix,
+	execution *device.Execution,
+) (inputGradient *matrix.Matrix, err error) {
 	var index int
 
 	if err = s.validateReady(); err != nil {
@@ -137,12 +239,22 @@ func (s *Sequential) Backward(outputGradient *matrix.Matrix) (inputGradient *mat
 		err = fmt.Errorf("model: output gradient matrix invalid: %w", err)
 		return nil, err
 	}
+	if execution != nil {
+		if err = execution.Bind(outputGradient); err != nil {
+			return nil, fmt.Errorf("model: bind output gradient: %w", err)
+		}
+	}
 
 	inputGradient = outputGradient
 	for index = len(s.layers) - 1; index >= 0; index-- {
 		if inputGradient, err = s.layers[index].Backward(inputGradient); err != nil {
 			err = fmt.Errorf("model: layer %d backward failed: %w", index, err)
 			return nil, err
+		}
+		if execution != nil {
+			if err = execution.Bind(inputGradient); err != nil {
+				return nil, fmt.Errorf("model: bind layer %d input gradient: %w", index, err)
+			}
 		}
 	}
 
@@ -245,6 +357,8 @@ func (s *Sequential) TrainBatch(
 		previousTraining bool
 		predictions      *matrix.Matrix
 		gradient         *matrix.Matrix
+		execution        *device.Execution
+		owned            bool
 	)
 
 	if lossFunc == nil {
@@ -268,9 +382,43 @@ func (s *Sequential) TrainBatch(
 			err = restoreErr
 		}
 	}()
+	if execution, owned, err = s.beginExecution(input); err != nil {
+		return metrics, fmt.Errorf("model: begin training execution: %w", err)
+	}
+	defer func() {
+		var (
+			panicValue any
+			cleanupErr error
+		)
 
-	if predictions, err = s.Predict(input); err != nil {
+		panicValue = recover()
+		if panicValue != nil {
+			if owned {
+				execution.Abort(errors.New("model: training panicked"))
+			}
+			panic(panicValue)
+		}
+		if !owned {
+			return
+		}
+		if err != nil {
+			if cleanupErr = execution.Abort(err); cleanupErr != nil {
+				err = errors.Join(err, fmt.Errorf("model: abort training execution: %w", cleanupErr))
+			}
+			return
+		}
+		if cleanupErr = execution.Finish(); cleanupErr != nil {
+			err = fmt.Errorf("model: finish training execution: %w", cleanupErr)
+		}
+	}()
+
+	if predictions, err = s.predict(input, execution); err != nil {
 		return metrics, err
+	}
+	if execution != nil && targets != nil {
+		if err = execution.Bind(targets); err != nil {
+			return metrics, fmt.Errorf("model: bind training targets: %w", err)
+		}
 	}
 
 	if metrics.Loss, err = lossFunc.Value(predictions, targets); err != nil {
@@ -283,9 +431,15 @@ func (s *Sequential) TrainBatch(
 		return metrics, err
 	}
 
-	if _, err = s.Backward(gradient); err != nil {
+	if _, err = s.backward(gradient, execution); err != nil {
 		err = fmt.Errorf("model: backward failed: %w", err)
 		return metrics, err
+	}
+	if execution != nil {
+		if err = execution.Barrier(device.BoundaryCPUFallback); err != nil {
+			err = fmt.Errorf("model: complete backward execution before optimizer update: %w", err)
+			return metrics, err
+		}
 	}
 
 	if err = optimizerRule.Update(s.rebuildParameters()); err != nil {
@@ -294,6 +448,37 @@ func (s *Sequential) TrainBatch(
 	}
 
 	return metrics, nil
+}
+
+func (s *Sequential) beginExecution(
+	value *matrix.Matrix,
+) (execution *device.Execution, owned bool, err error) {
+	var (
+		runtimeValue *device.Runtime
+		available    bool
+	)
+
+	if execution, err = device.BoundExecution(value); err != nil {
+		return nil, false, err
+	}
+	if execution != nil {
+		return execution, false, nil
+	}
+	if runtimeValue, available, err = device.SharedRuntime(); err != nil {
+		return nil, false, err
+	}
+	if !available {
+		return nil, false, nil
+	}
+
+	if s.execution == nil {
+		s.execution = device.NewExecution(runtimeValue)
+	} else if err = s.execution.Reset(runtimeValue); err != nil {
+		return nil, false, err
+	}
+
+	execution = s.execution
+	return execution, true, nil
 }
 
 func (s *Sequential) lossGradient(
