@@ -1669,3 +1669,227 @@ Benchmark_SequentialResidentBackward/Large/Warmed-8            31  3621923 ns/op
 PASS
 ok  github.com/itsmontoya/neuralnetwork/model  10.442s
 ```
+
+## Step 8: Complete Device-Resident Dense Training
+
+Date: July 23, 2026
+
+Environment:
+
+```text
+Hardware: Apple M3
+OS: macOS 26.5.2 (25F84)
+Architecture: arm64
+Go: go1.26.5 darwin/arm64
+CGO: enabled
+Metal device: available
+Power mode: not explicitly controlled
+```
+
+Commands:
+
+```sh
+go test ./model -run '^$' -bench='SequentialResidentTraining/(TrainBatch|Fit)/(Small|Large)/(ColdFirstUse|Warmed)$' -benchmem -benchtime=100ms -count=5
+go test ./model -tags=metal -run '^$' -bench='SequentialResidentTraining/(TrainBatch|Fit)/(Small|Large)/(ColdFirstUse|Warmed)$' -benchmem -benchtime=100ms -count=5
+go test ./model -run '^$' -bench='SequentialMetalBaseline/(TrainBatch|Fit)/(SmallBelowThreshold|LargeAboveThreshold)/Warmed$' -benchmem -benchtime=100ms -count=5
+go test ./model -tags=metal -run '^$' -bench='SequentialMetalBaseline/(TrainBatch|Fit)/(SmallBelowThreshold|LargeAboveThreshold)/Warmed$' -benchmem -benchtime=100ms -count=5
+```
+
+The new training benchmark uses a small `16x32 -> 64 -> 10` graph and a
+representative large `256x512 -> 512 -> 64` graph. `Fit` is bounded to one
+epoch and one batch followed by the existing full-dataset evaluation.
+Medians below are calculated from the five recorded `ns/op` samples.
+
+### Summary
+
+| Case | Default median ns/op | `metal` median ns/op | Comparison | Warm Metal transfers | Warm Metal commands/waits | Warm allocations |
+| --- | ---: | ---: | ---: | --- | --- | ---: |
+| TrainBatch, small cold | 96,217 | 100,332 | `metal` 1.04x slower | none | none | default 35; `metal` 67 |
+| TrainBatch, small warm | 91,962 | 94,720 | `metal` 1.03x slower | none | none | both 0 |
+| TrainBatch, large cold | 142,315,583 | 6,189,551 | `metal` 23.0x faster | 10 uploads, one 20-byte download | 2 / 2 | default 35; `metal` 162 |
+| TrainBatch, large warm | 143,655,375 | 5,380,140 | `metal` 26.7x faster | no uploads, one 20-byte download | 2 / 2 | default 0; `metal` 73 |
+| Fit, small cold | 126,117 | 134,328 | `metal` 1.07x slower | none | none | default 45; `metal` 78 |
+| Fit, small warm | 122,794 | 128,804 | `metal` 1.05x slower | none | none | default 10; `metal` 13 |
+| Fit, large cold | 186,120,333 | 7,405,592 | `metal` 25.1x faster | 11 uploads, 65,556 downloaded bytes | 3 / 3 | default 45; `metal` 199 |
+| Fit, large warm | 185,102,875 | 6,716,347 | `metal` 27.6x faster | 3 uploads, 65,556 downloaded bytes | 3 / 3 | default 10; `metal` 114 |
+
+The warmed large `TrainBatch` performs no upload for unchanged input, target,
+or parameters. It downloads one 20-byte buffer containing the scalar loss and
+minimal categorical diagnostic state. Its 24 buffers are failure-atomic
+destinations and parameter-update staging. The first command validates targets
+and returns the loss; the second combines the loss gradient, backward pass,
+stable-order SGD updates, and gradient reset.
+
+The bounded warmed `Fit` adds one evaluation prediction and its required host
+loss observation. Its three uploads are the CPU-built evaluation input and
+target plus the training batch workspace rewritten for the next call. Metrics,
+callbacks, schedules, validation, and early stopping therefore retain their
+documented host behavior.
+
+The same-shape Section 2 control gives the following direct historical view:
+
+| Case | Current default median ns/op | Historical synchronous Metal ns/op | Resident Metal median ns/op |
+| --- | ---: | ---: | ---: |
+| TrainBatch, small warm | 52,616 | 52,397 | 57,361 |
+| TrainBatch, large warm | 12,096,583 | 2,039,388 | 3,166,267 |
+| Fit, small warm | 71,299 | 71,061 | 77,816 |
+| Fit, large warm | 16,040,351 | 2,772,700 | 3,624,424 |
+
+The larger representative workload shows the intended end-to-end residency
+benefit, while the older medium-large shape is 1.55x slower for `TrainBatch`
+and 1.31x slower for `Fit` than its historical synchronous Metal sample.
+Shader, staging-allocation, and threshold tuning remain assigned to Section 9;
+the resident path is retained because it is correct, eliminates supported
+intermediate transfers, and materially improves the representative large
+training workload.
+
+### Raw Default Output
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialResidentTraining/TrainBatch/Small/ColdFirstUse-8  1132  96217 ns/op  43744 B/op  35 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/ColdFirstUse-8  1166  96803 ns/op  43748 B/op  35 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/ColdFirstUse-8  1251  95706 ns/op  43744 B/op  35 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/ColdFirstUse-8  1257  97096 ns/op  43744 B/op  35 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/ColdFirstUse-8  1214  95868 ns/op  43744 B/op  35 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/Warmed-8        1326  91879 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/Warmed-8        1362  92805 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/Warmed-8        1432  91868 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/Warmed-8        1353  92127 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/Warmed-8        1436  91962 ns/op      0 B/op   0 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/ColdFirstUse-8     1  141505250 ns/op  5702624 B/op  35 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/ColdFirstUse-8     1  142315583 ns/op  5702624 B/op  35 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/ColdFirstUse-8     1  142341624 ns/op  5702624 B/op  35 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/ColdFirstUse-8     1  142831750 ns/op  5702624 B/op  35 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/ColdFirstUse-8     1  141431000 ns/op  5702624 B/op  35 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/Warmed-8           1  142393292 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/Warmed-8           1  143725416 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/Warmed-8           1  143655375 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/Warmed-8           1  142675417 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/Warmed-8           1  143999792 ns/op        0 B/op   0 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/ColdFirstUse-8          980  122860 ns/op  49488 B/op  45 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/ColdFirstUse-8          979  127013 ns/op  49488 B/op  45 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/ColdFirstUse-8          894  126665 ns/op  49488 B/op  45 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/ColdFirstUse-8          932  126066 ns/op  49488 B/op  45 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/ColdFirstUse-8          951  126117 ns/op  49488 B/op  45 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/Warmed-8                966  123763 ns/op   5744 B/op  10 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/Warmed-8                958  122794 ns/op   5744 B/op  10 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/Warmed-8                933  122187 ns/op   5744 B/op  10 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/Warmed-8                976  122614 ns/op   5744 B/op  10 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/Warmed-8               1017  123313 ns/op   5744 B/op  10 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/ColdFirstUse-8            1  185552917 ns/op  6884560 B/op  45 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/ColdFirstUse-8            1  192803041 ns/op  6884560 B/op  45 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/ColdFirstUse-8            1  186170333 ns/op  6884560 B/op  45 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/ColdFirstUse-8            1  184349166 ns/op  6884560 B/op  45 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/ColdFirstUse-8            1  186120333 ns/op  6884560 B/op  45 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/Warmed-8                  1  185133917 ns/op  1181936 B/op  10 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/Warmed-8                  1  186796417 ns/op  1181936 B/op  10 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/Warmed-8                  1  184645083 ns/op  1181936 B/op  10 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/Warmed-8                  1  184021625 ns/op  1181936 B/op  10 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/Warmed-8                  1  185102875 ns/op  1181936 B/op  10 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/model  8.572s
+```
+
+### Raw Resident Metal Output
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/model
+cpu: Apple M3
+Benchmark_SequentialResidentTraining/TrainBatch/Small/ColdFirstUse-8  1024  100209 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  49440 B/op  67 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/ColdFirstUse-8  1190  101374 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  49445 B/op  67 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/ColdFirstUse-8  1158  101769 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  49440 B/op  67 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/ColdFirstUse-8  1184  100234 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  49440 B/op  67 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/ColdFirstUse-8  1198  100332 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  49440 B/op  67 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/Warmed-8        1270  94720 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  0 B/op  0 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/Warmed-8        1291  94675 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  0 B/op  0 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/Warmed-8        1260  94978 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  0 B/op  0 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/Warmed-8        1244  94951 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  0 B/op  0 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Small/Warmed-8        1266  94694 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  0 B/op  0 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/ColdFirstUse-8  12  10237854 ns/op  34.00 buffers/op  2.000 commands/op  20.00 download-bytes/op  1.000 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  5713764 B/op  162 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/ColdFirstUse-8  16   6625057 ns/op  34.00 buffers/op  2.000 commands/op  20.00 download-bytes/op  1.000 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  5713295 B/op  162 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/ColdFirstUse-8  19   6166204 ns/op  34.00 buffers/op  2.000 commands/op  20.00 download-bytes/op  1.000 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  5713285 B/op  162 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/ColdFirstUse-8  19   6189551 ns/op  34.00 buffers/op  2.000 commands/op  20.00 download-bytes/op  1.000 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  5713285 B/op  162 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/ColdFirstUse-8  19   6096774 ns/op  34.00 buffers/op  2.000 commands/op  20.00 download-bytes/op  1.000 downloads/op  2953728 upload-bytes/op  10.00 uploads/op  2.000 waits/op  5713285 B/op  162 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/Warmed-8        20   5380140 ns/op  24.00 buffers/op  2.000 commands/op  20.00 download-bytes/op  1.000 downloads/op  0 upload-bytes/op  0 uploads/op  2.000 waits/op  2792 B/op  73 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/Warmed-8        22   5435712 ns/op  24.00 buffers/op  2.000 commands/op  20.00 download-bytes/op  1.000 downloads/op  0 upload-bytes/op  0 uploads/op  2.000 waits/op  2792 B/op  73 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/Warmed-8        22   5387485 ns/op  24.00 buffers/op  2.000 commands/op  20.00 download-bytes/op  1.000 downloads/op  0 upload-bytes/op  0 uploads/op  2.000 waits/op  2792 B/op  73 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/Warmed-8        22   5366218 ns/op  24.00 buffers/op  2.000 commands/op  20.00 download-bytes/op  1.000 downloads/op  0 upload-bytes/op  0 uploads/op  2.000 waits/op  2792 B/op  73 allocs/op
+Benchmark_SequentialResidentTraining/TrainBatch/Large/Warmed-8        22   5320347 ns/op  24.00 buffers/op  2.000 commands/op  20.00 download-bytes/op  1.000 downloads/op  0 upload-bytes/op  0 uploads/op  2.000 waits/op  2792 B/op  73 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/ColdFirstUse-8         879  130280 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  55360 B/op  78 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/ColdFirstUse-8         898  132067 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  55360 B/op  78 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/ColdFirstUse-8         903  134594 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  55360 B/op  78 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/ColdFirstUse-8         882  134328 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  55360 B/op  78 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/ColdFirstUse-8         904  138282 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  55360 B/op  78 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/Warmed-8               937  129287 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  6272 B/op  13 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/Warmed-8               930  129044 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  6272 B/op  13 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/Warmed-8               925  128459 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  6272 B/op  13 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/Warmed-8               955  128804 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  6272 B/op  13 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Small/Warmed-8               946  128322 ns/op  0 buffers/op  0 commands/op  0 download-bytes/op  0 downloads/op  0 upload-bytes/op  0 uploads/op  0 waits/op  6272 B/op  13 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/ColdFirstUse-8         15  7758072 ns/op  43.00 buffers/op  3.000 commands/op  65556 download-bytes/op  2.000 downloads/op  3478016 upload-bytes/op  11.00 uploads/op  3.000 waits/op  6896460 B/op  199 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/ColdFirstUse-8         15  7347778 ns/op  43.00 buffers/op  3.000 commands/op  65556 download-bytes/op  2.000 downloads/op  3478016 upload-bytes/op  11.00 uploads/op  3.000 waits/op  6896416 B/op  199 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/ColdFirstUse-8         15  7409117 ns/op  43.00 buffers/op  3.000 commands/op  65556 download-bytes/op  2.000 downloads/op  3478016 upload-bytes/op  11.00 uploads/op  3.000 waits/op  6896445 B/op  199 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/ColdFirstUse-8         15  7275186 ns/op  43.00 buffers/op  3.000 commands/op  65556 download-bytes/op  2.000 downloads/op  3478016 upload-bytes/op  11.00 uploads/op  3.000 waits/op  6896430 B/op  199 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/ColdFirstUse-8         14  7405592 ns/op  43.00 buffers/op  3.000 commands/op  65556 download-bytes/op  2.000 downloads/op  3478016 upload-bytes/op  11.00 uploads/op  3.000 waits/op  6896416 B/op  199 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/Warmed-8               18  6716347 ns/op  35.00 buffers/op  3.000 commands/op  65556 download-bytes/op  2.000 downloads/op  1114112 upload-bytes/op  3.000 uploads/op  3.000 waits/op  1186408 B/op  114 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/Warmed-8               18  8013924 ns/op  35.00 buffers/op  3.000 commands/op  65556 download-bytes/op  2.000 downloads/op  1114112 upload-bytes/op  3.000 uploads/op  3.000 waits/op  1186408 B/op  114 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/Warmed-8               15  6704386 ns/op  35.00 buffers/op  3.000 commands/op  65556 download-bytes/op  2.000 downloads/op  1114112 upload-bytes/op  3.000 uploads/op  3.000 waits/op  1186408 B/op  114 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/Warmed-8               18  6787965 ns/op  35.00 buffers/op  3.000 commands/op  65556 download-bytes/op  2.000 downloads/op  1114112 upload-bytes/op  3.000 uploads/op  3.000 waits/op  1186408 B/op  114 allocs/op
+Benchmark_SequentialResidentTraining/Fit/Large/Warmed-8               18  6664167 ns/op  35.00 buffers/op  3.000 commands/op  65556 download-bytes/op  2.000 downloads/op  1114112 upload-bytes/op  3.000 uploads/op  3.000 waits/op  1186408 B/op  114 allocs/op
+PASS
+ok  github.com/itsmontoya/neuralnetwork/model  7.088s
+```
+
+### Raw Same-Shape Warmed Controls
+
+```text
+Default:
+Benchmark_SequentialMetalBaseline/TrainBatch/SmallBelowThreshold/Warmed-8  2323  52141 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/SmallBelowThreshold/Warmed-8  2409  52909 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/SmallBelowThreshold/Warmed-8  2412  52389 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/SmallBelowThreshold/Warmed-8  2406  52616 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/SmallBelowThreshold/Warmed-8  2380  53493 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/LargeAboveThreshold/Warmed-8     9  12045792 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/LargeAboveThreshold/Warmed-8     9  12096583 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/LargeAboveThreshold/Warmed-8     9  12119685 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/LargeAboveThreshold/Warmed-8     9  12030380 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/LargeAboveThreshold/Warmed-8     9  13202519 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/SmallBelowThreshold/Warmed-8  1672  71174 ns/op  3376 B/op  10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/SmallBelowThreshold/Warmed-8  1688  71445 ns/op  3376 B/op  10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/SmallBelowThreshold/Warmed-8  1683  70998 ns/op  3376 B/op  10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/SmallBelowThreshold/Warmed-8  1746  71299 ns/op  3376 B/op  10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/SmallBelowThreshold/Warmed-8  1677  71405 ns/op  3376 B/op  10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/Warmed-8     7  16040351 ns/op  394480 B/op  10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/Warmed-8     7  16207839 ns/op  394480 B/op  10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/Warmed-8     7  15924351 ns/op  394480 B/op  10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/Warmed-8     7  16240696 ns/op  394480 B/op  10 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/Warmed-8     7  15948631 ns/op  394480 B/op  10 allocs/op
+
+Resident Metal:
+Benchmark_SequentialMetalBaseline/TrainBatch/SmallBelowThreshold/Warmed-8  2017  57361 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/SmallBelowThreshold/Warmed-8  2154  57274 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/SmallBelowThreshold/Warmed-8  2162  57622 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/SmallBelowThreshold/Warmed-8  2077  57535 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/SmallBelowThreshold/Warmed-8  2146  57346 ns/op  0 B/op  0 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/LargeAboveThreshold/Warmed-8  22  5250426 ns/op  2792 B/op  73 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/LargeAboveThreshold/Warmed-8  37  3166267 ns/op  2792 B/op  73 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/LargeAboveThreshold/Warmed-8  38  3236002 ns/op  2792 B/op  73 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/LargeAboveThreshold/Warmed-8  32  3158811 ns/op  2792 B/op  73 allocs/op
+Benchmark_SequentialMetalBaseline/TrainBatch/LargeAboveThreshold/Warmed-8  38  3067213 ns/op  2792 B/op  73 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/SmallBelowThreshold/Warmed-8  1647  77380 ns/op  3904 B/op  13 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/SmallBelowThreshold/Warmed-8  1591  77816 ns/op  3904 B/op  13 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/SmallBelowThreshold/Warmed-8  1527  78710 ns/op  3904 B/op  13 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/SmallBelowThreshold/Warmed-8  1585  77241 ns/op  3904 B/op  13 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/SmallBelowThreshold/Warmed-8  1645  77894 ns/op  3904 B/op  13 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/Warmed-8  25  4216117 ns/op  398952 B/op  114 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/Warmed-8  33  3608015 ns/op  398955 B/op  114 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/Warmed-8  33  3576054 ns/op  398952 B/op  114 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/Warmed-8  34  3624424 ns/op  398952 B/op  114 allocs/op
+Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/Warmed-8  33  3625922 ns/op  398952 B/op  114 allocs/op
+PASS
+```

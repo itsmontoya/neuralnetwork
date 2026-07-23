@@ -108,6 +108,97 @@ func Benchmark_SequentialResidentBackward(b *testing.B) {
 	}
 }
 
+func Benchmark_SequentialResidentTraining(b *testing.B) {
+	var tests []metalBaselineShape
+	tests = []metalBaselineShape{
+		{name: "Small", batchSize: 16, inputSize: 32, hiddenSize: 64, classCount: 10},
+		{name: "Large", batchSize: 256, inputSize: 512, hiddenSize: 512, classCount: 64},
+	}
+
+	var operations []struct {
+		name  string
+		setup func(testing.TB, metalBaselineShape) func() error
+	}
+	operations = []struct {
+		name  string
+		setup func(testing.TB, metalBaselineShape) func() error
+	}{
+		{name: "TrainBatch", setup: setupMetalBaselineTrainBatch},
+		{name: "Fit", setup: setupMetalBaselineFit},
+	}
+
+	var (
+		operation struct {
+			name  string
+			setup func(testing.TB, metalBaselineShape) func() error
+		}
+		test metalBaselineShape
+	)
+	for _, operation = range operations {
+		for _, test = range tests {
+			b.Run(operation.name+"/"+test.name+"/ColdFirstUse", func(b *testing.B) {
+				benchmarkResidentTrainingCold(b, test, operation.setup)
+			})
+			b.Run(operation.name+"/"+test.name+"/Warmed", func(b *testing.B) {
+				benchmarkResidentTrainingWarmed(b, test, operation.setup)
+			})
+		}
+	}
+}
+
+func benchmarkResidentTrainingCold(
+	b *testing.B,
+	shape metalBaselineShape,
+	setup func(testing.TB, metalBaselineShape) func() error,
+) {
+	var (
+		run   func() error
+		err   error
+		index int
+	)
+
+	beginResidentTrainingMetrics()
+	defer endResidentTrainingMetrics(b)
+	b.ReportAllocs()
+	for index = 0; index < b.N; index++ {
+		b.StopTimer()
+		run = setup(b, shape)
+		b.StartTimer()
+		if err = run(); err != nil {
+			b.Fatalf("cold training returned error: %v", err)
+		}
+	}
+	b.StopTimer()
+}
+
+func benchmarkResidentTrainingWarmed(
+	b *testing.B,
+	shape metalBaselineShape,
+	setup func(testing.TB, metalBaselineShape) func() error,
+) {
+	var (
+		run   func() error
+		err   error
+		index int
+	)
+
+	run = setup(b, shape)
+	if err = run(); err != nil {
+		b.Fatalf("warm-up returned error: %v", err)
+	}
+
+	beginResidentTrainingMetrics()
+	defer endResidentTrainingMetrics(b)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for index = 0; index < b.N; index++ {
+		if err = run(); err != nil {
+			b.Fatalf("warmed training returned error: %v", err)
+		}
+	}
+	b.StopTimer()
+}
+
 func benchmarkResidentBackwardCold(b *testing.B, shape metalBaselineShape) {
 	var (
 		run   func() error
