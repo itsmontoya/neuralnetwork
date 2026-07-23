@@ -1893,3 +1893,210 @@ Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/Warmed-8  34  3624424 
 Benchmark_SequentialMetalBaseline/Fit/LargeAboveThreshold/Warmed-8  33  3625922 ns/op  398952 B/op  114 allocs/op
 PASS
 ```
+
+## Step 9: Harden Metal Dispatch, Resources, and Performance
+
+Captured on July 23, 2026.
+
+### Environment
+
+| Field | Value |
+| --- | --- |
+| Hardware | Apple M3 |
+| OS | macOS 26.5.2 (25F84) |
+| Architecture | arm64 |
+| Go toolchain | go1.26.5 darwin/arm64 |
+| cgo | enabled |
+| Metal device | available |
+| Power mode | not explicitly controlled |
+
+### Commands
+
+Final warmed slices:
+
+```sh
+go test ./model -run '^$' -bench='^Benchmark_SequentialResident(Predict|Backward)/(Small|Large)/Warmed$|^Benchmark_SequentialResidentTraining/(TrainBatch|Fit)/(Small|Large)/Warmed$' -benchtime=100ms -count=10 -benchmem
+go test -tags=metal ./model -run '^$' -bench='^Benchmark_SequentialResident(Predict|Backward)/(Small|Large)/Warmed$|^Benchmark_SequentialResidentTraining/(TrainBatch|Fit)/(Small|Large)/Warmed$' -benchtime=100ms -count=10 -benchmem
+```
+
+Observed and dispatch-boundary cases:
+
+```sh
+go test ./model -run '^$' -bench='^Benchmark_SequentialResidentPredictObserved/ObservedBelowThreshold/Warmed$' -benchtime=100ms -count=10 -benchmem
+go test -tags=metal ./model -run '^$' -bench='^Benchmark_SequentialResidentPredictObserved/ObservedBelowThreshold/Warmed$' -benchtime=100ms -count=10 -benchmem
+go test ./model -run '^$' -bench='^Benchmark_SequentialResidentPredictObserved/(Large|WarmThreshold)/Warmed$' -benchtime=100ms -count=10 -benchmem
+go test -tags=metal ./model -run '^$' -bench='^Benchmark_SequentialResidentPredictObserved/(Large|WarmThreshold)/Warmed$' -benchtime=100ms -count=10 -benchmem
+```
+
+Each loop starts a fresh `go test` process, so process runtime and pipelines
+are cold for every sample:
+
+```sh
+for iteration in {1..10}; do go test ./model -run '^$' -bench='^Benchmark_SequentialMetalDispatch/Predict/ReadyThreshold/ColdFirstUse$' -benchtime=1x -count=1 -benchmem; done
+for iteration in {1..10}; do go test -tags=metal ./model -run '^$' -bench='^Benchmark_SequentialMetalDispatch/Predict/ReadyThreshold/ColdFirstUse$' -benchtime=1x -count=1 -benchmem; done
+for iteration in {1..10}; do go test ./model -run '^$' -bench='^Benchmark_SequentialResidentTraining/TrainBatch/Large/ColdFirstUse$' -benchtime=1x -count=1 -benchmem; done
+for iteration in {1..10}; do go test -tags=metal ./model -run '^$' -bench='^Benchmark_SequentialResidentTraining/TrainBatch/Large/ColdFirstUse$' -benchtime=1x -count=1 -benchmem; done
+```
+
+Profiles and focused hardening gates:
+
+```sh
+go test ./model -run '^$' -bench='^Benchmark_SequentialResident(Predict|Backward)/Large/Warmed$|^Benchmark_SequentialResidentTraining/(TrainBatch|Fit)/Large/Warmed$' -benchtime=1s -count=1 -cpuprofile=/private/tmp/neuralnetwork-section9-final-default.cpu -memprofile=/private/tmp/neuralnetwork-section9-final-default.mem
+go test -tags=metal ./model -run '^$' -bench='^Benchmark_SequentialResident(Predict|Backward)/Large/Warmed$|^Benchmark_SequentialResidentTraining/(TrainBatch|Fit)/Large/Warmed$' -benchtime=1s -count=1 -cpuprofile=/private/tmp/neuralnetwork-section9-final-metal.cpu -memprofile=/private/tmp/neuralnetwork-section9-final-metal.mem
+go tool preprofile -i /private/tmp/neuralnetwork-section9-final-default.cpu -o /private/tmp/neuralnetwork-section9-final-default.pre
+go tool preprofile -i /private/tmp/neuralnetwork-section9-final-metal.cpu -o /private/tmp/neuralnetwork-section9-final-metal.pre
+go test -tags=metal ./model -run '^Test_SequentialResident(SteadyStateAllocationsAndResources|DistinctModelsRunConcurrently|LongRunningMixedStress)$' -count=1
+go test -tags=metal ./... -count=1
+```
+
+### Summary
+
+Medians are calculated from the ten raw `ns/op` samples below.
+
+| Slice | Default median ns/op | `metal` median ns/op | Default allocs | Metal allocs | Comparison |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Predict, small | 30,236 | 30,247 | 0 | 0 | `metal` 11 ns slower |
+| Predict, large | 42,835,153 | 4,365,861 | 0 | 25 | Metal 9.8x faster |
+| Backward, small | 57,502 | 56,805 | 0 | 0 | `metal` 697 ns faster |
+| Backward, large | 104,525,053 | 2,045,029 | 0 | 31 | Metal 51.1x faster |
+| TrainBatch, small | 92,065 | 90,374 | 0 | 0 | `metal` 1,691 ns faster |
+| TrainBatch, large | 143,308,708 | 7,717,370 | 0 | 73 | Metal 18.6x faster |
+| Fit, small | 124,099 | 122,730 | 10 | 10 | `metal` 1,369 ns faster |
+| Fit, large | 186,582,667 | 6,686,006 | 10 | 114 | Metal 27.9x faster |
+
+Warm large Metal activity is invariant across the timed iterations:
+
+| Slice | Buffers | Uploads / bytes | Downloads / bytes | Kernels | Commands / waits | Fallback barriers | Allocations |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Predict | 8 | 0 / 0 | 0 / 0 | 10 | 1 / 1 | 0 | 25 |
+| Backward | 10 | 0 / 0 | 0 / 0 | 12 | 1 / 1 | 0 | 31 |
+| TrainBatch | 24 | 0 / 0 | 1 / 20 | 32 | 2 / 2 | 1 | 73 |
+| Fit | 35 | 3 / 1,114,112 | 2 / 65,556 | 42 | 3 / 3 | 1 | 114 |
+
+Focused allocation tests gate these values at 25, 31, and 73 allocations for
+warm prediction, backward, and `TrainBatch`. The same tests require exact
+kernel/command/transfer counts, no increase in live buffers, bytes, or scopes
+after garbage collection, balanced created/released resources, and equal
+submitted/completed command counts.
+
+Dispatch medians:
+
+| Case | Default median ns/op | `metal` median ns/op | Metal activity | Decision |
+| --- | ---: | ---: | --- | --- |
+| Observed `1 << 20`, ready process | 730,481 | 729,744 | none | Below the `1 << 22` warm cutoff; use CPU/SIMD. |
+| Observed `1 << 22`, ready process | 5,345,624 | 1,125,654 | 8 buffers, 10 kernels, 1 command/wait, 131,072-byte download | Use Metal. |
+| `1 << 22`, cold process | 11,665,271 | 11,801,438 | none | Below the `1 << 26` cold cutoff; do not initialize Metal. |
+| Large TrainBatch, cold process | 163,451,980 | 58,347,021 | 34 buffers, 10 uploads / 2,953,728 bytes, 1 download / 20 bytes, 32 kernels, 2 commands/waits | Crosses `1 << 26`; initialize and use Metal. |
+
+Before hardening, the observed `1 << 20` case measured about 867 microseconds
+with Metal versus 730.9 microseconds on CPU and created eight buffers, ten
+kernels, one command/wait, and a 4,096-byte download. The higher warm cutoff
+removes that material regression. A separate fresh-process diagnostic at the
+old `1 << 20` cutoff fell from 42,863,375 ns/op and 74 allocations when it
+initialized Metal to a CPU/SIMD range of 2,470,000-3,460,000 ns/op and 16
+allocations after cold preflight.
+
+### Raw Timing Samples
+
+Each list is the raw `ns/op` field in command output order.
+
+```text
+Default Predict/Small:
+30329 30310 30211 30175 30118 30250 30358 30245 30226 30169
+Metal Predict/Small:
+30075 30336 30470 30245 30477 30209 30237 30223 30353 30248
+
+Default Predict/Large:
+42831792 43481583 42974653 42858667 42608819 42660847 42573097 42747153 42838514 42939264
+Metal Predict/Large:
+1955468 2708246 4134123 4401188 4394461 4770178 4337261 4033895 4773861 4668373
+
+Default Backward/Small:
+58520 59568 59027 56555 56605 58153 59177 56515 56851 56822
+Metal Backward/Small:
+57050 56641 57494 56568 56972 56795 56737 58352 56815 56608
+
+Default Backward/Large:
+104617292 104763730 104045833 104684250 105790208 104499938 104362146 103161542 104550167 104254708
+Metal Backward/Large:
+2055546 2046192 2051744 2041223 2063064 2042144 2043865 2042034 2365843 2040898
+
+Default TrainBatch/Small:
+91408 93458 94181 91513 92348 91454 91566 94342 91781 93026
+Metal TrainBatch/Small:
+90428 89868 90151 90881 90828 90394 90007 90387 90361 89985
+
+Default TrainBatch/Large:
+143372708 143910542 143394916 143244708 144022666 141831500 142692125 143187959 144570917 142234917
+Metal TrainBatch/Large:
+5486242 5353920 7330648 7125102 7018144 8104092 9588125 12185382 19242693 11364819
+
+Default Fit/Small:
+123437 123737 125963 128733 124025 124172 123531 126848 124387 123659
+Metal Fit/Small:
+122916 122349 123569 122865 123806 122048 122945 121944 122594 122440
+
+Default Fit/Large:
+185992792 186711500 190904042 185694709 190628166 187267375 186279458 186453834 187848833 186189500
+Metal Fit/Large:
+10697775 6756003 6666370 6624657 6695440 6647597 6676572 6609764 7981297 6840654
+
+Default observed 1 << 20:
+741522 730251 729437 730711 731859 728690 735483 731071 727170 727952
+Metal observed 1 << 20:
+757353 728531 737274 728132 735811 724664 730956 732780 722959 724389
+
+Default observed 1 << 22:
+5291909 5399682 5318532 5366538 5409581 5323667 5390236 5324710 5319587 5408609
+Metal observed 1 << 22:
+706253 1066719 1253602 1619725 1127827 1105105 1107445 1165410 1236527 1123481
+
+Default cold 1 << 22:
+5714875 5364084 13309083 13417749 12869125 9621250 10720874 13370375 12609667 7607709
+Metal-tag cold 1 << 22:
+12557958 8619458 5628167 12971209 7770292 10152958 12778458 12591666 12388917 11213959
+
+Default cold large TrainBatch:
+163155791 163160042 164074375 157043750 163930334 163712041 163636708 155698624 163267251 163697918
+Metal cold large TrainBatch:
+65400250 54169624 59158875 56712417 57535167 54019333 62046292 59702458 54917583 59767209
+```
+
+### Raw Profile Summary
+
+Profile benchmark timings are excluded from comparisons because sampling
+changes execution cost. `go tool preprofile` reports these leading stacks:
+
+```text
+Default:
+matrix.matMulInto -> matrix.matMulIntoPure                         336
+matrix.matMulRightTransposeInto -> matMulRightTransposeIntoPure   242
+matrix.matMulLeftTransposeInto -> matMulLeftTransposeIntoPure     149
+matrix.copyMatrixHost -> runtime.memmove                            3
+
+Metal:
+runtime._ExternalCode                                             147
+nn_metal_buffer_new -> runtime.cgocall                             87
+nn_metal_buffer_release -> runtime.cgocall                         17
+nn_metal_scope_encode_copy -> runtime.cgocall                      10
+nn_metal_scope_commit -> runtime.cgocall                            9
+nn_metal_buffer_download -> runtime.cgocall                         4
+runtime semaphore wait/wakeup                                      6
+nn_metal_buffer_upload -> runtime.cgocall                           2
+```
+
+### Interpretation
+
+The `1 << 26` cold and `1 << 22` ready thresholds are retained. They are
+conservative process-level choices based on end-to-end initialization,
+transfer, command, wait, and observation costs, not isolated multiplication
+timing. Small and frequently observed `1 << 20` work stays on CPU/SIMD with no
+material `metal`-tag regression; the exact ready cutoff is 4.75x faster even
+when its result is observed.
+
+No shader, elementwise, reduction, buffer-cache, or command-cap change is
+justified by these results. The existing command boundaries are required by
+the synchronous API and pre-update scalar loss, while an idle buffer cache
+would weaken the zero-idle-resource bound without a measured end-to-end gain.
+The final large `TrainBatch` and `Fit` results exceed the Section 1 gates by
+wide margins, so device-resident dense training is retained.
