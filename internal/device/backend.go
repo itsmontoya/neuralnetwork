@@ -38,7 +38,7 @@ type backend interface {
 	commit(scope any) (err error)
 	completed(scope any) (complete bool, err error)
 	wait(scope any) (err error)
-	releaseScope(scope any)
+	releaseScope(scope any) (err error)
 	resourceSnapshot() (snapshot ResourceSnapshot)
 	resetResourcePeaks() (err error)
 }

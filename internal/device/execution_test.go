@@ -185,6 +185,217 @@ func Test_ExecutionFailureDiscardsPendingWrites(t *testing.T) {
 	}
 }
 
+func Test_ExecutionCleanupFailureDiscardsAtomicUpdate(t *testing.T) {
+	var (
+		backendValue *testBackend
+		runtimeValue *Runtime
+		execution    *Execution
+		buffer       *Buffer
+		snapshot     ExecutionSnapshot
+		published    int
+		discarded    int
+		err          error
+	)
+
+	backendValue = newTestBackend()
+	runtimeValue = newRuntime(backendValue)
+	execution = NewExecution(runtimeValue)
+	if buffer, err = runtimeValue.NewBuffer(1); err != nil {
+		t.Fatalf("NewBuffer returned error: %v", err)
+	}
+	defer buffer.Release()
+	if err = execution.EncodeFill(
+		buffer,
+		9,
+		0,
+		trackedPublication(&published, &discarded),
+	); err != nil {
+		t.Fatalf("EncodeFill returned error: %v", err)
+	}
+	backendValue.releaseErr = errors.New("injected cleanup failure")
+	if err = execution.Finish(); err == nil ||
+		!strings.Contains(err.Error(), "injected cleanup failure") {
+		t.Fatalf("Finish error = %v, want injected cleanup failure", err)
+	}
+	if published != 0 || discarded != 1 {
+		t.Fatalf(
+			"publication counts = published %d discarded %d, want 0/1",
+			published,
+			discarded,
+		)
+	}
+
+	snapshot = execution.Snapshot()
+	if snapshot.Publications != 0 || snapshot.DiscardedWrites != 1 {
+		t.Fatalf("failed cleanup execution snapshot = %+v", snapshot)
+	}
+}
+
+func Test_ExecutionTrainingPhaseFailuresRespectUpdateBoundary(t *testing.T) {
+	type testcase struct {
+		name              string
+		run               func(*testBackend, *Execution, *Buffer, Publication) error
+		wantLossPublished int
+		wantDiscarded     int
+	}
+
+	injected := errors.New("injected training phase failure")
+	tests := []testcase{
+		{
+			name: "loss synchronization",
+			run: func(
+				backendValue *testBackend,
+				execution *Execution,
+				buffer *Buffer,
+				loss Publication,
+			) (err error) {
+				if err = execution.EncodeFill(buffer, 1, 0, loss); err != nil {
+					return err
+				}
+				backendValue.waitErr = injected
+				err = execution.Barrier(BoundaryHostObservation)
+				return err
+			},
+			wantDiscarded: 1,
+		},
+		{
+			name: "loss download",
+			run: func(
+				backendValue *testBackend,
+				execution *Execution,
+				buffer *Buffer,
+				loss Publication,
+			) (err error) {
+				if err = execution.EncodeFill(buffer, 1, 0, loss); err != nil {
+					return err
+				}
+				if err = execution.Barrier(BoundaryHostObservation); err != nil {
+					return err
+				}
+				backendValue.downloadErr = injected
+				err = buffer.Download(make([]float32, 1))
+				return err
+			},
+			wantLossPublished: 1,
+		},
+		{
+			name: "update encoding",
+			run: func(
+				backendValue *testBackend,
+				execution *Execution,
+				buffer *Buffer,
+				loss Publication,
+			) (err error) {
+				if err = execution.EncodeFill(buffer, 1, 0, loss); err != nil {
+					return err
+				}
+				if err = execution.Barrier(BoundaryHostObservation); err != nil {
+					return err
+				}
+				backendValue.encodeErr = injected
+				err = execution.EncodeFill(buffer, 2, 0, loss)
+				return err
+			},
+			wantLossPublished: 1,
+			wantDiscarded:     1,
+		},
+		{
+			name: "update execution",
+			run: func(
+				backendValue *testBackend,
+				execution *Execution,
+				buffer *Buffer,
+				loss Publication,
+			) (err error) {
+				if err = execution.EncodeFill(buffer, 1, 0, loss); err != nil {
+					return err
+				}
+				if err = execution.Barrier(BoundaryHostObservation); err != nil {
+					return err
+				}
+				if err = execution.EncodeFill(buffer, 2, 0, loss); err != nil {
+					return err
+				}
+				backendValue.waitErr = injected
+				err = execution.Finish()
+				return err
+			},
+			wantLossPublished: 1,
+			wantDiscarded:     1,
+		},
+		{
+			name: "update cleanup",
+			run: func(
+				backendValue *testBackend,
+				execution *Execution,
+				buffer *Buffer,
+				loss Publication,
+			) (err error) {
+				if err = execution.EncodeFill(buffer, 1, 0, loss); err != nil {
+					return err
+				}
+				if err = execution.Barrier(BoundaryHostObservation); err != nil {
+					return err
+				}
+				if err = execution.EncodeFill(buffer, 2, 0, loss); err != nil {
+					return err
+				}
+				backendValue.releaseErr = injected
+				err = execution.Finish()
+				return err
+			},
+			wantLossPublished: 1,
+			wantDiscarded:     1,
+		},
+	}
+
+	var test testcase
+	for _, test = range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var (
+				backendValue *testBackend
+				runtimeValue *Runtime
+				execution    *Execution
+				buffer       *Buffer
+				publication  Publication
+				published    int
+				discarded    int
+				abortErr     error
+				err          error
+			)
+
+			backendValue = newTestBackend()
+			runtimeValue = newRuntime(backendValue)
+			execution = NewExecution(runtimeValue)
+			if buffer, err = runtimeValue.NewBuffer(1); err != nil {
+				t.Fatalf("NewBuffer returned error: %v", err)
+			}
+			defer buffer.Release()
+			publication = trackedPublication(&published, &discarded)
+			err = test.run(backendValue, execution, buffer, publication)
+			if err == nil || !strings.Contains(err.Error(), injected.Error()) {
+				t.Fatalf("%s error = %v, want injected failure", test.name, err)
+			}
+			if execution.Active() {
+				if abortErr = execution.Abort(err); abortErr != nil {
+					t.Fatalf("%s Abort returned error: %v", test.name, abortErr)
+				}
+			}
+			if published != test.wantLossPublished ||
+				discarded != test.wantDiscarded {
+				t.Fatalf(
+					"%s publications = %d discarded = %d, want %d/%d",
+					test.name,
+					published,
+					discarded,
+					test.wantLossPublished,
+					test.wantDiscarded,
+				)
+			}
+		})
+	}
+}
+
 func Test_ExecutionAbortDiscardsUncommittedWrites(t *testing.T) {
 	var (
 		runtimeValue *Runtime

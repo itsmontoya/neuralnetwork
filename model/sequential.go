@@ -469,6 +469,12 @@ func (s *Sequential) beginExecution(
 	if execution != nil {
 		return execution, false, nil
 	}
+	if err = s.validate(); err != nil {
+		return nil, false, err
+	}
+	if !deviceExecutionEligible(s.layers, value) {
+		return nil, false, nil
+	}
 	if runtimeValue, available, err = device.SharedRuntime(); err != nil {
 		return nil, false, err
 	}
@@ -524,6 +530,14 @@ func (s *Sequential) Fit(trainingData *data.Dataset, config FitConfig) (history 
 		earlyStoppingState earlyStoppingState
 		scratch            fitScratch
 	)
+	defer func() {
+		var cleanupErr error
+
+		if cleanupErr = scratch.release(); cleanupErr != nil {
+			cleanupErr = fmt.Errorf("model: release fit scratch: %w", cleanupErr)
+			err = errors.Join(err, cleanupErr)
+		}
+	}()
 
 	if err = s.validateReady(); err != nil {
 		return history, err
@@ -768,6 +782,39 @@ type fitScratch struct {
 type fitMatrixPair struct {
 	inputs  scratch.MatrixPool
 	targets scratch.MatrixPool
+}
+
+func (s *fitScratch) release() (err error) {
+	var releaseErr error
+
+	if s == nil {
+		return nil
+	}
+	if releaseErr = s.batch.release(); releaseErr != nil {
+		err = errors.Join(err, releaseErr)
+	}
+	if releaseErr = s.trainingEvaluation.release(); releaseErr != nil {
+		err = errors.Join(err, releaseErr)
+	}
+	if releaseErr = s.validationEvaluation.release(); releaseErr != nil {
+		err = errors.Join(err, releaseErr)
+	}
+	return err
+}
+
+func (p *fitMatrixPair) release() (err error) {
+	var releaseErr error
+
+	if p == nil {
+		return nil
+	}
+	if releaseErr = p.inputs.Release(); releaseErr != nil {
+		err = errors.Join(err, releaseErr)
+	}
+	if releaseErr = p.targets.Release(); releaseErr != nil {
+		err = errors.Join(err, releaseErr)
+	}
+	return err
 }
 
 func (s *fitScratch) rowIndexes(count int) (indexes []int) {

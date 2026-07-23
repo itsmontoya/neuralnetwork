@@ -510,6 +510,180 @@ func Test_RuntimeConstructionFailuresCleanUp(t *testing.T) {
 	}
 }
 
+func Test_RuntimeOperationalFailuresCleanUp(t *testing.T) {
+	type testcase struct {
+		name string
+		run  func(*testBackend, *Runtime) error
+	}
+
+	injected := errors.New("injected stage failure")
+	tests := []testcase{
+		{
+			name: "upload",
+			run: func(backendValue *testBackend, runtimeValue *Runtime) (err error) {
+				var buffer *Buffer
+
+				if buffer, err = runtimeValue.NewBuffer(1); err != nil {
+					return err
+				}
+				defer buffer.Release()
+				backendValue.uploadErr = injected
+				err = buffer.Upload([]float32{1})
+				return err
+			},
+		},
+		{
+			name: "download",
+			run: func(backendValue *testBackend, runtimeValue *Runtime) (err error) {
+				var buffer *Buffer
+
+				if buffer, err = runtimeValue.NewBuffer(1); err != nil {
+					return err
+				}
+				defer buffer.Release()
+				backendValue.downloadErr = injected
+				err = buffer.Download(make([]float32, 1))
+				return err
+			},
+		},
+		{
+			name: "encoding",
+			run: func(backendValue *testBackend, runtimeValue *Runtime) (err error) {
+				var (
+					buffer *Buffer
+					scope  *Scope
+				)
+
+				if buffer, err = runtimeValue.NewBuffer(1); err != nil {
+					return err
+				}
+				defer buffer.Release()
+				if scope, err = runtimeValue.NewScope(); err != nil {
+					return err
+				}
+				defer scope.Release()
+				backendValue.encodeErr = injected
+				err = scope.EncodeFill(buffer, 1)
+				return err
+			},
+		},
+		{
+			name: "submission",
+			run: func(backendValue *testBackend, runtimeValue *Runtime) (err error) {
+				var (
+					buffer *Buffer
+					scope  *Scope
+				)
+
+				if buffer, err = runtimeValue.NewBuffer(1); err != nil {
+					return err
+				}
+				defer buffer.Release()
+				if scope, err = runtimeValue.NewScope(); err != nil {
+					return err
+				}
+				defer scope.Release()
+				if err = scope.EncodeFill(buffer, 1); err != nil {
+					return err
+				}
+				backendValue.commitErr = injected
+				err = scope.Commit()
+				return err
+			},
+		},
+		{
+			name: "execution",
+			run: func(backendValue *testBackend, runtimeValue *Runtime) (err error) {
+				var (
+					buffer *Buffer
+					scope  *Scope
+				)
+
+				if buffer, err = runtimeValue.NewBuffer(1); err != nil {
+					return err
+				}
+				defer buffer.Release()
+				if scope, err = runtimeValue.NewScope(); err != nil {
+					return err
+				}
+				defer scope.Release()
+				if err = scope.EncodeFill(buffer, 1); err != nil {
+					return err
+				}
+				if err = scope.Commit(); err != nil {
+					return err
+				}
+				backendValue.waitErr = injected
+				err = scope.Wait()
+				return err
+			},
+		},
+		{
+			name: "synchronization",
+			run: func(backendValue *testBackend, runtimeValue *Runtime) (err error) {
+				var (
+					buffer *Buffer
+					scope  *Scope
+				)
+
+				if buffer, err = runtimeValue.NewBuffer(1); err != nil {
+					return err
+				}
+				defer buffer.Release()
+				if scope, err = runtimeValue.NewScope(); err != nil {
+					return err
+				}
+				defer scope.Release()
+				if err = scope.EncodeFill(buffer, 1); err != nil {
+					return err
+				}
+				if err = scope.Commit(); err != nil {
+					return err
+				}
+				backendValue.completedErr = injected
+				_, err = scope.Completed()
+				return err
+			},
+		},
+		{
+			name: "cleanup",
+			run: func(backendValue *testBackend, runtimeValue *Runtime) (err error) {
+				var scope *Scope
+
+				if scope, err = runtimeValue.NewScope(); err != nil {
+					return err
+				}
+				backendValue.releaseErr = injected
+				err = scope.Release()
+				return err
+			},
+		},
+	}
+
+	var test testcase
+	for _, test = range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var (
+				backendValue *testBackend
+				runtimeValue *Runtime
+				snapshot     ResourceSnapshot
+				err          error
+			)
+
+			backendValue = newTestBackend()
+			runtimeValue = newRuntime(backendValue)
+			if err = test.run(backendValue, runtimeValue); err == nil ||
+				!strings.Contains(err.Error(), injected.Error()) {
+				t.Fatalf("%s error = %v, want injected failure", test.name, err)
+			}
+			snapshot = runtimeValue.ResourceSnapshot()
+			if snapshot.LiveBuffers != 0 || snapshot.LiveScopes != 0 {
+				t.Fatalf("%s resources after failure = %+v", test.name, snapshot)
+			}
+		})
+	}
+}
+
 func Test_ScopeCommandFailureReleasesResources(t *testing.T) {
 	var (
 		backendValue *testBackend

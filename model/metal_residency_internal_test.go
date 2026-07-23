@@ -40,7 +40,7 @@ func Test_MetalParameterMutationAndSerializationCoherence(t *testing.T) {
 		t.Skip("Metal device unavailable")
 	}
 
-	if dense, err = layer.NewDense(64, 128, layer.ZeroWeights); err != nil {
+	if dense, err = layer.NewDense(256, 128, layer.ZeroWeights); err != nil {
 		t.Fatalf("NewDense returned error: %v", err)
 	}
 	if network, err = model.NewSequential(dense); err != nil {
@@ -48,7 +48,7 @@ func Test_MetalParameterMutationAndSerializationCoherence(t *testing.T) {
 	}
 	weights = dense.Weights().Values()
 	right = metalResidencyMatrix(t, 128, 128, 0.25)
-	if result, err = matrix.New(64, 128); err != nil {
+	if result, err = matrix.New(256, 128); err != nil {
 		t.Fatalf("New result returned error: %v", err)
 	}
 
@@ -93,8 +93,8 @@ func Test_MetalParameterMutationAndSerializationCoherence(t *testing.T) {
 	if want, err = weights.Values(); err != nil {
 		t.Fatalf("parameter Values after Save returned error: %v", err)
 	}
-	if hostDense, err = layer.NewDense(64, 128, func(_, _ int) (initialized *matrix.Matrix, err error) {
-		initialized, err = matrix.FromSlice(64, 128, want)
+	if hostDense, err = layer.NewDense(256, 128, func(_, _ int) (initialized *matrix.Matrix, err error) {
+		initialized, err = matrix.FromSlice(256, 128, want)
 		return initialized, err
 	}); err != nil {
 		t.Fatalf("NewDense host equivalent returned error: %v", err)

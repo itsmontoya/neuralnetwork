@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"sync/atomic"
 )
 
 var (
-	sharedRuntimeOnce sync.Once
-	sharedRuntime     *Runtime
+	sharedRuntimeOnce  sync.Once
+	sharedRuntime      *Runtime
+	sharedRuntimeReady atomic.Bool
 )
 
 // SharedRuntime returns the process-wide private device runtime when available.
@@ -31,6 +33,7 @@ func SharedRuntime() (runtime *Runtime, available bool, err error) {
 		return nil, false, nil
 	}
 
+	sharedRuntimeReady.Store(true)
 	runtime = sharedRuntime
 	return runtime, true, nil
 }

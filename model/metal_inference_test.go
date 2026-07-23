@@ -35,7 +35,7 @@ func Test_SequentialResidentPredictParity(t *testing.T) {
 	var tests []metalInferenceShape
 	tests = []metalInferenceShape{
 		{name: "below threshold", batchSize: 8, inputSize: 32, hiddenSize: 64, classCount: 10},
-		{name: "at threshold", batchSize: 64, inputSize: 128, hiddenSize: 128, classCount: 16},
+		{name: "at threshold", batchSize: 256, inputSize: 128, hiddenSize: 128, classCount: 16},
 		{name: "uneven", batchSize: 127, inputSize: 257, hiddenSize: 263, classCount: 19},
 	}
 
@@ -107,7 +107,7 @@ func Test_SequentialResidentPredictTransfersAndMutations(t *testing.T) {
 	requireModelMetal(t)
 	shape = metalInferenceShape{
 		name:       "large",
-		batchSize:  64,
+		batchSize:  256,
 		inputSize:  128,
 		hiddenSize: 128,
 		classCount: 16,
@@ -206,7 +206,7 @@ func Test_SequentialResidentPredictObservationBoundaries(t *testing.T) {
 	requireModelMetal(t)
 	shape = metalInferenceShape{
 		name:       "observation",
-		batchSize:  64,
+		batchSize:  256,
 		inputSize:  128,
 		hiddenSize: 128,
 		classCount: 16,
@@ -312,7 +312,7 @@ func Test_SequentialResidentPredictCustomActivationFallback(t *testing.T) {
 	requireModelMetal(t)
 	shape = metalInferenceShape{
 		name:       "custom activation",
-		batchSize:  64,
+		batchSize:  256,
 		inputSize:  128,
 		hiddenSize: 128,
 		classCount: 16,
@@ -365,7 +365,7 @@ func Test_SequentialResidentPredictNonFinitePropagation(t *testing.T) {
 	requireModelMetal(t)
 	shape = metalInferenceShape{
 		name:       "non-finite",
-		batchSize:  64,
+		batchSize:  256,
 		inputSize:  128,
 		hiddenSize: 128,
 		classCount: 16,

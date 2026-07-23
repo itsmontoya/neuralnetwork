@@ -26,8 +26,11 @@ func endResidentPredictMetrics(b *testing.B) {
 	b.ReportMetric(float64(counters.InputUploadBytes)/iterations, "upload-bytes/op")
 	b.ReportMetric(float64(counters.ResultDownloads)/iterations, "downloads/op")
 	b.ReportMetric(float64(counters.ResultDownloadBytes)/iterations, "download-bytes/op")
+	b.ReportMetric(float64(counters.KernelEncodes)/iterations, "kernels/op")
 	b.ReportMetric(float64(counters.CommandSubmissions)/iterations, "commands/op")
 	b.ReportMetric(float64(counters.Waits)/iterations, "waits/op")
+	b.ReportMetric(float64(counters.Barriers)/iterations, "barriers/op")
+	b.ReportMetric(float64(counters.FallbackBarriers)/iterations, "fallback-barriers/op")
 }
 
 func beginResidentBackwardMetrics() {

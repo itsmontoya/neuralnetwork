@@ -26,9 +26,13 @@ type testBackend struct {
 	availableErr  error
 	newBufferErr  error
 	newScopeErr   error
+	uploadErr     error
+	downloadErr   error
 	encodeErr     error
 	commitErr     error
+	completedErr  error
 	waitErr       error
+	releaseErr    error
 	resources     ResourceSnapshot
 }
 
@@ -67,6 +71,9 @@ func (b *testBackend) newBuffer(bytes uint64) (handle any, err error) {
 func (b *testBackend) upload(handle any, values []float32) (err error) {
 	var buffer *testBuffer
 
+	if b.uploadErr != nil {
+		return b.uploadErr
+	}
 	if buffer = testBufferHandle(handle); buffer == nil || buffer.released {
 		return ErrReleased
 	}
@@ -77,6 +84,9 @@ func (b *testBackend) upload(handle any, values []float32) (err error) {
 func (b *testBackend) download(handle any, values []float32) (err error) {
 	var buffer *testBuffer
 
+	if b.downloadErr != nil {
+		return b.downloadErr
+	}
 	if buffer = testBufferHandle(handle); buffer == nil || buffer.released {
 		return ErrReleased
 	}
@@ -622,6 +632,9 @@ func (b *testBackend) commit(handle any) (err error) {
 func (b *testBackend) completed(handle any) (complete bool, err error) {
 	var scope *testScope
 
+	if b.completedErr != nil {
+		return false, b.completedErr
+	}
 	if scope = testScopeHandle(handle); scope == nil {
 		return false, errors.New("test backend: nil completion handle")
 	}
@@ -652,17 +665,21 @@ func (b *testBackend) wait(handle any) (err error) {
 	return nil
 }
 
-func (b *testBackend) releaseScope(handle any) {
+func (b *testBackend) releaseScope(handle any) (err error) {
 	var scope *testScope
 
 	if scope = testScopeHandle(handle); scope == nil || scope.released {
-		return
+		return nil
 	}
 	scope.released = true
 	b.mutex.Lock()
 	b.resources.LiveScopes--
 	b.resources.ReleasedScopes++
 	b.mutex.Unlock()
+	if b.releaseErr != nil {
+		return b.releaseErr
+	}
+	return nil
 }
 
 func (b *testBackend) resourceSnapshot() (snapshot ResourceSnapshot) {

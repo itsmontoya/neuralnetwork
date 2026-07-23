@@ -12,8 +12,7 @@ import (
 )
 
 const (
-	metalMatMulMinOperations = 1 << 20
-	maxMetalUint32           = 1<<32 - 1
+	maxMetalUint32 = 1<<32 - 1
 )
 
 const (
@@ -264,7 +263,7 @@ func metalMatMulSupported(left, right, result *Matrix, variant uint32) (ok bool)
 	}
 
 	operation = uint64(result.rows) * uint64(result.cols) * uint64(inner)
-	if operation < metalMatMulMinOperations {
+	if !device.MatMulEligible(operation) {
 		return false
 	}
 

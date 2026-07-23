@@ -681,16 +681,16 @@ func (m *metalBackend) wait(scope any) (err error) {
 	return nil
 }
 
-func (m *metalBackend) releaseScope(scope any) {
+func (m *metalBackend) releaseScope(scope any) (err error) {
 	var (
 		handle C.NNMetalScope
-		err    error
 	)
 
 	if handle, err = m.scopeHandle(scope); err != nil {
-		return
+		return err
 	}
 	C.nn_metal_scope_release(handle)
+	return nil
 }
 
 func (m *metalBackend) resourceSnapshot() (snapshot ResourceSnapshot) {

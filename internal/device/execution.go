@@ -973,6 +973,14 @@ func (e *Execution) flushLocked() (err error) {
 	}
 	e.snapshot.Waits++
 
+	if releaseErr = e.scope.Release(); releaseErr != nil {
+		releaseErr = fmt.Errorf("device: release completed command scope: %w", releaseErr)
+		e.scope = nil
+		e.failBatchLocked(releaseErr)
+		return e.err
+	}
+	e.scope = nil
+
 	for index, publication = range e.publications {
 		if err = publication.Publish(); err != nil {
 			err = fmt.Errorf("device: publish completed write: %w", err)
@@ -988,12 +996,6 @@ func (e *Execution) flushLocked() (err error) {
 	}
 	clear(e.publications)
 	e.publications = e.publications[:0]
-	if releaseErr = e.scope.Release(); releaseErr != nil {
-		releaseErr = fmt.Errorf("device: release completed command scope: %w", releaseErr)
-		err = errors.Join(err, releaseErr)
-		e.err = err
-	}
-	e.scope = nil
 	e.kernelCount = 0
 	e.transientBytes = 0
 	clear(e.reads)

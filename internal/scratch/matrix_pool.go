@@ -1,6 +1,11 @@
 package scratch
 
-import "github.com/itsmontoya/neuralnetwork/matrix"
+import (
+	"errors"
+	"fmt"
+
+	"github.com/itsmontoya/neuralnetwork/matrix"
+)
 
 const poolEntryLimit = 4
 
@@ -14,6 +19,34 @@ const poolEntryLimit = 4
 type MatrixPool struct {
 	entries [poolEntryLimit]*matrix.Matrix
 	count   int
+}
+
+// Release detaches retained device storage and empties the pool.
+func (p *MatrixPool) Release() (err error) {
+	var (
+		entry      *matrix.Matrix
+		releaseErr error
+		index      int
+	)
+
+	if p == nil {
+		return nil
+	}
+
+	for index = 0; index < p.count; index++ {
+		entry = p.entries[index]
+		if entry == nil {
+			continue
+		}
+		if releaseErr = entry.CopyFrom(entry); releaseErr != nil {
+			releaseErr = fmt.Errorf("scratch: release matrix %d: %w", index, releaseErr)
+			err = errors.Join(err, releaseErr)
+		}
+	}
+
+	clear(p.entries[:p.count])
+	p.count = 0
+	return err
 }
 
 // Get returns a dirty matrix with the requested exact shape. Reused reports

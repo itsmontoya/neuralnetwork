@@ -28,6 +28,10 @@ Updated on July 23, 2026 after adding resident dense and activation backward
 kernels, parameter-gradient accumulation and reset, column reductions, and
 selective backward observation boundaries.
 
+Updated on July 23, 2026 after profiling the complete dense path, adding
+cold/warm dispatch policy, deterministic fit-scratch release, cleanup-failure
+atomicity, resource and allocation gates, and mixed-workload stress coverage.
+
 ## Decision Summary
 
 The `metal` build tag remains an implementation opt-in. Existing matrix,
@@ -74,8 +78,10 @@ commit, wait, publish completed staging, and detach before returning success.
 Inside a model execution, dependent forward operations share bounded command
 buffers, and a supported backward pass from resident forward caches uses one
 command buffer. Completion alone does not download results. The path retains
-the custom naive multiplication shader and the `1 << 20` initial
-multiplication threshold.
+the custom naive multiplication shader. A successfully initialized runtime
+uses a `1 << 22` multiplication threshold. Before that runtime is ready, a
+`1 << 26` cold threshold prevents smaller calls from paying device discovery
+and pipeline-compilation cost.
 
 The shared runtime initializes one default device, queue, library, fill
 pipeline, and multiplication pipeline. On an available Metal build, a model
@@ -182,9 +188,9 @@ The matrix adapter retains committed input and result buffers through each
 matrix's residency record. A full device destination uses staging so a command
 failure cannot corrupt its last committed value. After a successful wait, the
 record swaps staging into the committed slot and releases the replaced buffer.
-The returned matrix may remain device-newer. The existing `1 << 20` threshold
-and numerical kernel remain unchanged. Model-level calls now share an outer
-execution while standalone matrix calls retain their synchronous boundary.
+The returned matrix may remain device-newer. The numerical kernel remains
+unchanged. Model-level calls share an outer execution while standalone matrix
+calls retain their synchronous boundary.
 
 ## Compatibility Decision
 
@@ -424,6 +430,13 @@ destination revision is not published, transient buffers are released after
 Metal no longer references them, and scratch touched by a failed command is
 quarantined until cleanup finishes.
 
+Completed command-scope cleanup occurs before staged publications become
+logical matrix values. A cleanup failure therefore discards the whole staged
+batch and is reported at the same atomic boundary as allocation, upload,
+encoding, submission, execution, synchronization, or download failure.
+`TrainBatch` never exposes only part of a parameter update because cleanup
+failed after the GPU completed.
+
 `TrainBatch` preserves the existing phase order: prediction, scalar loss,
 loss gradient, reverse traversal, parameter-order optimizer update, and
 gradient reset. It also preserves the pre-update returned loss. Shape, alias,
@@ -465,6 +478,12 @@ may retain up to four logical matrices per scratch role; eviction explicitly
 detaches their device storage. Thus retained data-buffer memory is the exact
 sum of live resident matrices plus the bounded active-scope staging described
 above, not an unbounded backend cache.
+
+Fit-owned batch and evaluation pools are explicitly emptied on every return,
+including validation, callback, early-stopping, and operational-error paths.
+Their retained matrices detach device residency before the local fit scratch
+becomes unreachable, so repeated `Fit` calls do not depend on finalizer timing
+to return Metal buffers.
 
 Scope close, failed construction, failed encoding, scratch eviction, buffer
 replacement, and explicit test shutdown all release their owned resources.
@@ -536,11 +555,50 @@ on their existing deterministic CPU paths.
 
 ## Dispatch and Benchmark Evidence
 
-Section 2 retains the current `1 << 20` multiplication threshold as the
-synchronous baseline. Later dispatch decisions use total observed cost rather
-than kernel work alone. Every performance change records hardware, OS, Go
-version, architecture, cgo setting, tags, power mode, benchmark command, raw
-output, counters, allocations, and interpretation in `Benchmarks_gpu.md`.
+Section 2's synchronous baseline used a `1 << 20` multiplication threshold.
+Section 9 replaces it with two process-readiness thresholds derived from full
+model measurements:
+
+| Runtime state | Minimum multiplication work | Behavior |
+| --- | ---: | --- |
+| Cold | `1 << 26` | Smaller graphs stay entirely on CPU/SIMD and do not initialize Metal. A qualifying graph initializes the shared runtime and uses Metal. |
+| Ready | `1 << 22` | A qualifying multiplication activates the model execution; smaller dependent work stays in that execution. |
+
+Model preflight computes each dense multiplication's
+`rows*inputSize*outputSize` with saturating arithmetic before requesting the
+runtime. This avoids residency records, buffer allocation, and pipeline work
+for a cold ineligible graph. Runtime readiness becomes true only after a
+usable shared Metal runtime has initialized successfully.
+
+The cutoffs include initialization, upload, staging-buffer creation, command
+submission, mandatory waits, and result observation. On the recorded Apple M3,
+a warmed and observed `1 << 20` prediction was slower on Metal than CPU
+(about 867 versus 730.9 microseconds). After dispatch hardening that workload
+uses no Metal commands and measures 729.7 microseconds under the `metal` tag
+versus 730.5 microseconds by default. At the ready cutoff, an observed
+prediction with two `1 << 22` multiplications measures 1.126 milliseconds on
+Metal versus 5.346 milliseconds on CPU. In fresh processes, the same
+ready-cutoff graph stays on CPU and measures 11.801 milliseconds under the
+`metal` tag versus 11.665 milliseconds by default. The representative cold
+large `TrainBatch` crosses `1 << 26` and measures 58.347 milliseconds on Metal
+including initialization versus 163.452 milliseconds on CPU.
+
+Profiling confirms that CPU time is dominated by the three multiplication
+variants. In the Metal profile, external GPU work dominates, followed by
+buffer creation/release bridge calls; command commit, copy encoding, download,
+and upload are smaller. Scheduler semaphore samples are negligible and the
+distinct-model race/stress tests show no runtime-wide execution-lock
+contention. No buffer cache was added: isolated bridge samples do not prove an
+end-to-end win large enough to justify retained idle memory, and the current
+failure-atomic staging lifetime is intentionally bounded. Command batching is
+already at the observable minimum: one command/wait for prediction or
+backward, two for `TrainBatch` because the pre-update loss must be observed,
+and three for bounded `Fit` including evaluation. Kernel, elementwise, and
+reduction implementations therefore remain unchanged.
+
+Every performance change records hardware, OS, Go version, architecture, cgo
+setting, tags, power mode, benchmark command, raw output, counters,
+allocations, and interpretation in `Benchmarks_gpu.md`.
 
 Measurements use at least ten samples and compare default CPU/SIMD, `purego`,
 the synchronous `metal` baseline, and the resident `metal` path with identical
@@ -556,13 +614,14 @@ Representative dense-classification shapes are:
 | Case | Batch | Input | Hidden | Classes | Purpose |
 | --- | ---: | ---: | ---: | ---: | --- |
 | Small | 16 | 32 | 64 | 10 | Below dispatch thresholds; must remain CPU/SIMD. |
-| Threshold | 64 | 128 | 128 | 16 | First multiplication is exactly `1 << 20`; exposes boundary overhead. |
+| Observed below threshold | 64 | 128 | 128 | 16 | First multiplication is exactly `1 << 20`; exposes observation and boundary overhead. |
+| Warm threshold | 256 | 128 | 128 | 128 | Both multiplications are exactly `1 << 22`; validates ready-runtime eligibility. |
 | Uneven | 127 | 257 | 263 | 19 | Exercises non-tile dimensions and a mixed large/small multiplication chain. |
 | Large | 256 | 512 | 512 | 64 | Representative resident prediction, backward, and training workload. |
 
-Benchmarks cover `Predict`, `Backward`, `TrainBatch`, and a bounded two-epoch
-`Fit` of four batches for each applicable shape. They report uploads,
-downloads, bytes, buffer allocations, commands, kernels, waits,
+Benchmarks cover `Predict`, `Backward`, `TrainBatch`, and a bounded one-epoch,
+one-batch `Fit` followed by full-dataset evaluation for each applicable shape.
+They report uploads, downloads, bytes, buffer allocations, commands, kernels, waits,
 synchronizations, fallback barriers, and Go allocations in addition to time.
 
 The resident training backend is retained only if the warmed Large
@@ -574,6 +633,12 @@ when they are not the limiting gate. If these gates are not met, independently
 useful hybrid SIMD or runtime work may remain, but device-resident training is
 stopped or redesigned rather than broadening the graph or weakening
 correctness.
+
+The final Section 9 medians meet these gates. Warmed Large prediction is 9.8x
+faster, backward is 51.1x faster, `TrainBatch` is 18.6x faster, and bounded
+`Fit` is 27.9x faster than default CPU/SIMD. Small `metal` medians differ from
+default by less than two microseconds and create no Metal buffers, commands,
+or waits.
 
 ## Build-Tag Contract
 
