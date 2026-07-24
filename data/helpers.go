@@ -46,6 +46,26 @@ func validateMatrix(name string, m *matrix.Matrix) (err error) {
 	return nil
 }
 
+func validateMatrixShape(name string, m *matrix.Matrix, rows, cols int) (err error) {
+	if err = validateMatrix(name, m); err != nil {
+		return err
+	}
+
+	if m.Rows() != rows || m.Cols() != cols {
+		err = fmt.Errorf(
+			"data: %s shape mismatch: got %dx%d, want %dx%d",
+			name,
+			m.Rows(),
+			m.Cols(),
+			rows,
+			cols,
+		)
+		return err
+	}
+
+	return nil
+}
+
 func matrixRows(source *matrix.Matrix, indexes []int) (result *matrix.Matrix, err error) {
 	if result, err = source.SelectRows(indexes); err != nil {
 		err = fmt.Errorf("data: select matrix rows: %w", err)

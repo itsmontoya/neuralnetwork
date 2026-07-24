@@ -1,0 +1,184 @@
+package data
+
+import (
+	"fmt"
+
+	"github.com/itsmontoya/neuralnetwork/matrix"
+)
+
+// newSequenceBatch stores values that are already owned by the data package.
+func newSequenceBatch(
+	inputs, targets *matrix.Matrix,
+	lengths *SequenceLengths,
+) (out *SequenceBatch, err error) {
+	var batch SequenceBatch
+
+	if err = validateSequenceData(
+		"sequence batch",
+		"sequence batch inputs",
+		inputs,
+		"sequence batch targets",
+		targets,
+		lengths,
+	); err != nil {
+		return nil, err
+	}
+
+	batch.inputs = inputs
+	batch.targets = targets
+	batch.lengths = lengths
+	return &batch, nil
+}
+
+// SequenceBatch contains aligned values for one sequence mini-batch.
+type SequenceBatch struct {
+	inputs  *matrix.Matrix
+	targets *matrix.Matrix
+	lengths *SequenceLengths
+}
+
+// Inputs returns a copy of the batch inputs.
+func (b *SequenceBatch) Inputs() (inputs *matrix.Matrix, err error) {
+	if err = b.validate(); err != nil {
+		return nil, err
+	}
+
+	if inputs, err = b.inputs.Clone(); err != nil {
+		err = fmt.Errorf("data: sequence batch copy inputs: %w", err)
+		return nil, err
+	}
+
+	return inputs, nil
+}
+
+// Targets returns a copy of the batch targets.
+func (b *SequenceBatch) Targets() (targets *matrix.Matrix, err error) {
+	if err = b.validate(); err != nil {
+		return nil, err
+	}
+
+	if targets, err = b.targets.Clone(); err != nil {
+		err = fmt.Errorf("data: sequence batch copy targets: %w", err)
+		return nil, err
+	}
+
+	return targets, nil
+}
+
+// Lengths returns an independent validated copy of the batch lengths.
+func (b *SequenceBatch) Lengths() (lengths *SequenceLengths, err error) {
+	var values []int
+
+	if err = b.validate(); err != nil {
+		return nil, err
+	}
+
+	if values, err = b.lengths.Values(); err != nil {
+		return nil, err
+	}
+
+	lengths, err = newSequenceLengths(b.lengths.Steps(), values)
+	return lengths, err
+}
+
+// InputsInto copies batch inputs into inputs.
+//
+// The destination must match the batch input shape. A valid call fully
+// overwrites the caller-owned destination without allocating or retaining it.
+func (b *SequenceBatch) InputsInto(inputs *matrix.Matrix) (err error) {
+	if err = b.validate(); err != nil {
+		return err
+	}
+
+	if err = validateMatrixShape(
+		"sequence batch inputs destination",
+		inputs,
+		b.inputs.Rows(),
+		b.inputs.Cols(),
+	); err != nil {
+		return err
+	}
+
+	if err = inputs.CopyFrom(b.inputs); err != nil {
+		err = fmt.Errorf("data: copy sequence batch inputs into destination: %w", err)
+		return err
+	}
+
+	return nil
+}
+
+// TargetsInto copies batch targets into targets.
+//
+// The destination must match the batch target shape. A valid call fully
+// overwrites the caller-owned destination without allocating or retaining it.
+func (b *SequenceBatch) TargetsInto(targets *matrix.Matrix) (err error) {
+	if err = b.validate(); err != nil {
+		return err
+	}
+
+	if err = validateMatrixShape(
+		"sequence batch targets destination",
+		targets,
+		b.targets.Rows(),
+		b.targets.Cols(),
+	); err != nil {
+		return err
+	}
+
+	if err = targets.CopyFrom(b.targets); err != nil {
+		err = fmt.Errorf("data: copy sequence batch targets into destination: %w", err)
+		return err
+	}
+
+	return nil
+}
+
+// LengthsInto copies batch logical lengths into lengths.
+//
+// The destination must match SampleCount. A valid call fully overwrites the
+// caller-owned destination without allocating or retaining it.
+func (b *SequenceBatch) LengthsInto(lengths []int) (err error) {
+	if err = b.validate(); err != nil {
+		return err
+	}
+
+	err = b.lengths.ValuesInto(lengths)
+	return err
+}
+
+// SampleCount returns the number of aligned samples.
+func (b *SequenceBatch) SampleCount() (samples int) {
+	if b == nil || b.inputs == nil {
+		return 0
+	}
+
+	samples = b.inputs.Rows()
+	return samples
+}
+
+// Steps returns the physical sequence step count.
+func (b *SequenceBatch) Steps() (steps int) {
+	if b == nil || b.lengths == nil {
+		return 0
+	}
+
+	steps = b.lengths.Steps()
+	return steps
+}
+
+func (b *SequenceBatch) validate() (err error) {
+	if b == nil {
+		err = fmt.Errorf("data: sequence batch is nil")
+		return err
+	}
+
+	err = validateSequenceData(
+		"sequence batch",
+		"sequence batch inputs",
+		b.inputs,
+		"sequence batch targets",
+		b.targets,
+		b.lengths,
+	)
+	return err
+}

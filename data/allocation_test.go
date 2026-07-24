@@ -10,6 +10,8 @@ import (
 
 var allocationDataBatches []*data.Batch
 var allocationDataMatrix *matrix.Matrix
+var allocationSequenceBatches []*data.SequenceBatch
+var allocationSequenceLengths *data.SequenceLengths
 
 func Test_DatasetBatchAllocationCeilings(t *testing.T) {
 	var (
@@ -113,6 +115,131 @@ func Test_DataCopyAccessorAllocationCeilings(t *testing.T) {
 
 	requireMaxAllocs(t, "Batch.Targets", 2, func() {
 		allocationDataMatrix, err = batch.Targets()
+		if err != nil {
+			panic(err)
+		}
+	})
+}
+
+func Test_SequenceDataCopyAccessorAllocationCeilings(t *testing.T) {
+	var (
+		dataset            *data.SequenceDataset
+		batches            []*data.SequenceBatch
+		batch              *data.SequenceBatch
+		lengths            *data.SequenceLengths
+		indexes            []int
+		inputsDestination  *matrix.Matrix
+		targetsDestination *matrix.Matrix
+		lengthDestination  []int
+		err                error
+	)
+
+	dataset = mustSequenceDatasetWithSamples(t, 4)
+	if lengths, err = dataset.Lengths(); err != nil {
+		t.Fatalf("Lengths returned error: %v", err)
+	}
+
+	if batches, err = dataset.Batches(2, nil); err != nil {
+		t.Fatalf("Batches returned error: %v", err)
+	}
+	batch = batches[0]
+	indexes = []int{3, 1}
+	lengthDestination = make([]int, 4)
+
+	requireMaxAllocs(t, "SequenceLengths.ValuesInto", 0, func() {
+		if err = lengths.ValuesInto(lengthDestination); err != nil {
+			panic(err)
+		}
+	})
+
+	lengthDestination = make([]int, 2)
+	requireMaxAllocs(t, "SequenceLengths.SelectRowsInto", 0, func() {
+		if err = lengths.SelectRowsInto(indexes, lengthDestination); err != nil {
+			panic(err)
+		}
+	})
+
+	inputsDestination = mustMatrix(t, 2, 4, make([]float32, 8))
+	targetsDestination = mustMatrix(t, 2, 1, make([]float32, 2))
+	requireMaxAllocs(t, "SequenceDataset.SelectRowsInto", 0, func() {
+		if err = dataset.SelectRowsInto(
+			indexes,
+			inputsDestination,
+			targetsDestination,
+			lengthDestination,
+		); err != nil {
+			panic(err)
+		}
+	})
+
+	inputsDestination = mustMatrix(t, 4, 4, make([]float32, 16))
+	targetsDestination = mustMatrix(t, 4, 1, make([]float32, 4))
+	lengthDestination = make([]int, 4)
+	requireMaxAllocs(t, "SequenceDataset.InputsInto", 0, func() {
+		if err = dataset.InputsInto(inputsDestination); err != nil {
+			panic(err)
+		}
+	})
+
+	requireMaxAllocs(t, "SequenceDataset.TargetsInto", 0, func() {
+		if err = dataset.TargetsInto(targetsDestination); err != nil {
+			panic(err)
+		}
+	})
+
+	requireMaxAllocs(t, "SequenceDataset.LengthsInto", 0, func() {
+		if err = dataset.LengthsInto(lengthDestination); err != nil {
+			panic(err)
+		}
+	})
+
+	inputsDestination = mustMatrix(t, 2, 4, make([]float32, 8))
+	targetsDestination = mustMatrix(t, 2, 1, make([]float32, 2))
+	lengthDestination = make([]int, 2)
+	requireMaxAllocs(t, "SequenceBatch.InputsInto", 0, func() {
+		if err = batch.InputsInto(inputsDestination); err != nil {
+			panic(err)
+		}
+	})
+
+	requireMaxAllocs(t, "SequenceBatch.TargetsInto", 0, func() {
+		if err = batch.TargetsInto(targetsDestination); err != nil {
+			panic(err)
+		}
+	})
+
+	requireMaxAllocs(t, "SequenceBatch.LengthsInto", 0, func() {
+		if err = batch.LengthsInto(lengthDestination); err != nil {
+			panic(err)
+		}
+	})
+}
+
+func Test_SequenceDatasetBatchAllocationCeilings(t *testing.T) {
+	var (
+		dataset *data.SequenceDataset
+		random  *rand.Rand
+		err     error
+	)
+
+	dataset = mustSequenceDatasetWithSamples(t, 4)
+	requireMaxAllocs(t, "SequenceDataset.Batches unshuffled", 18, func() {
+		allocationSequenceBatches, err = dataset.Batches(2, nil)
+		if err != nil {
+			panic(err)
+		}
+	})
+
+	random = rand.New(rand.NewSource(7))
+	requireMaxAllocs(t, "SequenceDataset.Batches shuffled", 18, func() {
+		allocationSequenceBatches, err = dataset.Batches(2, random)
+		if err != nil {
+			panic(err)
+		}
+	})
+
+	requireMaxAllocs(t, "SequenceDataset.Lengths", 2, func() {
+		allocationSequenceLengths, err = dataset.Lengths()
 		if err != nil {
 			panic(err)
 		}
