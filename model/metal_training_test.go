@@ -311,6 +311,8 @@ func Test_SequentialResidentTrainingIsDeterministicAndTracksCPU(t *testing.T) {
 		secondOptimizer  *optimizer.SGD
 		firstMetrics     model.TrainMetrics
 		secondMetrics    model.TrainMetrics
+		firstPrediction  *matrix.Matrix
+		secondPrediction *matrix.Matrix
 		reference        metalBackwardReference
 		inputValues      []float32
 		hiddenWeights    []float32
@@ -323,6 +325,7 @@ func Test_SequentialResidentTrainingIsDeterministicAndTracksCPU(t *testing.T) {
 		expected         [][]float32
 		firstLosses      []float32
 		secondLosses     []float32
+		secondValues     []float32
 		learningRate     float32
 		step             int
 		err              error
@@ -412,6 +415,27 @@ func Test_SequentialResidentTrainingIsDeterministicAndTracksCPU(t *testing.T) {
 			)
 		}
 	}
+
+	for step = range firstLosses {
+		if math.Float32bits(firstLosses[step]) != math.Float32bits(secondLosses[step]) {
+			t.Fatalf(
+				"loss history step %d differs: first=%g second=%g",
+				step,
+				firstLosses[step],
+				secondLosses[step],
+			)
+		}
+	}
+	if firstPrediction, err = first.Predict(firstInput); err != nil {
+		t.Fatalf("first final Predict returned error: %v", err)
+	}
+	if secondPrediction, err = second.Predict(secondInput); err != nil {
+		t.Fatalf("second final Predict returned error: %v", err)
+	}
+	if secondValues, err = secondPrediction.Values(); err != nil {
+		t.Fatalf("second final prediction Values returned error: %v", err)
+	}
+	requireBackwardMatrixValues(t, firstPrediction, secondValues, 0)
 
 	expected = [][]float32{hiddenWeights, hiddenBiases, outputWeights, outputBiases}
 	requireParameterValues(t, first.Parameters(), expected, metalTrainingTolerance)

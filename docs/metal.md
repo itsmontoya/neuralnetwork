@@ -28,9 +28,16 @@ Updated on July 23, 2026 after adding resident dense and activation backward
 kernels, parameter-gradient accumulation and reset, column reductions, and
 selective backward observation boundaries.
 
+Updated on July 23, 2026 after completing resident categorical-cross-entropy
+training, failure-atomic SGD updates, deterministic multi-step coverage, and
+serialization barriers.
+
 Updated on July 23, 2026 after profiling the complete dense path, adding
 cold/warm dispatch policy, deterministic fit-scratch release, cleanup-failure
 atomicity, resource and allocation gates, and mixed-workload stress coverage.
+
+Updated on July 23, 2026 for final release verification, fallback guidance,
+compatibility confirmation, and troubleshooting.
 
 ## Decision Summary
 
@@ -309,7 +316,8 @@ barrier before reading host data and makes any destination host-newer.
 | `Fill`, `CopyValuesFrom` | Full host mutation | Wait for safe buffer reuse, overwrite host storage without downloading replaced values, and invalidate device content. Private device zero/fill used for gradient reset does not change the public classification. |
 | `Clone`, `CopyFrom` | Device copy | Preserve deep-copy independence. `CopyFrom` fully overwrites its destination; no source/destination buffer alias is introduced. |
 | `SelectRows`, `SelectRowsInto` | CPU fallback | Download the source if needed. `SelectRowsInto` preserves its no-input-alias rule and fully overwrites the destination. |
-| `Add`, `AddInto`, `AddInPlace`, `AddScaledInPlace` | Device operation | Support gradient accumulation and SGD. Existing permitted elementwise destination aliasing remains valid; allocating forms own independent storage. |
+| `Add`, `AddInto`, `AddInPlace` | Device operation | Support gradient accumulation. Existing permitted elementwise destination aliasing remains valid; allocating forms own independent storage. |
+| `AddScaledInPlace` | CPU fallback | The public method observes both matrices and mutates the receiver on the host. The private failure-atomic SGD transaction uses the approved scaled-add kernel directly. |
 | `AddMappedInPlace`, `AdamUpdateInPlace` | CPU fallback | Go callbacks and unsupported optimizer state require current host values before mutation. Existing multi-matrix alias checks remain unchanged. |
 | `MultiplyScalarInPlace` | CPU fallback | Not needed by the approved graph; mutates the current host value after a barrier. |
 | `Subtract`, `SubtractInto`, `MultiplyElements`, `MultiplyElementsInto`, `DivideElements`, `DivideElementsInto` | CPU fallback | Preserve allocating/destination ownership, permitted elementwise aliasing, zero checks, and existing error timing. |
@@ -323,14 +331,13 @@ barrier before reading host data and makes any destination host-newer.
 | `AddRowVectorInPlace` | Device operation | Supports dense bias addition and preserves the `[1, Cols]` validation and receiver ownership. |
 | `Apply`, `ApplyInto`, `Pairwise`, `PairwiseInto` | CPU fallback | Arbitrary Go callbacks are never assumed to be shaders. Callback order, error propagation, and currently permitted destination aliasing remain unchanged. Built-in ReLU and categorical loss use separate private typed operations. |
 
-This classification describes the complete milestone vocabulary. At the
-current Section 8 boundary, the supported graph also encodes categorical
-target validation, scalar loss reduction, prediction gradients, SGD updates,
-and gradient reset. A warmed training step synchronizes once for its combined
-loss and diagnostic result, then publishes backward gradients, every staged
-parameter update, and every gradient reset atomically after a second command
-scope completes. Unsupported losses and optimizers continue through explicit
-CPU fallback barriers.
+This classification describes the complete milestone vocabulary. The supported
+graph also encodes categorical target validation, scalar loss reduction,
+prediction gradients, SGD updates, and gradient reset. A warmed training step
+synchronizes once for its combined loss and diagnostic result, then publishes
+backward gradients, every staged parameter update, and every gradient reset
+atomically after a second command scope completes. Unsupported losses and
+optimizers continue through explicit CPU fallback barriers.
 
 ## Device Operation Vocabulary
 
@@ -368,6 +375,18 @@ matrix, the scope waits for its required producers and downloads only its
 device-newer inputs. CPU destinations become host-newer and upload lazily only
 if a later supported operation consumes them. An all-CPU graph never creates a
 Metal scope or buffer.
+
+The complete fallback decision is:
+
+| Condition | Execution decision | Synchronization and transfer behavior |
+| --- | --- | --- |
+| Default build, `purego`, unsupported platform, or cgo disabled | CPU/SIMD according to the build-tag table below. | No Metal runtime, scope, buffer, upload, or download is created. |
+| `metal` build with no default Metal device | CPU/SIMD. Device absence is cached as a normal capability result. | No operational device error is returned and no partial device work exists. |
+| Cold graph below `1 << 26` multiplication work, or ready graph below `1 << 22` | CPU/SIMD. | Model preflight avoids runtime initialization or command encoding; existing host ownership applies. |
+| Eligible supported dense graph | Metal for the supported chain. | Inputs upload lazily, dependent intermediates remain resident, and mandatory boundaries wait without downloading unrelated values. |
+| Unsupported operation before any device command | Existing CPU/SIMD implementation. | No device barrier is needed; later eligible work may activate Metal. |
+| Unsupported operation after a supported device producer | Existing CPU/SIMD implementation after a selective fallback barrier. | Wait for the required producer, download only matrices read by the CPU operation, and lazily upload CPU-written destinations if Metal later consumes them. |
+| Initialization, allocation, upload, encoding, execution, synchronization, download, or cleanup failure after an eligible attempt | Return the contextual operational error. | Do not replay on CPU, do not publish proposed revisions, and discard failure-atomic staging. |
 
 ## Command Scopes and Synchronization
 
@@ -678,6 +697,52 @@ They may keep compatible completed device storage while retained for the same
 logical role, but reuse cannot reveal an earlier value, pending command, or
 failure. A changed shape uses a distinct matrix, eviction releases residency,
 and failed-scope scratch is not returned until cleanup is complete.
+
+## Release Compatibility
+
+The final audit found no additive or breaking public API change in the
+`activation`, `data`, `layer`, `loss`, `matrix`, `metric`, `model`, or
+`optimizer` packages. The accepted surface in
+[`v1-api-review.md`](v1-api-review.md) therefore remains unchanged. Device
+types, execution adapters, diagnostics, counters, and failure-injection hooks
+remain under `internal`.
+
+Sequential documents remain `neuralnetwork.sequential` version `1`. ANN, CNN,
+and RNN round-trip tests continue to require identical re-encoded bytes for
+equivalent logical values and unchanged loaded predictions. The Metal
+milestone adds no serialized field or layer type.
+
+## Troubleshooting
+
+Use the repository-wide Metal test command to confirm that the current machine
+can compile and exercise the optional backend:
+
+```sh
+go test -tags=metal ./...
+```
+
+If this command succeeds but focused Metal tests report an unavailable device,
+confirm that the host is Darwin, cgo is enabled, the `metal` tag is present,
+`purego` is absent, and `MTLCreateSystemDefaultDevice` can find a device. An
+unavailable device is an expected CPU/SIMD fallback, not a runtime failure.
+
+If a supported call creates no Metal activity, check the cold and ready
+thresholds in the dispatch section. Small workloads intentionally stay on
+CPU/SIMD, and a cold process uses the higher threshold to avoid compilation
+cost. There is no public force-device switch.
+
+Errors containing initialization, compilation, allocation, upload, encoding,
+execution, synchronization, download, or cleanup context indicate an
+operational failure after Metal became eligible. These errors are deliberately
+returned rather than hidden by a CPU retry. Reproduce them with the focused
+`internal/device`, `matrix`, or `model` Metal tests before changing dispatch
+policy.
+
+Use `-tags=purego` to exclude both Metal and external SIMD wrappers when
+isolating the portable reference path. Performance ratios in
+[`../Benchmarks_gpu.md`](../Benchmarks_gpu.md) describe the recorded Apple M3
+environment; dispatch correctness does not imply the same ratio on another
+device or power state.
 
 ## Explicit Non-Goals
 

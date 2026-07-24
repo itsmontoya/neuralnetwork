@@ -3,6 +3,8 @@
 Captured on July 7, 2026.
 Updated on July 21, 2026 for `float32` matrix storage,
 `github.com/tphakala/simd` integration, and hybrid `metal` tag interaction.
+Updated on July 23, 2026 for the completed resident Metal path, current
+dispatch thresholds, and final build-tag verification.
 
 ## Decision
 
@@ -13,10 +15,11 @@ remain the local portable baseline for unsupported platforms and for builds
 using this repository's `purego` opt-out tag.
 
 The optional `metal` tag is independent from CPU SIMD selection and is
-documented separately in [`docs/metal.md`](metal.md). In that mode, large
-matrix multiplication may use Metal on Darwin/cgo builds while CPU-resident dot
-product and elementwise slice kernels continue to use SIMD on `arm64` and
-`amd64`.
+documented separately in [`docs/metal.md`](metal.md). In that mode, eligible
+dense prediction, backward propagation, and categorical-cross-entropy training
+with SGD may use Metal on Darwin/cgo builds. CPU-resident dot product and
+elementwise slice kernels continue to use SIMD on `arm64` and `amd64`, including
+small work and explicit CPU fallback boundaries inside a Metal-enabled model.
 
 The SIMD boundary stays inside the `matrix` package. Public matrix methods keep
 owning validation, destination shape checks, alias checks, and ownership
@@ -67,6 +70,19 @@ The active private kernel may choose a scalar fallback for small inputs or
 unsupported CPU features. When using `tphakala/simd`, runtime CPU dispatch stays
 inside the dependency.
 
+Hybrid model selection follows this order:
+
+1. `purego` selects repository-owned pure-Go multiplication, dot-product, and
+   elementwise kernels and excludes Metal.
+2. Without `purego`, `amd64` and `arm64` CPU dot-product and elementwise work
+   use the external SIMD wrappers.
+3. A supported `metal` build may activate the device path only when an approved
+   dense multiplication reaches the `1 << 26` cold or `1 << 22` ready-runtime
+   threshold.
+4. Below-threshold or unsupported work remains on the same CPU/SIMD path used
+   by the default build. A mid-graph CPU fallback synchronizes only the values
+   it reads; later eligible device work may resume through a lazy upload.
+
 Floating-point reductions such as dot products and sums may not be bit-for-bit
 identical if SIMD changes accumulation order. Correctness tests should compare
 within the existing matrix test tolerance unless a kernel preserves scalar
@@ -76,7 +92,7 @@ order exactly.
 
 Use `purego` as this repository's explicit opt-out tag for external,
 architecture-specific SIMD wrappers, and Metal. Use `metal` as an independent
-opt-in for supported matrix multiplications.
+opt-in for the supported resident dense path.
 
 ```go
 //go:build arm64 && !purego
@@ -106,6 +122,20 @@ matrix/dot_product_default.go     local pure Go dot product wrapper
 
 Generator files should use `//go:build ignore` and stay out of normal package
 builds.
+
+The complete repository build combinations are:
+
+| Tags | `amd64`/`arm64` CPU kernels | Metal eligibility |
+| --- | --- | --- |
+| none | SIMD dot product and elementwise wrappers | Excluded |
+| `purego` | Repository-owned pure Go | Excluded |
+| `metal` | SIMD remains active for CPU work | Darwin/cgo only; approved work and thresholds still apply |
+| `metal purego` | Repository-owned pure Go | Excluded because `purego` wins |
+
+On other architectures, the default and `metal` combinations both use the
+local pure-Go CPU wrappers. On non-Darwin hosts, with cgo disabled, or without a
+Metal device, the `metal` tag remains a portable CPU build rather than a build
+error.
 
 ## First Kernel Order
 

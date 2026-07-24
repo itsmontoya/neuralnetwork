@@ -4,6 +4,20 @@ This file records benchmark evidence for the GPU acceleration branch. Every GPU
 implementation session should append a dated section with exact commands, raw
 output, and a short interpretation.
 
+## Result Status
+
+Sections are a chronological engineering record, not a set of interchangeable
+current claims. Steps 2 through 4 describe the original synchronous
+per-multiplication bridge and its historical build constraints. In particular,
+Step 2's scalar CPU fallback under the `metal` tag was superseded when Step 4
+restored SIMD and Metal coexistence.
+
+Steps 5 through 8 measure the incremental resident implementation at those
+session boundaries. Step 9 is the final performance baseline for the completed
+milestone and is the source for current speedup, dispatch-threshold, transfer,
+command, wait, resource, and allocation claims. Later release-verification
+results confirm that baseline rather than replacing its ten-sample medians.
+
 ## Logging Template
 
 ````md
@@ -2100,3 +2114,132 @@ the synchronous API and pre-update scalar loss, while an idle buffer cache
 would weaken the zero-idle-resource bound without a measured end-to-end gain.
 The final large `TrainBatch` and `Fit` results exceed the Section 1 gates by
 wide margins, so device-resident dense training is retained.
+
+## Step 10: Release Verification
+
+Captured on July 23, 2026.
+
+### Environment
+
+| Field | Value |
+| --- | --- |
+| Hardware | Apple M3 |
+| OS | macOS 26.5.2 (25F84) |
+| Architecture | arm64 |
+| Go toolchain | go1.26.5 darwin/arm64 |
+| cgo | enabled |
+| Metal device | available |
+| Power mode | not explicitly controlled |
+
+### Commands
+
+Repository-wide release gates:
+
+```sh
+go fmt ./...
+go vet ./...
+go vet -tags=purego ./...
+go vet -tags=metal ./...
+go vet -tags='metal purego' ./...
+go test ./... -race
+go test -tags=purego ./... -race
+go test -tags=metal ./... -race
+go test -tags='metal purego' ./... -race
+go test -tags=metal ./model -run '^Test_SequentialResidentTrainingIsDeterministicAndTracksCPU$' -count=1
+```
+
+Final warmed slices:
+
+```sh
+go test ./model -run '^$' -bench='^Benchmark_SequentialResident(Predict|Backward)/(Small|Large)/Warmed$|^Benchmark_SequentialResidentTraining/(TrainBatch|Fit)/(Small|Large)/Warmed$' -benchtime=100ms -count=10 -benchmem
+go test -tags=metal ./model -run '^$' -bench='^Benchmark_SequentialResident(Predict|Backward)/(Small|Large)/Warmed$|^Benchmark_SequentialResidentTraining/(TrainBatch|Fit)/(Small|Large)/Warmed$' -benchtime=100ms -count=10 -benchmem
+```
+
+### Summary
+
+Medians are calculated from the ten raw `ns/op` samples below. These
+measurements confirm the Step 9 acceptance decision; they do not replace Step
+9's final baseline because power mode was uncontrolled and the Metal samples
+show timing drift during the run.
+
+| Slice | Default median ns/op | `metal` median ns/op | Comparison |
+| --- | ---: | ---: | ---: |
+| Predict, small | 30,146 | 30,440 | `metal` 294 ns slower |
+| Predict, large | 42,914,701 | 2,666,386 | Metal 16.1x faster |
+| Backward, small | 57,904 | 57,138 | `metal` 766 ns faster |
+| Backward, large | 100,484,500 | 4,908,585 | Metal 20.5x faster |
+| TrainBatch, small | 92,608 | 90,635 | `metal` 1,973 ns faster |
+| TrainBatch, large | 143,444,542 | 10,136,402 | Metal 14.2x faster |
+| Fit, small | 125,517 | 123,428 | `metal` 2,089 ns faster |
+| Fit, large | 186,755,646 | 16,973,340 | Metal 11.0x faster |
+
+Every timed warmed Metal sample retained the established activity counts:
+
+| Slice | Buffers | Uploads / bytes | Downloads / bytes | Kernels | Commands / waits | Fallback barriers | Allocations |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Predict | 8 | 0 / 0 | 0 / 0 | 10 | 1 / 1 | 0 | 25 |
+| Backward | 10 | 0 / 0 | 0 / 0 | 12 | 1 / 1 | 0 | 31 |
+| TrainBatch | 24 | 0 / 0 | 1 / 20 | 32 | 2 / 2 | 1 | 73 |
+| Fit | 35 | 3 / 1,114,112 | 2 / 65,556 | 42 | 3 / 3 | 1 | 114 |
+
+All four race-enabled repository suites passed, including ANN, CNN, RNN,
+serialization, examples, allocation gates, coherence, transfer counts,
+failure injection, mixed-workload stress, and distinct-model concurrency. The
+focused deterministic Metal test ran two identically initialized supported
+graphs and required bit-identical loss histories, final predictions, and
+parameter values.
+
+### Raw Timing Samples
+
+Each list is the raw `ns/op` field in command output order.
+
+```text
+Default Predict/Small:
+29660 29975 30494 30257 30228 30117 30110 30174 30524 30075
+Metal Predict/Small:
+60613 30333 30432 30618 30346 30311 30448 30650 30560 30330
+
+Default Predict/Large:
+42917333 42912069 43425431 42592403 42690917 42629528 43054833 43249042 42980042 42832306
+Metal Predict/Large:
+2089041 2926691 2406080 3644586 2269692 3041289 3277533 2044351 2176039 3018893
+
+Default Backward/Small:
+75769 65751 57861 57744 57143 57453 57112 58819 57946 59076
+Metal Backward/Small:
+57851 57267 57152 57109 57113 58709 57124 57017 57193 57115
+
+Default Backward/Large:
+100107959 100632625 100731667 100336375 99792146 105660792 100164333 107267083 106069520 100043292
+Metal Backward/Large:
+2724450 2674380 4040062 4540285 5572366 7883029 5162704 4882430 4934739 5235518
+
+Default TrainBatch/Small:
+93566 92955 92458 93266 92182 92155 91340 91747 92757 92879
+Metal TrainBatch/Small:
+91694 90319 91757 90482 91021 90605 90344 91983 90664 90434
+
+Default TrainBatch/Large:
+143279542 143942500 145148416 143060750 143166125 143273208 143594667 143294416 144073958 144556875
+Metal TrainBatch/Large:
+6414805 6537939 8952949 8966000 9805753 10467051 10842329 15562236 15642827 13046177
+
+Default Fit/Small:
+128890 124452 127015 124450 124058 161846 125510 125312 125837 125523
+Metal Fit/Small:
+122857 123205 122680 123743 124455 123650 122595 124527 122970 125263
+
+Default Fit/Large:
+187748500 186629625 186890834 186812750 186262042 186698542 188645125 186051875 186295250 186915375
+Metal Fit/Large:
+8615955 11367778 13223021 14839702 17731696 22696417 19614778 20681180 24719600 16214984
+```
+
+### Interpretation
+
+The release rerun preserves the Section 1 performance decision. Large
+prediction, backward, training, and bounded fit remain well above their
+required end-to-end speedup gates. Small slices create no Metal resources and
+remain below the material-regression threshold. Exact activity and allocation
+counts match the Step 9 gates, so no release-session dispatch, kernel, command,
+or resource change is justified.

@@ -193,6 +193,35 @@ original random source state. Loaded dropout layers use deterministic local
 random sources, and loaded recurrent layers begin with zero gradients and fresh
 forward state.
 
+## Optional Metal Acceleration
+
+On Darwin with cgo, the optional `metal` build tag enables a transparent
+device-resident path when a default Metal device is available. The initial
+supported graph is:
+
+```text
+matrix rows -> Dense -> ReLU -> Dense -> Softmax
+```
+
+That graph can remain resident through `Sequential.Predict`, `Backward`,
+`TrainBatch`, and `Fit` when training uses categorical cross entropy and plain
+SGD. Public constructors and method signatures are unchanged. Small workloads,
+unsupported layers, activations, losses, or optimizers, unavailable devices,
+non-Darwin platforms, and cgo-disabled builds use the existing CPU path.
+On `amd64` and `arm64`, CPU work in a `metal` build still uses SIMD.
+
+Build and test the optional path with:
+
+```sh
+go test -tags=metal ./...
+```
+
+Use `-tags=purego` to opt out of Metal and external SIMD wrappers. See the
+[Metal design](docs/metal.md) for coherence, synchronization, fallback, and
+troubleshooting details; the [SIMD design](docs/simd.md) for hybrid CPU
+selection; and [GPU benchmark evidence](Benchmarks_gpu.md) for reproducible
+end-to-end measurements.
+
 ## Development
 
 The baseline verification command is:
