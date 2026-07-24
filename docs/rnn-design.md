@@ -347,6 +347,9 @@ The following remain deferred:
 
 * Variable-length, ragged, padded-and-masked, or packed sequence inputs.
   Padding supplied by a caller is treated as ordinary input in this milestone.
+  A focused explicit-length last-valid path is
+  [approved but not yet implemented](sequence-lengths-design.md); general
+  masking and ragged or packed storage remain deferred.
 * Learned or caller-provided initial state, returned final state, state carry
   between calls, stateful training, and streaming inference.
 * Truncated backpropagation through time, explicit graph detachment, and
