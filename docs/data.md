@@ -70,3 +70,51 @@ fractions can return an error even when `testFraction` is between `0` and `1`.
 When the random source is nil, splitting preserves dataset row order: train rows
 come first and test rows follow. When the random source is non-nil, rows are
 shuffled with that source before the train/test boundary is applied.
+
+## Aligned Sequence Lengths
+
+`SequenceLengths` owns one positive logical length per padded sequence row.
+Construct it with `NewSequenceLengths(steps, values)`. The physical step count
+must be positive, the values must be non-empty, and every value must be in the
+inclusive range `[1, steps]`.
+
+The constructor copies the caller's integer slice. `Values` returns another
+copy, while `ValuesInto` and `SelectRowsInto` copy into caller-owned
+destinations without retaining them. The type is immutable after construction;
+its nil receiver and zero value are invalid.
+
+`SequenceDataset` keeps inputs, targets, and logical lengths aligned without
+changing the existing `Dataset` or `Batch` APIs. Construct it with:
+
+```go
+lengths, err := data.NewSequenceLengths(3, []int{2, 3})
+if err != nil {
+	return err
+}
+
+dataset, err := data.NewSequenceDataset(inputs, targets, lengths)
+if err != nil {
+	return err
+}
+```
+
+Input and target row counts must match the length count. The flattened input
+width must also divide evenly by `steps`, leaving a positive feature count for
+each physical step.
+
+`SequenceDataset` owns copies of all three inputs. Its `Inputs`, `Targets`, and
+`Lengths` accessors return independent copies. The corresponding `Into`
+methods, plus `SelectRowsInto`, support reusable caller-owned destinations.
+Row selection preserves index order and supports repeated indexes.
+
+`SequenceDataset.Batches` returns owned `SequenceBatch` values. A nil random
+source preserves order; a caller-provided source shuffles inputs, targets, and
+lengths with one shared permutation. The final batch may be partial.
+
+`SequenceDataset.Split` applies the same ordered or caller-shuffled index list
+to all three values. Train and test results own their selected data, use the
+same floored split calculation as `Dataset.Split`, and must both be non-empty.
+
+These types carry supervised row alignment only. They do not reinterpret
+padding, mask recurrent computation, or make the existing matrix-only dataset
+APIs length-aware.
