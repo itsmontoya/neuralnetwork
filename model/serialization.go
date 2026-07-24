@@ -20,6 +20,7 @@ const (
 	serializationLayerDense              = "dense"
 	serializationLayerDropout            = "dropout"
 	serializationLayerFlatten            = "flatten"
+	serializationLayerGatherLastValid    = "gather_last_valid"
 	serializationLayerLastStep           = "last_step"
 	serializationLayerMaxPool2D          = "max_pool2d"
 	serializationLayerSimpleRNN          = "simple_rnn"
@@ -149,6 +150,8 @@ func serializedLayerFromLayer(index int, currentLayer layerpkg.Layer) (serialize
 		serialized, err = serializedDropoutLayer(index, current)
 	case *layerpkg.Flatten:
 		serialized, err = serializedFlattenLayer(index, current)
+	case *layerpkg.GatherLastValid:
+		serialized, err = serializedGatherLastValidLayer(index, current)
 	case *layerpkg.LastStep:
 		serialized, err = serializedLastStepLayer(index, current)
 	case *layerpkg.MaxPool2D:
@@ -177,6 +180,8 @@ func (s serializedLayer) layer(index int) (currentLayer layerpkg.Layer, err erro
 		currentLayer, err = s.dropoutLayer(index)
 	case serializationLayerFlatten:
 		currentLayer, err = s.flattenLayer(index)
+	case serializationLayerGatherLastValid:
+		currentLayer, err = s.gatherLastValidLayer(index)
 	case serializationLayerLastStep:
 		currentLayer, err = s.lastStepLayer(index)
 	case serializationLayerMaxPool2D:
@@ -637,6 +642,56 @@ func (s serializedLayer) flattenLayer(index int) (flattenLayer *layerpkg.Flatten
 	}
 
 	return flattenLayer, nil
+}
+
+func serializedGatherLastValidLayer(
+	index int,
+	gatherLayer *layerpkg.GatherLastValid,
+) (serialized serializedLayer, err error) {
+	var (
+		shape         layerpkg.SequenceShape
+		expectedShape layerpkg.SequenceShape
+	)
+
+	if gatherLayer == nil {
+		err = fmt.Errorf("model: layer %d gather last valid layer is nil", index)
+		return serialized, err
+	}
+
+	shape = gatherLayer.InputShape()
+	if expectedShape, err = layerpkg.NewSequenceShape(shape.Steps(), shape.FeatureSize()); err != nil {
+		err = fmt.Errorf("model: layer %d gather last valid input shape serialize failed: %w", index, err)
+		return serialized, err
+	}
+
+	if expectedShape != shape {
+		err = fmt.Errorf("model: layer %d gather last valid input shape is inconsistent", index)
+		return serialized, err
+	}
+
+	serialized = serializedLayer{
+		Type:        serializationLayerGatherLastValid,
+		Steps:       shape.Steps(),
+		FeatureSize: shape.FeatureSize(),
+	}
+	return serialized, nil
+}
+
+func (s serializedLayer) gatherLastValidLayer(
+	index int,
+) (gatherLayer *layerpkg.GatherLastValid, err error) {
+	var inputShape layerpkg.SequenceShape
+
+	if inputShape, err = s.sequenceInputShape(index, serializationLayerGatherLastValid); err != nil {
+		return nil, err
+	}
+
+	if gatherLayer, err = layerpkg.NewGatherLastValid(inputShape); err != nil {
+		err = fmt.Errorf("model: layer %d gather last valid construct failed: %w", index, err)
+		return nil, err
+	}
+
+	return gatherLayer, nil
 }
 
 func serializedLastStepLayer(index int, lastStepLayer *layerpkg.LastStep) (serialized serializedLayer, err error) {

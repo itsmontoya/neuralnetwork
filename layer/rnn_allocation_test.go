@@ -99,3 +99,84 @@ func Test_LastStepBackwardSteadyStateAllocations(t *testing.T) {
 		}
 	})
 }
+
+func Test_GatherLastValidForwardSteadyStateAllocations(t *testing.T) {
+	var (
+		gather  *layer.GatherLastValid
+		input   *matrix.Matrix
+		lengths []int
+		err     error
+	)
+
+	gather = allocationGatherLastValid(t, 8, 32)
+	input = allocationLayerMatrix(t, 16, gather.InputShape().Size())
+	lengths = make([]int, input.Rows())
+	for index := range lengths {
+		lengths[index] = index%gather.InputShape().Steps() + 1
+	}
+
+	if _, err = gather.ForwardWithLengths(input, lengths); err != nil {
+		t.Fatalf("warm-up ForwardWithLengths returned error: %v", err)
+	}
+
+	requireMaxAllocs(t, "GatherLastValid.ForwardWithLengths", 0, func() {
+		if allocationLayerResult, err = gather.ForwardWithLengths(input, lengths); err != nil {
+			panic(err)
+		}
+	})
+}
+
+func Test_GatherLastValidBackwardSteadyStateAllocations(t *testing.T) {
+	var (
+		gather         *layer.GatherLastValid
+		input          *matrix.Matrix
+		outputGradient *matrix.Matrix
+		lengths        []int
+		err            error
+	)
+
+	gather = allocationGatherLastValid(t, 8, 32)
+	input = allocationLayerMatrix(t, 16, gather.InputShape().Size())
+	outputGradient = allocationLayerMatrix(t, 16, gather.OutputSize())
+	lengths = make([]int, input.Rows())
+	for index := range lengths {
+		lengths[index] = index%gather.InputShape().Steps() + 1
+	}
+
+	if _, err = gather.ForwardWithLengths(input, lengths); err != nil {
+		t.Fatalf("ForwardWithLengths returned error: %v", err)
+	}
+	if _, err = gather.BackwardWithLengths(outputGradient); err != nil {
+		t.Fatalf("warm-up BackwardWithLengths returned error: %v", err)
+	}
+
+	requireMaxAllocs(t, "GatherLastValid.BackwardWithLengths", 0, func() {
+		if allocationLayerResult, err = gather.BackwardWithLengths(outputGradient); err != nil {
+			panic(err)
+		}
+	})
+}
+
+func allocationGatherLastValid(
+	tb testing.TB,
+	steps,
+	featureSize int,
+) (gather *layer.GatherLastValid) {
+	var (
+		inputShape layer.SequenceShape
+		err        error
+	)
+
+	tb.Helper()
+	inputShape, err = layer.NewSequenceShape(steps, featureSize)
+	if err != nil {
+		tb.Fatalf("NewSequenceShape returned error: %v", err)
+	}
+
+	gather, err = layer.NewGatherLastValid(inputShape)
+	if err != nil {
+		tb.Fatalf("NewGatherLastValid returned error: %v", err)
+	}
+
+	return gather
+}

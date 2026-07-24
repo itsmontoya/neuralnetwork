@@ -35,13 +35,14 @@ func NewSequential(layers ...layer.Layer) (out *Sequential, err error) {
 //
 // The document must use format "neuralnetwork.sequential", version 1, and
 // a supported dense, activation, dropout, batch-normalization, convolution,
-// max-pooling, flatten, simple recurrent, or last-step layer type. Loading
-// restores architecture, parameter values, and batch-normalization running
-// statistics only. Optimizer state, accumulated gradients, forward caches,
-// recurrent hidden histories, training history, callbacks, learning-rate
-// schedules, and original random source state are not serialized; dropout
-// layers use deterministic local random sources, and recurrent layers begin
-// with fresh forward state. ANN- and CNN-only version 1 documents remain
+// max-pooling, flatten, simple recurrent, last-step, or gather-last-valid layer
+// type. Loading restores architecture, parameter values, and
+// batch-normalization running statistics only. Optimizer state, accumulated
+// gradients, forward caches, recurrent hidden histories, gathered length
+// snapshots, training history, callbacks, learning-rate schedules, and
+// original random source state are not serialized; dropout layers use
+// deterministic local random sources, and recurrent and length-aware layers
+// begin with fresh forward state. Existing version 1 documents remain
 // compatible; older readers reject documents containing unknown additive
 // layer types.
 func LoadSequential(reader io.Reader) (out *Sequential, err error) {
@@ -592,13 +593,14 @@ func (s *Sequential) Fit(trainingData *data.Dataset, config FitConfig) (history 
 //
 // The document uses format "neuralnetwork.sequential", version 1, and layer
 // types "dense", "activation", "dropout", "batch_normalization", "conv2d",
-// "max_pool2d", "flatten", "simple_rnn", or "last_step". It stores supported
-// layer configuration, trainable parameter values, and batch-normalization
-// running statistics. It does not serialize optimizer state, accumulated
-// gradients, forward caches, recurrent hidden histories, training history,
-// callbacks, learning-rate schedules, or original random source state. CNN and
-// RNN fields are additive, so existing ANN- and CNN-only version 1 documents
-// retain their encoding and compatibility.
+// "max_pool2d", "flatten", "simple_rnn", "last_step", or
+// "gather_last_valid". It stores supported layer configuration, trainable
+// parameter values, and batch-normalization running statistics. It does not
+// serialize optimizer state, accumulated gradients, forward caches, recurrent
+// hidden histories, gathered length snapshots, training history, callbacks,
+// learning-rate schedules, or original random source state. Sequence and
+// spatial fields are additive, so existing version 1 documents retain their
+// encoding and compatibility.
 func (s *Sequential) Save(writer io.Writer) (err error) {
 	if writer == nil {
 		err = errors.New("model: save writer is nil")

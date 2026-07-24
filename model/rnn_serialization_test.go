@@ -143,6 +143,88 @@ func Test_Sequential_SaveLoadRoundTripWithRNNLayers(t *testing.T) {
 	}
 }
 
+func Test_Sequential_SaveLoadRoundTripWithGatherLastValid(t *testing.T) {
+	var (
+		gather         *layer.GatherLastValid
+		network        *model.Sequential
+		loaded         *model.Sequential
+		input          *matrix.Matrix
+		firstDocument  bytes.Buffer
+		secondDocument bytes.Buffer
+		fields         map[string]json.RawMessage
+		typeName       string
+		err            error
+	)
+
+	gather = mustSerializationGatherLastValid(t, 3, 2)
+	input = mustMatrix(t, 2, 6, []float32{
+		1, 2, 91, 92, 93, 94,
+		3, 4, 5, 6, 7, 8,
+	})
+	if _, err = gather.ForwardWithLengths(input, []int{1, 3}); err != nil {
+		t.Fatalf("ForwardWithLengths returned error: %v", err)
+	}
+
+	network, err = model.NewSequential(gather)
+	if err != nil {
+		t.Fatalf("NewSequential returned error: %v", err)
+	}
+
+	if len(network.Parameters()) != 0 {
+		t.Fatalf("Parameters length = %d, want 0", len(network.Parameters()))
+	}
+
+	if err = network.Save(&firstDocument); err != nil {
+		t.Fatalf("Save returned error: %v", err)
+	}
+
+	fields = serializedLayerFields(t, firstDocument.Bytes())
+	if len(fields) != 3 {
+		t.Fatalf("serialized layer field count = %d, want 3: %s", len(fields), firstDocument.String())
+	}
+
+	for _, field := range []string{"type", "steps", "feature_size"} {
+		if _, ok := fields[field]; !ok {
+			t.Fatalf("serialized gather layer missing field %q: %s", field, firstDocument.String())
+		}
+	}
+
+	if err = json.Unmarshal(fields["type"], &typeName); err != nil {
+		t.Fatalf("json.Unmarshal type returned error: %v", err)
+	}
+
+	if typeName != "gather_last_valid" {
+		t.Fatalf("serialized layer type = %q, want gather_last_valid", typeName)
+	}
+
+	loaded, err = model.LoadSequential(bytes.NewReader(firstDocument.Bytes()))
+	if err != nil {
+		t.Fatalf("LoadSequential returned error: %v", err)
+	}
+
+	if len(loaded.Parameters()) != 0 {
+		t.Fatalf("loaded Parameters length = %d, want 0", len(loaded.Parameters()))
+	}
+
+	if err = loaded.Save(&secondDocument); err != nil {
+		t.Fatalf("loaded Save returned error: %v", err)
+	}
+
+	if !bytes.Equal(secondDocument.Bytes(), firstDocument.Bytes()) {
+		t.Fatalf(
+			"loaded Save bytes differ:\nfirst:\n%s\nsecond:\n%s",
+			firstDocument.String(),
+			secondDocument.String(),
+		)
+	}
+
+	if _, err = loaded.Predict(input); err == nil {
+		t.Fatal("loaded ordinary Predict error = nil, want length-aware direction")
+	} else if !strings.Contains(err.Error(), "ForwardWithLengths") {
+		t.Fatalf("loaded ordinary Predict error = %q, want ForwardWithLengths direction", err)
+	}
+}
+
 func Test_Sequential_SaveLoadRoundTripWithMixedRNNModel(t *testing.T) {
 	var (
 		network          *model.Sequential
@@ -621,9 +703,34 @@ func Test_LoadSequential_RejectsMalformedRNNLayers(t *testing.T) {
 			wantError: "sequence shape size overflows int",
 		},
 		{
+			name:      "gather last valid missing input shape",
+			layerJSON: `{"type": "gather_last_valid"}`,
+			wantError: "gather_last_valid input shape is missing",
+		},
+		{
+			name:      "gather last valid invalid steps",
+			layerJSON: `{"type": "gather_last_valid", "steps": -1, "feature_size": 2}`,
+			wantError: "gather_last_valid input shape load failed",
+		},
+		{
+			name:      "gather last valid invalid feature size",
+			layerJSON: `{"type": "gather_last_valid", "steps": 2, "feature_size": -1}`,
+			wantError: "gather_last_valid input shape load failed",
+		},
+		{
+			name:      "gather last valid input shape overflow",
+			layerJSON: fmt.Sprintf(`{"type": "gather_last_valid", "steps": %d, "feature_size": 2}`, maxInt),
+			wantError: "sequence shape size overflows int",
+		},
+		{
 			name:      "unknown rnn layer type",
 			layerJSON: `{"type": "gru"}`,
 			wantError: `unknown layer type "gru"`,
+		},
+		{
+			name:      "unknown gather layer type remains rejected",
+			layerJSON: `{"type": "gather_last_valid_v2"}`,
+			wantError: `unknown layer type "gather_last_valid_v2"`,
 		},
 	}
 
@@ -665,6 +772,11 @@ func Test_Sequential_SaveRejectsInvalidRNNLayers(t *testing.T) {
 	tests = []testcase{
 		{name: "simple rnn zero value", currentLayer: &layer.SimpleRNN{}, wantError: "simple rnn input shape serialize failed"},
 		{name: "last step zero value", currentLayer: &layer.LastStep{}, wantError: "last step input shape serialize failed"},
+		{
+			name:         "gather last valid zero value",
+			currentLayer: &layer.GatherLastValid{},
+			wantError:    "gather last valid input shape serialize failed",
+		},
 	}
 
 	for _, tt = range tests {
@@ -795,6 +907,30 @@ func mustSerializationLastStep(tb testing.TB, steps, featureSize int) (lastStepL
 	}
 
 	return lastStepLayer
+}
+
+func mustSerializationGatherLastValid(
+	tb testing.TB,
+	steps,
+	featureSize int,
+) (gatherLayer *layer.GatherLastValid) {
+	var (
+		inputShape layer.SequenceShape
+		err        error
+	)
+
+	tb.Helper()
+	inputShape, err = layer.NewSequenceShape(steps, featureSize)
+	if err != nil {
+		tb.Fatalf("NewSequenceShape returned error: %v", err)
+	}
+
+	gatherLayer, err = layer.NewGatherLastValid(inputShape)
+	if err != nil {
+		tb.Fatalf("NewGatherLastValid returned error: %v", err)
+	}
+
+	return gatherLayer
 }
 
 func serializedLayerFields(tb testing.TB, document []byte) (fields map[string]json.RawMessage) {
