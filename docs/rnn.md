@@ -262,7 +262,7 @@ backward cache, and backward before forward returns an error.
 
 | Area | Initial support | Deferred |
 | --- | --- | --- |
-| Data layout | Batched fixed-length time-major `NTF`/`TF` `float32` matrix rows | Variable-length, ragged, padded-and-masked, and packed sequences |
+| Data layout | Batched fixed-length time-major `NTF`/`TF` `float32` matrix rows | An [approved but not yet implemented](sequence-lengths-design.md) explicit-length last-valid path; general variable-length, ragged, padded-and-masked, and packed sequences |
 | Recurrence | Stateless zero-initialized Elman `SimpleRNN` with fixed tanh and all-steps output | Configurable activations, LSTM, GRU, bidirectional recurrence, attention, and transformers |
 | Gradients | Full backpropagation through every configured step with summed parameter gradients | Truncation, graph detachment, gradient clipping, and masked sequence losses |
 | State | Independent zero state for every row and call | Learned or caller-provided state, returned state, state carry, stateful training, and streaming inference |
