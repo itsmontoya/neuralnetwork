@@ -1,15 +1,16 @@
 # Explicit Sequence Lengths and Last-Valid Selection
 
-Status: approved, data plumbing, last-valid selection, and persistence implemented.
+Status: approved, data plumbing, last-valid selection, persistence, and model integration implemented.
 
 This document freezes the additive contract for associating one positive
 logical length with every padded, time-major sequence row and selecting the
 last valid emitted step. It is the implementation contract for
 [ROADMAP Item 1](../ROADMAP.md#1-add-explicit-sequence-lengths-and-safe-last-valid-selection).
-The `data.SequenceLengths`, `data.SequenceDataset`, `data.SequenceBatch`, and
-`layer.GatherLastValid` APIs and version `1` persistence in this document are
-implemented. The length-aware model APIs remain unavailable until their later
-implementation section in `TODO.md` is complete.
+The `data.SequenceLengths`, `data.SequenceDataset`, `data.SequenceBatch`,
+`layer.GatherLastValid`, and length-aware `model.Sequential` APIs in this
+document are implemented, including version `1` persistence. The complete
+caller guide and runnable example remain in the final documentation section of
+`TODO.md`.
 
 The design preserves the existing `matrix.Matrix`, `layer.Layer`,
 `data.Dataset`, `data.Batch`, `model.FitConfig`, and `model.Sequential`
