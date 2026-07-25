@@ -3,27 +3,36 @@
 Status: implemented additive post-v1 contract.
 
 This document records the public and behavioral contract for the initial
-recurrent neural network path. The milestone is additive to the reviewed
-dense-network v1 API and the implemented post-v1 CNN API. It does not change
-`layer.Layer`, `model.Sequential`, `data.Dataset`, losses, metrics, optimizers,
-or the physical representation of `matrix.Matrix`.
+recurrent neural network path and its additive explicit-length extension. The
+milestones are additive to the reviewed dense-network v1 API and the
+implemented post-v1 CNN API. They do not change `layer.Layer`, `data.Dataset`,
+`model.FitConfig`, losses, metrics, optimizers, or the physical representation
+of `matrix.Matrix`.
 
 ## Milestone
 
-The supported model shape is:
+The fixed-length model shape is:
 
 ```text
 flattened fixed-length sequence rows -> SimpleRNN -> LastStep -> Dense -> output activation
 ```
 
-Callers construct, train, evaluate, save, and load that model through the
-existing APIs. The recurrent implementation is a clear pure-Go CPU reference
-path. Correctness and deterministic behavior take priority over kernel
-optimization.
+The explicit-length model shape is:
+
+```text
+padded flattened rows -> SimpleRNN -> zero or more SimpleRNN layers
+    -> GatherLastValid -> Dense -> output activation
+```
+
+Fixed-length callers use the existing APIs. Padded many-to-one callers use the
+additive `SequenceLengths`, `SequenceDataset`, `GatherLastValid`, and
+length-aware `Sequential` APIs. The recurrent and gather implementations are
+clear pure-Go CPU reference paths. Correctness and deterministic behavior take
+priority over kernel optimization.
 
 ## Logical and Physical Layout
 
-A matrix row is one complete fixed-length sequence. Sequences use logical
+A matrix row is one complete physical sequence. Sequences use logical
 time-major `TF` order, so a batched matrix is logically `NTF`, with the matrix
 row serving as `N`. The physical input shape is:
 
@@ -37,11 +46,17 @@ Within a row, the flattened column for `(step, feature)` is:
 step*FeatureSize + feature
 ```
 
-The batch dimension is never included in this calculation. `data.Dataset`
-continues to store one sample per row, so its existing batching behavior keeps
-each sequence intact without knowing about logical sequence dimensions.
-Callers provide already flattened, fixed-length rows; this milestone adds no
-sequence-specific dataset or batching API.
+The batch dimension is never included in this calculation. For an
+explicit-length row `n`, `L[n]` identifies the positive valid prefix
+`0..L[n]-1`; steps `L[n]..steps-1` are a padded suffix. Lengths must be in the
+inclusive range `[1, steps]`. Physical matrix width never changes, and no
+feature column is consumed as metadata.
+
+`data.Dataset` continues to keep fixed-length sequences intact without knowing
+about logical dimensions. `data.SequenceDataset` owns and applies one shared
+row permutation to inputs, targets, and lengths for selection, batching,
+shuffling, partial batches, and splitting. Existing matrix-only APIs still
+treat every padded value as ordinary input.
 
 Steps, feature sizes, and hidden sizes are positive. Every flattened size must
 fit in an `int`, and validation detects overflow before multiplication or
@@ -51,10 +66,12 @@ public indexing contract.
 
 ## Public API
 
-All new symbols are in package `layer`. Constructors return errors with `layer`
-context when dimensions, dependencies, or derived shapes are invalid. The zero
-values of the new shape, configuration, and layer types are invalid. Valid
-shape and configuration values are immutable after construction.
+The recurrent shapes and layers live in package `layer`; aligned length and
+dataset types live in package `data`; and explicit invocation methods live in
+package `model`. Constructors return errors with package and operation context.
+The zero values of the new shape, configuration, carrier, dataset, and layer
+types are invalid. Valid shape and configuration values are immutable after
+construction.
 
 ### SequenceShape
 
@@ -136,6 +153,62 @@ func (l *LastStep) OutputSize() (size int)
 `OutputSize()` equals `InputShape().FeatureSize()`. `LastStep` exposes no
 general slice, gather, reshape, or sequence-to-sequence adapter. It has no
 parameters and no training mode.
+
+### Explicit sequence lengths and aligned data
+
+Package `data` adds immutable, copying sequence-specific carriers without
+changing `Dataset` or `Batch`:
+
+```go
+func NewSequenceLengths(steps int, values []int) (*SequenceLengths, error)
+type SequenceLengths
+
+func NewSequenceDataset(
+	inputs, targets *matrix.Matrix,
+	lengths *SequenceLengths,
+) (*SequenceDataset, error)
+type SequenceDataset
+type SequenceBatch
+```
+
+`SequenceLengths` reports its step and sample counts and provides copied
+`Values`, `ValuesInto`, and `SelectRowsInto` access. `SequenceDataset` and
+`SequenceBatch` parallel the owned matrix accessors while keeping lengths
+aligned. The complete signatures and failure-state contract are recorded in
+[sequence-lengths-design.md](sequence-lengths-design.md).
+
+### GatherLastValid
+
+```go
+func NewGatherLastValid(inputShape SequenceShape) (*GatherLastValid, error)
+
+type GatherLastValid struct { /* unexported fields */ }
+
+func (g *GatherLastValid) ForwardWithLengths(
+	input *matrix.Matrix,
+	lengths []int,
+) (*matrix.Matrix, error)
+func (g *GatherLastValid) BackwardWithLengths(
+	outputGradient *matrix.Matrix,
+) (*matrix.Matrix, error)
+func (g *GatherLastValid) InputShape() SequenceShape
+func (g *GatherLastValid) OutputSize() int
+```
+
+`GatherLastValid` implements `layer.Layer` for graph composition, but its
+ordinary `Forward` and `Backward` return errors directing callers to the
+explicit length-aware path. It has no parameters or training mode and never
+falls back to the physical final step.
+
+### Length-aware model operations
+
+`Sequential` adds `PredictWithLengths`, `BackwardWithLengths`,
+`TrainBatchWithLengths`, and `FitWithLengths`. `SequenceFitConfig` mirrors the
+existing fit controls and accepts `*data.SequenceDataset` for validation.
+These methods require exactly one `GatherLastValid`, validate that carrier
+steps match its input shape, and bind lengths to one model operation without a
+setter or global state. Existing `Predict`, `Backward`, `TrainBatch`, `Fit`,
+and `FitConfig` remain unchanged.
 
 ## Recurrent Forward Semantics
 
@@ -234,6 +307,12 @@ forward pass, the output gradient must have the same batch size and exactly
 input and hidden history used by backward. The returned input gradient has
 physical shape `[batch, InputShape().Size()]`.
 
+With `GatherLastValid`, `SimpleRNN` still computes every physical step.
+Gather backward places the direct gradient only at `L[n]-1`; the unchanged
+recurrent backward calculation then propagates through the valid prefix.
+Suffix steps receive no direct or recurrent contribution from the selected
+earlier step. This is safe last-valid selection, not masking within recurrence.
+
 ## Last-Step Semantics
 
 `LastStep.Forward` accepts `[batch, inputShape.Size()]` and copies the final
@@ -255,28 +334,53 @@ therefore preserve every numeric value while still returning independent
 layer-owned matrices; they are validating copies, not aliases or special-case
 views.
 
+## Last-Valid Semantics
+
+`GatherLastValid.ForwardWithLengths` accepts `[batch, inputShape.Size()]` plus
+one length per row and returns `[batch, OutputSize()]`. For row `n`:
+
+```text
+output[n, feature] =
+    input[n, (length[n]-1)*FeatureSize + feature]
+```
+
+Backward returns `[batch, inputShape.Size()]`, writes the supplied row gradient
+at that same selected step, and writes zero everywhere else. Validation of the
+receiver, matrix width, count, and every length precedes indexing or backward
+state changes.
+
+A successful forward owns the row count and a copy of the selected lengths. A
+later forward attempt invalidates that state before validation. An invalid
+direct backward leaves a valid matching snapshot available for a corrected
+gradient. At the model boundary, any ordinary prediction attempt or failed
+length-aware prediction/backward invalidates the prior association;
+`TrainBatchWithLengths` clears it on every return.
+
 ## Ownership and Scratch Results
 
 `SimpleRNN` copies the caller input needed by backward and caches the hidden
 values from the most recent valid forward pass. It does not retain
 caller-owned matrix storage, so mutating the input after `Forward` cannot alter
 the subsequent gradient calculation. `LastStep` retains only the most recent
-valid batch size needed to validate backward and does not retain caller-owned
-matrix storage.
+valid batch size needed to validate backward. `GatherLastValid` copies the
+length values it needs. `SequenceLengths`, `SequenceDataset`, sequence batches,
+and splits own their values, while their allocating accessors return copies
+and destination accessors retain nothing.
 
-Valid forward outputs and backward input gradients from both layers do not
-alias their arguments. Results are layer-owned scratch matrices, so a later
-call on the same layer may reuse and overwrite a previously returned result.
-Callers that require longer ownership must clone it. Invalid calls do not
-establish a valid backward cache.
+Valid forward outputs and backward input gradients do not alias their
+arguments. Results are layer-owned scratch matrices, so a later call on the
+same layer may reuse and overwrite a previously returned result. Callers that
+require longer ownership must clone it. Invalid calls do not establish a valid
+backward cache.
 
 ## Interoperability
 
 The existing `layer.Layer` matrix contract remains unchanged. A
 `SequenceShape` supplies logical interpretation without introducing another
 runtime container. `SimpleRNN` output can feed another `SimpleRNN` configured
-with its `OutputShape()`. `LastStep` provides the explicit transition from an
-all-steps recurrent result to an existing `Dense` layer.
+with its `OutputShape()`. `LastStep` provides the fixed physical-final-step
+transition. `GatherLastValid` provides the explicit-length transition after
+the final recurrent layer; one length carrier reaches that single boundary.
 
 Existing elementwise activation and dropout layers can operate on flattened
 sequence values, although `SimpleRNN` already applies its internal tanh.
@@ -285,29 +389,33 @@ separate feature; it is not recurrent or temporal batch normalization.
 Existing `Dense` transforms the complete physical row and is not a
 time-distributed projection.
 
-The initial data path is `data.Dataset` populated with pre-flattened sequence
-rows. Existing batching selects complete rows and therefore complete
-sequences. Losses and metrics see the final matrix output and require no
-RNN-specific changes. `SimpleRNN` exposes `optimizer.Parameter` values and
-participates in the private sequential parameter-enumeration interfaces;
-`LastStep` contributes no parameters.
+Fixed-length data uses `data.Dataset`; explicit-length supervised data uses
+`data.SequenceDataset`. Losses and metrics see the final matrix output and
+require no RNN-specific changes. `SimpleRNN` exposes `optimizer.Parameter`
+values and participates in private sequential parameter enumeration.
+`LastStep`, `GatherLastValid`, and the length/data carriers contribute no
+parameters, so stable parameter order is unchanged.
 
 ## Serialization Compatibility
 
 RNN support extends the existing `neuralnetwork.sequential` JSON format at
 version `1`; it does not introduce version `2`. The additive layer type names
-are `simple_rnn` and `last_step`.
+are `simple_rnn`, `last_step`, and `gather_last_valid`.
 
 A `simple_rnn` layer record stores `steps`, `feature_size`, `hidden_size`,
 `input_weights`, `recurrent_weights`, and `biases`. A `last_step` layer record
-stores `steps` and `feature_size`. These are constructor inputs and trainable
+stores `steps` and `feature_size`. A `gather_last_valid` record also stores
+only `steps` and `feature_size`. These are constructor inputs and trainable
 values only. Output shapes are derived and validated rather than serialized.
 
 Serialization does not store accumulated gradients, optimizer state, input
-caches, hidden histories, scratch storage, the most recent batch size, carried
-state, or other forward-pass state. A loaded `SimpleRNN` has zero gradients and
-requires a new forward pass before backward, like a newly constructed layer.
-A loaded `LastStep` likewise requires a new forward pass before backward.
+caches, hidden histories, scratch storage, the most recent batch size, logical
+lengths, gathered-length snapshots, datasets, carried state, or other
+forward-pass state. A loaded `SimpleRNN` has zero gradients and requires a new
+forward pass before backward, like a newly constructed layer. A loaded
+`LastStep` likewise requires a new forward pass before backward. A loaded
+length-aware model requires a caller-supplied `PredictWithLengths` before
+`BackwardWithLengths`.
 
 Compatibility is:
 
@@ -315,9 +423,9 @@ Compatibility is:
   saved and continue to load with the extended reader.
 * Existing ANN and CNN programs and public APIs remain source-compatible.
 * An older version `1` reader can still read documents containing only layer
-  types it knows. When given an RNN document, it rejects the unknown RNN layer
-  type; it cannot load that model and must not silently substitute or skip the
-  layer.
+  types it knows. When given an RNN or last-valid document with an unknown
+  additive type, it rejects the document and must not silently substitute or
+  skip the layer.
 * Unsupported custom layers and unknown serialized layer types continue to
   fail with layer-index context.
 
@@ -330,13 +438,15 @@ changed meaning requires a new format version and explicit migration handling.
 
 The initial milestone supports:
 
-* Batched, fixed-length, time-major sequence rows in row-major `float32`
-  matrices.
+* Batched, fixed-length or padded explicit-length, time-major sequence rows in
+  row-major `float32` matrices.
 * A stateless, zero-initialized Elman `SimpleRNN` with fixed tanh activation and
   all-steps output.
 * Full backpropagation through every configured step and summed parameter
   gradients.
 * A validating `LastStep` adapter for many-to-one models.
+* An explicit `GatherLastValid` adapter with aligned, positive per-row lengths,
+  length-aware prediction/backward/training/fitting, and sequence datasets.
 * Stacking recurrent layers and composition with existing dense layers,
   elementwise layers, datasets, losses, metrics, optimizers, training, and
   sequential serialization.
@@ -345,11 +455,10 @@ The initial milestone supports:
 
 The following remain deferred:
 
-* Variable-length, ragged, padded-and-masked, or packed sequence inputs.
-  Padding supplied by a caller is treated as ordinary input in this milestone.
-  A focused explicit-length last-valid path is
-  [approved but not yet implemented](sequence-lengths-design.md); general
-  masking and ragged or packed storage remain deferred.
+* Ragged or packed sequence storage, arbitrary masks, zero-length rows, left
+  padding, interior holes, and multiple valid spans. Existing APIs still treat
+  padding as ordinary input, and the explicit path does not mask recurrent
+  computation.
 * Learned or caller-provided initial state, returned final state, state carry
   between calls, stateful training, and streaming inference.
 * Truncated backpropagation through time, explicit graph detachment, and
@@ -366,7 +475,7 @@ The following remain deferred:
   kernels.
 
 These requirements do not justify a generic tensor abstraction, a replacement
-sequence container, or any change to the stable `layer.Layer` matrix contract.
-The explicit flattened fixed-length representation supplies all structure the
-initial recurrent path needs. A broader container would be a repository-wide
-API decision and requires separate maintainer direction.
+runtime sequence container, or any change to the stable `layer.Layer` matrix
+contract. Flattened matrices plus explicit lengths supply the focused
+last-valid boundary. A broader container remains a repository-wide API
+decision and requires separate maintainer direction.
