@@ -108,8 +108,12 @@ copies of their matrices so callers can mutate source data without changing
 stored samples. Batching and splitting preserve order when the random source is
 nil and shuffle deterministically when callers provide a seeded `*rand.Rand`.
 
-See [docs/data.md](docs/data.md) for CSV, batching, and train/test split
-contracts.
+For padded sequence rows, `data.NewSequenceLengths` validates one positive
+logical length per row and `data.NewSequenceDataset` keeps inputs, targets, and
+lengths aligned through batching, shuffling, and splitting.
+
+See [docs/data.md](docs/data.md) for CSV, batching, train/test split, ownership,
+and aligned sequence-data contracts.
 
 ## Convolutional Networks
 
@@ -125,17 +129,19 @@ on synthetic horizontal and vertical line images without external downloads.
 
 ## Recurrent Networks
 
-The initial RNN path represents each fixed-length sequence as one flattened
-matrix row in time-major `TF` order. A stateless, fixed-tanh `SimpleRNN`
-returns every hidden step, `LastStep` selects the final hidden vector, and an
-existing `Dense` layer produces a many-to-one prediction through the unchanged
-`model.Sequential` and `data.Dataset` APIs.
+The RNN path represents each physical sequence as one flattened matrix row in
+time-major `TF` order. A stateless, fixed-tanh `SimpleRNN` returns every hidden
+step. `LastStep` selects the physical final hidden vector for fixed-length
+callers. For padded rows, `GatherLastValid` selects each positive logical
+length's final valid hidden vector through explicit length-aware model and
+dataset APIs.
 
 See the [RNN guide](docs/rnn.md) for layout and recurrence formulas,
-construction, training, serialization, ownership, determinism, statelessness,
-and current limitations. The runnable
-[minimal RNN example](examples/rnn/main.go) trains a deterministic classifier
-whose label depends on temporal order, without external downloads.
+fixed-length and padded construction, training, migration, serialization,
+ownership, determinism, statelessness, and current limitations. The runnable
+[fixed-length RNN example](examples/rnn/main.go) and
+[explicit-length RNN example](examples/rnn_lengths/main.go) train deterministic
+temporal-order classifiers without external downloads.
 
 ## Training Controls
 
@@ -157,7 +163,8 @@ Built-in regularizers include `optimizer.NewL1` and
 The `layer` package includes dense layers, activation layers, inverted dropout,
 per-feature batch normalization, trainable two-dimensional convolution,
 parameter-free two-dimensional max pooling, a spatial-to-dense flatten adapter,
-a stateless `SimpleRNN`, and a sequence-to-dense `LastStep` adapter.
+a stateless `SimpleRNN`, a fixed-length sequence-to-dense `LastStep` adapter,
+and an explicit-length `GatherLastValid` adapter.
 `layer.NewSpatialShape`, `layer.NewConv2DConfig`, and
 `layer.NewMaxPool2DConfig` validate explicit channels-first spatial geometry;
 `layer.NewSequenceShape` and `layer.NewSimpleRNNConfig` validate explicit
@@ -181,17 +188,19 @@ target expectations, and confusion-matrix orientation are documented in
 Use `Sequential.Save` and `model.LoadSequential` to persist sequential models
 with the v1 JSON contract. The format is `neuralnetwork.sequential`, version
 `1`, and supports `dense`, `activation`, `dropout`, `batch_normalization`,
-`conv2d`, `max_pool2d`, `flatten`, `simple_rnn`, and `last_step` layers. CNN and
-RNN layer names and fields are additive: existing ANN- and CNN-only version `1`
-documents retain their encoding and compatibility. Older readers reject RNN
-documents whose additive layer types they do not recognize.
+`conv2d`, `max_pool2d`, `flatten`, `simple_rnn`, `last_step`, and
+`gather_last_valid` layers. CNN and RNN layer names and fields are additive.
+The gather record stores its sequence shape but not invocation lengths.
+Existing ANN-, CNN-, and fixed-length RNN version `1` documents retain their
+encoding and compatibility. Older readers reject documents whose additive
+layer types they do not recognize.
 
 Serialization stores model structure and layer parameters. It does not store
 optimizer state, accumulated gradients, training history, callbacks,
 learning-rate schedules, forward caches, recurrent hidden histories, or
-original random source state. Loaded dropout layers use deterministic local
-random sources, and loaded recurrent layers begin with zero gradients and fresh
-forward state.
+gathered-length snapshots or original random source state. Loaded dropout
+layers use deterministic local random sources, and loaded recurrent and
+length-aware layers begin with zero gradients and fresh forward state.
 
 ## Optional Metal Acceleration
 
@@ -251,6 +260,12 @@ Run the deterministic synthetic RNN temporal-order classifier with:
 
 ```sh
 go run ./examples/rnn
+```
+
+Run the deterministic mixed-length padded RNN classifier with:
+
+```sh
+go run ./examples/rnn_lengths
 ```
 
 Run the XOR smoke test with:

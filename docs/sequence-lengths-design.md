@@ -1,6 +1,6 @@
 # Explicit Sequence Lengths and Last-Valid Selection
 
-Status: approved, data plumbing, last-valid selection, persistence, and model integration implemented.
+Status: implemented.
 
 This document freezes the additive contract for associating one positive
 logical length with every padded, time-major sequence row and selecting the
@@ -9,8 +9,8 @@ last valid emitted step. It is the implementation contract for
 The `data.SequenceLengths`, `data.SequenceDataset`, `data.SequenceBatch`,
 `layer.GatherLastValid`, and length-aware `model.Sequential` APIs in this
 document are implemented, including version `1` persistence. The complete
-caller guide and runnable example remain in the final documentation section of
-`TODO.md`.
+caller workflow is documented in [rnn.md](rnn.md) and demonstrated by the
+runnable [explicit-length RNN example](../examples/rnn_lengths/main.go).
 
 The design preserves the existing `matrix.Matrix`, `layer.Layer`,
 `data.Dataset`, `data.Batch`, `model.FitConfig`, and `model.Sequential`

@@ -98,6 +98,33 @@ The version `1` serialization vocabulary also accepts `simple_rnn` and
 encoding; older readers reject documents containing unknown additive RNN layer
 types.
 
+## Additive Post-v1 Explicit-Length Surface
+
+The explicit-length milestone adds focused aligned data, selector, and model
+APIs without revising the accepted ANN, CNN, or fixed-length RNN surfaces:
+
+| Package | Type | Additive APIs |
+| --- | --- | --- |
+| `data` | Validated lengths | `NewSequenceLengths`; `SequenceLengths` with `Validate`, `Steps`, `SampleCount`, `Values`, `ValuesInto`, and `SelectRowsInto`. |
+| `data` | Aligned dataset | `NewSequenceDataset`; `SequenceDataset` with `Validate`, `Inputs`, `Targets`, `Lengths`, `InputsInto`, `TargetsInto`, `LengthsInto`, `SelectRowsInto`, `SampleCount`, `InputSize`, `TargetSize`, `Steps`, `Batches`, and `Split`. |
+| `data` | Aligned batch | `SequenceBatch` with `Inputs`, `Targets`, `Lengths`, `InputsInto`, `TargetsInto`, `LengthsInto`, `SampleCount`, and `Steps`. Construction remains owned by `SequenceDataset.Batches`. |
+| `layer` | Last-valid adapter | `NewGatherLastValid`; `GatherLastValid` with `Forward`, `Backward`, `ForwardWithLengths`, `BackwardWithLengths`, `InputShape`, and `OutputSize`. |
+| `model` | Explicit operations | `Sequential` methods `PredictWithLengths`, `BackwardWithLengths`, `TrainBatchWithLengths`, and `FitWithLengths`; `SequenceFitConfig` fields `Epochs`, `BatchSize`, `Shuffle`, `Random`, `Optimizer`, `LearningRateSchedule`, `EarlyStopping`, `Loss`, `ValidationData`, `Accuracy`, and `Callback`. |
+
+Padded values remain ordinary matrix values. Lengths describe a positive valid
+prefix and are consumed only by the explicit model path at one
+`GatherLastValid` boundary. `LastStep`, `SimpleRNN`, `Dataset`, `Batch`,
+`FitConfig`, and existing `Sequential` methods retain their behavior. The
+detailed contract is recorded in
+[sequence-lengths-design.md](sequence-lengths-design.md), with construction,
+training, migration, and persistence guidance in [rnn.md](rnn.md).
+
+The version `1` serialization vocabulary also accepts
+`gather_last_valid`, whose record contains only `steps` and `feature_size`.
+Logical lengths and runtime gather state are not serialized. Existing ANN-,
+CNN-, `simple_rnn`-, and `last_step`-containing documents retain their
+encoding; older readers reject the unknown additive gather type.
+
 ## Constructor Review
 
 Constructors validate required dimensions and nil dependencies before returning
