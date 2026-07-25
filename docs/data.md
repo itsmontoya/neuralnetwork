@@ -117,4 +117,11 @@ same floored split calculation as `Dataset.Split`, and must both be non-empty.
 
 These types carry supervised row alignment only. They do not reinterpret
 padding, mask recurrent computation, or make the existing matrix-only dataset
-APIs length-aware.
+APIs length-aware. Use them with `model.FitWithLengths` and
+`model.SequenceFitConfig`; direct prediction and one-batch training instead
+pair `SequenceLengths` with `PredictWithLengths` and
+`TrainBatchWithLengths`.
+
+See the [RNN guide](rnn.md) and the runnable
+[explicit-length RNN example](../examples/rnn_lengths/main.go) for the complete
+last-valid workflow.
