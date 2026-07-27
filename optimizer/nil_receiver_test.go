@@ -11,6 +11,7 @@ func Test_NilReceivers_ReturnZeroValues(t *testing.T) {
 		sgd                 *optimizer.SGD
 		momentum            *optimizer.Momentum
 		adam                *optimizer.Adam
+		clipping            *optimizer.GradientClipping
 		l1                  *optimizer.L1
 		decay               *optimizer.L2WeightDecay
 		regularized         *optimizer.Regularized
@@ -55,6 +56,30 @@ func Test_NilReceivers_ReturnZeroValues(t *testing.T) {
 
 	if epsilon = adam.Epsilon(); epsilon != 0 {
 		t.Fatalf("Adam Epsilon = %g, want 0", epsilon)
+	}
+
+	if learningRate = clipping.LearningRate(); learningRate != 0 {
+		t.Fatalf("GradientClipping LearningRate = %g, want 0", learningRate)
+	}
+
+	if clipping.Base() != nil {
+		t.Fatal("GradientClipping Base returned non-nil optimizer")
+	}
+
+	if clipping.Config() != (optimizer.GradientClippingConfig{}) {
+		t.Fatalf("GradientClipping Config = %+v, want zero value", clipping.Config())
+	}
+
+	var clippingObservation optimizer.GradientClippingObservation
+	var clippingObservationAvailable bool
+	clippingObservation, clippingObservationAvailable = clipping.Observation()
+	if clippingObservationAvailable ||
+		clippingObservation != (optimizer.GradientClippingObservation{}) {
+		t.Fatalf(
+			"GradientClipping Observation = %+v/%t, want zero value/unavailable",
+			clippingObservation,
+			clippingObservationAvailable,
+		)
 	}
 
 	if coefficient = l1.Coefficient(); coefficient != 0 {
@@ -177,6 +202,15 @@ func Test_NilReceivers_SettersReturnErrors(t *testing.T) {
 				var adam *optimizer.Adam
 
 				err = adam.SetEpsilon(1e-8)
+				return err
+			},
+		},
+		{
+			name: "gradient clipping learning rate",
+			set: func() (err error) {
+				var clipping *optimizer.GradientClipping
+
+				err = clipping.SetLearningRate(0.1)
 				return err
 			},
 		},

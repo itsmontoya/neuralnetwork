@@ -9,11 +9,11 @@ implemented post-v1 CNN API. They do not change `layer.Layer`, `data.Dataset`,
 `model.FitConfig`, losses, metrics, optimizers, or the physical representation
 of `matrix.Matrix`.
 
-The additive optimizer-level gradient clipping API is frozen separately in
-[gradient-clipping-design.md](gradient-clipping-design.md). Its production
-implementation is pending. That contract preserves the recurrent behavior
-below and clips only the complete accumulated parameter gradients immediately
-before optimizer update state consumes them.
+The additive optimizer-level gradient clipping API is implemented separately
+under [gradient-clipping-design.md](gradient-clipping-design.md). It preserves
+the recurrent behavior below and clips only the complete accumulated parameter
+gradients immediately before optimizer update state consumes them. Focused
+model and recurrent integration proof remains pending.
 
 ## Milestone
 
@@ -469,8 +469,9 @@ The following remain deferred:
   between calls, stateful training, and streaming inference.
 * Truncated backpropagation through time, explicit graph detachment, and
   unbounded sequences.
-* The accepted opt-in optimizer-level clipping contract remains pending
-  implementation; it does not change recurrent backward behavior when added.
+* Focused end-to-end recurrent verification of the implemented opt-in
+  optimizer-level clipping boundary remains pending; the wrapper itself does
+  not change recurrent backward behavior.
 * Configurable recurrent activations and recurrent or variational dropout.
 * LSTM, GRU, bidirectional recurrence, encoder-decoder models, attention, and
   transformer layers.

@@ -15,11 +15,13 @@ func Test_Optimizer_Interface(t *testing.T) {
 
 type mockOptimizer struct {
 	learningRate       float32
+	updateCalls        int
 	updateFunc         func(parameters []*optimizer.Parameter) (err error)
 	setLearningRateErr error
 }
 
 func (m *mockOptimizer) Update(parameters []*optimizer.Parameter) (err error) {
+	m.updateCalls++
 	if m.updateFunc != nil {
 		err = m.updateFunc(parameters)
 		return err

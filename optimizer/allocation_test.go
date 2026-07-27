@@ -8,6 +8,10 @@ import (
 )
 
 var allocationOptimizerParameters []*optimizer.Parameter
+var allocationGradientClippingConfig optimizer.GradientClippingConfig
+var allocationGradientClippingObservation optimizer.GradientClippingObservation
+var allocationGradientClippingBase optimizer.Optimizer
+var allocationGradientClippingAvailable bool
 
 func Test_OptimizerSteadyStateUpdateAllocations(t *testing.T) {
 	tests := []struct {
@@ -164,6 +168,175 @@ func Test_RegularizedOptimizerSteadyStateUpdateAllocations(t *testing.T) {
 			allocationOptimizerParameters = parameters
 		})
 	}
+}
+
+func Test_GradientClippingSteadyStateUpdateAllocations(t *testing.T) {
+	type testcase struct {
+		name      string
+		config    optimizer.GradientClippingConfig
+		duplicate bool
+		wrap      func(testing.TB, optimizer.Optimizer, optimizer.GradientClippingConfig) optimizer.Optimizer
+	}
+
+	tests := []testcase{
+		{
+			name:   "value",
+			config: optimizer.GradientClippingConfig{MaxValue: 0.025},
+			wrap:   allocationNewGradientClipping,
+		},
+		{
+			name:   "norm",
+			config: optimizer.GradientClippingConfig{MaxNorm: 0.04},
+			wrap:   allocationNewGradientClipping,
+		},
+		{
+			name:   "combined",
+			config: optimizer.GradientClippingConfig{MaxValue: 0.025, MaxNorm: 0.04},
+			wrap:   allocationNewGradientClipping,
+		},
+		{
+			name:      "duplicate reference",
+			config:    optimizer.GradientClippingConfig{MaxNorm: 0.04},
+			duplicate: true,
+			wrap:      allocationNewGradientClipping,
+		},
+		{
+			name:   "regularize then clip",
+			config: optimizer.GradientClippingConfig{MaxValue: 0.025, MaxNorm: 0.04},
+			wrap:   allocationNewRegularizedGradientClipping,
+		},
+		{
+			name:   "clip then regularize",
+			config: optimizer.GradientClippingConfig{MaxValue: 0.025, MaxNorm: 0.04},
+			wrap:   allocationNewGradientClippingRegularized,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				base          optimizer.Optimizer
+				optimizerRule optimizer.Optimizer
+				parameters    []*optimizer.Parameter
+				gradients     []*matrix.Matrix
+				err           error
+			)
+
+			base = allocationNewSGD(t)
+			optimizerRule = tt.wrap(t, base, tt.config)
+			parameters, gradients = allocationOptimizerParametersAndGradients(t)
+			if tt.duplicate {
+				parameters = append(parameters, parameters[0])
+				gradients = append(gradients, gradients[0])
+			}
+			if err = allocationAccumulateGradients(parameters, gradients); err != nil {
+				t.Fatalf("AccumulateGradient returned error: %v", err)
+			}
+			if err = optimizerRule.Update(parameters); err != nil {
+				t.Fatalf("warm-up Update returned error: %v", err)
+			}
+
+			requireMaxAllocs(t, tt.name, 0, func() {
+				if err = allocationAccumulateGradients(parameters, gradients); err != nil {
+					panic(err)
+				}
+				if err = optimizerRule.Update(parameters); err != nil {
+					panic(err)
+				}
+			})
+
+			allocationOptimizerParameters = parameters
+		})
+	}
+}
+
+func Test_GradientClippingAccessorAllocations(t *testing.T) {
+	var (
+		base     optimizer.Optimizer
+		clipping *optimizer.GradientClipping
+	)
+
+	base = allocationNewSGD(t)
+	clipping = allocationNewGradientClipping(
+		t,
+		base,
+		optimizer.GradientClippingConfig{MaxNorm: 1},
+	).(*optimizer.GradientClipping)
+
+	requireMaxAllocs(t, "gradient clipping accessors", 0, func() {
+		allocationGradientClippingBase = clipping.Base()
+		allocationGradientClippingConfig = clipping.Config()
+		allocationGradientClippingObservation,
+			allocationGradientClippingAvailable = clipping.Observation()
+	})
+}
+
+func allocationNewGradientClipping(
+	tb testing.TB,
+	base optimizer.Optimizer,
+	config optimizer.GradientClippingConfig,
+) (optimizerRule optimizer.Optimizer) {
+	var (
+		clipping *optimizer.GradientClipping
+		err      error
+	)
+
+	tb.Helper()
+
+	clipping, err = optimizer.NewGradientClipping(base, config)
+	if err != nil {
+		tb.Fatalf("NewGradientClipping returned error: %v", err)
+	}
+	return clipping
+}
+
+func allocationNewRegularizedGradientClipping(
+	tb testing.TB,
+	base optimizer.Optimizer,
+	config optimizer.GradientClippingConfig,
+) (optimizerRule optimizer.Optimizer) {
+	var (
+		clipping     optimizer.Optimizer
+		regularized  *optimizer.Regularized
+		regularizers []optimizer.Regularizer
+		err          error
+	)
+
+	tb.Helper()
+
+	clipping = allocationNewGradientClipping(tb, base, config)
+	regularizers = allocationNewL1L2Regularizers(tb)
+	regularized, err = optimizer.NewRegularized(clipping, regularizers...)
+	if err != nil {
+		tb.Fatalf("NewRegularized returned error: %v", err)
+	}
+	return regularized
+}
+
+func allocationNewGradientClippingRegularized(
+	tb testing.TB,
+	base optimizer.Optimizer,
+	config optimizer.GradientClippingConfig,
+) (optimizerRule optimizer.Optimizer) {
+	var (
+		clipping     *optimizer.GradientClipping
+		regularized  *optimizer.Regularized
+		regularizers []optimizer.Regularizer
+		err          error
+	)
+
+	tb.Helper()
+
+	regularizers = allocationNewL1L2Regularizers(tb)
+	regularized, err = optimizer.NewRegularized(base, regularizers...)
+	if err != nil {
+		tb.Fatalf("NewRegularized returned error: %v", err)
+	}
+	clipping, err = optimizer.NewGradientClipping(regularized, config)
+	if err != nil {
+		tb.Fatalf("NewGradientClipping returned error: %v", err)
+	}
+	return clipping
 }
 
 func allocationNewSGD(tb testing.TB) (optimizerRule optimizer.Optimizer) {
