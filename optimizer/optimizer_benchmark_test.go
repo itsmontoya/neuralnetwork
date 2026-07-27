@@ -60,6 +60,53 @@ func Benchmark_AdamUpdate_SteadyState(b *testing.B) {
 	benchmarkOptimizerUpdate(b, optimizerRule, parameters, gradients)
 }
 
+func Benchmark_GradientClippingUpdate_SteadyState(b *testing.B) {
+	tests := []struct {
+		name   string
+		config optimizer.GradientClippingConfig
+	}{
+		{
+			name:   "Value",
+			config: optimizer.GradientClippingConfig{MaxValue: 0.25},
+		},
+		{
+			name:   "Norm",
+			config: optimizer.GradientClippingConfig{MaxNorm: 1},
+		},
+		{
+			name: "Combined",
+			config: optimizer.GradientClippingConfig{
+				MaxValue: 0.25,
+				MaxNorm:  1,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			var (
+				base          *optimizer.SGD
+				optimizerRule *optimizer.GradientClipping
+				parameters    []*optimizer.Parameter
+				gradients     []*matrix.Matrix
+				err           error
+			)
+
+			parameters, gradients = benchmarkOptimizerParametersAndGradients(b)
+			base, err = optimizer.NewSGD(0.01)
+			if err != nil {
+				b.Fatalf("NewSGD returned error: %v", err)
+			}
+			optimizerRule, err = optimizer.NewGradientClipping(base, tt.config)
+			if err != nil {
+				b.Fatalf("NewGradientClipping returned error: %v", err)
+			}
+
+			benchmarkOptimizerUpdate(b, optimizerRule, parameters, gradients)
+		})
+	}
+}
+
 func Benchmark_RegularizedUpdate_SteadyState(b *testing.B) {
 	var tests []struct {
 		name string
