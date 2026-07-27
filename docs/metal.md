@@ -369,12 +369,13 @@ setter, and all custom implementations remain CPU operations. Flatten may
 eventually be represented as a metadata-only view, but it is a CPU boundary in
 this milestone so no new alias contract is introduced.
 
-The accepted, implementation-pending
+The implemented
 [gradient clipping contract](gradient-clipping-design.md) also uses this
 correctness-first CPU fallback. A clipping wrapper around SGD is not a direct
 `*optimizer.SGD`, so model orchestration completes the existing fallback
 barrier before the wrapper observes or mutates gradients. Plain unwrapped SGD
-retains the resident path described here.
+retains the resident path described here. Focused Metal-tagged end-to-end
+fallback proof remains part of the model integration session.
 
 Unsupported built-in and custom operations are never skipped. Before a custom
 layer, activation, loss, optimizer, regularizer, metric, or Go callback reads a

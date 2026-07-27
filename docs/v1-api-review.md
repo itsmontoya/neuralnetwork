@@ -125,6 +125,31 @@ Logical lengths and runtime gather state are not serialized. Existing ANN-,
 CNN-, `simple_rnn`-, and `last_step`-containing documents retain their
 encoding; older readers reject the unknown additive gather type.
 
+## Additive Post-v1 Optimizer Clipping Surface
+
+The opt-in gradient clipping milestone adds the following `optimizer` APIs
+without revising the accepted v1 optimizer interface or model configuration:
+
+| Type | Additive APIs |
+| --- | --- |
+| Clipping configuration | `GradientClippingConfig` fields `MaxValue` and `MaxNorm`. |
+| Clipping observation | `GradientClippingObservation` fields `ValueClipped`, `GlobalNorm`, `Scale`, and `BaseUpdateCompleted`. |
+| Optimizer wrapper | `NewGradientClipping`; `GradientClipping` with `Update`, `LearningRate`, `SetLearningRate`, `Base`, `Config`, and `Observation`. |
+
+The wrapper applies enabled value clipping followed by enabled global-norm
+clipping to the complete ordered parameter-gradient set before delegating once
+to any existing `Optimizer`. Wrapper nesting explicitly determines whether
+regularization runs before or after clipping. The detailed arithmetic,
+validation, observation, ownership, allocation, fallback, and composition
+contract is recorded in
+[gradient-clipping-design.md](gradient-clipping-design.md).
+
+`Sequential.Save` and `LoadSequential` remain unchanged. Clipping
+configuration, reusable scratch, observations, base optimizer state,
+regularizers, accumulated gradients, schedules, and training history are not
+part of model format `neuralnetwork.sequential`, version `1`. Callers
+reconstruct the optimizer wrapper after loading.
+
 ## Constructor Review
 
 Constructors validate required dimensions and nil dependencies before returning

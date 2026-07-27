@@ -1,13 +1,16 @@
 # Gradient Clipping Design
 
-Status: accepted implementation contract; production implementation pending.
+Status: implemented additive optimizer contract; model and recurrent integration
+verification pending.
 
 This document freezes the additive public and behavioral contract for
 [ROADMAP Item 2](../ROADMAP.md#2-add-opt-in-gradient-clipping-and-recurrent-training-controls).
-The declarations below are approved for implementation, but they are not
-available in package `optimizer` yet. They must not be added to the additive
-post-v1 API inventory in [v1-api-review.md](v1-api-review.md) until the
-implementation and focused optimizer tests are complete.
+The declarations below are implemented in package `optimizer` and recorded in
+the additive post-v1 API inventory in
+[v1-api-review.md](v1-api-review.md). Focused optimizer tests cover the
+arithmetic, validation, observation, composition, allocation, and deterministic
+behavior frozen here. Model, recurrent, and Metal fallback integration proof
+remains a separate implementation session.
 
 The design adds one opt-in optimizer wrapper. It transforms accumulated
 `optimizer.Parameter` gradients immediately before its base optimizer consumes
@@ -41,7 +44,7 @@ automatically.
 
 ## Public API
 
-Package `optimizer` will add exactly these declarations:
+Package `optimizer` adds exactly these declarations:
 
 ```go
 type GradientClippingConfig struct {
@@ -709,9 +712,10 @@ This path must:
 * match the CPU clipping observation and parameter update within the existing
   Metal training tolerances.
 
-Section 2 must not change `supportsResidentUpdate`. Section 3 supplies the
-Metal-tagged end-to-end fallback proof. A future device clipping kernel or
-broader resident optimizer stack requires separate measured design work.
+The optimizer implementation does not change `supportsResidentUpdate`.
+The model and recurrent integration session supplies the Metal-tagged
+end-to-end fallback proof. A future device clipping kernel or broader resident
+optimizer stack requires separate measured design work.
 
 ## Compatibility and Non-Goals
 
@@ -744,7 +748,7 @@ The accepted addition does not include:
 
 ## Implementation File Map
 
-The implementation sessions should remain focused:
+The implementation and integration sessions remain focused:
 
 ```text
 optimizer/gradient_clipping_config.go
