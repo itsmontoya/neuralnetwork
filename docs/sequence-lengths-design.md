@@ -745,3 +745,9 @@ masking within recurrence, masked sequence-to-sequence losses or metrics,
 state input/output or carry, streaming, truncation, detachment, clipping,
 recurrent dropout, general sequence adapters, a Metal gather kernel, or a
 general container/layer redesign.
+
+The later opt-in optimizer-level clipping boundary is now frozen in
+[gradient-clipping-design.md](gradient-clipping-design.md), with production
+implementation pending. It consumes the complete accumulated gradients after
+this document's last-valid routing and unchanged recurrent backward pass; it
+does not revise the explicit-length contract.
