@@ -158,6 +158,70 @@ Regularization wraps an existing optimizer with `optimizer.NewRegularized`.
 Built-in regularizers include `optimizer.NewL1` and
 `optimizer.NewL2WeightDecay`.
 
+Gradient clipping is also an optimizer wrapper. A zero field disables that
+control, while at least one positive finite limit is required:
+
+```go
+// Choose one configuration.
+config := optimizer.GradientClippingConfig{MaxValue: 1} // value only
+// config := optimizer.GradientClippingConfig{MaxNorm: 5} // norm only
+// config := optimizer.GradientClippingConfig{MaxValue: 1, MaxNorm: 5} // combined
+
+base, err := optimizer.NewAdam(0.001)
+if err != nil {
+	return err
+}
+
+optimizerRule, err := optimizer.NewGradientClipping(base, config)
+if err != nil {
+	return err
+}
+```
+
+When both controls are enabled, value clipping runs before one global norm is
+computed across the complete ordered parameter set. To bound the combined
+data and regularization gradient, use `Regularized` as the outer wrapper:
+
+```go
+base, err := optimizer.NewAdam(0.001)
+if err != nil {
+	return err
+}
+
+clipping, err := optimizer.NewGradientClipping(
+	base,
+	optimizer.GradientClippingConfig{MaxNorm: 5},
+)
+if err != nil {
+	return err
+}
+
+l2, err := optimizer.NewL2WeightDecay(0.0001)
+if err != nil {
+	return err
+}
+
+optimizerRule, err := optimizer.NewRegularized(clipping, l2)
+if err != nil {
+	return err
+}
+```
+
+Pass `optimizerRule` to `TrainBatch`, `Fit`,
+`TrainBatchWithLengths`, or `FitWithLengths`. Learning-rate schedules reach
+the base optimizer through the wrapper. `Observation` reports whether the
+most recent completed clipping phase clamped a value, its pre-scale global
+norm and scale, and whether the base update completed. Non-finite gradients
+return an error before clipping mutation or base invocation.
+
+Clipping configuration, scratch, observations, and optimizer state are not
+serialized with a model; reconstruct the optimizer stack after loading. A
+clipping wrapper around SGD uses the correctness-first CPU fallback in a
+Metal execution, while direct unwrapped SGD retains its resident update path.
+See the [gradient clipping design](docs/gradient-clipping-design.md) and
+[RNN guide](docs/rnn.md) for arithmetic, lifecycle, composition, and recurrent
+training details.
+
 ## Layers
 
 The `layer` package includes dense layers, activation layers, inverted dropout,

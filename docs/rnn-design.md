@@ -13,7 +13,8 @@ The additive optimizer-level gradient clipping API is implemented separately
 under [gradient-clipping-design.md](gradient-clipping-design.md). It preserves
 the recurrent behavior below and clips only the complete accumulated parameter
 gradients immediately before optimizer update state consumes them. Focused
-model and recurrent integration proof remains pending.
+fixed-length, mixed-length, fit, allocation, failure, persistence, and Metal
+fallback tests verify that integration.
 
 ## Milestone
 
@@ -450,6 +451,8 @@ The initial milestone supports:
   all-steps output.
 * Full backpropagation through every configured step and summed parameter
   gradients.
+* Opt-in value and global-norm clipping at the shared optimizer boundary after
+  complete backward and before optimizer update state.
 * A validating `LastStep` adapter for many-to-one models.
 * An explicit `GatherLastValid` adapter with aligned, positive per-row lengths,
   length-aware prediction/backward/training/fitting, and sequence datasets.
@@ -469,9 +472,6 @@ The following remain deferred:
   between calls, stateful training, and streaming inference.
 * Truncated backpropagation through time, explicit graph detachment, and
   unbounded sequences.
-* Focused end-to-end recurrent verification of the implemented opt-in
-  optimizer-level clipping boundary remains pending; the wrapper itself does
-  not change recurrent backward behavior.
 * Configurable recurrent activations and recurrent or variational dropout.
 * LSTM, GRU, bidirectional recurrence, encoder-decoder models, attention, and
   transformer layers.

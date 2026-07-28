@@ -1,16 +1,15 @@
 # Gradient Clipping Design
 
-Status: implemented additive optimizer contract; model and recurrent integration
-verification pending.
+Status: implemented and verified additive optimizer and training contract.
 
 This document freezes the additive public and behavioral contract for
 [ROADMAP Item 2](../ROADMAP.md#2-add-opt-in-gradient-clipping-and-recurrent-training-controls).
 The declarations below are implemented in package `optimizer` and recorded in
 the additive post-v1 API inventory in
-[v1-api-review.md](v1-api-review.md). Focused optimizer tests cover the
-arithmetic, validation, observation, composition, allocation, and deterministic
-behavior frozen here. Model, recurrent, and Metal fallback integration proof
-remains a separate implementation session.
+[v1-api-review.md](v1-api-review.md). Focused optimizer and model tests cover
+the arithmetic, validation, observation, composition, allocation,
+deterministic recurrent updates, ordinary and length-aware fitting, and Metal
+fallback behavior frozen here.
 
 The design adds one opt-in optimizer wrapper. It transforms accumulated
 `optimizer.Parameter` gradients immediately before its base optimizer consumes
@@ -713,9 +712,9 @@ This path must:
   Metal training tolerances.
 
 The optimizer implementation does not change `supportsResidentUpdate`.
-The model and recurrent integration session supplies the Metal-tagged
-end-to-end fallback proof. A future device clipping kernel or broader resident
-optimizer stack requires separate measured design work.
+Metal-tagged integration tests supply the end-to-end fallback proof. A future
+device clipping kernel or broader resident optimizer stack requires separate
+measured design work.
 
 ## Compatibility and Non-Goals
 
@@ -748,7 +747,7 @@ The accepted addition does not include:
 
 ## Implementation File Map
 
-The implementation and integration sessions remain focused:
+The implemented boundary and integration proof are located in:
 
 ```text
 optimizer/gradient_clipping_config.go
@@ -777,8 +776,7 @@ optimizer/allocation_test.go
 optimizer/optimizer_benchmark_test.go
     representative unclipped and clipped update costs
 
-model/sequential_test.go
-model/sequence_lengths_test.go
+model/gradient_clipping_test.go
 model/rnn_allocation_internal_test.go
     ordinary, scheduled, recurrent, explicit-length, error, and allocation
     integration
@@ -788,16 +786,23 @@ model/metal_training_test.go
 
 README.md
 docs/rnn.md
+docs/rnn-design.md
+docs/sequence-lengths-design.md
+docs/metal.md
 docs/v1-api-review.md
     implemented construction guidance and additive API inventory
+
+examples/rnn/main.go
+examples/rnn/main_test.go
+    deterministic fixed-length construction and training example
 ```
 
-No production model or layer file is expected to change. A failing integration
-test may justify only the narrowest change required to honor this contract.
+No production model or layer change was required because every training method
+already shares the ordered optimizer boundary described above.
 
 ## Test Matrix
 
-Implementation is not complete until tests cover:
+The completed test matrix covers:
 
 | Area | Required proof |
 | --- | --- |
