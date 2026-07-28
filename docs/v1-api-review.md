@@ -143,6 +143,9 @@ regularization runs before or after clipping. The detailed arithmetic,
 validation, observation, ownership, allocation, fallback, and composition
 contract is recorded in
 [gradient-clipping-design.md](gradient-clipping-design.md).
+Ordinary, fixed-length recurrent, and explicit-length recurrent integration
+tests verify the same wrapper through `TrainBatch`, `Fit`,
+`TrainBatchWithLengths`, and `FitWithLengths` without adding model APIs.
 
 `Sequential.Save` and `LoadSequential` remain unchanged. Clipping
 configuration, reusable scratch, observations, base optimizer state,

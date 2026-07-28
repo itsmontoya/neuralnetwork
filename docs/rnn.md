@@ -20,7 +20,9 @@ explicit length:
 
 For the complete behavioral contract, including failure-state and ownership
 details, see [rnn-design.md](rnn-design.md) and
-[sequence-lengths-design.md](sequence-lengths-design.md).
+[sequence-lengths-design.md](sequence-lengths-design.md). Opt-in clipping
+semantics are recorded in
+[gradient-clipping-design.md](gradient-clipping-design.md).
 
 ## Input and Length Layout
 
@@ -351,6 +353,110 @@ stopping, accuracy, and callback controls as `FitConfig`, but its validation
 data is a `*data.SequenceDataset`. Training batches, full training evaluation,
 and full validation evaluation each receive their aligned lengths.
 
+## Gradient Clipping
+
+Gradient clipping is opt-in at the general optimizer boundary. The same
+wrapper works with ordinary and length-aware training and with SGD, Momentum,
+Adam, or a custom optimizer:
+
+```go
+// Choose one configuration.
+config := optimizer.GradientClippingConfig{MaxValue: 1} // value only
+// config := optimizer.GradientClippingConfig{MaxNorm: 5} // norm only
+// config := optimizer.GradientClippingConfig{MaxValue: 1, MaxNorm: 5} // combined
+
+base, err := optimizer.NewAdam(0.001)
+if err != nil {
+	return err
+}
+
+optimizerRule, err := optimizer.NewGradientClipping(base, config)
+if err != nil {
+	return err
+}
+```
+
+For an RNN, `SimpleRNN.Backward` first completes full backpropagation through
+the configured physical steps. `GatherLastValid`, when present, has already
+routed each direct gradient to its selected last-valid step. The wrapper then
+applies value clipping followed by global-norm clipping across every current
+parameter gradient in stable model order. Only after that does the base
+optimizer consume the gradient for SGD updates, Momentum velocity, or Adam
+moments.
+
+Clipping does not truncate or detach recurrence, mask recurrent computation,
+carry hidden state, repair a non-finite activation or gradient, or change
+`LastStep` or `GatherLastValid`. A non-finite accumulated gradient returns an
+`optimizer:` error before any clipping mutation or base call. The enclosing
+model method preserves its existing contextual optimizer-update error and
+restores training state.
+
+Wrapper nesting determines regularization order. The canonical construction
+below applies L1 and then L2 additions before clipping, so the complete
+data-plus-regularization gradient is bounded:
+
+```go
+base, err := optimizer.NewAdam(0.001)
+if err != nil {
+	return err
+}
+
+clipping, err := optimizer.NewGradientClipping(
+	base,
+	optimizer.GradientClippingConfig{MaxNorm: 5},
+)
+if err != nil {
+	return err
+}
+
+l1, err := optimizer.NewL1(0.0001)
+if err != nil {
+	return err
+}
+
+l2, err := optimizer.NewL2WeightDecay(0.0001)
+if err != nil {
+	return err
+}
+
+optimizerRule, err := optimizer.NewRegularized(clipping, l1, l2)
+if err != nil {
+	return err
+}
+```
+
+Putting `GradientClipping` outside `Regularized` instead clips only the
+incoming data gradient; later regularization additions may exceed a clipping
+limit. No wrapper silently changes caller-authored nesting.
+
+Inspect the most recent completed clipping phase without adding a model
+callback:
+
+```go
+observation, available := clipping.Observation()
+if available {
+	fmt.Printf(
+		"value clipped=%t global norm=%g scale=%g base completed=%t\n",
+		observation.ValueClipped,
+		observation.GlobalNorm,
+		observation.Scale,
+		observation.BaseUpdateCompleted,
+	)
+}
+```
+
+The wrapper forwards `LearningRate` and `SetLearningRate`, so `Fit` and
+`FitWithLengths` schedules reach the base through either documented
+regularization order. It owns reusable scratch after its first update and
+meets the ordinary and length-aware warmed allocation guarantees under the
+repository's non-concurrent model and optimizer lifecycle.
+
+Clipping configuration, scratch, observations, regularizers, and optimizer
+state are not saved in `neuralnetwork.sequential` version `1`. Reconstruct the
+stack after loading. Under the optional Metal build, wrapped SGD takes the
+explicit CPU fallback after backward and matches the CPU clipping contract;
+plain unwrapped SGD retains the resident fast path.
+
 ## Stacked Recurrence
 
 Every `SimpleRNN` preserves the configured physical step count. A stacked
@@ -487,7 +593,8 @@ passed to existing APIs.
 ## Runnable Examples
 
 The [fixed-length RNN example](../examples/rnn/main.go) learns whether event A
-or B occurred first and uses `LastStep`:
+or B occurred first, uses `LastStep`, and trains through Adam with global-norm
+clipping:
 
 ```sh
 go run ./examples/rnn
@@ -512,7 +619,7 @@ compatibility guarantees.
 | Data layout | Batched fixed-length rows and padded rows with one positive valid-prefix length | Ragged or packed storage, zero-length rows, left padding, interior holes, and arbitrary masks |
 | Selection | Physical final step through `LastStep`; explicit last-valid step through `GatherLastValid` | General masking and richer sequence adapters |
 | Recurrence | Stateless zero-initialized Elman `SimpleRNN` with fixed tanh and all-steps output | Configurable activations, LSTM, GRU, bidirectional recurrence, attention, and transformers |
-| Gradients | Full recurrent backpropagation; direct last-valid gradient routed only to the selected step | Truncation, graph detachment, clipping, and masked sequence losses |
+| Gradients | Full recurrent backpropagation; direct last-valid gradient routed only to the selected step; opt-in value and global-norm clipping at the optimizer boundary | Truncation, graph detachment, and masked sequence losses |
 | State | Independent zero state for every row and call | Initial/final state APIs, state carry, stateful training, and streaming |
 | Runtime | Pure-Go recurrent and gather reference paths with transparent CPU fallback | Optimized or accelerator-specific recurrent and gather kernels |
 | Containers | Existing matrices plus focused aligned supervised length types | General sequence containers, tensors, ragged tensors, and automatic-differentiation graphs |

@@ -663,6 +663,170 @@ func Test_SequentialResidentTrainingSerialization(t *testing.T) {
 	}
 }
 
+func Test_SequentialGradientClippingFallbackMatchesCPU(t *testing.T) {
+	var (
+		shape                 metalInferenceShape
+		network               *model.Sequential
+		input                 *matrix.Matrix
+		targets               *matrix.Matrix
+		inputValues           []float32
+		hiddenWeights         []float32
+		hiddenBiases          []float32
+		outputWeights         []float32
+		outputBiases          []float32
+		targetValues          []float32
+		predictionValues      []float32
+		categoricalGradient   []float32
+		reference             metalBackwardReference
+		cpuParameters         []*optimizer.Parameter
+		cpuBase               *optimizer.SGD
+		metalBase             *optimizer.SGD
+		cpuClipping           *optimizer.GradientClipping
+		metalClipping         *optimizer.GradientClipping
+		config                optimizer.GradientClippingConfig
+		cpuObservation        optimizer.GradientClippingObservation
+		metalObservation      optimizer.GradientClippingObservation
+		cpuAvailable          bool
+		metalAvailable        bool
+		referenceNorm         float64
+		expectedDownloadBytes uint64
+		counters              metaltest.Counters
+		parameter             *optimizer.Parameter
+		err                   error
+	)
+
+	requireModelMetal(t)
+	shape = metalTrainingShape()
+	network, input, inputValues, hiddenWeights, hiddenBiases, outputWeights, outputBiases =
+		metalInferenceModel(t, shape, activation.ReLU{})
+	targetValues = metalTrainingTargetValues(shape)
+	targets = metalBackwardMatrix(t, shape.batchSize, shape.classCount, targetValues)
+	predictionValues = metalInferenceReference(
+		inputValues,
+		shape,
+		hiddenWeights,
+		hiddenBiases,
+		outputWeights,
+		outputBiases,
+		true,
+	)
+	categoricalGradient = categoricalGradientReference(
+		predictionValues,
+		targetValues,
+		shape,
+	)
+	reference = metalBackwardReferenceValues(
+		inputValues,
+		categoricalGradient,
+		shape,
+		hiddenWeights,
+		hiddenBiases,
+		outputWeights,
+		outputBiases,
+		true,
+	)
+	referenceNorm = gradientClippingReferenceNorm(reference)
+	config.MaxNorm = float32(referenceNorm / 2)
+	cpuParameters = metalGradientClippingReferenceParameters(
+		t,
+		shape,
+		hiddenWeights,
+		hiddenBiases,
+		outputWeights,
+		outputBiases,
+		reference,
+	)
+
+	if cpuBase, err = optimizer.NewSGD(0.01); err != nil {
+		t.Fatalf("CPU NewSGD returned error: %v", err)
+	}
+	if cpuClipping, err = optimizer.NewGradientClipping(cpuBase, config); err != nil {
+		t.Fatalf("CPU NewGradientClipping returned error: %v", err)
+	}
+	if err = cpuClipping.Update(cpuParameters); err != nil {
+		t.Fatalf("CPU clipping Update returned error: %v", err)
+	}
+	cpuObservation, cpuAvailable = cpuClipping.Observation()
+	if !cpuAvailable || !cpuObservation.BaseUpdateCompleted ||
+		!(cpuObservation.Scale < 1) {
+		t.Fatalf("CPU observation = %+v/%t, want applied success", cpuObservation, cpuAvailable)
+	}
+
+	if metalBase, err = optimizer.NewSGD(0.01); err != nil {
+		t.Fatalf("Metal fallback NewSGD returned error: %v", err)
+	}
+	if metalClipping, err = optimizer.NewGradientClipping(metalBase, config); err != nil {
+		t.Fatalf("Metal fallback NewGradientClipping returned error: %v", err)
+	}
+	metaltest.Enable()
+	defer metaltest.Disable()
+	if _, err = network.TrainBatch(
+		input,
+		targets,
+		loss.CategoricalCrossEntropy{},
+		metalClipping,
+	); err != nil {
+		t.Fatalf("Metal fallback TrainBatch returned error: %v", err)
+	}
+	counters = metaltest.Snapshot()
+	expectedDownloadBytes = 20 + uint64(
+		shape.inputSize*shape.hiddenSize+
+			shape.hiddenSize+
+			shape.hiddenSize*shape.classCount+
+			shape.classCount,
+	)*4
+	if counters.ResultDownloads != 5 ||
+		counters.ResultDownloadBytes != expectedDownloadBytes {
+		t.Fatalf(
+			"clipping fallback downloads = %+v, want five results totaling %d bytes",
+			counters,
+			expectedDownloadBytes,
+		)
+	}
+	if counters.CommandSubmissions != 2 || counters.Waits != 2 {
+		t.Fatalf(
+			"clipping fallback commands = %+v, want loss and completed backward scopes",
+			counters,
+		)
+	}
+
+	metalObservation, metalAvailable = metalClipping.Observation()
+	if !metalAvailable || !metalObservation.BaseUpdateCompleted ||
+		!(metalObservation.Scale < 1) {
+		t.Fatalf(
+			"Metal fallback observation = %+v/%t, want applied success",
+			metalObservation,
+			metalAvailable,
+		)
+	}
+	if metalObservation.ValueClipped != cpuObservation.ValueClipped {
+		t.Fatalf(
+			"Metal ValueClipped = %t, want CPU %t",
+			metalObservation.ValueClipped,
+			cpuObservation.ValueClipped,
+		)
+	}
+	requireFloat64AlmostEqual(
+		t,
+		metalObservation.GlobalNorm,
+		cpuObservation.GlobalNorm,
+		5e-3,
+	)
+	requireFloat64AlmostEqual(t, metalObservation.Scale, cpuObservation.Scale, 5e-3)
+	requireParameterValues(
+		t,
+		network.Parameters(),
+		parameterValues(t, cpuParameters),
+		metalTrainingTolerance,
+	)
+	for _, parameter = range network.Parameters() {
+		requireBackwardMatrixZero(t, parameter.Gradient())
+	}
+	for _, parameter = range cpuParameters {
+		requireBackwardMatrixZero(t, parameter.Gradient())
+	}
+}
+
 func Test_SequentialResidentTrainingUnsupportedFallbacks(t *testing.T) {
 	type testcase struct {
 		name          string
@@ -754,6 +918,95 @@ func Test_SequentialResidentTrainingUnsupportedFallbacks(t *testing.T) {
 			}
 		})
 	}
+}
+
+func gradientClippingReferenceNorm(reference metalBackwardReference) (norm float64) {
+	var (
+		gradients [][]float32
+		gradient  []float32
+		value     float32
+	)
+
+	gradients = [][]float32{
+		reference.hiddenWeightGradient,
+		reference.hiddenBiasGradient,
+		reference.outputWeightGradient,
+		reference.outputBiasGradient,
+	}
+	for _, gradient = range gradients {
+		for _, value = range gradient {
+			norm = math.Hypot(norm, float64(value))
+		}
+	}
+	return norm
+}
+
+func metalGradientClippingReferenceParameters(
+	tb testing.TB,
+	shape metalInferenceShape,
+	hiddenWeights,
+	hiddenBiases,
+	outputWeights,
+	outputBiases []float32,
+	reference metalBackwardReference,
+) (parameters []*optimizer.Parameter) {
+	tb.Helper()
+	parameters = []*optimizer.Parameter{
+		metalGradientClippingReferenceParameter(
+			tb,
+			shape.inputSize,
+			shape.hiddenSize,
+			hiddenWeights,
+			reference.hiddenWeightGradient,
+		),
+		metalGradientClippingReferenceParameter(
+			tb,
+			1,
+			shape.hiddenSize,
+			hiddenBiases,
+			reference.hiddenBiasGradient,
+		),
+		metalGradientClippingReferenceParameter(
+			tb,
+			shape.hiddenSize,
+			shape.classCount,
+			outputWeights,
+			reference.outputWeightGradient,
+		),
+		metalGradientClippingReferenceParameter(
+			tb,
+			1,
+			shape.classCount,
+			outputBiases,
+			reference.outputBiasGradient,
+		),
+	}
+	return parameters
+}
+
+func metalGradientClippingReferenceParameter(
+	tb testing.TB,
+	rows,
+	cols int,
+	values,
+	gradientValues []float32,
+) (parameter *optimizer.Parameter) {
+	var (
+		valueMatrix *matrix.Matrix
+		gradient    *matrix.Matrix
+		err         error
+	)
+
+	tb.Helper()
+	valueMatrix = metalBackwardMatrix(tb, rows, cols, values)
+	if parameter, err = optimizer.NewParameter(valueMatrix); err != nil {
+		tb.Fatalf("NewParameter returned error: %v", err)
+	}
+	gradient = metalBackwardMatrix(tb, rows, cols, gradientValues)
+	if err = parameter.AccumulateGradient(gradient); err != nil {
+		tb.Fatalf("AccumulateGradient returned error: %v", err)
+	}
+	return parameter
 }
 
 func metalTrainingShape() (shape metalInferenceShape) {

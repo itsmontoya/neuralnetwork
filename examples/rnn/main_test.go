@@ -318,8 +318,8 @@ func Test_RNNFitLearnsTemporalOrderWithValidationAndPartialBatch(t *testing.T) {
 		t.Fatalf("initial loss Value returned error: %v", err)
 	}
 
-	if optimizerRule, err = optimizer.NewAdam(learningRate); err != nil {
-		t.Fatalf("NewAdam returned error: %v", err)
+	if optimizerRule, err = newRNNOptimizer(); err != nil {
+		t.Fatalf("newRNNOptimizer returned error: %v", err)
 	}
 
 	history, err = network.Fit(trainingData, model.FitConfig{

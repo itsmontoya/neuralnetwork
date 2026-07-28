@@ -374,8 +374,10 @@ The implemented
 correctness-first CPU fallback. A clipping wrapper around SGD is not a direct
 `*optimizer.SGD`, so model orchestration completes the existing fallback
 barrier before the wrapper observes or mutates gradients. Plain unwrapped SGD
-retains the resident path described here. Focused Metal-tagged end-to-end
-fallback proof remains part of the model integration session.
+retains the resident path described here. A focused Metal-tagged end-to-end
+test verifies the explicit gradient downloads, CPU clipping observation and
+update parity, successful gradient reset, and unchanged resident plain-SGD
+coverage.
 
 Unsupported built-in and custom operations are never skipped. Before a custom
 layer, activation, loss, optimizer, regularizer, metric, or Go callback reads a

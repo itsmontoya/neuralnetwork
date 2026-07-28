@@ -107,6 +107,106 @@ func Test_Sequential_LengthAwareRNNTrainBatchDoesNotAllocateAfterWarmUp(t *testi
 	}
 }
 
+func Test_Sequential_ClippedRNNTrainBatchDoesNotAllocateAfterWarmUp(t *testing.T) {
+	var (
+		network       *Sequential
+		inputs        *matrix.Matrix
+		targets       *matrix.Matrix
+		base          *optimizer.SGD
+		optimizerRule *optimizer.GradientClipping
+		allocations   float64
+		err           error
+	)
+
+	network, inputs, targets, base = fixedLengthAllocationFixture(t)
+	if optimizerRule, err = optimizer.NewGradientClipping(
+		base,
+		optimizer.GradientClippingConfig{
+			MaxValue: 0.01,
+			MaxNorm:  0.02,
+		},
+	); err != nil {
+		t.Fatalf("NewGradientClipping returned error: %v", err)
+	}
+	if _, err = network.TrainBatch(
+		inputs,
+		targets,
+		loss.MeanSquaredError{},
+		optimizerRule,
+	); err != nil {
+		t.Fatalf("warm-up clipped TrainBatch returned error: %v", err)
+	}
+
+	allocations = testing.AllocsPerRun(100, func() {
+		allocationTrainMetrics, err = network.TrainBatch(
+			inputs,
+			targets,
+			loss.MeanSquaredError{},
+			optimizerRule,
+		)
+		if err != nil {
+			panic(err)
+		}
+	})
+	if allocations != 0 {
+		t.Fatalf("warmed clipped RNN TrainBatch allocations = %g, want 0", allocations)
+	}
+}
+
+func Test_Sequential_ClippedLengthAwareRNNTrainBatchDoesNotAllocateAfterWarmUp(
+	t *testing.T,
+) {
+	var (
+		network       *Sequential
+		inputs        *matrix.Matrix
+		targets       *matrix.Matrix
+		lengths       *data.SequenceLengths
+		base          *optimizer.SGD
+		optimizerRule *optimizer.GradientClipping
+		allocations   float64
+		err           error
+	)
+
+	network, inputs, targets, lengths, base = lengthAwareAllocationFixture(t)
+	if optimizerRule, err = optimizer.NewGradientClipping(
+		base,
+		optimizer.GradientClippingConfig{
+			MaxValue: 0.01,
+			MaxNorm:  0.02,
+		},
+	); err != nil {
+		t.Fatalf("NewGradientClipping returned error: %v", err)
+	}
+	if _, err = network.TrainBatchWithLengths(
+		inputs,
+		targets,
+		lengths,
+		loss.MeanSquaredError{},
+		optimizerRule,
+	); err != nil {
+		t.Fatalf("warm-up clipped TrainBatchWithLengths returned error: %v", err)
+	}
+
+	allocations = testing.AllocsPerRun(100, func() {
+		allocationTrainMetrics, err = network.TrainBatchWithLengths(
+			inputs,
+			targets,
+			lengths,
+			loss.MeanSquaredError{},
+			optimizerRule,
+		)
+		if err != nil {
+			panic(err)
+		}
+	})
+	if allocations != 0 {
+		t.Fatalf(
+			"warmed clipped TrainBatchWithLengths allocations = %g, want 0",
+			allocations,
+		)
+	}
+}
+
 func Test_Sequential_TrainSequenceFitEpochDoesNotAllocateAfterWorkspaceWarmUp(t *testing.T) {
 	var tests []struct {
 		name    string
@@ -169,6 +269,58 @@ func Test_Sequential_TrainSequenceFitEpochDoesNotAllocateAfterWorkspaceWarmUp(t 
 			}
 		})
 	}
+}
+
+func fixedLengthAllocationFixture(
+	tb testing.TB,
+) (
+	network *Sequential,
+	inputs,
+	targets *matrix.Matrix,
+	optimizerRule *optimizer.SGD,
+) {
+	var (
+		inputShape layer.SequenceShape
+		config     layer.SimpleRNNConfig
+		recurrent  *layer.SimpleRNN
+		lastStep   *layer.LastStep
+		output     *layer.Dense
+		err        error
+	)
+
+	tb.Helper()
+	if inputShape, err = layer.NewSequenceShape(8, 16); err != nil {
+		tb.Fatalf("NewSequenceShape returned error: %v", err)
+	}
+	if config, err = layer.NewSimpleRNNConfig(inputShape, 32); err != nil {
+		tb.Fatalf("NewSimpleRNNConfig returned error: %v", err)
+	}
+	if recurrent, err = layer.NewSimpleRNN(
+		config,
+		layer.ZeroWeights,
+		layer.ZeroWeights,
+	); err != nil {
+		tb.Fatalf("NewSimpleRNN returned error: %v", err)
+	}
+	if lastStep, err = layer.NewLastStep(recurrent.OutputShape()); err != nil {
+		tb.Fatalf("NewLastStep returned error: %v", err)
+	}
+	if output, err = layer.NewDense(lastStep.OutputSize(), 8, layer.ZeroWeights); err != nil {
+		tb.Fatalf("NewDense returned error: %v", err)
+	}
+	if network, err = NewSequential(recurrent, lastStep, output); err != nil {
+		tb.Fatalf("NewSequential returned error: %v", err)
+	}
+	if inputs, err = matrix.New(16, inputShape.Size()); err != nil {
+		tb.Fatalf("New inputs returned error: %v", err)
+	}
+	if targets, err = matrix.New(16, output.OutputSize()); err != nil {
+		tb.Fatalf("New targets returned error: %v", err)
+	}
+	if optimizerRule, err = optimizer.NewSGD(0.001); err != nil {
+		tb.Fatalf("NewSGD returned error: %v", err)
+	}
+	return network, inputs, targets, optimizerRule
 }
 
 func lengthAwareAllocationFixture(

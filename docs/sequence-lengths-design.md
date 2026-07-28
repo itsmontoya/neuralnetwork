@@ -750,4 +750,6 @@ The opt-in optimizer-level clipping boundary is implemented under
 [gradient-clipping-design.md](gradient-clipping-design.md). It consumes the
 complete accumulated gradients after this document's last-valid routing and
 unchanged recurrent backward pass; it does not revise the explicit-length
-contract. Focused explicit-length integration proof remains pending.
+contract. Focused explicit-length integration tests verify mixed-length
+clipping updates, fitting, schedule forwarding, observations, failure cleanup,
+and warmed allocation behavior.

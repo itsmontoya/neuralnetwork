@@ -48,7 +48,7 @@ func run() (err error) {
 		trainingData     *data.Dataset
 		validationData   *data.Dataset
 		network          *model.Sequential
-		optimizerRule    optimizer.Optimizer
+		optimizerRule    *optimizer.GradientClipping
 		history          model.TrainingHistory
 		accuracyMetric   metric.CategoricalAccuracy
 		finalMetrics     model.EpochMetrics
@@ -71,7 +71,7 @@ func run() (err error) {
 		return err
 	}
 
-	if optimizerRule, err = optimizer.NewAdam(learningRate); err != nil {
+	if optimizerRule, err = newRNNOptimizer(); err != nil {
 		return err
 	}
 
@@ -101,6 +101,19 @@ func run() (err error) {
 
 	err = printPredictions(network)
 	return err
+}
+
+func newRNNOptimizer() (optimizerRule *optimizer.GradientClipping, err error) {
+	var base *optimizer.Adam
+
+	if base, err = optimizer.NewAdam(learningRate); err != nil {
+		return nil, err
+	}
+	optimizerRule, err = optimizer.NewGradientClipping(
+		base,
+		optimizer.GradientClippingConfig{MaxNorm: 5},
+	)
+	return optimizerRule, err
 }
 
 // newTemporalOrderDataset builds sequences containing the same event pair in
