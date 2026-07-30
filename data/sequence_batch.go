@@ -37,6 +37,56 @@ type SequenceBatch struct {
 	lengths *SequenceLengths
 }
 
+// WithView calls use with a temporary read-only-intent view of all aligned
+// inputs, targets, and logical lengths. The batch owns the aliased storage. The
+// view expires when use returns or panics and must not be retained, mutated, or
+// used concurrently. The batch and overlapping aliases must remain unmodified
+// until use returns. Concurrent or reentrant access is unsupported.
+func (b *SequenceBatch) WithView(use SequenceDatasetViewFunc) (err error) {
+	if err = b.validate(); err != nil {
+		err = fmt.Errorf("data: sequence batch view owner is invalid: %w", err)
+		return err
+	}
+
+	err = withSequenceDatasetRowView(
+		"data: sequence batch view",
+		b.inputs,
+		b.targets,
+		b.lengths,
+		0,
+		b.SampleCount(),
+		use,
+	)
+	return err
+}
+
+// WithRowView calls use with a temporary read-only-intent view of aligned rows
+// [start, end). The batch owns the aliased matrix and logical-length storage.
+// The view expires when use returns or panics and must not be retained,
+// mutated, or used concurrently. The batch and overlapping aliases must remain
+// unmodified until use returns. Concurrent or reentrant access is unsupported.
+func (b *SequenceBatch) WithRowView(
+	start,
+	end int,
+	use SequenceDatasetViewFunc,
+) (err error) {
+	if err = b.validate(); err != nil {
+		err = fmt.Errorf("data: sequence batch view owner is invalid: %w", err)
+		return err
+	}
+
+	err = withSequenceDatasetRowView(
+		"data: sequence batch view",
+		b.inputs,
+		b.targets,
+		b.lengths,
+		start,
+		end,
+		use,
+	)
+	return err
+}
+
 // Inputs returns a copy of the batch inputs.
 func (b *SequenceBatch) Inputs() (inputs *matrix.Matrix, err error) {
 	if err = b.validate(); err != nil {

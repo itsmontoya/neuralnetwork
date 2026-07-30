@@ -90,6 +90,58 @@ func (d *SequenceDataset) Validate() (err error) {
 	return err
 }
 
+// WithView calls use with a temporary read-only-intent view of all aligned
+// inputs, targets, and logical lengths. The dataset owns the aliased storage.
+// The view expires when use returns or panics and must not be retained,
+// mutated, or used concurrently. The dataset and overlapping aliases must
+// remain unmodified until use returns. Concurrent or reentrant access is
+// unsupported.
+func (d *SequenceDataset) WithView(use SequenceDatasetViewFunc) (err error) {
+	if err = d.validate(); err != nil {
+		err = fmt.Errorf("data: sequence dataset view owner is invalid: %w", err)
+		return err
+	}
+
+	err = withSequenceDatasetRowView(
+		"data: sequence dataset view",
+		d.inputs,
+		d.targets,
+		d.lengths,
+		0,
+		d.SampleCount(),
+		use,
+	)
+	return err
+}
+
+// WithRowView calls use with a temporary read-only-intent view of aligned rows
+// [start, end). The dataset owns the aliased matrix and logical-length storage.
+// The view expires when use returns or panics and must not be retained,
+// mutated, or used concurrently. The dataset and overlapping aliases must
+// remain unmodified until use returns. Concurrent or reentrant access is
+// unsupported.
+func (d *SequenceDataset) WithRowView(
+	start,
+	end int,
+	use SequenceDatasetViewFunc,
+) (err error) {
+	if err = d.validate(); err != nil {
+		err = fmt.Errorf("data: sequence dataset view owner is invalid: %w", err)
+		return err
+	}
+
+	err = withSequenceDatasetRowView(
+		"data: sequence dataset view",
+		d.inputs,
+		d.targets,
+		d.lengths,
+		start,
+		end,
+		use,
+	)
+	return err
+}
+
 // Inputs returns a copy of the dataset inputs.
 func (d *SequenceDataset) Inputs() (inputs *matrix.Matrix, err error) {
 	if err = d.validate(); err != nil {

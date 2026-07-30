@@ -1,7 +1,7 @@
 # Opt-In Data Views
 
-Status: accepted implementation contract; matrix and ordinary view foundation
-implemented.
+Status: accepted implementation contract; matrix, ordinary, and aligned
+sequence view foundations implemented.
 
 This document freezes the additive public and behavioral contract for
 [ROADMAP Item 3](../ROADMAP.md#3-add-opt-in-zero-copy-data-views). It is the
@@ -9,10 +9,11 @@ implementation contract for the remaining milestone sections. Declarations
 still marked pending below are not implemented yet; implementation must use
 these exact names and semantics rather than reopening them while optimizing.
 
-The matrix row-window primitive and the whole-object and contiguous-row
-`Dataset` and `Batch` view operations are implemented and verified. Explicit
-selection policy, view batching and splitting, aligned sequence views, and
-opt-in model fitting remain pending in later implementation sections.
+The matrix row-window primitive and the whole-object and contiguous-row view
+operations for ordinary and aligned sequence datasets and batches are
+implemented and verified. Explicit selection policy, view batching and
+splitting, and opt-in model fitting remain pending in later implementation
+sections.
 
 The accepted boundary is a scoped, read-only-intent callback. Ordered
 contiguous rows share the data owner's host storage for the callback. The
@@ -1058,8 +1059,16 @@ The following foundation is implemented and verified:
 * `Dataset.WithView`, `Dataset.WithRowView`, `Batch.WithView`, and
   `Batch.WithRowView`; and
 * ordinary whole and contiguous-window correctness, ownership, concurrency,
-  numeric-equivalence, allocation, and copy-volume coverage.
+  numeric-equivalence, allocation, and copy-volume coverage;
+* `data.SequenceDatasetView` and `SequenceDatasetViewFunc`, including shared
+  expiry state, indivisible non-copying input, target, and logical-length
+  access, dimensions, steps, and `Copied`;
+* `SequenceDataset.WithView`, `SequenceDataset.WithRowView`,
+  `SequenceBatch.WithView`, and `SequenceBatch.WithRowView`; and
+* aligned sequence whole and contiguous-window correctness, ownership,
+  validation, lifetime, concurrency, length-aware numeric equivalence,
+  clipping equivalence, allocation, and copy-volume coverage.
 
-`ViewPolicy`, selected rows, view batching and splitting, aligned sequence
-views, and both opt-in fit operations remain pending. No pending declaration
-or behavior is described as implemented or verified.
+`ViewPolicy`, selected rows, view batching and splitting, split callback
+types, and both opt-in fit operations remain pending. No pending declaration or
+behavior is described as implemented or verified.
