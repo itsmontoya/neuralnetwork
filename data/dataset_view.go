@@ -34,10 +34,11 @@ func newDatasetView(
 
 // DatasetView is a temporary read-only-intent view of paired input and target
 // matrices. The source dataset or batch owns whole and contiguous-window
-// storage. Matrix accessors do not copy. A view and all value copies of it
-// expire together when the publishing callback exits and must not be retained,
-// mutated, or used concurrently. Its owner and overlapping aliases must remain
-// unmodified until that callback exits.
+// storage; an explicit fallback owns temporary selected storage. Matrix
+// accessors do not copy. A view and all value copies of it expire together
+// when the publishing callback exits and must not be retained, mutated, or
+// used concurrently. Its owner and overlapping aliases must remain unmodified
+// until that callback exits.
 type DatasetView struct {
 	state *datasetViewState
 }
@@ -58,8 +59,8 @@ func (v *DatasetView) Validate() (err error) {
 
 // Inputs returns the active temporary input matrix without copying.
 //
-// The returned matrix aliases owner storage and expires with the DatasetView.
-// It must not be retained, mutated, or used concurrently.
+// The returned matrix aliases the active view's backing storage and expires
+// with the DatasetView. It must not be retained, mutated, or used concurrently.
 func (v *DatasetView) Inputs() (inputs *matrix.Matrix, err error) {
 	if err = v.validate(); err != nil {
 		return nil, err
@@ -71,8 +72,8 @@ func (v *DatasetView) Inputs() (inputs *matrix.Matrix, err error) {
 
 // Targets returns the active temporary target matrix without copying.
 //
-// The returned matrix aliases owner storage and expires with the DatasetView.
-// It must not be retained, mutated, or used concurrently.
+// The returned matrix aliases the active view's backing storage and expires
+// with the DatasetView. It must not be retained, mutated, or used concurrently.
 func (v *DatasetView) Targets() (targets *matrix.Matrix, err error) {
 	if err = v.validate(); err != nil {
 		return nil, err
@@ -182,6 +183,7 @@ func withDatasetRowView(
 	targets *matrix.Matrix,
 	start,
 	end int,
+	copied bool,
 	use DatasetViewFunc,
 ) (err error) {
 	if err = validateDataViewBounds(prefix, start, end, inputs.Rows()); err != nil {
@@ -196,7 +198,7 @@ func withDatasetRowView(
 		inputErr = targets.WithRowView(start, end, func(targetView *matrix.Matrix) (targetErr error) {
 			var view *DatasetView
 
-			if view, targetErr = newDatasetView(prefix, inputView, targetView, false); targetErr != nil {
+			if view, targetErr = newDatasetView(prefix, inputView, targetView, copied); targetErr != nil {
 				return targetErr
 			}
 			defer view.expire()
@@ -219,6 +221,81 @@ func withDatasetRowView(
 	return nil
 }
 
+func withSelectedDatasetRows(
+	prefix string,
+	inputs,
+	targets *matrix.Matrix,
+	indexes []int,
+	use DatasetViewFunc,
+) (err error) {
+	var (
+		selectedInputs  *matrix.Matrix
+		selectedTargets *matrix.Matrix
+	)
+
+	if selectedInputs, err = matrixRows(inputs, indexes); err != nil {
+		err = fmt.Errorf("%s copy inputs: %w", prefix, err)
+		return err
+	}
+	if selectedTargets, err = matrixRows(targets, indexes); err != nil {
+		err = fmt.Errorf("%s copy targets: %w", prefix, err)
+		return err
+	}
+
+	err = withDatasetRowView(
+		prefix,
+		selectedInputs,
+		selectedTargets,
+		0,
+		len(indexes),
+		true,
+		use,
+	)
+	return err
+}
+
+func withDatasetSplitViews(
+	prefix string,
+	trainInputs,
+	trainTargets,
+	testInputs,
+	testTargets *matrix.Matrix,
+	trainStart,
+	trainEnd,
+	testStart,
+	testEnd int,
+	copied bool,
+	use DatasetSplitViewFunc,
+) (err error) {
+	err = withDatasetRowView(
+		prefix+" train",
+		trainInputs,
+		trainTargets,
+		trainStart,
+		trainEnd,
+		copied,
+		func(train *DatasetView) (trainErr error) {
+			trainErr = withDatasetRowView(
+				prefix+" test",
+				testInputs,
+				testTargets,
+				testStart,
+				testEnd,
+				copied,
+				func(test *DatasetView) (testErr error) {
+					if testErr = use(train, test); testErr != nil {
+						testErr = fmt.Errorf("%s callback: %w", prefix, testErr)
+						return testErr
+					}
+					return nil
+				},
+			)
+			return trainErr
+		},
+	)
+	return err
+}
+
 func validateDataViewBounds(prefix string, start, end, rows int) (err error) {
 	if start < 0 {
 		err = fmt.Errorf("%s start must be non-negative: start=%d", prefix, start)
@@ -234,4 +311,49 @@ func validateDataViewBounds(prefix string, start, end, rows int) (err error) {
 	}
 
 	return nil
+}
+
+func validateSelectedRows(
+	prefix string,
+	indexes []int,
+	rows int,
+) (start, end int, contiguous bool, err error) {
+	var (
+		position int
+		row      int
+		previous int
+	)
+
+	if len(indexes) == 0 {
+		err = fmt.Errorf("%s row indexes are empty", prefix)
+		return 0, 0, false, err
+	}
+	for position, row = range indexes {
+		if row < 0 || row >= rows {
+			err = fmt.Errorf(
+				"%s row index out of range: position=%d row=%d rows=%d",
+				prefix,
+				position,
+				row,
+				rows,
+			)
+			return 0, 0, false, err
+		}
+	}
+
+	start = indexes[0]
+	end = start + 1
+	contiguous = true
+	previous = start
+	for position = 1; position < len(indexes); position++ {
+		row = indexes[position]
+		if row != previous+1 {
+			contiguous = false
+		}
+		previous = row
+	}
+	if contiguous {
+		end = indexes[len(indexes)-1] + 1
+	}
+	return start, end, contiguous, nil
 }

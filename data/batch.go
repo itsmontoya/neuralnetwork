@@ -42,6 +42,7 @@ func (b *Batch) WithView(use DatasetViewFunc) (err error) {
 		b.targets,
 		0,
 		b.SampleCount(),
+		false,
 		use,
 	)
 	return err
@@ -64,6 +65,69 @@ func (b *Batch) WithRowView(start, end int, use DatasetViewFunc) (err error) {
 		b.targets,
 		start,
 		end,
+		false,
+		use,
+	)
+	return err
+}
+
+// WithSelectedRows calls use with paired rows in index order. Contiguous rows
+// alias batch storage. Other valid selections are rejected by ViewOnly or
+// copied explicitly by ViewOrCopy. The temporary view expires when use
+// returns and must not be retained, mutated, or used concurrently. The batch
+// and overlapping aliases must remain unmodified; concurrent or reentrant
+// access is unsupported.
+func (b *Batch) WithSelectedRows(
+	indexes []int,
+	policy ViewPolicy,
+	use DatasetViewFunc,
+) (err error) {
+	var (
+		start      int
+		end        int
+		contiguous bool
+	)
+
+	if err = b.validate(); err != nil {
+		err = fmt.Errorf("data: batch view owner is invalid: %w", err)
+		return err
+	}
+	if start, end, contiguous, err = validateSelectedRows(
+		"data: batch view",
+		indexes,
+		b.SampleCount(),
+	); err != nil {
+		return err
+	}
+	if err = validateViewPolicy("data: batch view", policy); err != nil {
+		return err
+	}
+	if use == nil {
+		err = fmt.Errorf("data: batch view callback is nil")
+		return err
+	}
+	if !contiguous && policy == ViewOnly {
+		err = fmt.Errorf("data: batch view selection is non-contiguous under ViewOnly")
+		return err
+	}
+	if contiguous {
+		err = withDatasetRowView(
+			"data: batch view",
+			b.inputs,
+			b.targets,
+			start,
+			end,
+			false,
+			use,
+		)
+		return err
+	}
+
+	err = withSelectedDatasetRows(
+		"data: batch view",
+		b.inputs,
+		b.targets,
+		indexes,
 		use,
 	)
 	return err

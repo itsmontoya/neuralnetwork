@@ -73,6 +73,7 @@ func (d *Dataset) WithView(use DatasetViewFunc) (err error) {
 		d.targets,
 		0,
 		d.SampleCount(),
+		false,
 		use,
 	)
 	return err
@@ -95,6 +96,69 @@ func (d *Dataset) WithRowView(start, end int, use DatasetViewFunc) (err error) {
 		d.targets,
 		start,
 		end,
+		false,
+		use,
+	)
+	return err
+}
+
+// WithSelectedRows calls use with paired rows in index order. Contiguous rows
+// alias dataset storage. Other valid selections are rejected by ViewOnly or
+// copied explicitly by ViewOrCopy. The temporary view expires when use
+// returns and must not be retained, mutated, or used concurrently. The
+// dataset and overlapping aliases must remain unmodified; concurrent or
+// reentrant access is unsupported.
+func (d *Dataset) WithSelectedRows(
+	indexes []int,
+	policy ViewPolicy,
+	use DatasetViewFunc,
+) (err error) {
+	var (
+		start      int
+		end        int
+		contiguous bool
+	)
+
+	if err = d.validate(); err != nil {
+		err = fmt.Errorf("data: dataset view owner is invalid: %w", err)
+		return err
+	}
+	if start, end, contiguous, err = validateSelectedRows(
+		"data: dataset view",
+		indexes,
+		d.SampleCount(),
+	); err != nil {
+		return err
+	}
+	if err = validateViewPolicy("data: dataset view", policy); err != nil {
+		return err
+	}
+	if use == nil {
+		err = fmt.Errorf("data: dataset view callback is nil")
+		return err
+	}
+	if !contiguous && policy == ViewOnly {
+		err = fmt.Errorf("data: dataset view selection is non-contiguous under ViewOnly")
+		return err
+	}
+	if contiguous {
+		err = withDatasetRowView(
+			"data: dataset view",
+			d.inputs,
+			d.targets,
+			start,
+			end,
+			false,
+			use,
+		)
+		return err
+	}
+
+	err = withSelectedDatasetRows(
+		"data: dataset view",
+		d.inputs,
+		d.targets,
+		indexes,
 		use,
 	)
 	return err
@@ -314,6 +378,94 @@ func (d *Dataset) Batches(batchSize int, random *rand.Rand) (batches []*Batch, e
 	return batches, nil
 }
 
+// ViewBatches calls use once for each paired mini-batch. Ordered batches are
+// contiguous views, including a partial final batch. Shuffling is rejected by
+// ViewOnly or uses explicit copied selections under ViewOrCopy. Every view
+// expires before traversal advances and must not be retained or mutated. The
+// dataset and overlapping aliases must remain unmodified; concurrent or
+// reentrant access is unsupported.
+func (d *Dataset) ViewBatches(
+	batchSize int,
+	random *rand.Rand,
+	policy ViewPolicy,
+	use DatasetViewFunc,
+) (err error) {
+	var (
+		indexes   []int
+		batch     int
+		start     int
+		end       int
+		remaining int
+	)
+
+	if err = d.validate(); err != nil {
+		err = fmt.Errorf("data: dataset view owner is invalid: %w", err)
+		return err
+	}
+	if batchSize <= 0 {
+		err = fmt.Errorf(
+			"data: dataset view batch size must be positive: batchSize=%d",
+			batchSize,
+		)
+		return err
+	}
+	if err = validateViewPolicy("data: dataset view", policy); err != nil {
+		return err
+	}
+	if use == nil {
+		err = fmt.Errorf("data: dataset view callback is nil")
+		return err
+	}
+	if random != nil && policy == ViewOnly {
+		err = fmt.Errorf("data: dataset view shuffled batches require ViewOrCopy")
+		return err
+	}
+
+	if random != nil {
+		indexes = rowIndexes(d.SampleCount())
+		shuffleIndexes(indexes, random)
+	}
+	for start = 0; start < d.SampleCount(); start = end {
+		remaining = d.SampleCount() - start
+		end = d.SampleCount()
+		if batchSize < remaining {
+			end = start + batchSize
+		}
+
+		if random == nil {
+			err = withDatasetRowView(
+				"data: dataset view",
+				d.inputs,
+				d.targets,
+				start,
+				end,
+				false,
+				use,
+			)
+		} else {
+			err = withSelectedDatasetRows(
+				"data: dataset view",
+				d.inputs,
+				d.targets,
+				indexes[start:end],
+				use,
+			)
+		}
+		if err != nil {
+			err = fmt.Errorf(
+				"data: dataset view batch failed: batch=%d start=%d end=%d: %w",
+				batch,
+				start,
+				end,
+				err,
+			)
+			return err
+		}
+		batch++
+	}
+	return nil
+}
+
 // Split returns train and test datasets from a deterministic row split.
 //
 // testFraction must be greater than 0 and less than 1. The test sample count
@@ -381,6 +533,115 @@ func (d *Dataset) Split(testFraction float32, random *rand.Rand) (train, test *D
 	}
 
 	return train, test, nil
+}
+
+// ViewSplit calls use with paired train and test selections. An ordered split
+// publishes two contiguous views. Shuffling is rejected by ViewOnly or copies
+// both selections explicitly under ViewOrCopy. Both views expire together
+// when use returns and must not be retained, mutated, or used concurrently.
+// The dataset and overlapping aliases must remain unmodified; concurrent or
+// reentrant access is unsupported.
+func (d *Dataset) ViewSplit(
+	testFraction float32,
+	random *rand.Rand,
+	policy ViewPolicy,
+	use DatasetSplitViewFunc,
+) (err error) {
+	var (
+		sampleCount  int
+		testCount    int
+		trainCount   int
+		indexes      []int
+		trainInputs  *matrix.Matrix
+		trainTargets *matrix.Matrix
+		testInputs   *matrix.Matrix
+		testTargets  *matrix.Matrix
+	)
+
+	if err = d.validate(); err != nil {
+		err = fmt.Errorf("data: dataset view owner is invalid: %w", err)
+		return err
+	}
+	if !(testFraction > 0 && testFraction < 1) {
+		err = fmt.Errorf(
+			"data: dataset view test fraction must be greater than 0 and less than 1: testFraction=%g",
+			testFraction,
+		)
+		return err
+	}
+	sampleCount = d.SampleCount()
+	testCount = int(float32(sampleCount) * testFraction)
+	trainCount = sampleCount - testCount
+	if testCount == 0 || trainCount == 0 {
+		err = fmt.Errorf(
+			"data: dataset view test fraction must produce non-empty splits: samples=%d testFraction=%g",
+			sampleCount,
+			testFraction,
+		)
+		return err
+	}
+	if err = validateViewPolicy("data: dataset view", policy); err != nil {
+		return err
+	}
+	if use == nil {
+		err = fmt.Errorf("data: dataset view split callback is nil")
+		return err
+	}
+	if random != nil && policy == ViewOnly {
+		err = fmt.Errorf("data: dataset view shuffled split requires ViewOrCopy")
+		return err
+	}
+
+	if random == nil {
+		err = withDatasetSplitViews(
+			"data: dataset view split",
+			d.inputs,
+			d.targets,
+			d.inputs,
+			d.targets,
+			0,
+			trainCount,
+			trainCount,
+			sampleCount,
+			false,
+			use,
+		)
+		return err
+	}
+
+	indexes = rowIndexes(sampleCount)
+	shuffleIndexes(indexes, random)
+	if trainInputs, err = matrixRows(d.inputs, indexes[:trainCount]); err != nil {
+		err = fmt.Errorf("data: dataset view split copy train inputs: %w", err)
+		return err
+	}
+	if trainTargets, err = matrixRows(d.targets, indexes[:trainCount]); err != nil {
+		err = fmt.Errorf("data: dataset view split copy train targets: %w", err)
+		return err
+	}
+	if testInputs, err = matrixRows(d.inputs, indexes[trainCount:]); err != nil {
+		err = fmt.Errorf("data: dataset view split copy test inputs: %w", err)
+		return err
+	}
+	if testTargets, err = matrixRows(d.targets, indexes[trainCount:]); err != nil {
+		err = fmt.Errorf("data: dataset view split copy test targets: %w", err)
+		return err
+	}
+
+	err = withDatasetSplitViews(
+		"data: dataset view split",
+		trainInputs,
+		trainTargets,
+		testInputs,
+		testTargets,
+		0,
+		trainCount,
+		0,
+		testCount,
+		true,
+		use,
+	)
+	return err
 }
 
 func (d *Dataset) validate() (err error) {

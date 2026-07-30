@@ -38,10 +38,11 @@ func newSequenceDatasetView(
 
 // SequenceDatasetView is a temporary read-only-intent view of aligned input,
 // target, and logical-length values. The source sequence dataset or batch owns
-// whole and contiguous-window storage. Accessors do not copy. A view and all
-// value copies of it expire together when the publishing callback exits and
-// must not be retained, mutated, or used concurrently. Its owner and
-// overlapping aliases must remain unmodified until that callback exits.
+// whole and contiguous-window storage; an explicit fallback owns temporary
+// selected storage. Accessors do not copy. A view and all value copies of it
+// expire together when the publishing callback exits and must not be retained,
+// mutated, or used concurrently. Its owner and overlapping aliases must remain
+// unmodified until that callback exits.
 //
 // A retained length slice cannot be revoked by Go after expiry. Retaining or
 // using one after the callback is unsupported even though its slice header may
@@ -68,8 +69,9 @@ func (v *SequenceDatasetView) Validate() (err error) {
 
 // Inputs returns the active temporary input matrix without copying.
 //
-// The returned matrix aliases owner storage and expires with the
-// SequenceDatasetView. It must not be retained, mutated, or used concurrently.
+// The returned matrix aliases the active view's backing storage and expires
+// with the SequenceDatasetView. It must not be retained, mutated, or used
+// concurrently.
 func (v *SequenceDatasetView) Inputs() (inputs *matrix.Matrix, err error) {
 	if err = v.validate(); err != nil {
 		return nil, err
@@ -81,8 +83,9 @@ func (v *SequenceDatasetView) Inputs() (inputs *matrix.Matrix, err error) {
 
 // Targets returns the active temporary target matrix without copying.
 //
-// The returned matrix aliases owner storage and expires with the
-// SequenceDatasetView. It must not be retained, mutated, or used concurrently.
+// The returned matrix aliases the active view's backing storage and expires
+// with the SequenceDatasetView. It must not be retained, mutated, or used
+// concurrently.
 func (v *SequenceDatasetView) Targets() (targets *matrix.Matrix, err error) {
 	if err = v.validate(); err != nil {
 		return nil, err
@@ -94,9 +97,10 @@ func (v *SequenceDatasetView) Targets() (targets *matrix.Matrix, err error) {
 
 // Lengths returns the active temporary logical-length slice without copying.
 //
-// The returned slice aliases owner storage. It must not be retained, mutated,
-// sent to another goroutine, or used after the publishing callback returns.
-// Go cannot revoke a retained slice header after the view expires.
+// The returned slice aliases the active view's backing storage. It must not be
+// retained, mutated, sent to another goroutine, or used after the publishing
+// callback returns. Go cannot revoke a retained slice header after the view
+// expires.
 func (v *SequenceDatasetView) Lengths() (lengths []int, err error) {
 	if err = v.validate(); err != nil {
 		return nil, err
@@ -219,6 +223,7 @@ func withSequenceDatasetRowView(
 	lengths *SequenceLengths,
 	start,
 	end int,
+	copied bool,
 	use SequenceDatasetViewFunc,
 ) (err error) {
 	var lengthView []int
@@ -242,7 +247,7 @@ func withSequenceDatasetRowView(
 				targetView,
 				lengths.Steps(),
 				lengthView,
-				false,
+				copied,
 			); targetErr != nil {
 				return targetErr
 			}
@@ -264,6 +269,92 @@ func withSequenceDatasetRowView(
 		return err
 	}
 	return nil
+}
+
+func withSelectedSequenceDatasetRows(
+	prefix string,
+	inputs,
+	targets *matrix.Matrix,
+	lengths *SequenceLengths,
+	indexes []int,
+	use SequenceDatasetViewFunc,
+) (err error) {
+	var (
+		selectedInputs  *matrix.Matrix
+		selectedTargets *matrix.Matrix
+		selectedLengths *SequenceLengths
+	)
+
+	if selectedInputs, err = matrixRows(inputs, indexes); err != nil {
+		err = fmt.Errorf("%s copy inputs: %w", prefix, err)
+		return err
+	}
+	if selectedTargets, err = matrixRows(targets, indexes); err != nil {
+		err = fmt.Errorf("%s copy targets: %w", prefix, err)
+		return err
+	}
+	if selectedLengths, err = lengths.selectRows(indexes); err != nil {
+		err = fmt.Errorf("%s copy lengths: %w", prefix, err)
+		return err
+	}
+
+	err = withSequenceDatasetRowView(
+		prefix,
+		selectedInputs,
+		selectedTargets,
+		selectedLengths,
+		0,
+		len(indexes),
+		true,
+		use,
+	)
+	return err
+}
+
+func withSequenceDatasetSplitViews(
+	prefix string,
+	trainInputs,
+	trainTargets *matrix.Matrix,
+	trainLengths *SequenceLengths,
+	testInputs,
+	testTargets *matrix.Matrix,
+	testLengths *SequenceLengths,
+	trainStart,
+	trainEnd,
+	testStart,
+	testEnd int,
+	copied bool,
+	use SequenceDatasetSplitViewFunc,
+) (err error) {
+	err = withSequenceDatasetRowView(
+		prefix+" train",
+		trainInputs,
+		trainTargets,
+		trainLengths,
+		trainStart,
+		trainEnd,
+		copied,
+		func(train *SequenceDatasetView) (trainErr error) {
+			trainErr = withSequenceDatasetRowView(
+				prefix+" test",
+				testInputs,
+				testTargets,
+				testLengths,
+				testStart,
+				testEnd,
+				copied,
+				func(test *SequenceDatasetView) (testErr error) {
+					if testErr = use(train, test); testErr != nil {
+						testErr = fmt.Errorf("%s callback: %w", prefix, testErr)
+						return testErr
+					}
+					return nil
+				},
+			)
+			return trainErr
+		},
+	)
+	return err
 }
 
 func validateSequenceViewData(
