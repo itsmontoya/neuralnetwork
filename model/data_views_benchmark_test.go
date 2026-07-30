@@ -63,6 +63,27 @@ func Benchmark_FitDataViewsCopyBaseline(b *testing.B) {
 	})
 }
 
+func Benchmark_FitDataViewsView(b *testing.B) {
+	b.Run("FullTrainingEvaluation/Ordinary4096x256_4096x16", func(b *testing.B) {
+		benchmarkFitDataViewsViewEvaluation(b)
+	})
+	b.Run("FullValidationEvaluation/Ordinary4096x256_4096x16", func(b *testing.B) {
+		benchmarkFitDataViewsViewEvaluation(b)
+	})
+	b.Run("CompleteEpoch/Ordered/Cold/Train4096_Validation4096_Batch256", func(b *testing.B) {
+		benchmarkFitDataViewsViewCompleteEpoch(b, false, true)
+	})
+	b.Run("CompleteEpoch/Ordered/Warm/Train4096_Validation4096_Batch256", func(b *testing.B) {
+		benchmarkFitDataViewsViewCompleteEpoch(b, false, false)
+	})
+	b.Run("CompleteEpoch/Shuffled/Cold/Train4096_Validation4096_Batch256", func(b *testing.B) {
+		benchmarkFitDataViewsViewCompleteEpoch(b, true, true)
+	})
+	b.Run("CompleteEpoch/Shuffled/Warm/Train4096_Validation4096_Batch256", func(b *testing.B) {
+		benchmarkFitDataViewsViewCompleteEpoch(b, true, false)
+	})
+}
+
 func Benchmark_FitSequenceDataViewsCopyBaseline(b *testing.B) {
 	b.Run("FullTrainingEvaluation/Cold/Sequence512x4096_512x8_Lengths512", func(b *testing.B) {
 		benchmarkFitSequenceDataViewsEvaluation(
@@ -103,6 +124,33 @@ func Benchmark_FitSequenceDataViewsCopyBaseline(b *testing.B) {
 	})
 	b.Run("CompleteEpoch/Shuffled/Warm/Train512_Validation256_Batch256", func(b *testing.B) {
 		benchmarkFitSequenceDataViewsCompleteEpoch(b, true, false)
+	})
+}
+
+func Benchmark_FitSequenceDataViewsView(b *testing.B) {
+	b.Run("FullTrainingEvaluation/Sequence512x4096_512x8_Lengths512", func(b *testing.B) {
+		benchmarkFitSequenceDataViewsViewEvaluation(
+			b,
+			benchmarkFitDataViewsSequenceSamples,
+		)
+	})
+	b.Run("FullValidationEvaluation/Sequence256x4096_256x8_Lengths256", func(b *testing.B) {
+		benchmarkFitSequenceDataViewsViewEvaluation(
+			b,
+			benchmarkFitDataViewsSequenceValidation,
+		)
+	})
+	b.Run("CompleteEpoch/Ordered/Cold/Train512_Validation256_Batch192", func(b *testing.B) {
+		benchmarkFitSequenceDataViewsViewCompleteEpoch(b, false, true)
+	})
+	b.Run("CompleteEpoch/Ordered/Warm/Train512_Validation256_Batch192", func(b *testing.B) {
+		benchmarkFitSequenceDataViewsViewCompleteEpoch(b, false, false)
+	})
+	b.Run("CompleteEpoch/Shuffled/Cold/Train512_Validation256_Batch256", func(b *testing.B) {
+		benchmarkFitSequenceDataViewsViewCompleteEpoch(b, true, true)
+	})
+	b.Run("CompleteEpoch/Shuffled/Warm/Train512_Validation256_Batch256", func(b *testing.B) {
+		benchmarkFitSequenceDataViewsViewCompleteEpoch(b, true, false)
 	})
 }
 
@@ -175,6 +223,62 @@ func benchmarkFitDataViewsEvaluation(b *testing.B, cold bool) {
 		}
 	}
 	verifyFitDataViewsFinite(b, "ordinary evaluation loss", lossValue)
+	benchmarkFitDataViewsLoss = lossValue
+}
+
+func benchmarkFitDataViewsViewEvaluation(b *testing.B) {
+	var (
+		dataset      *data.Dataset
+		network      *Sequential
+		matrices     fitMatrixPair
+		copiedLoss   float32
+		lossValue    float32
+		logicalBytes int64
+		err          error
+		index        int
+	)
+
+	dataset = benchmarkFitDataViewsOrdinaryDataset(b)
+	network = benchmarkFitDataViewsOrdinaryModel(b)
+	if copiedLoss, _, _, err = network.evaluateFitDataset(
+		dataset,
+		loss.MeanSquaredError{},
+		nil,
+		&matrices,
+	); err != nil {
+		b.Fatalf("numeric check evaluateFitDataset returned error: %v", err)
+	}
+	if lossValue, _, _, err = network.evaluateFitDatasetView(
+		dataset,
+		loss.MeanSquaredError{},
+		nil,
+	); err != nil {
+		b.Fatalf("warm-up evaluateFitDatasetView returned error: %v", err)
+	}
+	if lossValue != copiedLoss {
+		b.Fatalf("view evaluation loss = %g, copied loss %g", lossValue, copiedLoss)
+	}
+	if err = matrices.release(); err != nil {
+		b.Fatalf("release numeric check matrices returned error: %v", err)
+	}
+	verifyFitDataViewsFinite(b, "ordinary view evaluation loss", lossValue)
+
+	logicalBytes = benchmarkFitDataViewsOrdinaryBytes(
+		benchmarkFitDataViewsOrdinarySamples,
+	)
+	b.ResetTimer()
+	reportFitDataViewsMetrics(b, logicalBytes, 0)
+	for index = 0; index < b.N; index++ {
+		if lossValue, _, _, err = network.evaluateFitDatasetView(
+			dataset,
+			loss.MeanSquaredError{},
+			nil,
+		); err != nil {
+			b.Fatalf("evaluateFitDatasetView returned error: %v", err)
+		}
+	}
+	b.StopTimer()
+	verifyFitDataViewsFinite(b, "ordinary view evaluation loss", lossValue)
 	benchmarkFitDataViewsLoss = lossValue
 }
 
@@ -269,6 +373,82 @@ func benchmarkFitSequenceDataViewsEvaluation(
 	benchmarkFitDataViewsLoss = lossValue
 }
 
+func benchmarkFitSequenceDataViewsViewEvaluation(
+	b *testing.B,
+	samples int,
+) {
+	var (
+		dataset       *data.SequenceDataset
+		network       *Sequential
+		selector      sequenceLengthLayer
+		selectorIndex int
+		matrices      fitMatrixPair
+		lengths       []int
+		copiedLoss    float32
+		lossValue     float32
+		logicalBytes  int64
+		err           error
+		index         int
+	)
+
+	dataset = benchmarkFitDataViewsSequenceDataset(b, samples)
+	network = benchmarkFitDataViewsSequenceModel(b)
+	if selector, selectorIndex, err = network.lengthAwareGraph(
+		"benchmark view evaluation",
+	); err != nil {
+		b.Fatalf("lengthAwareGraph returned error: %v", err)
+	}
+	if copiedLoss, _, _, err = network.evaluateSequenceFitDataset(
+		dataset,
+		loss.MeanSquaredError{},
+		nil,
+		selector,
+		selectorIndex,
+		&matrices,
+		&lengths,
+	); err != nil {
+		b.Fatalf("numeric check evaluateSequenceFitDataset returned error: %v", err)
+	}
+	if lossValue, _, _, err = network.evaluateSequenceFitDatasetView(
+		dataset,
+		loss.MeanSquaredError{},
+		nil,
+		selector,
+		selectorIndex,
+	); err != nil {
+		b.Fatalf("warm-up evaluateSequenceFitDatasetView returned error: %v", err)
+	}
+	if lossValue != copiedLoss {
+		b.Fatalf(
+			"sequence view evaluation loss = %g, copied loss %g",
+			lossValue,
+			copiedLoss,
+		)
+	}
+	if err = matrices.release(); err != nil {
+		b.Fatalf("release sequence numeric check matrices returned error: %v", err)
+	}
+	verifyFitDataViewsFinite(b, "sequence view evaluation loss", lossValue)
+
+	logicalBytes = benchmarkFitDataViewsSequenceBytes(samples)
+	b.ResetTimer()
+	reportFitDataViewsMetrics(b, logicalBytes, 0)
+	for index = 0; index < b.N; index++ {
+		if lossValue, _, _, err = network.evaluateSequenceFitDatasetView(
+			dataset,
+			loss.MeanSquaredError{},
+			nil,
+			selector,
+			selectorIndex,
+		); err != nil {
+			b.Fatalf("evaluateSequenceFitDatasetView returned error: %v", err)
+		}
+	}
+	b.StopTimer()
+	verifyFitDataViewsFinite(b, "sequence view evaluation loss", lossValue)
+	benchmarkFitDataViewsLoss = lossValue
+}
+
 func benchmarkFitDataViewsCompleteEpoch(
 	b *testing.B,
 	shuffle,
@@ -339,6 +519,93 @@ func benchmarkFitDataViewsCompleteEpoch(
 	b.StopTimer()
 	if err = scratch.release(); err != nil {
 		b.Fatalf("release ordinary fit scratch returned error: %v", err)
+	}
+	if cold {
+		metrics = benchmarkFitDataViewsHistoryMetrics(b, history)
+	}
+	verifyFitDataViewsEpochMetrics(b, metrics)
+	benchmarkFitDataViewsHistory = history
+	benchmarkFitDataViewsMetrics = metrics
+}
+
+func benchmarkFitDataViewsViewCompleteEpoch(
+	b *testing.B,
+	shuffle,
+	cold bool,
+) {
+	var (
+		trainingData   *data.Dataset
+		validationData *data.Dataset
+		network        *Sequential
+		fitConfig      FitConfig
+		config         ViewFitConfig
+		history        TrainingHistory
+		metrics        EpochMetrics
+		scratch        fitScratch
+		trainingBytes  int64
+		logicalRead    int64
+		logicalCopied  int64
+		err            error
+		index          int
+	)
+
+	verifyFitDataViewsOrdinaryFitParity(b, shuffle)
+	trainingData = benchmarkFitDataViewsOrdinaryDataset(b)
+	validationData = benchmarkFitDataViewsOrdinaryDataset(b)
+	network = benchmarkFitDataViewsOrdinaryModel(b)
+	fitConfig = benchmarkFitDataViewsConfig(b, validationData, shuffle)
+	config.FitConfig = fitConfig
+	if shuffle {
+		config.Policy = data.ViewOrCopy
+	}
+	if cold {
+		if _, err = network.FitWithViews(trainingData, config); err != nil {
+			b.Fatalf("warm-up FitWithViews returned error: %v", err)
+		}
+	} else {
+		if metrics, err = benchmarkFitDataViewsViewWarmEpoch(
+			network,
+			trainingData,
+			config,
+			1,
+			&scratch,
+		); err != nil {
+			b.Fatalf("warm-up ordinary view epoch returned error: %v", err)
+		}
+	}
+
+	trainingBytes = benchmarkFitDataViewsOrdinaryBytes(
+		benchmarkFitDataViewsOrdinarySamples,
+	)
+	logicalRead = trainingBytes * 3
+	if shuffle {
+		logicalCopied = trainingBytes
+	}
+	b.ResetTimer()
+	reportFitDataViewsMetrics(b, logicalRead, logicalCopied)
+	for index = 0; index < b.N; index++ {
+		if cold {
+			if history, err = network.FitWithViews(
+				trainingData,
+				config,
+			); err != nil {
+				b.Fatalf("FitWithViews returned error: %v", err)
+			}
+			continue
+		}
+		if metrics, err = benchmarkFitDataViewsViewWarmEpoch(
+			network,
+			trainingData,
+			config,
+			index+2,
+			&scratch,
+		); err != nil {
+			b.Fatalf("ordinary view epoch returned error: %v", err)
+		}
+	}
+	b.StopTimer()
+	if err = scratch.release(); err != nil {
+		b.Fatalf("release ordinary view fit scratch returned error: %v", err)
 	}
 	if cold {
 		metrics = benchmarkFitDataViewsHistoryMetrics(b, history)
@@ -447,6 +714,115 @@ func benchmarkFitSequenceDataViewsCompleteEpoch(
 	benchmarkFitDataViewsMetrics = metrics
 }
 
+func benchmarkFitSequenceDataViewsViewCompleteEpoch(
+	b *testing.B,
+	shuffle,
+	cold bool,
+) {
+	var (
+		trainingData    *data.SequenceDataset
+		validationData  *data.SequenceDataset
+		network         *Sequential
+		fitConfig       SequenceFitConfig
+		config          SequenceViewFitConfig
+		selector        sequenceLengthLayer
+		selectorIndex   int
+		history         TrainingHistory
+		metrics         EpochMetrics
+		scratch         fitScratch
+		trainingBytes   int64
+		validationBytes int64
+		logicalRead     int64
+		logicalCopied   int64
+		err             error
+		index           int
+	)
+
+	verifyFitDataViewsSequenceFitParity(b, shuffle)
+	trainingData = benchmarkFitDataViewsSequenceDataset(
+		b,
+		benchmarkFitDataViewsSequenceSamples,
+	)
+	validationData = benchmarkFitDataViewsSequenceDataset(
+		b,
+		benchmarkFitDataViewsSequenceValidation,
+	)
+	network = benchmarkFitDataViewsSequenceModel(b)
+	fitConfig = benchmarkFitSequenceDataViewsConfig(b, validationData, shuffle)
+	config.SequenceFitConfig = fitConfig
+	if shuffle {
+		config.Policy = data.ViewOrCopy
+	}
+	if selector, selectorIndex, err = network.lengthAwareGraph(
+		"benchmark length-view fit",
+	); err != nil {
+		b.Fatalf("lengthAwareGraph returned error: %v", err)
+	}
+	if cold {
+		if _, err = network.FitWithLengthViews(trainingData, config); err != nil {
+			b.Fatalf("warm-up FitWithLengthViews returned error: %v", err)
+		}
+	} else {
+		if metrics, err = benchmarkFitSequenceDataViewsViewWarmEpoch(
+			network,
+			trainingData,
+			config,
+			selector,
+			selectorIndex,
+			1,
+			&scratch,
+		); err != nil {
+			b.Fatalf("warm-up sequence view epoch returned error: %v", err)
+		}
+	}
+
+	trainingBytes = benchmarkFitDataViewsSequenceBytes(
+		benchmarkFitDataViewsSequenceSamples,
+	)
+	validationBytes = benchmarkFitDataViewsSequenceBytes(
+		benchmarkFitDataViewsSequenceValidation,
+	)
+	logicalRead = trainingBytes*2 + validationBytes
+	if shuffle {
+		logicalCopied = trainingBytes
+	}
+	b.ResetTimer()
+	reportFitDataViewsMetrics(b, logicalRead, logicalCopied)
+	for index = 0; index < b.N; index++ {
+		if cold {
+			if history, err = network.FitWithLengthViews(
+				trainingData,
+				config,
+			); err != nil {
+				b.Fatalf("FitWithLengthViews returned error: %v", err)
+			}
+			continue
+		}
+		if metrics, err = benchmarkFitSequenceDataViewsViewWarmEpoch(
+			network,
+			trainingData,
+			config,
+			selector,
+			selectorIndex,
+			index+2,
+			&scratch,
+		); err != nil {
+			b.Fatalf("sequence view epoch returned error: %v", err)
+		}
+	}
+	b.StopTimer()
+	network.invalidateLengthAwareForward()
+	if err = scratch.release(); err != nil {
+		b.Fatalf("release sequence view fit scratch returned error: %v", err)
+	}
+	if cold {
+		metrics = benchmarkFitDataViewsHistoryMetrics(b, history)
+	}
+	verifyFitDataViewsEpochMetrics(b, metrics)
+	benchmarkFitDataViewsHistory = history
+	benchmarkFitDataViewsMetrics = metrics
+}
+
 func benchmarkFitDataViewsWarmEpoch(
 	network *Sequential,
 	trainingData *data.Dataset,
@@ -468,6 +844,29 @@ func benchmarkFitDataViewsWarmEpoch(
 		trainingData,
 		config,
 		scratch,
+	)
+	return metrics, err
+}
+
+func benchmarkFitDataViewsViewWarmEpoch(
+	network *Sequential,
+	trainingData *data.Dataset,
+	config ViewFitConfig,
+	epoch int,
+	scratch *fitScratch,
+) (metrics EpochMetrics, err error) {
+	if err = network.trainViewFitEpoch(
+		trainingData,
+		config,
+		epoch,
+		scratch,
+	); err != nil {
+		return metrics, err
+	}
+	metrics, err = network.viewFitEpochMetrics(
+		epoch,
+		trainingData,
+		config.FitConfig,
 	)
 	return metrics, err
 }
@@ -503,6 +902,35 @@ func benchmarkFitSequenceDataViewsWarmEpoch(
 	return metrics, err
 }
 
+func benchmarkFitSequenceDataViewsViewWarmEpoch(
+	network *Sequential,
+	trainingData *data.SequenceDataset,
+	config SequenceViewFitConfig,
+	selector sequenceLengthLayer,
+	selectorIndex,
+	epoch int,
+	scratch *fitScratch,
+) (metrics EpochMetrics, err error) {
+	if err = network.trainLengthViewFitEpoch(
+		trainingData,
+		config,
+		epoch,
+		selector,
+		selectorIndex,
+		scratch,
+	); err != nil {
+		return metrics, err
+	}
+	metrics, err = network.lengthViewFitEpochMetrics(
+		epoch,
+		trainingData,
+		config.SequenceFitConfig,
+		selector,
+		selectorIndex,
+	)
+	return metrics, err
+}
+
 func benchmarkFitDataViewsConfig(
 	tb testing.TB,
 	validationData *data.Dataset,
@@ -526,6 +954,108 @@ func benchmarkFitDataViewsConfig(
 	config.Loss = loss.MeanSquaredError{}
 	config.ValidationData = validationData
 	return config
+}
+
+func verifyFitDataViewsOrdinaryFitParity(
+	tb testing.TB,
+	shuffle bool,
+) {
+	var (
+		trainingData   *data.Dataset
+		validationData *data.Dataset
+		copiedModel    *Sequential
+		viewModel      *Sequential
+		copiedConfig   FitConfig
+		viewFitConfig  FitConfig
+		viewConfig     ViewFitConfig
+		copiedHistory  TrainingHistory
+		viewHistory    TrainingHistory
+		err            error
+	)
+
+	tb.Helper()
+	trainingData = benchmarkFitDataViewsOrdinaryDataset(tb)
+	validationData = benchmarkFitDataViewsOrdinaryDataset(tb)
+	copiedModel = benchmarkFitDataViewsOrdinaryModel(tb)
+	viewModel = benchmarkFitDataViewsOrdinaryModel(tb)
+	copiedConfig = benchmarkFitDataViewsConfig(tb, validationData, shuffle)
+	viewFitConfig = benchmarkFitDataViewsConfig(tb, validationData, shuffle)
+	viewConfig.FitConfig = viewFitConfig
+	if shuffle {
+		viewConfig.Policy = data.ViewOrCopy
+	}
+	if copiedHistory, err = copiedModel.Fit(
+		trainingData,
+		copiedConfig,
+	); err != nil {
+		tb.Fatalf("numeric check Fit returned error: %v", err)
+	}
+	if viewHistory, err = viewModel.FitWithViews(
+		trainingData,
+		viewConfig,
+	); err != nil {
+		tb.Fatalf("numeric check FitWithViews returned error: %v", err)
+	}
+	requireViewFitHistoryEqual(tb, viewHistory, copiedHistory)
+	requireViewFitParametersEqual(tb, viewModel, copiedModel)
+}
+
+func verifyFitDataViewsSequenceFitParity(
+	tb testing.TB,
+	shuffle bool,
+) {
+	var (
+		trainingData   *data.SequenceDataset
+		validationData *data.SequenceDataset
+		copiedModel    *Sequential
+		viewModel      *Sequential
+		copiedConfig   SequenceFitConfig
+		viewFitConfig  SequenceFitConfig
+		viewConfig     SequenceViewFitConfig
+		copiedHistory  TrainingHistory
+		viewHistory    TrainingHistory
+		err            error
+	)
+
+	tb.Helper()
+	trainingData = benchmarkFitDataViewsSequenceDataset(
+		tb,
+		benchmarkFitDataViewsSequenceSamples,
+	)
+	validationData = benchmarkFitDataViewsSequenceDataset(
+		tb,
+		benchmarkFitDataViewsSequenceValidation,
+	)
+	copiedModel = benchmarkFitDataViewsSequenceModel(tb)
+	viewModel = benchmarkFitDataViewsSequenceModel(tb)
+	copiedConfig = benchmarkFitSequenceDataViewsConfig(
+		tb,
+		validationData,
+		shuffle,
+	)
+	viewFitConfig = benchmarkFitSequenceDataViewsConfig(
+		tb,
+		validationData,
+		shuffle,
+	)
+	viewConfig.SequenceFitConfig = viewFitConfig
+	if shuffle {
+		viewConfig.Policy = data.ViewOrCopy
+	}
+	if copiedHistory, err = copiedModel.FitWithLengths(
+		trainingData,
+		copiedConfig,
+	); err != nil {
+		tb.Fatalf("numeric check FitWithLengths returned error: %v", err)
+	}
+	if viewHistory, err = viewModel.FitWithLengthViews(
+		trainingData,
+		viewConfig,
+	); err != nil {
+		tb.Fatalf("numeric check FitWithLengthViews returned error: %v", err)
+	}
+	requireViewFitHistoryEqual(tb, viewHistory, copiedHistory)
+	requireViewFitParametersEqual(tb, viewModel, copiedModel)
 }
 
 func benchmarkFitSequenceDataViewsConfig(
