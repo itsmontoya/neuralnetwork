@@ -1,8 +1,10 @@
 # Data View Copy-Pressure Benchmarks
 
-Captured on July 29, 2026. These are before measurements of the existing
-copying APIs and fit internals. No production view implementation was present.
-Matching after cases will be added without replacing these results.
+Captured on July 29, 2026. The tables below are before measurements of the
+existing copying APIs and fit internals. No production view implementation was
+present when they were recorded. Matching view benchmarks are being added
+without replacing these results; the final measured after tables remain part
+of the complete opt-in training section.
 
 ## Environment
 
@@ -133,4 +135,32 @@ scratch, the complete training board again for evaluation, and the complete
 validation board once. These results establish why allocation count alone is
 not the acceptance metric for the view implementation.
 
-No after measurements or performance claims are included in this baseline.
+No final after measurements or performance claims are included in the
+baseline tables.
+
+## Implemented data-view comparison cases
+
+The data benchmark suite now includes matching Section 5 cases for contiguous
+and arbitrary selected rows, ordered full and partial batching, shuffled batch
+fallback, ordered splitting, and shuffled split fallback on both fixed ordinary
+and wide sequence boards. Strict rejection is verified outside the timed region
+before each non-contiguous fallback benchmark.
+
+Expected effects follow directly from the implemented ownership boundary:
+
+| View operation | Data-boundary copy reduction | Allocation-byte reduction | Notes |
+| --- | --- | --- | --- |
+| Contiguous selected rows | Yes, 100% | Yes | Aliases one owner row window. |
+| Ordered full/partial batches | Yes, 100% | Yes | Each callback receives one temporary contiguous view. |
+| Ordered split | Yes, 100% | Yes | Train and test alias leading and trailing owner windows. |
+| Arbitrary/repeated selected fallback | No | No material reduction expected | `ViewOrCopy` explicitly materializes the selected rows. |
+| Shuffled batch fallback | No | No material reduction expected | Every shuffled batch is copied and reports `Copied == true`. |
+| Shuffled split fallback | No | No material reduction expected | Both shuffled selections are copied before callback publication. |
+
+A one-iteration correctness run on the recorded Apple M3 environment confirmed
+zero logical copied bytes for every contiguous/ordered case and the full honest
+logical copy volume for every fallback case. It also showed that ordered cases
+allocate only callback/view metadata rather than input-, target-, or
+length-sized storage. These smoke results are not substituted for the accepted
+ten-run after medians, which remain deferred until the model view path provides
+the complete Section 6 comparison.

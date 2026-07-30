@@ -1,6 +1,7 @@
 package data
 
 import (
+	"math/rand"
 	"reflect"
 	"testing"
 	"unsafe"
@@ -100,6 +101,156 @@ func Test_DatasetViewRejectsInvalidPrivateAssociationBeforeCallback(t *testing.T
 	if called {
 		t.Fatal("WithView invoked callback for invalid association")
 	}
+}
+
+func Test_DatasetSelectionViewsShareOnlyAdvertisedStorage(t *testing.T) {
+	var (
+		dataset   *Dataset
+		inputView *matrix.Matrix
+		batch     int
+		err       error
+	)
+
+	dataset = mustOwnedDatasetWithSamples(t, 4)
+	err = dataset.WithSelectedRows(
+		[]int{1, 2},
+		ViewOnly,
+		func(view *DatasetView) (viewErr error) {
+			if inputView, viewErr = view.Inputs(); viewErr != nil {
+				return viewErr
+			}
+			if matrixStoragePointer(inputView) !=
+				matrixStoragePointer(dataset.inputs)+2*unsafe.Sizeof(float32(0)) {
+				t.Fatal("contiguous selected view does not alias its first owner row")
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("contiguous WithSelectedRows returned error: %v", err)
+	}
+
+	err = dataset.WithSelectedRows(
+		[]int{3, 0, 3},
+		ViewOrCopy,
+		func(view *DatasetView) (viewErr error) {
+			if inputView, viewErr = view.Inputs(); viewErr != nil {
+				return viewErr
+			}
+			if matrixStoragePointer(inputView) == matrixStoragePointer(dataset.inputs) {
+				t.Fatal("copied selected view aliases dataset storage")
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("copied WithSelectedRows returned error: %v", err)
+	}
+
+	err = dataset.ViewBatches(
+		2,
+		nil,
+		ViewOnly,
+		func(view *DatasetView) (viewErr error) {
+			if inputView, viewErr = view.Inputs(); viewErr != nil {
+				return viewErr
+			}
+			if matrixStoragePointer(inputView) !=
+				matrixStoragePointer(dataset.inputs)+
+					uintptr(batch*4)*unsafe.Sizeof(float32(0)) {
+				t.Fatalf("ordered batch %d does not alias its owner rows", batch)
+			}
+			batch++
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("ordered ViewBatches returned error: %v", err)
+	}
+
+	err = dataset.ViewSplit(
+		0.5,
+		nil,
+		ViewOnly,
+		func(train, test *DatasetView) (viewErr error) {
+			var (
+				trainInputs *matrix.Matrix
+				testInputs  *matrix.Matrix
+			)
+
+			if trainInputs, viewErr = train.Inputs(); viewErr != nil {
+				return viewErr
+			}
+			if testInputs, viewErr = test.Inputs(); viewErr != nil {
+				return viewErr
+			}
+			if matrixStoragePointer(trainInputs) != matrixStoragePointer(dataset.inputs) {
+				t.Fatal("ordered train split does not alias leading owner rows")
+			}
+			if matrixStoragePointer(testInputs) !=
+				matrixStoragePointer(dataset.inputs)+4*unsafe.Sizeof(float32(0)) {
+				t.Fatal("ordered test split does not alias trailing owner rows")
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("ordered ViewSplit returned error: %v", err)
+	}
+
+	err = dataset.ViewSplit(
+		0.5,
+		rand.New(rand.NewSource(67)),
+		ViewOrCopy,
+		func(train, test *DatasetView) (viewErr error) {
+			var (
+				trainInputs *matrix.Matrix
+				testInputs  *matrix.Matrix
+			)
+
+			if trainInputs, viewErr = train.Inputs(); viewErr != nil {
+				return viewErr
+			}
+			if testInputs, viewErr = test.Inputs(); viewErr != nil {
+				return viewErr
+			}
+			if matrixStoragePointer(trainInputs) == matrixStoragePointer(dataset.inputs) ||
+				matrixStoragePointer(testInputs) == matrixStoragePointer(dataset.inputs) ||
+				matrixStoragePointer(trainInputs) == matrixStoragePointer(testInputs) {
+				t.Fatal("shuffled split did not publish two independent copied selections")
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("shuffled ViewSplit returned error: %v", err)
+	}
+}
+
+func mustOwnedDatasetWithSamples(tb testing.TB, samples int) (dataset *Dataset) {
+	var (
+		inputValues  []float32
+		targetValues []float32
+		inputs       *matrix.Matrix
+		targets      *matrix.Matrix
+		row          int
+		err          error
+	)
+
+	tb.Helper()
+	inputValues = make([]float32, samples*2)
+	targetValues = make([]float32, samples)
+	for row = 0; row < samples; row++ {
+		inputValues[row*2] = float32(row + 1)
+		inputValues[row*2+1] = float32((row + 1) * 10)
+		targetValues[row] = float32(row + 101)
+	}
+	inputs = mustOwnedMatrix(tb, samples, 2, inputValues)
+	targets = mustOwnedMatrix(tb, samples, 1, targetValues)
+	if dataset, err = NewDataset(inputs, targets); err != nil {
+		tb.Fatalf("NewDataset returned error: %v", err)
+	}
+	return dataset
 }
 
 func matrixStoragePointer(value *matrix.Matrix) (pointer uintptr) {

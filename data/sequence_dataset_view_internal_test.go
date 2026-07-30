@@ -1,6 +1,7 @@
 package data
 
 import (
+	"math/rand"
 	"testing"
 	"unsafe"
 
@@ -237,4 +238,174 @@ func Test_SequenceViewsRejectInvalidPrivateAssociationBeforeCallback(t *testing.
 			}
 		})
 	}
+}
+
+func Test_SequenceSelectionViewsShareOnlyAdvertisedAlignedStorage(t *testing.T) {
+	var (
+		dataset    *SequenceDataset
+		inputView  *matrix.Matrix
+		lengthView []int
+		err        error
+	)
+
+	dataset = mustOwnedSequenceDatasetWithSamples(t, 4)
+	err = dataset.WithSelectedRows(
+		[]int{1, 2},
+		ViewOnly,
+		func(view *SequenceDatasetView) (viewErr error) {
+			if inputView, viewErr = view.Inputs(); viewErr != nil {
+				return viewErr
+			}
+			if lengthView, viewErr = view.Lengths(); viewErr != nil {
+				return viewErr
+			}
+			if matrixStoragePointer(inputView) !=
+				matrixStoragePointer(dataset.inputs)+4*unsafe.Sizeof(float32(0)) ||
+				&lengthView[0] != &dataset.lengths.values[1] {
+				t.Fatal("contiguous sequence selection does not alias aligned owner rows")
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("contiguous WithSelectedRows returned error: %v", err)
+	}
+
+	err = dataset.WithSelectedRows(
+		[]int{3, 0, 3},
+		ViewOrCopy,
+		func(view *SequenceDatasetView) (viewErr error) {
+			if inputView, viewErr = view.Inputs(); viewErr != nil {
+				return viewErr
+			}
+			if lengthView, viewErr = view.Lengths(); viewErr != nil {
+				return viewErr
+			}
+			if matrixStoragePointer(inputView) == matrixStoragePointer(dataset.inputs) ||
+				&lengthView[0] == &dataset.lengths.values[0] {
+				t.Fatal("copied sequence selection aliases dataset storage")
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("copied WithSelectedRows returned error: %v", err)
+	}
+
+	err = dataset.ViewSplit(
+		0.5,
+		nil,
+		ViewOnly,
+		func(train, test *SequenceDatasetView) (viewErr error) {
+			var (
+				trainInputs  *matrix.Matrix
+				testInputs   *matrix.Matrix
+				trainLengths []int
+				testLengths  []int
+			)
+
+			if trainInputs, viewErr = train.Inputs(); viewErr != nil {
+				return viewErr
+			}
+			if testInputs, viewErr = test.Inputs(); viewErr != nil {
+				return viewErr
+			}
+			if trainLengths, viewErr = train.Lengths(); viewErr != nil {
+				return viewErr
+			}
+			if testLengths, viewErr = test.Lengths(); viewErr != nil {
+				return viewErr
+			}
+			if matrixStoragePointer(trainInputs) != matrixStoragePointer(dataset.inputs) ||
+				&trainLengths[0] != &dataset.lengths.values[0] {
+				t.Fatal("ordered sequence train split does not alias leading rows")
+			}
+			if matrixStoragePointer(testInputs) !=
+				matrixStoragePointer(dataset.inputs)+8*unsafe.Sizeof(float32(0)) ||
+				&testLengths[0] != &dataset.lengths.values[2] {
+				t.Fatal("ordered sequence test split does not alias trailing rows")
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("ordered ViewSplit returned error: %v", err)
+	}
+
+	err = dataset.ViewSplit(
+		0.5,
+		rand.New(rand.NewSource(71)),
+		ViewOrCopy,
+		func(train, test *SequenceDatasetView) (viewErr error) {
+			var (
+				trainInputs  *matrix.Matrix
+				testInputs   *matrix.Matrix
+				trainLengths []int
+				testLengths  []int
+			)
+
+			if trainInputs, viewErr = train.Inputs(); viewErr != nil {
+				return viewErr
+			}
+			if testInputs, viewErr = test.Inputs(); viewErr != nil {
+				return viewErr
+			}
+			if trainLengths, viewErr = train.Lengths(); viewErr != nil {
+				return viewErr
+			}
+			if testLengths, viewErr = test.Lengths(); viewErr != nil {
+				return viewErr
+			}
+			if matrixStoragePointer(trainInputs) == matrixStoragePointer(dataset.inputs) ||
+				matrixStoragePointer(testInputs) == matrixStoragePointer(dataset.inputs) ||
+				matrixStoragePointer(trainInputs) == matrixStoragePointer(testInputs) ||
+				&trainLengths[0] == &dataset.lengths.values[0] ||
+				&testLengths[0] == &dataset.lengths.values[0] ||
+				&trainLengths[0] == &testLengths[0] {
+				t.Fatal("shuffled sequence split did not copy all aligned storage")
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("shuffled ViewSplit returned error: %v", err)
+	}
+}
+
+func mustOwnedSequenceDatasetWithSamples(
+	tb testing.TB,
+	samples int,
+) (dataset *SequenceDataset) {
+	var (
+		inputValues  []float32
+		targetValues []float32
+		lengthValues []int
+		inputs       *matrix.Matrix
+		targets      *matrix.Matrix
+		lengths      *SequenceLengths
+		row          int
+		err          error
+	)
+
+	tb.Helper()
+	inputValues = make([]float32, samples*4)
+	targetValues = make([]float32, samples)
+	lengthValues = make([]int, samples)
+	for row = 0; row < samples; row++ {
+		inputValues[row*4] = float32(row + 1)
+		inputValues[row*4+1] = float32((row + 1) * 10)
+		inputValues[row*4+2] = float32((row + 1) * 100)
+		inputValues[row*4+3] = float32((row + 1) * 1000)
+		targetValues[row] = float32(row + 101)
+		lengthValues[row] = row%2 + 1
+	}
+	inputs = mustOwnedMatrix(tb, samples, 4, inputValues)
+	targets = mustOwnedMatrix(tb, samples, 1, targetValues)
+	if lengths, err = NewSequenceLengths(2, lengthValues); err != nil {
+		tb.Fatalf("NewSequenceLengths returned error: %v", err)
+	}
+	if dataset, err = NewSequenceDataset(inputs, targets, lengths); err != nil {
+		tb.Fatalf("NewSequenceDataset returned error: %v", err)
+	}
+	return dataset
 }

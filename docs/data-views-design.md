@@ -1,7 +1,7 @@
 # Opt-In Data Views
 
-Status: accepted implementation contract; matrix, ordinary, and aligned
-sequence view foundations implemented.
+Status: accepted implementation contract; matrix, ordinary, aligned sequence,
+selection, batching, and splitting views implemented.
 
 This document freezes the additive public and behavioral contract for
 [ROADMAP Item 3](../ROADMAP.md#3-add-opt-in-zero-copy-data-views). It is the
@@ -9,11 +9,10 @@ implementation contract for the remaining milestone sections. Declarations
 still marked pending below are not implemented yet; implementation must use
 these exact names and semantics rather than reopening them while optimizing.
 
-The matrix row-window primitive and the whole-object and contiguous-row view
-operations for ordinary and aligned sequence datasets and batches are
-implemented and verified. Explicit selection policy, view batching and
-splitting, and opt-in model fitting remain pending in later implementation
-sections.
+The matrix row-window primitive and the whole-object, contiguous-row,
+explicit-selection, batching, and splitting view operations for ordinary and
+aligned sequence datasets and batches are implemented and verified. Opt-in
+model fitting remains pending in the final implementation section.
 
 The accepted boundary is a scoped, read-only-intent callback. Ordered
 contiguous rows share the data owner's host storage for the callback. The
@@ -663,6 +662,54 @@ valid traversal is not rolled back.
 The random source is never retained. Nil means ordered behavior and consumes
 no random values.
 
+### Implemented traversal examples
+
+Ordered traversal remains strict and copies no matrix or length values at the
+data boundary:
+
+```go
+err := dataset.ViewBatches(256, nil, data.ViewOnly, func(view *data.DatasetView) error {
+	inputs, err := view.Inputs()
+	if err != nil {
+		return err
+	}
+
+	return consume(inputs)
+})
+```
+
+Shuffled traversal requires the caller to permit the reviewed fallback. Every
+shuffled batch reports that its selected values were copied:
+
+```go
+err := sequences.ViewBatches(
+	256,
+	random,
+	data.ViewOrCopy,
+	func(view *data.SequenceDatasetView) error {
+		if !view.Copied() {
+			return errors.New("expected shuffled copied fallback")
+		}
+
+		return consumeAligned(view)
+	},
+)
+```
+
+Ordered splitting publishes leading train and trailing test windows together.
+Neither view may be retained beyond the callback:
+
+```go
+err := dataset.ViewSplit(
+	0.25,
+	nil,
+	data.ViewOnly,
+	func(train, test *data.DatasetView) error {
+		return evaluateSplit(train, test)
+	},
+)
+```
+
 ## Validation and Failure Behavior
 
 Error prefixes are:
@@ -1067,8 +1114,17 @@ The following foundation is implemented and verified:
   `SequenceBatch.WithView`, and `SequenceBatch.WithRowView`; and
 * aligned sequence whole and contiguous-window correctness, ownership,
   validation, lifetime, concurrency, length-aware numeric equivalence,
-  clipping equivalence, allocation, and copy-volume coverage.
+  clipping equivalence, allocation, and copy-volume coverage;
+* `data.ViewPolicy`, `ViewOnly`, and `ViewOrCopy`;
+* `Dataset.WithSelectedRows`, `Dataset.ViewBatches`, `Dataset.ViewSplit`,
+  `Batch.WithSelectedRows`, and `DatasetSplitViewFunc`;
+* `SequenceDataset.WithSelectedRows`, `SequenceDataset.ViewBatches`,
+  `SequenceDataset.ViewSplit`, `SequenceBatch.WithSelectedRows`, and
+  `SequenceDatasetSplitViewFunc`; and
+* explicit contiguous classification, repeated and arbitrary copied fallback,
+  strict rejection, full and partial batching, ordered and shuffled splitting,
+  expiry, ownership, alignment, deterministic random parity, validation,
+  concurrency, benchmark, and copy-volume coverage.
 
-`ViewPolicy`, selected rows, view batching and splitting, split callback
-types, and both opt-in fit operations remain pending. No pending declaration or
-behavior is described as implemented or verified.
+The two opt-in fit configuration types and operations remain pending. No
+pending declaration or behavior is described as implemented or verified.

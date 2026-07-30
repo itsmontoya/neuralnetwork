@@ -55,6 +55,7 @@ func (b *SequenceBatch) WithView(use SequenceDatasetViewFunc) (err error) {
 		b.lengths,
 		0,
 		b.SampleCount(),
+		false,
 		use,
 	)
 	return err
@@ -82,6 +83,73 @@ func (b *SequenceBatch) WithRowView(
 		b.lengths,
 		start,
 		end,
+		false,
+		use,
+	)
+	return err
+}
+
+// WithSelectedRows calls use with aligned rows in index order. Contiguous rows
+// alias batch storage. Other valid selections are rejected by ViewOnly or
+// copied explicitly by ViewOrCopy. The temporary aligned view expires when use
+// returns and must not be retained, mutated, or used concurrently. The batch
+// and overlapping aliases must remain unmodified; concurrent or reentrant
+// access is unsupported.
+func (b *SequenceBatch) WithSelectedRows(
+	indexes []int,
+	policy ViewPolicy,
+	use SequenceDatasetViewFunc,
+) (err error) {
+	var (
+		start      int
+		end        int
+		contiguous bool
+	)
+
+	if err = b.validate(); err != nil {
+		err = fmt.Errorf("data: sequence batch view owner is invalid: %w", err)
+		return err
+	}
+	if start, end, contiguous, err = validateSelectedRows(
+		"data: sequence batch view",
+		indexes,
+		b.SampleCount(),
+	); err != nil {
+		return err
+	}
+	if err = validateViewPolicy("data: sequence batch view", policy); err != nil {
+		return err
+	}
+	if use == nil {
+		err = fmt.Errorf("data: sequence batch view callback is nil")
+		return err
+	}
+	if !contiguous && policy == ViewOnly {
+		err = fmt.Errorf(
+			"data: sequence batch view selection is non-contiguous under ViewOnly",
+		)
+		return err
+	}
+	if contiguous {
+		err = withSequenceDatasetRowView(
+			"data: sequence batch view",
+			b.inputs,
+			b.targets,
+			b.lengths,
+			start,
+			end,
+			false,
+			use,
+		)
+		return err
+	}
+
+	err = withSelectedSequenceDatasetRows(
+		"data: sequence batch view",
+		b.inputs,
+		b.targets,
+		b.lengths,
+		indexes,
 		use,
 	)
 	return err
