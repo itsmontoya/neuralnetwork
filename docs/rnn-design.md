@@ -16,6 +16,11 @@ gradients immediately before optimizer update state consumes them. Focused
 fixed-length, mixed-length, fit, allocation, failure, persistence, and Metal
 fallback tests verify that integration.
 
+The later opt-in data-view surface is also additive. `SequenceDatasetView` and
+`Sequential.FitWithLengthViews` may supply one scoped aligned input, target,
+and length association without changing the safe copying APIs or any recurrent
+or last-valid formula. See [data-views-design.md](data-views-design.md).
+
 ## Milestone
 
 The fixed-length model shape is:

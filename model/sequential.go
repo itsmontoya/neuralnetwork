@@ -1132,6 +1132,175 @@ func (s *Sequential) FitWithLengths(
 	return history, nil
 }
 
+// FitWithViews trains from scoped ordinary dataset views.
+//
+// Ordered batches and complete evaluations alias dataset storage without
+// copying it. Shuffling requires data.ViewOrCopy and retains the existing
+// reusable selected-row copy. Views are consumed synchronously and are never
+// retained. The caller must not mutate or concurrently use either dataset,
+// the model, its layers, or the optimizer until fitting returns.
+func (s *Sequential) FitWithViews(
+	trainingData *data.Dataset,
+	config ViewFitConfig,
+) (history TrainingHistory, err error) {
+	var (
+		epoch              int
+		metrics            EpochMetrics
+		earlyStoppingState earlyStoppingState
+		scratch            fitScratch
+	)
+
+	s.invalidateLengthAwareForward()
+	defer func() {
+		var cleanupErr error
+
+		if cleanupErr = scratch.release(); cleanupErr != nil {
+			cleanupErr = fmt.Errorf("model: release view fit scratch: %w", cleanupErr)
+			err = errors.Join(err, cleanupErr)
+		}
+	}()
+
+	if err = s.validateViewFit(trainingData, config); err != nil {
+		return history, err
+	}
+
+	earlyStoppingState = newEarlyStoppingState(config.FitConfig.EarlyStopping)
+	for epoch = 1; epoch <= config.FitConfig.Epochs; epoch++ {
+		if err = applyLearningRateSchedule(config.FitConfig, epoch); err != nil {
+			err = fmt.Errorf("model: view fit: %w", err)
+			return history, err
+		}
+
+		if err = s.trainViewFitEpoch(
+			trainingData,
+			config,
+			epoch,
+			&scratch,
+		); err != nil {
+			return history, err
+		}
+
+		if metrics, err = s.viewFitEpochMetrics(
+			epoch,
+			trainingData,
+			config.FitConfig,
+		); err != nil {
+			return history, err
+		}
+
+		history.record(metrics)
+		if config.FitConfig.Callback != nil {
+			if err = config.FitConfig.Callback(metrics); err != nil {
+				err = fmt.Errorf(
+					"model: view fit epoch %d callback failed: %w",
+					epoch,
+					err,
+				)
+				return history, err
+			}
+		}
+		if earlyStoppingState.observe(metrics) {
+			break
+		}
+	}
+
+	return history, nil
+}
+
+// FitWithLengthViews trains from scoped aligned sequence dataset views.
+//
+// Ordered batches and complete evaluations alias input, target, and logical-
+// length storage without copying it. Shuffling requires data.ViewOrCopy and
+// retains the existing reusable selected-row copy. Views are consumed
+// synchronously and are never retained. The caller must not mutate or
+// concurrently use either dataset, the model, its layers, or the optimizer
+// until fitting returns.
+func (s *Sequential) FitWithLengthViews(
+	trainingData *data.SequenceDataset,
+	config SequenceViewFitConfig,
+) (history TrainingHistory, err error) {
+	var (
+		epoch              int
+		metrics            EpochMetrics
+		selector           sequenceLengthLayer
+		selectorIndex      int
+		earlyStoppingState earlyStoppingState
+		scratch            fitScratch
+	)
+
+	s.invalidateLengthAwareForward()
+	defer func() {
+		var cleanupErr error
+
+		s.invalidateLengthAwareForward()
+		if cleanupErr = scratch.release(); cleanupErr != nil {
+			cleanupErr = fmt.Errorf(
+				"model: release length-view fit scratch: %w",
+				cleanupErr,
+			)
+			err = errors.Join(err, cleanupErr)
+		}
+	}()
+
+	if selector, selectorIndex, err = s.validateLengthViewFit(
+		trainingData,
+		config,
+	); err != nil {
+		return history, err
+	}
+
+	earlyStoppingState = newEarlyStoppingState(
+		config.SequenceFitConfig.EarlyStopping,
+	)
+	for epoch = 1; epoch <= config.SequenceFitConfig.Epochs; epoch++ {
+		if err = applySequenceLearningRateSchedule(
+			config.SequenceFitConfig,
+			epoch,
+		); err != nil {
+			err = fmt.Errorf("model: length-view fit: %w", err)
+			return history, err
+		}
+
+		if err = s.trainLengthViewFitEpoch(
+			trainingData,
+			config,
+			epoch,
+			selector,
+			selectorIndex,
+			&scratch,
+		); err != nil {
+			return history, err
+		}
+
+		if metrics, err = s.lengthViewFitEpochMetrics(
+			epoch,
+			trainingData,
+			config.SequenceFitConfig,
+			selector,
+			selectorIndex,
+		); err != nil {
+			return history, err
+		}
+
+		history.record(metrics)
+		if config.SequenceFitConfig.Callback != nil {
+			if err = config.SequenceFitConfig.Callback(metrics); err != nil {
+				err = fmt.Errorf(
+					"model: length-view fit epoch %d callback failed: %w",
+					epoch,
+					err,
+				)
+				return history, err
+			}
+		}
+		if earlyStoppingState.observe(metrics) {
+			break
+		}
+	}
+
+	return history, nil
+}
+
 // Save writes the model using the v1 JSON contract.
 //
 // The document uses format "neuralnetwork.sequential", version 1, and layer
@@ -1195,6 +1364,62 @@ func (s *Sequential) trainFitEpoch(trainingData *data.Dataset, config FitConfig,
 		}
 	}
 
+	return nil
+}
+
+func (s *Sequential) trainViewFitEpoch(
+	trainingData *data.Dataset,
+	config ViewFitConfig,
+	epoch int,
+	scratch *fitScratch,
+) (err error) {
+	var fitConfig FitConfig
+
+	fitConfig = config.FitConfig
+	if fitConfig.Shuffle {
+		if err = s.trainFitEpoch(
+			trainingData,
+			fitConfig,
+			epoch,
+			scratch,
+		); err != nil {
+			err = fmt.Errorf("model: view fit: %w", err)
+			return err
+		}
+		return nil
+	}
+
+	err = trainingData.ViewBatches(
+		fitConfig.BatchSize,
+		nil,
+		config.Policy,
+		func(view *data.DatasetView) (callbackErr error) {
+			var (
+				inputs  *matrix.Matrix
+				targets *matrix.Matrix
+			)
+
+			if inputs, callbackErr = view.Inputs(); callbackErr != nil {
+				return callbackErr
+			}
+			if targets, callbackErr = view.Targets(); callbackErr != nil {
+				return callbackErr
+			}
+			if _, callbackErr = s.TrainBatch(
+				inputs,
+				targets,
+				fitConfig.Loss,
+				fitConfig.Optimizer,
+			); callbackErr != nil {
+				return callbackErr
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		err = fmt.Errorf("model: view fit epoch %d training failed: %w", epoch, err)
+		return err
+	}
 	return nil
 }
 
@@ -1293,6 +1518,95 @@ func (s *Sequential) trainSequenceFitEpoch(
 	return nil
 }
 
+func (s *Sequential) trainLengthViewFitEpoch(
+	trainingData *data.SequenceDataset,
+	config SequenceViewFitConfig,
+	epoch int,
+	selector sequenceLengthLayer,
+	selectorIndex int,
+	scratch *fitScratch,
+) (err error) {
+	var fitConfig SequenceFitConfig
+
+	fitConfig = config.SequenceFitConfig
+	if fitConfig.Shuffle {
+		if err = s.trainSequenceFitEpoch(
+			trainingData,
+			fitConfig,
+			epoch,
+			selector,
+			selectorIndex,
+			scratch,
+		); err != nil {
+			err = fmt.Errorf("model: length-view fit: %w", err)
+			return err
+		}
+		return nil
+	}
+
+	err = trainingData.ViewBatches(
+		fitConfig.BatchSize,
+		nil,
+		config.Policy,
+		func(view *data.SequenceDatasetView) (callbackErr error) {
+			var (
+				inputs  *matrix.Matrix
+				targets *matrix.Matrix
+				lengths []int
+			)
+
+			if inputs, callbackErr = view.Inputs(); callbackErr != nil {
+				return callbackErr
+			}
+			if targets, callbackErr = view.Targets(); callbackErr != nil {
+				return callbackErr
+			}
+			if lengths, callbackErr = view.Lengths(); callbackErr != nil {
+				return callbackErr
+			}
+			if callbackErr = s.validateLengthViewValues(
+				inputs,
+				view.Steps(),
+				lengths,
+				selector,
+				"training",
+			); callbackErr != nil {
+				return callbackErr
+			}
+			if callbackErr = validateLengthAwareTargets(
+				inputs,
+				targets,
+			); callbackErr != nil {
+				return callbackErr
+			}
+
+			s.invalidateLengthAwareForward()
+			defer s.invalidateLengthAwareForward()
+			if _, callbackErr = s.trainPreparedWithLengths(
+				inputs,
+				targets,
+				lengths,
+				selector,
+				selectorIndex,
+				fitConfig.Loss,
+				fitConfig.Optimizer,
+			); callbackErr != nil {
+				return callbackErr
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		err = fmt.Errorf(
+			"model: length-view fit epoch %d training failed: %w",
+			epoch,
+			err,
+		)
+		return err
+	}
+	return nil
+}
+
 func (s *Sequential) fitEpochMetrics(epoch int, trainingData *data.Dataset, config FitConfig, scratch *fitScratch) (metrics EpochMetrics, err error) {
 	var (
 		accuracy    float32
@@ -1386,6 +1700,114 @@ func (s *Sequential) sequenceFitEpochMetrics(
 	return metrics, nil
 }
 
+func (s *Sequential) viewFitEpochMetrics(
+	epoch int,
+	trainingData *data.Dataset,
+	config FitConfig,
+) (metrics EpochMetrics, err error) {
+	var (
+		accuracy    float32
+		hasAccuracy bool
+	)
+
+	metrics.Epoch = epoch
+	if metrics.Loss, accuracy, hasAccuracy, err = s.evaluateFitDatasetView(
+		trainingData,
+		config.Loss,
+		config.Accuracy,
+	); err != nil {
+		err = fmt.Errorf(
+			"model: view fit epoch %d training evaluation failed: %w",
+			epoch,
+			err,
+		)
+		return metrics, err
+	}
+	if hasAccuracy {
+		metrics.Accuracy = accuracy
+		metrics.HasAccuracy = true
+	}
+	if config.ValidationData == nil {
+		return metrics, nil
+	}
+
+	if metrics.ValidationLoss, accuracy, hasAccuracy, err = s.evaluateFitDatasetView(
+		config.ValidationData,
+		config.Loss,
+		config.Accuracy,
+	); err != nil {
+		err = fmt.Errorf(
+			"model: view fit epoch %d validation evaluation failed: %w",
+			epoch,
+			err,
+		)
+		return metrics, err
+	}
+	metrics.HasValidationLoss = true
+	if hasAccuracy {
+		metrics.ValidationAccuracy = accuracy
+		metrics.HasValidationAccuracy = true
+	}
+	return metrics, nil
+}
+
+func (s *Sequential) lengthViewFitEpochMetrics(
+	epoch int,
+	trainingData *data.SequenceDataset,
+	config SequenceFitConfig,
+	selector sequenceLengthLayer,
+	selectorIndex int,
+) (metrics EpochMetrics, err error) {
+	var (
+		accuracy    float32
+		hasAccuracy bool
+	)
+
+	metrics.Epoch = epoch
+	if metrics.Loss, accuracy, hasAccuracy, err = s.evaluateSequenceFitDatasetView(
+		trainingData,
+		config.Loss,
+		config.Accuracy,
+		selector,
+		selectorIndex,
+	); err != nil {
+		err = fmt.Errorf(
+			"model: length-view fit epoch %d training evaluation failed: %w",
+			epoch,
+			err,
+		)
+		return metrics, err
+	}
+	if hasAccuracy {
+		metrics.Accuracy = accuracy
+		metrics.HasAccuracy = true
+	}
+	if config.ValidationData == nil {
+		return metrics, nil
+	}
+
+	if metrics.ValidationLoss, accuracy, hasAccuracy, err = s.evaluateSequenceFitDatasetView(
+		config.ValidationData,
+		config.Loss,
+		config.Accuracy,
+		selector,
+		selectorIndex,
+	); err != nil {
+		err = fmt.Errorf(
+			"model: length-view fit epoch %d validation evaluation failed: %w",
+			epoch,
+			err,
+		)
+		return metrics, err
+	}
+	metrics.HasValidationLoss = true
+	if hasAccuracy {
+		metrics.ValidationAccuracy = accuracy
+		metrics.HasValidationAccuracy = true
+	}
+	return metrics, nil
+}
+
 func (s *Sequential) evaluateFitDataset(
 	dataset *data.Dataset,
 	lossFunc loss.Loss,
@@ -1432,6 +1854,65 @@ func (s *Sequential) evaluateFitDataset(
 	}
 
 	return lossValue, accuracyValue, true, nil
+}
+
+func (s *Sequential) evaluateFitDatasetView(
+	dataset *data.Dataset,
+	lossFunc loss.Loss,
+	accuracyFunc AccuracyFunc,
+) (lossValue, accuracyValue float32, hasAccuracy bool, err error) {
+	err = dataset.WithView(func(view *data.DatasetView) (callbackErr error) {
+		var (
+			previousTraining bool
+			inputs           *matrix.Matrix
+			targets          *matrix.Matrix
+			predictions      *matrix.Matrix
+		)
+
+		if inputs, callbackErr = view.Inputs(); callbackErr != nil {
+			return callbackErr
+		}
+		if targets, callbackErr = view.Targets(); callbackErr != nil {
+			return callbackErr
+		}
+
+		previousTraining = s.Training()
+		if callbackErr = s.SetTraining(false); callbackErr != nil {
+			return callbackErr
+		}
+		defer func() {
+			var restoreErr error
+
+			if restoreErr = s.SetTraining(previousTraining); restoreErr != nil {
+				callbackErr = errors.Join(callbackErr, restoreErr)
+			}
+		}()
+
+		if predictions, callbackErr = s.Predict(inputs); callbackErr != nil {
+			return callbackErr
+		}
+		if lossValue, callbackErr = lossFunc.Value(
+			predictions,
+			targets,
+		); callbackErr != nil {
+			return callbackErr
+		}
+		if accuracyFunc == nil {
+			return nil
+		}
+		if accuracyValue, callbackErr = accuracyFunc(
+			predictions,
+			targets,
+		); callbackErr != nil {
+			return callbackErr
+		}
+		hasAccuracy = true
+		return nil
+	})
+	if err != nil {
+		return 0, 0, false, err
+	}
+	return lossValue, accuracyValue, hasAccuracy, nil
 }
 
 func (s *Sequential) evaluateSequenceFitDataset(
@@ -1503,6 +1984,90 @@ func (s *Sequential) evaluateSequenceFitDataset(
 	}
 
 	return lossValue, accuracyValue, true, nil
+}
+
+func (s *Sequential) evaluateSequenceFitDatasetView(
+	dataset *data.SequenceDataset,
+	lossFunc loss.Loss,
+	accuracyFunc AccuracyFunc,
+	selector sequenceLengthLayer,
+	selectorIndex int,
+) (lossValue, accuracyValue float32, hasAccuracy bool, err error) {
+	s.invalidateLengthAwareForward()
+	defer s.invalidateLengthAwareForward()
+
+	err = dataset.WithView(func(
+		view *data.SequenceDatasetView,
+	) (callbackErr error) {
+		var (
+			previousTraining bool
+			inputs           *matrix.Matrix
+			targets          *matrix.Matrix
+			lengths          []int
+			predictions      *matrix.Matrix
+		)
+
+		if inputs, callbackErr = view.Inputs(); callbackErr != nil {
+			return callbackErr
+		}
+		if targets, callbackErr = view.Targets(); callbackErr != nil {
+			return callbackErr
+		}
+		if lengths, callbackErr = view.Lengths(); callbackErr != nil {
+			return callbackErr
+		}
+		if callbackErr = s.validateLengthViewValues(
+			inputs,
+			view.Steps(),
+			lengths,
+			selector,
+			"evaluation",
+		); callbackErr != nil {
+			return callbackErr
+		}
+
+		previousTraining = s.Training()
+		if callbackErr = s.SetTraining(false); callbackErr != nil {
+			return callbackErr
+		}
+		defer func() {
+			var restoreErr error
+
+			if restoreErr = s.SetTraining(previousTraining); restoreErr != nil {
+				callbackErr = errors.Join(callbackErr, restoreErr)
+			}
+		}()
+
+		if predictions, callbackErr = s.runLengthAwarePrediction(
+			inputs,
+			lengths,
+			selector,
+			selectorIndex,
+		); callbackErr != nil {
+			return callbackErr
+		}
+		if lossValue, callbackErr = lossFunc.Value(
+			predictions,
+			targets,
+		); callbackErr != nil {
+			return callbackErr
+		}
+		if accuracyFunc == nil {
+			return nil
+		}
+		if accuracyValue, callbackErr = accuracyFunc(
+			predictions,
+			targets,
+		); callbackErr != nil {
+			return callbackErr
+		}
+		hasAccuracy = true
+		return nil
+	})
+	if err != nil {
+		return 0, 0, false, err
+	}
+	return lossValue, accuracyValue, hasAccuracy, nil
 }
 
 func (s *Sequential) prepareLengthAwareInput(
@@ -1617,6 +2182,55 @@ func (s *Sequential) prepareLengthValues(
 	values = s.resizeLengthValues(rows)
 	copy(values, source)
 	return values, nil
+}
+
+func (s *Sequential) validateLengthViewValues(
+	input *matrix.Matrix,
+	steps int,
+	values []int,
+	selector sequenceLengthLayer,
+	operation string,
+) (err error) {
+	var (
+		rows   int
+		row    int
+		length int
+	)
+
+	if rows, err = validateLengthAwareInput(input); err != nil {
+		return err
+	}
+	if steps != selector.InputShape().Steps() {
+		err = fmt.Errorf(
+			"model: %s sequence length steps mismatch: got=%d want=%d",
+			operation,
+			steps,
+			selector.InputShape().Steps(),
+		)
+		return err
+	}
+	if len(values) != rows {
+		err = fmt.Errorf(
+			"model: %s sequence length count mismatch: got=%d want=%d",
+			operation,
+			len(values),
+			rows,
+		)
+		return err
+	}
+	for row, length = range values {
+		if length < 1 || length > steps {
+			err = fmt.Errorf(
+				"model: %s sequence length out of range: row=%d value=%d want=1..%d",
+				operation,
+				row,
+				length,
+				steps,
+			)
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Sequential) resizeLengthValues(count int) (values []int) {
@@ -1862,6 +2476,327 @@ func validateSequenceFitDataset(
 	}
 
 	return nil
+}
+
+func (s *Sequential) validateViewFit(
+	trainingData *data.Dataset,
+	config ViewFitConfig,
+) (err error) {
+	if err = s.validateOrdinaryGraph(
+		"view fit",
+		"FitWithLengthViews",
+	); err != nil {
+		err = fmt.Errorf("model: view fit graph invalid: %w", err)
+		return err
+	}
+	if err = validateFitDataset("view fit training", trainingData); err != nil {
+		return err
+	}
+	if config.FitConfig.ValidationData != nil {
+		if err = validateFitDataset(
+			"view fit validation",
+			config.FitConfig.ValidationData,
+		); err != nil {
+			return err
+		}
+	}
+	if err = config.FitConfig.validate(); err != nil {
+		err = fmt.Errorf("model: view fit configuration invalid: %w", err)
+		return err
+	}
+	if err = validateModelViewPolicy("model: view fit", config.Policy); err != nil {
+		return err
+	}
+	if config.FitConfig.Shuffle && config.Policy == data.ViewOnly {
+		err = errors.New("model: view fit shuffle requires ViewOrCopy")
+		return err
+	}
+	if err = s.validateViewFitCompatibility(
+		trainingData.InputSize(),
+		trainingData.TargetSize(),
+	); err != nil {
+		err = fmt.Errorf("model: view fit training data incompatible: %w", err)
+		return err
+	}
+	if config.FitConfig.ValidationData != nil {
+		if err = validateDatasetDimensions(
+			"model: view fit validation",
+			config.FitConfig.ValidationData.InputSize(),
+			config.FitConfig.ValidationData.TargetSize(),
+			trainingData.InputSize(),
+			trainingData.TargetSize(),
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Sequential) validateLengthViewFit(
+	trainingData *data.SequenceDataset,
+	config SequenceViewFitConfig,
+) (
+	selector sequenceLengthLayer,
+	selectorIndex int,
+	err error,
+) {
+	if selector, selectorIndex, err = s.lengthAwareGraph(
+		"length-view fit",
+	); err != nil {
+		err = fmt.Errorf("model: length-view fit graph invalid: %w", err)
+		return nil, 0, err
+	}
+	if err = validateSequenceFitDataset(
+		"length-view fit training",
+		trainingData,
+		selector.InputShape().Steps(),
+	); err != nil {
+		return nil, 0, err
+	}
+	if config.SequenceFitConfig.ValidationData != nil {
+		if err = validateSequenceFitDataset(
+			"length-view fit validation",
+			config.SequenceFitConfig.ValidationData,
+			selector.InputShape().Steps(),
+		); err != nil {
+			return nil, 0, err
+		}
+	}
+	if err = config.SequenceFitConfig.validate(); err != nil {
+		err = fmt.Errorf("model: length-view fit configuration invalid: %w", err)
+		return nil, 0, err
+	}
+	if err = validateModelViewPolicy(
+		"model: length-view fit",
+		config.Policy,
+	); err != nil {
+		return nil, 0, err
+	}
+	if config.SequenceFitConfig.Shuffle && config.Policy == data.ViewOnly {
+		err = errors.New("model: length-view fit shuffle requires ViewOrCopy")
+		return nil, 0, err
+	}
+	if err = s.validateViewFitCompatibility(
+		trainingData.InputSize(),
+		trainingData.TargetSize(),
+	); err != nil {
+		err = fmt.Errorf(
+			"model: length-view fit training data incompatible: %w",
+			err,
+		)
+		return nil, 0, err
+	}
+	if config.SequenceFitConfig.ValidationData != nil {
+		if err = validateSequenceDatasetDimensions(
+			"model: length-view fit validation",
+			config.SequenceFitConfig.ValidationData,
+			trainingData,
+		); err != nil {
+			return nil, 0, err
+		}
+	}
+	return selector, selectorIndex, nil
+}
+
+func validateModelViewPolicy(prefix string, policy data.ViewPolicy) (err error) {
+	if policy != data.ViewOnly && policy != data.ViewOrCopy {
+		err = fmt.Errorf("%s policy is invalid: policy=%d", prefix, policy)
+		return err
+	}
+	return nil
+}
+
+func validateDatasetDimensions(
+	prefix string,
+	inputSize,
+	targetSize,
+	wantInputSize,
+	wantTargetSize int,
+) (err error) {
+	if inputSize != wantInputSize {
+		err = fmt.Errorf(
+			"%s input size mismatch: got=%d want=%d",
+			prefix,
+			inputSize,
+			wantInputSize,
+		)
+		return err
+	}
+	if targetSize != wantTargetSize {
+		err = fmt.Errorf(
+			"%s target size mismatch: got=%d want=%d",
+			prefix,
+			targetSize,
+			wantTargetSize,
+		)
+		return err
+	}
+	return nil
+}
+
+func validateSequenceDatasetDimensions(
+	prefix string,
+	dataset,
+	want *data.SequenceDataset,
+) (err error) {
+	if err = validateDatasetDimensions(
+		prefix,
+		dataset.InputSize(),
+		dataset.TargetSize(),
+		want.InputSize(),
+		want.TargetSize(),
+	); err != nil {
+		return err
+	}
+	if dataset.Steps() != want.Steps() {
+		err = fmt.Errorf(
+			"%s step count mismatch: got=%d want=%d",
+			prefix,
+			dataset.Steps(),
+			want.Steps(),
+		)
+		return err
+	}
+	return nil
+}
+
+func (s *Sequential) validateViewFitCompatibility(
+	inputSize,
+	targetSize int,
+) (err error) {
+	var (
+		index   int
+		width   int
+		current layer.Layer
+	)
+
+	width = inputSize
+	for index, current = range s.layers {
+		if width, err = validateViewFitLayer(index, current, width); err != nil {
+			return err
+		}
+	}
+	if width != targetSize {
+		err = fmt.Errorf(
+			"model output size mismatch: got=%d want=%d",
+			width,
+			targetSize,
+		)
+		return err
+	}
+	return nil
+}
+
+func validateViewFitLayer(
+	index int,
+	current layer.Layer,
+	inputSize int,
+) (outputSize int, err error) {
+	var (
+		wantInput int
+		name      string
+	)
+
+	switch currentLayer := current.(type) {
+	case *layer.Dense:
+		name = "dense"
+		if currentLayer == nil {
+			err = fmt.Errorf("layer %d dense layer is nil", index)
+			return 0, err
+		}
+		wantInput = currentLayer.InputSize()
+		outputSize = currentLayer.OutputSize()
+	case *layer.Activation:
+		name = "activation"
+		if currentLayer == nil {
+			err = fmt.Errorf("layer %d activation layer is nil", index)
+			return 0, err
+		}
+		wantInput = inputSize
+		outputSize = inputSize
+	case *layer.Dropout:
+		name = "dropout"
+		if currentLayer == nil {
+			err = fmt.Errorf("layer %d dropout layer is nil", index)
+			return 0, err
+		}
+		wantInput = inputSize
+		outputSize = inputSize
+	case *layer.BatchNormalization:
+		name = "batch normalization"
+		if currentLayer == nil {
+			err = fmt.Errorf("layer %d batch normalization layer is nil", index)
+			return 0, err
+		}
+		wantInput = currentLayer.FeatureSize()
+		outputSize = wantInput
+	case *layer.Conv2D:
+		name = "convolution"
+		if currentLayer == nil {
+			err = fmt.Errorf("layer %d convolution layer is nil", index)
+			return 0, err
+		}
+		wantInput = currentLayer.InputShape().Size()
+		outputSize = currentLayer.OutputShape().Size()
+	case *layer.MaxPool2D:
+		name = "max pooling"
+		if currentLayer == nil {
+			err = fmt.Errorf("layer %d max pooling layer is nil", index)
+			return 0, err
+		}
+		wantInput = currentLayer.InputShape().Size()
+		outputSize = currentLayer.OutputShape().Size()
+	case *layer.Flatten:
+		name = "flatten"
+		if currentLayer == nil {
+			err = fmt.Errorf("layer %d flatten layer is nil", index)
+			return 0, err
+		}
+		wantInput = currentLayer.InputShape().Size()
+		outputSize = currentLayer.OutputSize()
+	case *layer.SimpleRNN:
+		name = "simple recurrent"
+		if currentLayer == nil {
+			err = fmt.Errorf("layer %d simple recurrent layer is nil", index)
+			return 0, err
+		}
+		wantInput = currentLayer.InputShape().Size()
+		outputSize = currentLayer.OutputShape().Size()
+	case *layer.LastStep:
+		name = "last step"
+		if currentLayer == nil {
+			err = fmt.Errorf("layer %d last step layer is nil", index)
+			return 0, err
+		}
+		wantInput = currentLayer.InputShape().Size()
+		outputSize = currentLayer.OutputSize()
+	case *layer.GatherLastValid:
+		name = "gather last valid"
+		if currentLayer == nil {
+			err = fmt.Errorf("layer %d gather last valid layer is nil", index)
+			return 0, err
+		}
+		wantInput = currentLayer.InputShape().Size()
+		outputSize = currentLayer.OutputSize()
+	default:
+		err = fmt.Errorf(
+			"layer %d type %T does not expose dimensions for view-fit preflight",
+			index,
+			current,
+		)
+		return 0, err
+	}
+	if wantInput != inputSize {
+		err = fmt.Errorf(
+			"layer %d %s input size mismatch: got=%d want=%d",
+			index,
+			name,
+			inputSize,
+			wantInput,
+		)
+		return 0, err
+	}
+	return outputSize, nil
 }
 
 type fitScratch struct {

@@ -1,18 +1,13 @@
 # Opt-In Data Views
 
-Status: accepted implementation contract; matrix, ordinary, aligned sequence,
-selection, batching, and splitting views implemented.
+Status: implemented and verified.
 
-This document freezes the additive public and behavioral contract for
-[ROADMAP Item 3](../ROADMAP.md#3-add-opt-in-zero-copy-data-views). It is the
-implementation contract for the remaining milestone sections. Declarations
-still marked pending below are not implemented yet; implementation must use
-these exact names and semantics rather than reopening them while optimizing.
+This document records the implemented additive public and behavioral contract
+for [ROADMAP Item 3](../ROADMAP.md#3-add-opt-in-zero-copy-data-views).
 
-The matrix row-window primitive and the whole-object, contiguous-row,
-explicit-selection, batching, and splitting view operations for ordinary and
-aligned sequence datasets and batches are implemented and verified. Opt-in
-model fitting remains pending in the final implementation section.
+The matrix row-window primitive; whole-object, contiguous-row,
+explicit-selection, batching, and splitting operations; and ordinary and
+length-aware opt-in fitting are implemented and verified.
 
 The accepted boundary is a scoped, read-only-intent callback. Ordered
 contiguous rows share the data owner's host storage for the callback. The
@@ -785,6 +780,12 @@ Preflight finishes before random consumption, learning-rate schedule
 invocation, view publication, training-mode change, layer traversal, gradient
 work, or parameter updates.
 
+Model/dataset dimension preflight inspects the supported built-in layer
+shapes. A custom layer does not expose dimensions through `layer.Layer`, so an
+opt-in fit rejects it with layer context instead of traversing it to infer a
+shape. The unchanged default fit operations remain available for custom
+graphs.
+
 Callback-returned errors are wrapped with owner or operation context.
 Cleanup errors are joined rather than replacing the callback or operation
 error. Panic cleanup expires all views, restores model state where the
@@ -1126,5 +1127,7 @@ The following foundation is implemented and verified:
   expiry, ownership, alignment, deterministic random parity, validation,
   concurrency, benchmark, and copy-volume coverage.
 
-The two opt-in fit configuration types and operations remain pending. No
-pending declaration or behavior is described as implemented or verified.
+The complete declared surface, including both opt-in fit configuration types
+and operations, is implemented and verified by focused ownership, expiry,
+validation, deterministic parity, training-control, clipping, serialization,
+allocation, benchmark, race, CPU, and Metal-fallback coverage.

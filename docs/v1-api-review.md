@@ -153,6 +153,31 @@ regularizers, accumulated gradients, schedules, and training history are not
 part of model format `neuralnetwork.sequential`, version `1`. Callers
 reconstruct the optimizer wrapper after loading.
 
+## Additive Post-v1 Data View Surface
+
+The opt-in data-view milestone adds scoped borrowing without revising any v1,
+CNN, fixed-length RNN, explicit-length, or clipping API:
+
+| Package | Type | Additive APIs |
+| --- | --- | --- |
+| `matrix` | Contiguous row view | `RowViewFunc`; `Matrix.WithRowView`. |
+| `data` | View policy | `ViewPolicy`, `ViewOnly`, and `ViewOrCopy`. |
+| `data` | Ordinary view | `DatasetView` with `Validate`, `Inputs`, `Targets`, `SampleCount`, `InputSize`, `TargetSize`, and `Copied`; `DatasetViewFunc`; `DatasetSplitViewFunc`; `Dataset` methods `WithView`, `WithRowView`, `WithSelectedRows`, `ViewBatches`, and `ViewSplit`; `Batch` methods `WithView`, `WithRowView`, and `WithSelectedRows`. |
+| `data` | Aligned sequence view | `SequenceDatasetView` with `Validate`, `Inputs`, `Targets`, `Lengths`, `SampleCount`, `InputSize`, `TargetSize`, `Steps`, and `Copied`; `SequenceDatasetViewFunc`; `SequenceDatasetSplitViewFunc`; matching `WithView`, `WithRowView`, `WithSelectedRows`, `ViewBatches`, and `ViewSplit` methods on sequence owners. |
+| `model` | Opt-in fitting | `ViewFitConfig` fields `FitConfig` and `Policy`; `SequenceViewFitConfig` fields `SequenceFitConfig` and `Policy`; `Sequential.FitWithViews`; `Sequential.FitWithLengthViews`. |
+
+The new callbacks publish temporary read-only-intent aliases. Ordered
+contiguous rows are zero-copy. `ViewOnly` rejects non-contiguous work;
+`ViewOrCopy` permits and reports the reviewed copied fallback. Existing
+constructors, allocating and destination accessors, `Batches`, `Split`, `Fit`,
+and `FitWithLengths` keep their ownership and copying behavior.
+
+Views, policies, callbacks, datasets, selections, logical lengths, fit
+scratch, and residency state are runtime-only. Sequential serialization
+remains `neuralnetwork.sequential`, version `1`, with unchanged documents and
+load behavior. The complete contract and guidance are recorded in
+[data-views-design.md](data-views-design.md) and [data.md](data.md).
+
 ## Constructor Review
 
 Constructors validate required dimensions and nil dependencies before returning

@@ -353,6 +353,43 @@ stopping, accuracy, and callback controls as `FitConfig`, but its validation
 data is a `*data.SequenceDataset`. Training batches, full training evaluation,
 and full validation evaluation each receive their aligned lengths.
 
+The safe default above copies selected training rows and complete evaluation
+boards into reusable model scratch. Large read-only boards may explicitly use
+scoped aligned views instead:
+
+```go
+history, err := network.FitWithLengthViews(
+	trainingData,
+	model.SequenceViewFitConfig{
+		SequenceFitConfig: model.SequenceFitConfig{
+			Epochs:         80,
+			BatchSize:      8,
+			Optimizer:      adam,
+			Loss:           loss.CategoricalCrossEntropy{},
+			ValidationData: validationData,
+			Accuracy:       metric.CategoricalAccuracy{}.Value,
+		},
+		Policy: data.ViewOnly,
+	},
+)
+```
+
+Ordered batches and full training/validation evaluations alias the
+`SequenceDataset` input, target, and length storage only for each synchronous
+callback. The model does not retain those aliases. `GatherLastValid` still
+snapshots the selected lengths needed by backward. Do not mutate, retain, or
+concurrently use a view, either dataset, the model, its layers, or its
+optimizer while fitting.
+
+Shuffled rows are not one contiguous matrix. Set `Shuffle`, provide the
+caller-owned seeded `Random`, and select `data.ViewOrCopy` to retain the
+existing aligned selected-row training copy while keeping complete
+evaluations zero-copy. `data.ViewOnly` rejects shuffled view fitting during
+preflight without consuming the random source. Continue using
+`FitWithLengths` when independent ownership is more important than copy
+traffic. The complete view boundary is documented in
+[data.md](data.md#opt-in-data-views).
+
 ## Gradient Clipping
 
 Gradient clipping is opt-in at the general optimizer boundary. The same

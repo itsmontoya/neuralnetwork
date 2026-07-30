@@ -8,6 +8,11 @@ reviewed dense-network v1 API. It does not change `layer.Layer`,
 `model.Sequential`, `data.Dataset`, losses, metrics, optimizers, or the physical
 representation of `matrix.Matrix`.
 
+The later opt-in data-view surface can feed the same flattened `CHW` rows
+through `FitWithViews`. It changes only scoped dataset ownership and leaves
+every CNN shape, formula, cache, parameter, and safe default recorded here
+unchanged. See [data-views-design.md](data-views-design.md).
+
 ## Milestone
 
 The supported model shape is:

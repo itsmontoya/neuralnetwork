@@ -1,10 +1,8 @@
 # Data View Copy-Pressure Benchmarks
 
-Captured on July 29, 2026. The tables below are before measurements of the
-existing copying APIs and fit internals. No production view implementation was
-present when they were recorded. Matching view benchmarks are being added
-without replacing these results; the final measured after tables remain part
-of the complete opt-in training section.
+The copying baseline was captured on July 29, 2026. The matching implemented
+view results were captured on July 30, 2026. Before results remain unchanged
+below; after tables and acceptance comparisons follow them.
 
 ## Environment
 
@@ -34,12 +32,11 @@ GOMAXPROCS=1 go test ./data -run '^$' \
 
 GOMAXPROCS=1 go test ./model -run '^$' \
   -bench '^Benchmark_(FitDataViews|FitSequenceDataViews)' \
-  -benchmem -benchtime=3x
+  -benchmem -count=10 -benchtime=3x
 ```
 
-The data table reports the median of ten results. The model command produces
-one result from exactly three iterations, so the model table records that
-result directly rather than describing it as a multi-run median.
+The data and final model tables report the median of ten results. Each model
+result is itself measured from exactly three iterations.
 
 The tables below come from a second run after `go clean -cache`. Its measured
 byte and allocation results matched the first run. Data timing medians differed
@@ -135,32 +132,88 @@ scratch, the complete training board again for evaluation, and the complete
 validation board once. These results establish why allocation count alone is
 not the acceptance metric for the view implementation.
 
-No final after measurements or performance claims are included in the
-baseline tables.
+## View implementation environment
 
-## Implemented data-view comparison cases
+The after measurements used the same hardware, OS, Go version, CGO setting,
+power state, and `GOMAXPROCS` class recorded above. The implementation source
+was commit `1123d732ad4c2cea8b51fa00b0fd4d87d4cc9df7` plus the data-view
+implementation worktree. Both accepted commands completed successfully.
 
-The data benchmark suite now includes matching Section 5 cases for contiguous
-and arbitrary selected rows, ordered full and partial batching, shuffled batch
-fallback, ordered splitting, and shuffled split fallback on both fixed ordinary
-and wide sequence boards. Strict rejection is verified outside the timed region
-before each non-contiguous fallback benchmark.
+Each benchmark performs an untimed correctness check. Model cases compare the
+copy and view history and final parameter values before timing; data cases
+check exact selected values, row alignment, `Copied`, and strict-policy
+rejection.
 
-Expected effects follow directly from the implemented ownership boundary:
+## Data view after medians
 
-| View operation | Data-boundary copy reduction | Allocation-byte reduction | Notes |
-| --- | --- | --- | --- |
-| Contiguous selected rows | Yes, 100% | Yes | Aliases one owner row window. |
-| Ordered full/partial batches | Yes, 100% | Yes | Each callback receives one temporary contiguous view. |
-| Ordered split | Yes, 100% | Yes | Train and test alias leading and trailing owner windows. |
-| Arbitrary/repeated selected fallback | No | No material reduction expected | `ViewOrCopy` explicitly materializes the selected rows. |
-| Shuffled batch fallback | No | No material reduction expected | Every shuffled batch is copied and reports `Copied == true`. |
-| Shuffled split fallback | No | No material reduction expected | Both shuffled selections are copied before callback publication. |
+Constructor controls are intentionally baseline-only. Fallback rows retain the
+full logical copy because `ViewOrCopy` explicitly permits it.
 
-A one-iteration correctness run on the recorded Apple M3 environment confirmed
-zero logical copied bytes for every contiguous/ordered case and the full honest
-logical copy volume for every fallback case. It also showed that ordered cases
-allocate only callback/view metadata rather than input-, target-, or
-length-sized storage. These smoke results are not substituted for the accepted
-ten-run after medians, which remain deferred until the model view path provides
-the complete Section 6 comparison.
+| Benchmark | ns/op | B/op | allocs/op | Logical B read | Logical B copied |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `Ordinary/WholeDatasetView/Ordinary4096x256_4096x16` | 161 | 152 | 4 | 4,456,448 | 0 |
+| `Ordinary/WholeBatchView/Ordinary256x256_256x16` | 160 | 152 | 4 | 278,528 | 0 |
+| `Ordinary/RowView/Contiguous256` | 160 | 152 | 4 | 278,528 | 0 |
+| `Ordinary/RowView/PartialFinal4` | 160 | 152 | 4 | 4,352 | 0 |
+| `Ordinary/SelectedRowsView/Contiguous256` | 350 | 152 | 4 | 278,528 | 0 |
+| `Ordinary/SelectedRowsFallback/ArbitraryRepeated256` | 11,075 | 278,776 | 8 | 278,528 | 278,528 |
+| `Ordinary/OrderedBatchViews/Ordinary4096_Batch256` | 2,485 | 2,432 | 64 | 4,456,448 | 0 |
+| `Ordinary/OrderedPartialBatchViews/Ordinary4100_Batch256` | 2,624 | 2,584 | 68 | 4,460,800 | 0 |
+| `Ordinary/ShuffledBatchFallback/Ordinary4096_Batch256` | 213,126 | 4,493,184 | 129 | 4,456,448 | 4,456,448 |
+| `Ordinary/OrderedSplitViews/Ordinary4096_75_25` | 370 | 368 | 10 | 4,456,448 | 0 |
+| `Ordinary/ShuffledSplitFallback/Ordinary4096_75_25` | 201,505 | 4,489,776 | 19 | 4,456,448 | 4,456,448 |
+| `Sequence/WholeDatasetView/Sequence512x4096_512x8_Lengths512` | 1,454 | 184 | 4 | 8,409,088 | 0 |
+| `Sequence/WholeBatchView/Sequence256x4096_256x8_Lengths256` | 823 | 184 | 4 | 4,204,544 | 0 |
+| `Sequence/RowView/Contiguous256` | 927 | 184 | 4 | 4,204,544 | 0 |
+| `Sequence/RowView/PartialFinal128` | 676 | 184 | 4 | 2,102,272 | 0 |
+| `Sequence/SelectedRowsView/Contiguous256` | 1,135 | 184 | 4 | 4,204,544 | 0 |
+| `Sequence/SelectedRowsFallback/ArbitraryRepeated256` | 222,068 | 4,204,856 | 10 | 4,204,544 | 4,204,544 |
+| `Sequence/OrderedBatchViews/Sequence512_Batch256` | 1,644 | 368 | 8 | 8,409,088 | 0 |
+| `Sequence/OrderedPartialBatchViews/Sequence512_Batch192` | 1,842 | 552 | 12 | 8,409,088 | 0 |
+| `Sequence/ShuffledBatchFallback/Sequence512_Batch256` | 451,527 | 8,413,808 | 21 | 8,409,088 | 8,409,088 |
+| `Sequence/OrderedSplitViews/Sequence512_75_25` | 1,710 | 464 | 10 | 8,409,088 | 0 |
+| `Sequence/ShuffledSplitFallback/Sequence512_75_25` | 460,602 | 8,413,904 | 23 | 8,409,088 | 8,409,088 |
+
+## Model view after medians
+
+| Benchmark | ns/op | B/op | allocs/op | Logical B read | Logical B copied |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `Ordinary/FullTrainingEvaluation/View` | 21,919,000 | 152 | 4 | 4,456,448 | 0 |
+| `Ordinary/FullValidationEvaluation/View` | 22,055,000 | 152 | 4 | 4,456,448 | 0 |
+| `Ordinary/CompleteEpoch/Ordered/View/Cold` | 111,125,000 | 2,784 | 73 | 13,369,344 | 0 |
+| `Ordinary/CompleteEpoch/Ordered/View/Warm` | 111,038,000 | 2,736 | 72 | 13,369,344 | 0 |
+| `Ordinary/CompleteEpoch/Shuffled/ViewOrCopy/Cold` | 111,963,000 | 311,744 | 14 | 13,369,344 | 4,456,448 |
+| `Ordinary/CompleteEpoch/Shuffled/ViewOrCopy/Warm` | 111,899,000 | 304 | 8 | 13,369,344 | 4,456,448 |
+| `Sequence/FullTrainingEvaluation/View` | 18,292,000 | 184 | 4 | 8,409,088 | 0 |
+| `Sequence/FullValidationEvaluation/View` | 9,210,000 | 184 | 4 | 4,204,544 | 0 |
+| `Sequence/CompleteEpoch/Ordered/View/Cold` | 69,321,000 | 968 | 21 | 21,022,720 | 0 |
+| `Sequence/CompleteEpoch/Ordered/View/Warm` | 69,526,000 | 920 | 20 | 21,022,720 | 0 |
+| `Sequence/CompleteEpoch/Shuffled/ViewOrCopy/Cold` | 70,035,000 | 4,209,152 | 15 | 21,022,720 | 8,409,088 |
+| `Sequence/CompleteEpoch/Shuffled/ViewOrCopy/Warm` | 69,665,000 | 368 | 8 | 21,022,720 | 8,409,088 |
+
+## Acceptance comparison
+
+| Pair | Logical-copy reduction | Allocated-byte reduction | Timing |
+| --- | ---: | ---: | --- |
+| Ordinary whole dataset | 100% | 99.997% | 140,041 ns to 161 ns for data acquisition |
+| Ordinary ordered batches | 100% | 99.946% | 166,059 ns to 2,485 ns |
+| Sequence whole dataset | 100% | 99.998% | 251,936 ns to 1,454 ns |
+| Sequence ordered `192` batches | 100% | 99.993% | 357,280 ns to 1,842 ns |
+| Ordinary ordered complete epoch | 100% | Data-sized allocation removed; 2,736 B metadata warm | 110.35 ms to 111.04 ms |
+| Sequence ordered complete epoch | 100% | Data-sized allocation removed; 920 B metadata warm | 69.51 ms to 69.53 ms |
+| Ordinary shuffled complete epoch | 66.7% | 96.6% cold | 110.69 ms to 111.90 ms |
+| Sequence shuffled complete epoch | 60.0% | 75.0% cold | 69.36 ms to 69.67 ms |
+
+All ordered view operations exceed the required 95% logical-copy and 90%
+allocated-byte reductions. Both ordered complete fits copy zero logical
+dataset bytes. Both shuffled complete fits exceed the required 40% reduction
+while retaining one honest training selection copy.
+
+The view metadata allocations depend on the number of synchronous view
+publications, not row width or logical value volume. The default warmed copy
+epoch remains at zero allocations. No timing pair regressed by both more than
+10% and more than 100 microseconds; the complete-fit timings are effectively
+neutral on this platform. Timing is secondary to the deterministic logical
+copy accounting: model samples contain only three iterations per result, so
+small timing differences should be treated as run-to-run noise. Allocation
+counts and logical copy volumes were stable across the recorded repetitions.

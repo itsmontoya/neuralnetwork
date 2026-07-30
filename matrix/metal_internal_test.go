@@ -547,6 +547,7 @@ func Test_MetalMatrixRowViewSynchronizesAndReleasesResidency(t *testing.T) {
 		after        device.ResourceSnapshot
 		counters     metaltest.Counters
 		available    bool
+		uploaded     bool
 		err          error
 	)
 
@@ -574,8 +575,11 @@ func Test_MetalMatrixRowViewSynchronizesAndReleasesResidency(t *testing.T) {
 		if view.residency != nil {
 			t.Fatal("new row view shares parent residency")
 		}
-		if _, _, _, viewErr = view.ensureDeviceBuffer(runtimeValue); viewErr != nil {
+		if _, _, uploaded, viewErr = view.ensureDeviceBuffer(runtimeValue); viewErr != nil {
 			return viewErr
+		}
+		if !uploaded {
+			t.Fatal("row view was not uploaded to its temporary residency")
 		}
 		during = runtimeValue.ResourceSnapshot()
 		if during.LiveBuffers != before.LiveBuffers+1 {
@@ -618,9 +622,6 @@ func Test_MetalMatrixRowViewSynchronizesAndReleasesResidency(t *testing.T) {
 	counters = metaltest.Snapshot()
 	if counters.ResultDownloads != 1 {
 		t.Fatalf("row view parent downloads = %d, want 1", counters.ResultDownloads)
-	}
-	if counters.InputUploads != 1 {
-		t.Fatalf("row view uploads = %d, want 1", counters.InputUploads)
 	}
 }
 
