@@ -379,6 +379,15 @@ test verifies the explicit gradient downloads, CPU clipping observation and
 update parity, successful gradient reset, and unchanged resident plain-SGD
 coverage.
 
+The implemented [data-view contract](data-views-design.md) begins every row
+view from current host storage. A device-newer owner is synchronized before
+the host row window is published. The temporary matrix has independent
+residency sized to that window and releases it when the scoped callback exits;
+the owner retains its full residency record. `FitWithViews` and
+`FitWithLengthViews` therefore preserve existing CPU/Metal numeric and
+fallback behavior without treating a host/device transfer as a hidden
+host-to-host data copy.
+
 Unsupported built-in and custom operations are never skipped. Before a custom
 layer, activation, loss, optimizer, regularizer, metric, or Go callback reads a
 matrix, the scope waits for its required producers and downloads only its
@@ -710,12 +719,17 @@ and failed-scope scratch is not returned until cleanup is complete.
 
 ## Release Compatibility
 
-The final audit found no additive or breaking public API change in the
+The Metal milestone's final audit found no additive or breaking public API
+change in the
 `activation`, `data`, `layer`, `loss`, `matrix`, `metric`, `model`, or
 `optimizer` packages. The accepted surface in
 [`v1-api-review.md`](v1-api-review.md) therefore remains unchanged. Device
 types, execution adapters, diagnostics, counters, and failure-injection hooks
 remain under `internal`.
+
+The later data-view milestone adds only the scoped public surface inventoried
+in `v1-api-review.md`; it does not expose a device, residency, execution, or
+synchronization control.
 
 Sequential documents remain `neuralnetwork.sequential` version `1`. ANN, CNN,
 and RNN round-trip tests continue to require identical re-encoded bytes for

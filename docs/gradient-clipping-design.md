@@ -596,7 +596,9 @@ fixed physical-final-step adapter.
 `TrainBatchWithLengths` uses the same optimizer boundary after
 `GatherLastValid` has routed the direct output gradient to each selected
 last-valid step and the unchanged recurrent backward pass has propagated it.
-`FitWithLengths` reuses that operation for mini-batches.
+`FitWithLengths` and the later opt-in `FitWithLengthViews` reuse that operation
+for mini-batches. `FitWithViews` likewise reuses `TrainBatch`; scoped data
+ownership does not change clipping order or observations.
 
 Clipping therefore occurs after complete recurrent backward and before
 Momentum velocity, Adam moments, SGD, or custom optimizer state consumes the
@@ -605,10 +607,11 @@ computation, change a logical length, or carry hidden state.
 
 ### Learning-rate schedules
 
-`Fit` and `FitWithLengths` call `SetLearningRate` on the configured
-`Optimizer` before the epoch's mini-batches. `GradientClipping` forwards that
-call to its base. `Regularized` also forwards through its base, so either
-documented nesting order reaches SGD, Momentum, Adam, or a custom base.
+`Fit`, `FitWithLengths`, `FitWithViews`, and `FitWithLengthViews` call
+`SetLearningRate` on the configured `Optimizer` before the epoch's
+mini-batches. `GradientClipping` forwards that call to its base. `Regularized`
+also forwards through its base, so either documented nesting order reaches
+SGD, Momentum, Adam, or a custom base.
 
 ### Built-in and custom optimizers
 
@@ -820,7 +823,7 @@ The completed test matrix covers:
 | Learning rates | Direct forwarding and `Fit`/`FitWithLengths` schedule changes through both wrapper orders. |
 | Determinism | Repeated equivalent ordered gradients, wrapper state, and bases produce equivalent observations and updates without hidden randomness or maps. |
 | Allocation | Zero incremental warmed allocations for value, norm, combined, duplicate-reference, and both regularized compositions. |
-| Model integration | `TrainBatch`, `Fit`, `TrainBatchWithLengths`, and `FitWithLengths` use the shared optimizer boundary and retain contextual errors and training-mode cleanup. |
+| Model integration | `TrainBatch`, `Fit`, `TrainBatchWithLengths`, `FitWithLengths`, `FitWithViews`, and `FitWithLengthViews` use the shared optimizer boundary and retain contextual errors and training-mode cleanup. |
 | Recurrent acceptance | One deterministic full-BPTT `SimpleRNN` update is directly bounded; matching unwrapped training retains the existing update; mixed logical lengths route gradients unchanged before clipping. |
 | Metal | Wrapped SGD takes the explicit CPU fallback, observes/downloads current gradients, matches CPU results within tolerance, and does not change direct-SGD residency. |
 | Persistence | Existing ANN, CNN, RNN, and gather version `1` bytes and load behavior remain unchanged; callers reconstruct clipping after load. |

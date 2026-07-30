@@ -17,6 +17,12 @@ The design preserves the existing `matrix.Matrix`, `layer.Layer`,
 contracts. Existing callers continue to treat padding as ordinary input.
 Length-aware behavior is available only through the additive APIs below.
 
+The later opt-in view milestone adds `SequenceDatasetView` and
+`FitWithLengthViews` as a scoped alternative to the copying data-consumption
+path. Inputs, targets, and lengths remain indivisible, `SequenceLengths` gains
+no independent view, and every formula and safe default in this document
+remains unchanged. See [data-views-design.md](data-views-design.md).
+
 ## Supported Flow
 
 The supported many-to-one graph is:
@@ -447,6 +453,8 @@ _ = predictions
 
 Lengths are invocation and dataset data. They are not stored in the model
 document and must be supplied on the first length-aware call after loading.
+The same is true for aligned views, policies, callbacks, and view-fit scratch;
+they are runtime-only and do not change sequential format version `1`.
 
 ## Validation Contract
 

@@ -112,8 +112,23 @@ For padded sequence rows, `data.NewSequenceLengths` validates one positive
 logical length per row and `data.NewSequenceDataset` keeps inputs, targets, and
 lengths aligned through batching, shuffling, and splitting.
 
+Large read-only boards can opt into scoped, zero-copy ordered access and
+evaluation with `Dataset.WithView`, `ViewBatches`, and
+`Sequential.FitWithViews`. The aligned equivalents keep sequence inputs,
+targets, and lengths together through `SequenceDatasetView` and
+`FitWithLengthViews`. Safe constructors, accessors, `Batches`, `Split`, `Fit`,
+and `FitWithLengths` continue to copy by default. Shuffled view fitting
+requires the explicit `data.ViewOrCopy` fallback:
+
+```go
+history, err := network.FitWithViews(trainingData, model.ViewFitConfig{
+	FitConfig: fitConfig,
+	Policy:    data.ViewOrCopy,
+})
+```
+
 See [docs/data.md](docs/data.md) for CSV, batching, train/test split, ownership,
-and aligned sequence-data contracts.
+aligned sequence-data contracts, view lifetimes, and performance guidance.
 
 ## Convolutional Networks
 
