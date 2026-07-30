@@ -1,12 +1,18 @@
 # Opt-In Data Views
 
-Status: accepted implementation contract.
+Status: accepted implementation contract; matrix and ordinary view foundation
+implemented.
 
 This document freezes the additive public and behavioral contract for
 [ROADMAP Item 3](../ROADMAP.md#3-add-opt-in-zero-copy-data-views). It is the
-implementation contract for the remaining milestone sections. The declarations
-are not implemented yet; the status means that implementation must use these
-exact names and semantics rather than reopening them while optimizing.
+implementation contract for the remaining milestone sections. Declarations
+still marked pending below are not implemented yet; implementation must use
+these exact names and semantics rather than reopening them while optimizing.
+
+The matrix row-window primitive and the whole-object and contiguous-row
+`Dataset` and `Batch` view operations are implemented and verified. Explicit
+selection policy, view batching and splitting, aligned sequence views, and
+opt-in model fitting remain pending in later implementation sections.
 
 The accepted boundary is a scoped, read-only-intent callback. Ordered
 contiguous rows share the data owner's host storage for the callback. The
@@ -1039,7 +1045,21 @@ This milestone does not add:
 * public device controls, asynchronous execution, or new Metal kernels; or
 * serialization of runtime data, views, policies, callbacks, or scratch.
 
-Implementation status is updated in this document section by section. It must
-not be described as implemented and verified until every declaration and
-behavior above has production code, focused tests, benchmarks, caller
-documentation, and repository-wide verification.
+## Implementation Status
+
+The following foundation is implemented and verified:
+
+* `matrix.RowViewFunc` and `Matrix.WithRowView`, including validation,
+  inclusive/exclusive windows, nested read-only views, expiry, host
+  synchronization, temporary residency cleanup, CPU behavior, and Metal
+  integration;
+* `data.DatasetView` and `DatasetViewFunc`, including shared expiry state,
+  paired non-copying accessors, dimensions, and `Copied`;
+* `Dataset.WithView`, `Dataset.WithRowView`, `Batch.WithView`, and
+  `Batch.WithRowView`; and
+* ordinary whole and contiguous-window correctness, ownership, concurrency,
+  numeric-equivalence, allocation, and copy-volume coverage.
+
+`ViewPolicy`, selected rows, view batching and splitting, aligned sequence
+views, and both opt-in fit operations remain pending. No pending declaration
+or behavior is described as implemented or verified.
