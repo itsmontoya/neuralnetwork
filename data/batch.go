@@ -25,6 +25,50 @@ type Batch struct {
 	targets *matrix.Matrix
 }
 
+// WithView calls use with a temporary read-only-intent view of all paired
+// inputs and targets. The batch owns the aliased storage. The view expires when
+// use returns or panics and must not be retained, mutated, or used
+// concurrently. The batch and overlapping aliases must remain unmodified until
+// use returns. Concurrent or reentrant access is unsupported.
+func (b *Batch) WithView(use DatasetViewFunc) (err error) {
+	if err = b.validate(); err != nil {
+		err = fmt.Errorf("data: batch view owner is invalid: %w", err)
+		return err
+	}
+
+	err = withDatasetRowView(
+		"data: batch view",
+		b.inputs,
+		b.targets,
+		0,
+		b.SampleCount(),
+		use,
+	)
+	return err
+}
+
+// WithRowView calls use with a temporary read-only-intent view of paired rows
+// [start, end). The batch owns the aliased storage. The view expires when use
+// returns or panics and must not be retained, mutated, or used concurrently.
+// The batch and overlapping aliases must remain unmodified until use returns.
+// Concurrent or reentrant access is unsupported.
+func (b *Batch) WithRowView(start, end int, use DatasetViewFunc) (err error) {
+	if err = b.validate(); err != nil {
+		err = fmt.Errorf("data: batch view owner is invalid: %w", err)
+		return err
+	}
+
+	err = withDatasetRowView(
+		"data: batch view",
+		b.inputs,
+		b.targets,
+		start,
+		end,
+		use,
+	)
+	return err
+}
+
 // Inputs returns a copy of the batch inputs.
 func (b *Batch) Inputs() (inputs *matrix.Matrix, err error) {
 	if err = b.validate(); err != nil {

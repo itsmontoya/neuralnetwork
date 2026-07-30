@@ -56,6 +56,50 @@ func (d *Dataset) Validate() (err error) {
 	return err
 }
 
+// WithView calls use with a temporary read-only-intent view of all paired
+// inputs and targets. The dataset owns the aliased storage. The view expires
+// when use returns or panics and must not be retained, mutated, or used
+// concurrently. The dataset and overlapping aliases must remain unmodified
+// until use returns. Concurrent or reentrant access is unsupported.
+func (d *Dataset) WithView(use DatasetViewFunc) (err error) {
+	if err = d.validate(); err != nil {
+		err = fmt.Errorf("data: dataset view owner is invalid: %w", err)
+		return err
+	}
+
+	err = withDatasetRowView(
+		"data: dataset view",
+		d.inputs,
+		d.targets,
+		0,
+		d.SampleCount(),
+		use,
+	)
+	return err
+}
+
+// WithRowView calls use with a temporary read-only-intent view of paired rows
+// [start, end). The dataset owns the aliased storage. The view expires when use
+// returns or panics and must not be retained, mutated, or used concurrently.
+// The dataset and overlapping aliases must remain unmodified until use
+// returns. Concurrent or reentrant access is unsupported.
+func (d *Dataset) WithRowView(start, end int, use DatasetViewFunc) (err error) {
+	if err = d.validate(); err != nil {
+		err = fmt.Errorf("data: dataset view owner is invalid: %w", err)
+		return err
+	}
+
+	err = withDatasetRowView(
+		"data: dataset view",
+		d.inputs,
+		d.targets,
+		start,
+		end,
+		use,
+	)
+	return err
+}
+
 // Inputs returns a copy of the dataset inputs.
 func (d *Dataset) Inputs() (inputs *matrix.Matrix, err error) {
 	if err = d.validate(); err != nil {

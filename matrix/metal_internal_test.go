@@ -535,6 +535,95 @@ func Test_MetalMatrixResidencyLongReuse(t *testing.T) {
 	}
 }
 
+func Test_MetalMatrixRowViewSynchronizesAndReleasesResidency(t *testing.T) {
+	var (
+		runtimeValue *device.Runtime
+		left         *Matrix
+		right        *Matrix
+		result       *Matrix
+		retained     *Matrix
+		before       device.ResourceSnapshot
+		during       device.ResourceSnapshot
+		after        device.ResourceSnapshot
+		counters     metaltest.Counters
+		available    bool
+		err          error
+	)
+
+	requireMetalAvailable(t)
+	left = metalTestMatrix(t, 256, 128, 0.25)
+	right = metalTestMatrix(t, 128, 128, -0.5)
+	if result, err = New(256, 128); err != nil {
+		t.Fatalf("New result returned error: %v", err)
+	}
+	if err = left.MatMulInto(right, result); err != nil {
+		t.Fatalf("MatMulInto returned error: %v", err)
+	}
+	if runtimeValue, available, err = device.SharedRuntime(); err != nil {
+		t.Fatalf("SharedRuntime returned error: %v", err)
+	}
+	if !available {
+		t.Fatal("SharedRuntime reported Metal unavailable after availability check")
+	}
+
+	before = runtimeValue.ResourceSnapshot()
+	metaltest.Enable()
+	defer metaltest.Disable()
+	err = result.WithRowView(64, 192, func(view *Matrix) (viewErr error) {
+		retained = view
+		if view.residency != nil {
+			t.Fatal("new row view shares parent residency")
+		}
+		if _, _, _, viewErr = view.ensureDeviceBuffer(runtimeValue); viewErr != nil {
+			return viewErr
+		}
+		during = runtimeValue.ResourceSnapshot()
+		if during.LiveBuffers != before.LiveBuffers+1 {
+			t.Fatalf(
+				"live buffers during row view = %d, want %d",
+				during.LiveBuffers,
+				before.LiveBuffers+1,
+			)
+		}
+		viewErr = view.WithRowView(1, 2, func(inner *Matrix) (innerErr error) {
+			if inner.residency != nil {
+				t.Fatal("nested row view shares immediate parent residency")
+			}
+			_, innerErr = inner.At(0, 0)
+			return innerErr
+		})
+		return viewErr
+	})
+	if err != nil {
+		t.Fatalf("WithRowView returned error: %v", err)
+	}
+
+	after = runtimeValue.ResourceSnapshot()
+	if after.LiveBuffers != before.LiveBuffers {
+		t.Fatalf("live buffers after row view = %d, want %d", after.LiveBuffers, before.LiveBuffers)
+	}
+	if after.ReleasedBuffers != before.ReleasedBuffers+1 {
+		t.Fatalf(
+			"released buffers after row view = %d, want %d",
+			after.ReleasedBuffers,
+			before.ReleasedBuffers+1,
+		)
+	}
+	if retained.rows != 0 || retained.cols != 0 || retained.data != nil || retained.residency != nil {
+		t.Fatal("retained Metal row view fields were not cleared")
+	}
+	if err = result.Validate(); err != nil {
+		t.Fatalf("parent Validate after row view returned error: %v", err)
+	}
+	counters = metaltest.Snapshot()
+	if counters.ResultDownloads != 1 {
+		t.Fatalf("row view parent downloads = %d, want 1", counters.ResultDownloads)
+	}
+	if counters.InputUploads != 1 {
+		t.Fatalf("row view uploads = %d, want 1", counters.InputUploads)
+	}
+}
+
 func requireMetalCounters(
 	tb testing.TB,
 	counters metaltest.Counters,

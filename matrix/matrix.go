@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"runtime"
 
 	"github.com/itsmontoya/neuralnetwork/internal/device"
 	"github.com/itsmontoya/neuralnetwork/internal/f32"
@@ -189,6 +190,77 @@ func (m *Matrix) Shape() (rows, cols int) {
 func (m *Matrix) Validate() (err error) {
 	err = m.validate()
 	return err
+}
+
+// WithRowView calls use with a temporary read-only-intent alias of rows
+// [start, end). The receiver owns the backing storage. The view is synchronous,
+// expires when use returns or panics, and must not be retained, mutated, or
+// shared across goroutines. Nested synchronous read-only row views are
+// supported. The receiver and overlapping aliases must remain unmodified until
+// use returns. Concurrent access involving the receiver or view is unsupported.
+func (m *Matrix) WithRowView(start, end int, use RowViewFunc) (err error) {
+	var (
+		startOffset int
+		endOffset   int
+		view        Matrix
+	)
+
+	if err = m.validate(); err != nil {
+		err = fmt.Errorf("matrix: row view parent is invalid: %w", err)
+		return err
+	}
+	if start < 0 {
+		err = fmt.Errorf("matrix: row view start must be non-negative: start=%d", start)
+		return err
+	}
+	if end <= start {
+		err = fmt.Errorf("matrix: row view must contain at least one row: start=%d end=%d", start, end)
+		return err
+	}
+	if end > m.rows {
+		err = fmt.Errorf("matrix: row view end is out of range: end=%d rows=%d", end, m.rows)
+		return err
+	}
+	if startOffset, err = rowViewOffset(start, m.cols); err != nil {
+		return err
+	}
+	if endOffset, err = rowViewOffset(end, m.cols); err != nil {
+		return err
+	}
+	if use == nil {
+		err = errors.New("matrix: row view callback is nil")
+		return err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		err = fmt.Errorf("matrix: row view synchronize parent: %w", err)
+		return err
+	}
+
+	view.rows = end - start
+	view.cols = m.cols
+	view.data = m.data[startOffset:endOffset]
+	defer func() {
+		var (
+			panicValue any
+			cleanupErr error
+		)
+
+		panicValue = recover()
+		cleanupErr = expireRowView(&view)
+		runtime.KeepAlive(m)
+		if panicValue != nil {
+			panic(panicValue)
+		}
+		if cleanupErr != nil {
+			err = errors.Join(err, cleanupErr)
+		}
+	}()
+
+	if err = use(&view); err != nil {
+		err = fmt.Errorf("matrix: row view callback: %w", err)
+		return err
+	}
+	return nil
 }
 
 // Values returns a copy of the row-major matrix values.
@@ -1711,6 +1783,42 @@ func (m *Matrix) newLike() (result *Matrix) {
 	next.cols = m.cols
 	next.data = make([]float32, len(m.data))
 	return &next
+}
+
+func rowViewOffset(row, cols int) (offset int, err error) {
+	var maxInt int
+
+	maxInt = int(^uint(0) >> 1)
+	if row > maxInt/cols {
+		err = fmt.Errorf("matrix: row view offset is too large: row=%d cols=%d", row, cols)
+		return 0, err
+	}
+
+	offset = row * cols
+	return offset, nil
+}
+
+func expireRowView(view *Matrix) (err error) {
+	if view == nil {
+		return nil
+	}
+	defer func() {
+		*view = Matrix{}
+	}()
+
+	if view.residency == nil {
+		return nil
+	}
+	if err = view.ensureHostCurrent(); err != nil {
+		err = fmt.Errorf("matrix: row view cleanup synchronize values: %w", err)
+		return err
+	}
+	if err = view.residency.Release(); err != nil {
+		err = fmt.Errorf("matrix: row view cleanup release residency: %w", err)
+		return err
+	}
+
+	return nil
 }
 
 func softmaxRowsInto(input, result []float32, rows, cols int) {

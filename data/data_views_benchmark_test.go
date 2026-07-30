@@ -36,6 +36,7 @@ var (
 	benchmarkDataViewsLengths         *data.SequenceLengths
 	benchmarkDataViewsLengthValues    []int
 	benchmarkDataViewsChecksum        float32
+	benchmarkDataViewsCopied          bool
 )
 
 func Benchmark_DataViewsCopyBaseline(b *testing.B) {
@@ -49,6 +50,13 @@ func Benchmark_DataViewsCopyBaseline(b *testing.B) {
 	b.Run("ShuffledSplit/Ordinary4096_75_25", benchmarkDataViewsShuffledSplit)
 	b.Run("SelectedRows/Contiguous256", benchmarkDataViewsContiguousSelectedRows)
 	b.Run("SelectedRows/ArbitraryRepeated256", benchmarkDataViewsArbitrarySelectedRows)
+}
+
+func Benchmark_DataViewsView(b *testing.B) {
+	b.Run("WholeDatasetView/Ordinary4096x256_4096x16", benchmarkDataViewsWholeDatasetView)
+	b.Run("WholeBatchView/Ordinary256x256_256x16", benchmarkDataViewsWholeBatchView)
+	b.Run("RowView/Contiguous256", benchmarkDataViewsContiguousRowView)
+	b.Run("RowView/PartialFinal4", benchmarkDataViewsPartialFinalRowView)
 }
 
 func Benchmark_SequenceDataViewsCopyBaseline(b *testing.B) {
@@ -319,6 +327,137 @@ func benchmarkDataViewsArbitrarySelectedRows(b *testing.B) {
 	}
 
 	benchmarkDataViewsSelectedRows(b, indexes)
+}
+
+func benchmarkDataViewsWholeDatasetView(b *testing.B) {
+	benchmarkDataViewsViewOperation(
+		b,
+		benchmarkDataViewsOrdinarySamples,
+		0,
+		benchmarkDataViewsOrdinarySamples,
+		true,
+	)
+}
+
+func benchmarkDataViewsWholeBatchView(b *testing.B) {
+	var (
+		dataset      *data.Dataset
+		batches      []*data.Batch
+		batch        *data.Batch
+		checksum     float32
+		logicalBytes int64
+		copied       bool
+		err          error
+		index        int
+	)
+
+	dataset = benchmarkDataViewsOrdinaryDataset(b, benchmarkDataViewsOrdinarySamples)
+	if batches, err = dataset.Batches(benchmarkDataViewsOrdinaryBatchSize, nil); err != nil {
+		b.Fatalf("Batches returned error: %v", err)
+	}
+	batch = batches[0]
+	logicalBytes = benchmarkDataViewsOrdinaryBytes(benchmarkDataViewsOrdinaryBatchSize)
+	b.ResetTimer()
+	reportDataViewsMetrics(b, logicalBytes, 0)
+
+	for index = 0; index < b.N; index++ {
+		err = batch.WithView(func(view *data.DatasetView) (viewErr error) {
+			checksum, copied, viewErr = observeDataViewsView(view)
+			return viewErr
+		})
+		if err != nil {
+			b.Fatalf("batch WithView returned error: %v", err)
+		}
+	}
+
+	benchmarkDataViewsChecksum = checksum
+	benchmarkDataViewsCopied = copied
+}
+
+func benchmarkDataViewsContiguousRowView(b *testing.B) {
+	benchmarkDataViewsViewOperation(
+		b,
+		benchmarkDataViewsOrdinarySamples,
+		benchmarkDataViewsOrdinaryBatchSize,
+		2*benchmarkDataViewsOrdinaryBatchSize,
+		false,
+	)
+}
+
+func benchmarkDataViewsPartialFinalRowView(b *testing.B) {
+	benchmarkDataViewsViewOperation(
+		b,
+		benchmarkDataViewsOrdinaryPartialSamples,
+		benchmarkDataViewsOrdinarySamples,
+		benchmarkDataViewsOrdinaryPartialSamples,
+		false,
+	)
+}
+
+func benchmarkDataViewsViewOperation(b *testing.B, samples, start, end int, whole bool) {
+	var (
+		dataset      *data.Dataset
+		checksum     float32
+		logicalBytes int64
+		copied       bool
+		err          error
+		index        int
+	)
+
+	dataset = benchmarkDataViewsOrdinaryDataset(b, samples)
+	logicalBytes = benchmarkDataViewsOrdinaryBytes(end - start)
+	b.ResetTimer()
+	reportDataViewsMetrics(b, logicalBytes, 0)
+
+	for index = 0; index < b.N; index++ {
+		if whole {
+			err = dataset.WithView(func(view *data.DatasetView) (viewErr error) {
+				checksum, copied, viewErr = observeDataViewsView(view)
+				return viewErr
+			})
+		} else {
+			err = dataset.WithRowView(start, end, func(view *data.DatasetView) (viewErr error) {
+				checksum, copied, viewErr = observeDataViewsView(view)
+				return viewErr
+			})
+		}
+		if err != nil {
+			b.Fatalf("view operation returned error: %v", err)
+		}
+	}
+
+	benchmarkDataViewsChecksum = checksum
+	benchmarkDataViewsCopied = copied
+}
+
+func observeDataViewsView(view *data.DatasetView) (checksum float32, copied bool, err error) {
+	var (
+		inputs     *matrix.Matrix
+		targets    *matrix.Matrix
+		firstInput float32
+		lastInput  float32
+		lastTarget float32
+	)
+
+	if inputs, err = view.Inputs(); err != nil {
+		return 0, false, err
+	}
+	if targets, err = view.Targets(); err != nil {
+		return 0, false, err
+	}
+	if firstInput, err = inputs.At(0, 0); err != nil {
+		return 0, false, err
+	}
+	if lastInput, err = inputs.At(inputs.Rows()-1, inputs.Cols()-1); err != nil {
+		return 0, false, err
+	}
+	if lastTarget, err = targets.At(targets.Rows()-1, targets.Cols()-1); err != nil {
+		return 0, false, err
+	}
+
+	checksum = firstInput + lastInput + lastTarget
+	copied = view.Copied()
+	return checksum, copied, nil
 }
 
 func benchmarkDataViewsSelectedRows(b *testing.B, indexes []int) {
