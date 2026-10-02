@@ -1159,6 +1159,82 @@ func (m *Matrix) SoftmaxRowsBackwardInto(outputGradient, result *Matrix) (err er
 	return nil
 }
 
+// SegmentedSoftmaxRowsInto writes independently normalized exponentials for
+// each configured row segment into result.
+//
+// Widths must be positive and sum to the matrix column count. The destination
+// must match the input shape and may alias m. Valid calls fully overwrite the
+// caller-owned destination without allocating or retaining any argument.
+func (m *Matrix) SegmentedSoftmaxRowsInto(widths []int, result *Matrix) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+	if err = validateSegmentWidths(widths, m.cols); err != nil {
+		return err
+	}
+	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = inheritExecution(result, m); err != nil {
+		return err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
+		return err
+	}
+
+	segmentedSoftmaxRowsInto(m.data, result.data, m.rows, m.cols, widths)
+	return nil
+}
+
+// SegmentedSoftmaxRowsBackwardInto writes the product of outputGradient and
+// each row segment's Softmax Jacobian into result.
+//
+// Widths must be positive and sum to the matrix column count. The output
+// gradient and destination must match the input shape. The destination may
+// alias m, but must not alias outputGradient. Valid calls fully overwrite the
+// destination without allocating or retaining any argument.
+func (m *Matrix) SegmentedSoftmaxRowsBackwardInto(
+	widths []int,
+	outputGradient,
+	result *Matrix,
+) (err error) {
+	if err = m.validate(); err != nil {
+		return err
+	}
+	if err = validateSegmentWidths(widths, m.cols); err != nil {
+		return err
+	}
+	if err = outputGradient.requireShape("output gradient", m.rows, m.cols); err != nil {
+		return err
+	}
+	if err = result.requireShape("destination", m.rows, m.cols); err != nil {
+		return err
+	}
+	if result == outputGradient {
+		err = errors.New("matrix: destination must not alias output gradient")
+		return err
+	}
+	if err = inheritExecution(result, m, outputGradient); err != nil {
+		return err
+	}
+	if err = m.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = outputGradient.ensureHostCurrent(); err != nil {
+		return err
+	}
+	if err = result.markHostWrite(); err != nil {
+		return err
+	}
+
+	segmentedSoftmaxRowsInto(m.data, result.data, m.rows, m.cols, widths)
+	segmentedSoftmaxRowsBackward(outputGradient.data, result.data, m.rows, m.cols, widths)
+	return nil
+}
+
 // MatMul returns the matrix product of m and other.
 func (m *Matrix) MatMul(other *Matrix) (result *Matrix, err error) {
 	var next Matrix
@@ -1853,6 +1929,121 @@ func softmaxRowsInto(input, result []float32, rows, cols int) {
 			result[offset+col] /= sum
 		}
 	}
+}
+
+func segmentedSoftmaxRowsInto(input, result []float32, rows, cols int, widths []int) {
+	var (
+		row           int
+		width         int
+		rowOffset     int
+		segmentOffset int
+		segmentEnd    int
+	)
+
+	for row = 0; row < rows; row++ {
+		rowOffset = row * cols
+		segmentOffset = rowOffset
+		for _, width = range widths {
+			segmentEnd = segmentOffset + width
+			softmaxSegmentInto(input, result, segmentOffset, segmentEnd)
+			segmentOffset = segmentEnd
+		}
+	}
+}
+
+func softmaxSegmentInto(input, result []float32, start, end int) {
+	var (
+		index    int
+		maxValue float32
+		value    float32
+		sum      float32
+	)
+
+	maxValue = input[start]
+	for index = start + 1; index < end; index++ {
+		value = input[index]
+		if value > maxValue {
+			maxValue = value
+		}
+	}
+
+	for index = start; index < end; index++ {
+		value = f32.Exp(input[index] - maxValue)
+		result[index] = value
+		sum += value
+	}
+
+	for index = start; index < end; index++ {
+		result[index] /= sum
+	}
+}
+
+func segmentedSoftmaxRowsBackward(outputGradient, result []float32, rows, cols int, widths []int) {
+	var (
+		row           int
+		width         int
+		rowOffset     int
+		segmentOffset int
+		segmentEnd    int
+	)
+
+	for row = 0; row < rows; row++ {
+		rowOffset = row * cols
+		segmentOffset = rowOffset
+		for _, width = range widths {
+			segmentEnd = segmentOffset + width
+			softmaxSegmentBackward(outputGradient, result, segmentOffset, segmentEnd)
+			segmentOffset = segmentEnd
+		}
+	}
+}
+
+func softmaxSegmentBackward(outputGradient, result []float32, start, end int) {
+	var (
+		index int
+		dot   float32
+	)
+
+	for index = start; index < end; index++ {
+		dot += outputGradient[index] * result[index]
+	}
+	for index = start; index < end; index++ {
+		result[index] *= outputGradient[index] - dot
+	}
+}
+
+func validateSegmentWidths(widths []int, columns int) (err error) {
+	var (
+		index  int
+		width  int
+		total  int
+		maxInt int
+	)
+
+	if len(widths) == 0 {
+		err = errors.New("matrix: segment widths are empty")
+		return err
+	}
+
+	maxInt = int(^uint(0) >> 1)
+	for index, width = range widths {
+		if width <= 0 {
+			err = fmt.Errorf("matrix: segment width %d must be positive: width=%d", index, width)
+			return err
+		}
+		if width > maxInt-total {
+			err = errors.New("matrix: segment width total overflows int")
+			return err
+		}
+		total += width
+	}
+
+	if total != columns {
+		err = fmt.Errorf("matrix: segment widths total mismatch: got %d, want %d columns", total, columns)
+		return err
+	}
+
+	return nil
 }
 
 func (m *Matrix) validate() (err error) {
