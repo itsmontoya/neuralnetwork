@@ -106,6 +106,7 @@ type serializedLayer struct {
 	FeatureSize      int               `json:"feature_size,omitempty"`
 	HiddenSize       int               `json:"hidden_size,omitempty"`
 	Activation       string            `json:"activation,omitempty"`
+	ActivationWidths []int             `json:"activation_widths,omitempty"`
 	Rate             float32           `json:"rate,omitempty"`
 	Momentum         float32           `json:"momentum,omitempty"`
 	Epsilon          float32           `json:"epsilon,omitempty"`
@@ -197,7 +198,10 @@ func (s serializedLayer) layer(index int) (currentLayer layerpkg.Layer, err erro
 }
 
 func serializedActivationLayer(index int, activationLayer *layerpkg.Activation) (serialized serializedLayer, err error) {
-	var name string
+	var (
+		name   string
+		widths []int
+	)
 
 	if activationLayer == nil {
 		err = fmt.Errorf("model: layer %d activation layer is nil", index)
@@ -208,10 +212,14 @@ func serializedActivationLayer(index int, activationLayer *layerpkg.Activation) 
 		err = fmt.Errorf("model: layer %d activation name failed: %w", index, err)
 		return serialized, err
 	}
+	if segmented, ok := activationLayer.Function().(*activationpkg.SegmentedSoftmax); ok {
+		widths = segmented.Widths()
+	}
 
 	serialized = serializedLayer{
-		Type:       serializationLayerActivation,
-		Activation: name,
+		Type:             serializationLayerActivation,
+		Activation:       name,
+		ActivationWidths: widths,
 	}
 	return serialized, nil
 }
@@ -219,7 +227,12 @@ func serializedActivationLayer(index int, activationLayer *layerpkg.Activation) 
 func (s serializedLayer) activationLayer(index int) (activationLayer *layerpkg.Activation, err error) {
 	var function activationpkg.Activation
 
-	if function, err = activationpkg.FromName(s.Activation); err != nil {
+	if s.Activation == "segmented_softmax" {
+		if function, err = activationpkg.NewSegmentedSoftmax(s.ActivationWidths...); err != nil {
+			err = fmt.Errorf("model: layer %d activation load failed: %w", index, err)
+			return nil, err
+		}
+	} else if function, err = activationpkg.FromName(s.Activation); err != nil {
 		err = fmt.Errorf("model: layer %d activation load failed: %w", index, err)
 		return nil, err
 	}

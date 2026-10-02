@@ -113,6 +113,76 @@ func Test_Sequential_SaveLoadRoundTrip(t *testing.T) {
 	requireMatrixValues(t, after, mustValues(t, before))
 }
 
+func Test_Sequential_SaveLoadRoundTripWithSegmentedSoftmax(t *testing.T) {
+	var (
+		segmented *activation.SegmentedSoftmax
+		network   *model.Sequential
+		loaded    *model.Sequential
+		input     *matrix.Matrix
+		before    *matrix.Matrix
+		after     *matrix.Matrix
+		buffer    bytes.Buffer
+		err       error
+	)
+
+	if segmented, err = activation.NewSegmentedSoftmax(2, 1, 3); err != nil {
+		t.Fatalf("NewSegmentedSoftmax returned error: %v", err)
+	}
+	if network, err = model.NewSequential(mustActivationLayer(t, segmented)); err != nil {
+		t.Fatalf("NewSequential returned error: %v", err)
+	}
+	input = mustMatrix(t, 2, 6, []float32{
+		1, 2, 7, 3, 1, -1,
+		-1, 0, 5, -3, -1, -2,
+	})
+	if before, err = network.Predict(input); err != nil {
+		t.Fatalf("Predict returned error: %v", err)
+	}
+	if err = network.Save(&buffer); err != nil {
+		t.Fatalf("Save returned error: %v", err)
+	}
+	if !strings.Contains(buffer.String(), `"activation": "segmented_softmax"`) {
+		t.Fatalf("serialized model missing segmented activation: %s", buffer.String())
+	}
+	if !strings.Contains(buffer.String(), `"activation_widths": [`) {
+		t.Fatalf("serialized model missing activation widths: %s", buffer.String())
+	}
+	if loaded, err = model.LoadSequential(&buffer); err != nil {
+		t.Fatalf("LoadSequential returned error: %v", err)
+	}
+	if after, err = loaded.Predict(input); err != nil {
+		t.Fatalf("loaded Predict returned error: %v", err)
+	}
+
+	requireMatrixValues(t, after, mustValues(t, before))
+}
+
+func Test_LoadSequential_RejectsSegmentedSoftmaxWithoutWidths(t *testing.T) {
+	var (
+		document string
+		loaded   *model.Sequential
+		err      error
+	)
+
+	document = `{
+		"format": "neuralnetwork.sequential",
+		"version": 1,
+		"layers": [
+			{"type": "activation", "activation": "segmented_softmax"}
+		]
+	}`
+	loaded, err = model.LoadSequential(strings.NewReader(document))
+	if err == nil {
+		t.Fatal("LoadSequential error = nil, want width configuration error")
+	}
+	if loaded != nil {
+		t.Fatal("LoadSequential returned model on error")
+	}
+	if !strings.Contains(err.Error(), "requires at least one width") {
+		t.Fatalf("LoadSequential error = %q, want width configuration error", err)
+	}
+}
+
 func Test_Sequential_SaveLoadRoundTripWithBatchNormalization(t *testing.T) {
 	var (
 		batchNorm *layer.BatchNormalization

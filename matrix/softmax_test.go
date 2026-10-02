@@ -95,6 +95,66 @@ func Test_SoftmaxRowsInto(t *testing.T) {
 	}
 }
 
+func Test_SegmentedSoftmaxRowsInto(t *testing.T) {
+	var (
+		input  *matrix.Matrix
+		output *matrix.Matrix
+		err    error
+	)
+
+	input = mustMatrix(t, 2, 5, []float32{
+		1, 2, 3, 1, -1,
+		-1, -2, -3, -1, 1,
+	})
+	output = mustMatrix(t, 2, 5, make([]float32, 10))
+	if err = input.SegmentedSoftmaxRowsInto([]int{2, 3}, output); err != nil {
+		t.Fatalf("SegmentedSoftmaxRowsInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, output, []float32{
+		0.26894143, 0.7310586, 0.8668133, 0.11731042, 0.01587624,
+		0.7310586, 0.26894143, 0.01587624, 0.11731042, 0.8668133,
+	})
+}
+
+func Test_SegmentedSoftmaxRowsBackwardInto(t *testing.T) {
+	var (
+		input          *matrix.Matrix
+		outputGradient *matrix.Matrix
+		result         *matrix.Matrix
+		err            error
+	)
+
+	input = mustMatrix(t, 1, 4, []float32{0, 0, 0, 0})
+	outputGradient = mustMatrix(t, 1, 4, []float32{1, 3, 2, 6})
+	result = mustMatrix(t, 1, 4, make([]float32, 4))
+	if err = input.SegmentedSoftmaxRowsBackwardInto([]int{2, 2}, outputGradient, result); err != nil {
+		t.Fatalf("SegmentedSoftmaxRowsBackwardInto returned error: %v", err)
+	}
+
+	requireMatrixValues(t, result, []float32{-0.5, 0.5, -1, 1})
+}
+
+func Test_SegmentedSoftmaxRowsInto_ValidatesWidths(t *testing.T) {
+	var (
+		input  *matrix.Matrix
+		output *matrix.Matrix
+		err    error
+	)
+
+	input = mustMatrix(t, 1, 3, []float32{1, 2, 3})
+	output = mustMatrix(t, 1, 3, make([]float32, 3))
+	if err = input.SegmentedSoftmaxRowsInto(nil, output); err == nil {
+		t.Fatal("SegmentedSoftmaxRowsInto error = nil for empty widths")
+	}
+	if err = input.SegmentedSoftmaxRowsInto([]int{1, 0, 2}, output); err == nil {
+		t.Fatal("SegmentedSoftmaxRowsInto error = nil for zero width")
+	}
+	if err = input.SegmentedSoftmaxRowsInto([]int{2, 2}, output); err == nil {
+		t.Fatal("SegmentedSoftmaxRowsInto error = nil for total mismatch")
+	}
+}
+
 func Test_SoftmaxRowsInto_AllowsInputAlias(t *testing.T) {
 	var (
 		input *matrix.Matrix

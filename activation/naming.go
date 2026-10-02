@@ -6,14 +6,15 @@ import (
 )
 
 const (
-	activationNameELU       = "elu"
-	activationNameGELU      = "gelu"
-	activationNameLeakyReLU = "leaky_relu"
-	activationNameLinear    = "linear"
-	activationNameReLU      = "relu"
-	activationNameSigmoid   = "sigmoid"
-	activationNameSoftmax   = "softmax"
-	activationNameTanh      = "tanh"
+	activationNameELU              = "elu"
+	activationNameGELU             = "gelu"
+	activationNameLeakyReLU        = "leaky_relu"
+	activationNameLinear           = "linear"
+	activationNameReLU             = "relu"
+	activationNameSigmoid          = "sigmoid"
+	activationNameSoftmax          = "softmax"
+	activationNameSegmentedSoftmax = "segmented_softmax"
+	activationNameTanh             = "tanh"
 )
 
 // Name returns the stable serialization name for a built-in activation.
@@ -87,6 +88,13 @@ func Name(function Activation) (name string, err error) {
 		}
 
 		name = activationNameSoftmax
+	case *SegmentedSoftmax:
+		if current == nil {
+			err = errors.New("activation: activation function is nil")
+			return "", err
+		}
+
+		name = activationNameSegmentedSoftmax
 	case Tanh:
 		name = activationNameTanh
 	case *Tanh:
@@ -121,6 +129,9 @@ func FromName(name string) (function Activation, err error) {
 		function = Sigmoid{}
 	case activationNameSoftmax:
 		function = Softmax{}
+	case activationNameSegmentedSoftmax:
+		err = errors.New("activation: segmented softmax requires configured widths")
+		return nil, err
 	case activationNameTanh:
 		function = Tanh{}
 	default:
