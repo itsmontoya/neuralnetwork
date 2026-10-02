@@ -99,3 +99,67 @@ func Test_MaxPool2DBackwardSteadyStateAllocations(t *testing.T) {
 		}
 	})
 }
+
+func Test_AveragePool2DSteadyStateAllocations(t *testing.T) {
+	var (
+		pooling        *layer.AveragePool2D
+		input          *matrix.Matrix
+		outputGradient *matrix.Matrix
+		err            error
+	)
+
+	if pooling, err = layer.NewAveragePool2D(mustAveragePool2DConfig(t, 8, 16, 12, 2, 3, 2, 2)); err != nil {
+		t.Fatalf("NewAveragePool2D returned error: %v", err)
+	}
+	input = allocationLayerMatrix(t, 8, pooling.InputShape().Size())
+	outputGradient = allocationLayerMatrix(t, 8, pooling.OutputShape().Size())
+	if _, err = pooling.Forward(input); err != nil {
+		t.Fatalf("warm-up Forward returned error: %v", err)
+	}
+	if _, err = pooling.Backward(outputGradient); err != nil {
+		t.Fatalf("warm-up Backward returned error: %v", err)
+	}
+
+	requireMaxAllocs(t, "AveragePool2D.Forward", 0, func() {
+		if allocationLayerResult, err = pooling.Forward(input); err != nil {
+			panic(err)
+		}
+	})
+	requireMaxAllocs(t, "AveragePool2D.Backward", 0, func() {
+		if allocationLayerResult, err = pooling.Backward(outputGradient); err != nil {
+			panic(err)
+		}
+	})
+}
+
+func Test_AdaptiveAveragePool2DSteadyStateAllocations(t *testing.T) {
+	var (
+		pooling        *layer.AdaptiveAveragePool2D
+		input          *matrix.Matrix
+		outputGradient *matrix.Matrix
+		err            error
+	)
+
+	if pooling, err = layer.NewAdaptiveAveragePool2D(mustAdaptiveAveragePool2DConfig(t, 8, 16, 12, 5, 4)); err != nil {
+		t.Fatalf("NewAdaptiveAveragePool2D returned error: %v", err)
+	}
+	input = allocationLayerMatrix(t, 8, pooling.InputShape().Size())
+	outputGradient = allocationLayerMatrix(t, 8, pooling.OutputShape().Size())
+	if _, err = pooling.Forward(input); err != nil {
+		t.Fatalf("warm-up Forward returned error: %v", err)
+	}
+	if _, err = pooling.Backward(outputGradient); err != nil {
+		t.Fatalf("warm-up Backward returned error: %v", err)
+	}
+
+	requireMaxAllocs(t, "AdaptiveAveragePool2D.Forward", 0, func() {
+		if allocationLayerResult, err = pooling.Forward(input); err != nil {
+			panic(err)
+		}
+	})
+	requireMaxAllocs(t, "AdaptiveAveragePool2D.Backward", 0, func() {
+		if allocationLayerResult, err = pooling.Backward(outputGradient); err != nil {
+			panic(err)
+		}
+	})
+}
