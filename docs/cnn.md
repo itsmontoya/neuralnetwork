@@ -141,6 +141,24 @@ Weights have shape
 channel. Backward propagation accumulates summed parameter gradients across the
 batch and spatial positions; the loss controls any mean scaling.
 
+### Spatial batch normalization
+
+`BatchNormalization2D` keeps the flattened NCHW layout but owns one gamma,
+beta, running mean, and running variance per channel. During training it
+aggregates each channel across all `batch*height*width` values. Evaluation uses
+the stored running statistics. Its input and output `SpatialShape` are equal,
+so it can be inserted directly between a convolution and activation:
+
+```go
+normalization, err := layer.NewBatchNormalization2D(
+	layer.BatchNormalization2DConfig{
+		InputShape: conv.OutputShape(),
+		Momentum:   0.9,
+		Epsilon:    1e-5,
+	},
+)
+```
+
 ### Pooling Shapes
 
 `MaxPool2D` uses valid/no padding and applies each window independently to every
@@ -225,8 +243,9 @@ if err != nil {
 }
 ```
 
-The additive layer names are `conv2d`, `max_pool2d`, and `flatten`. Saving
-stores spatial configuration plus convolution weights and biases. Loading
+The additive layer names are `conv2d`, `batch_normalization2d`, `max_pool2d`,
+and `flatten`. Saving stores spatial configuration, convolution weights and
+biases, and spatial-normalization parameters and running statistics. Loading
 restores architecture and parameter values with zero accumulated gradients and
 empty forward caches. Optimizer state, training history, and random source
 state are not stored.
@@ -254,7 +273,7 @@ without reordering them. Backward before a valid forward call returns an error.
 | Data layout | Batched flattened NCHW/CHW `float32` matrix rows | A general tensor contract |
 | Convolution | Multiple input/output channels, rectangular kernels and strides, explicit symmetric zero padding | Dilation, groups, depthwise and transposed convolution, implicit padding modes |
 | Pooling | Rectangular valid max pooling, deterministic ties, overlapping-window gradients | Average and global-average pooling |
-| Composition | Existing activations, dropout, dense layers, datasets, losses, metrics, optimizers, training, and serialization | Channel-wise spatial batch normalization and spatial dropout |
+| Composition | Existing activations, channel-wise spatial batch normalization, dropout, dense layers, datasets, losses, metrics, optimizers, training, and serialization | Spatial dropout |
 | Data loading | Caller-prepared flattened image rows | Image decoding, directory datasets, augmentation, and external dataset integrations |
 | Runtime | Clear pure-Go CPU reference kernels | SIMD, Metal, goroutine-parallel, and other accelerator-specific kernels |
 | Model families | Sequential CNN and ANN composition through `layer.Layer`; the initial RNN path is documented separately | Combined spatial/temporal CNN-RNN layouts, richer recurrent state and masking, and automatic-differentiation graphs |

@@ -241,7 +241,8 @@ training details.
 
 The `layer` package includes dense layers, activation layers, inverted dropout,
 per-feature batch normalization, trainable two-dimensional convolution,
-parameter-free two-dimensional max pooling, a spatial-to-dense flatten adapter,
+parameter-free two-dimensional max pooling, per-channel spatial batch
+normalization, a spatial-to-dense flatten adapter,
 a stateless `SimpleRNN`, a fixed-length sequence-to-dense `LastStep` adapter,
 and an explicit-length `GatherLastValid` adapter.
 `layer.NewSpatialShape`, `layer.NewConv2DConfig`, and
@@ -252,7 +253,8 @@ time-major sequence geometry.
 and follows training/evaluation mode. `layer.NewBatchNormalization` and
 `layer.NewBatchNormalizationWithConfig` manage trainable gamma and beta
 parameters plus running statistics for evaluation; batch normalization remains
-per flattened feature rather than per spatial channel.
+per flattened feature. `layer.NewBatchNormalization2D` instead aggregates each
+NCHW channel across batch and spatial positions and preserves spatial shape.
 
 ## Multi-head classification
 

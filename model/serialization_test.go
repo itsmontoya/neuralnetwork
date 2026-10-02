@@ -270,6 +270,73 @@ func Test_Sequential_SaveLoadRoundTripWithBatchNormalization(t *testing.T) {
 	requireMatrixValues(t, after, mustValues(t, before))
 }
 
+func Test_Sequential_SaveLoadRoundTripWithBatchNormalization2D(t *testing.T) {
+	var (
+		shape     layer.SpatialShape
+		batchNorm *layer.BatchNormalization2D
+		network   *model.Sequential
+		loaded    *model.Sequential
+		input     *matrix.Matrix
+		before    *matrix.Matrix
+		after     *matrix.Matrix
+		buffer    bytes.Buffer
+		err       error
+	)
+
+	if shape, err = layer.NewSpatialShape(2, 1, 2); err != nil {
+		t.Fatalf("NewSpatialShape returned error: %v", err)
+	}
+	if batchNorm, err = layer.NewBatchNormalization2D(layer.BatchNormalization2DConfig{
+		InputShape: shape,
+		Momentum:   0.8,
+		Epsilon:    1e-4,
+	}); err != nil {
+		t.Fatalf("NewBatchNormalization2D returned error: %v", err)
+	}
+	if err = batchNorm.Gamma().Values().CopyFrom(mustMatrix(t, 1, 2, []float32{2, 3})); err != nil {
+		t.Fatalf("gamma CopyFrom returned error: %v", err)
+	}
+	if err = batchNorm.Beta().Values().CopyFrom(mustMatrix(t, 1, 2, []float32{0.5, -1})); err != nil {
+		t.Fatalf("beta CopyFrom returned error: %v", err)
+	}
+	if err = batchNorm.RunningMean().CopyFrom(mustMatrix(t, 1, 2, []float32{1, 2})); err != nil {
+		t.Fatalf("running mean CopyFrom returned error: %v", err)
+	}
+	if err = batchNorm.RunningVariance().CopyFrom(mustMatrix(t, 1, 2, []float32{4, 9})); err != nil {
+		t.Fatalf("running variance CopyFrom returned error: %v", err)
+	}
+	if network, err = model.NewSequential(batchNorm); err != nil {
+		t.Fatalf("NewSequential returned error: %v", err)
+	}
+	if err = network.SetTraining(false); err != nil {
+		t.Fatalf("SetTraining returned error: %v", err)
+	}
+	input = mustMatrix(t, 2, 4, []float32{
+		3, 5, 8, -1,
+		1, 7, 2, 11,
+	})
+	if before, err = network.Predict(input); err != nil {
+		t.Fatalf("Predict returned error: %v", err)
+	}
+	if err = network.Save(&buffer); err != nil {
+		t.Fatalf("Save returned error: %v", err)
+	}
+	if !strings.Contains(buffer.String(), `"type": "batch_normalization2d"`) {
+		t.Fatalf("serialized model missing batch normalization2d layer: %s", buffer.String())
+	}
+	if loaded, err = model.LoadSequential(&buffer); err != nil {
+		t.Fatalf("LoadSequential returned error: %v", err)
+	}
+	if err = loaded.SetTraining(false); err != nil {
+		t.Fatalf("loaded SetTraining returned error: %v", err)
+	}
+	if after, err = loaded.Predict(input); err != nil {
+		t.Fatalf("loaded Predict returned error: %v", err)
+	}
+
+	requireMatrixValues(t, after, mustValues(t, before))
+}
+
 func Test_Sequential_SaveLoadRoundTripWithDropout(t *testing.T) {
 	var (
 		dropout *layer.Dropout
