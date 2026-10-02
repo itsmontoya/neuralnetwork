@@ -60,6 +60,22 @@ func LoadSequential(reader io.Reader) (out *Sequential, err error) {
 	return out, nil
 }
 
+// LoadSequentialBinary restores a Sequential model from the versioned binary
+// contract and returns the verified content checksum.
+func LoadSequentialBinary(reader io.Reader) (out *Sequential, checksum ModelChecksum, err error) {
+	if reader == nil {
+		err = errors.New("model: load binary reader is nil")
+		return nil, checksum, err
+	}
+
+	if out, checksum, err = decodeSequentialBinary(reader); err != nil {
+		err = fmt.Errorf("model: load sequential binary: %w", err)
+		return nil, ModelChecksum{}, err
+	}
+
+	return out, checksum, nil
+}
+
 // Sequential applies an ordered list of layers.
 type Sequential struct {
 	layers                    []layer.Layer
@@ -1432,6 +1448,26 @@ func (s *Sequential) Save(writer io.Writer) (err error) {
 	}
 
 	return nil
+}
+
+// SaveBinary writes the model using the versioned binary contract and returns
+// a SHA-256 checksum over the encoded architecture and evaluation parameters.
+func (s *Sequential) SaveBinary(writer io.Writer) (checksum ModelChecksum, err error) {
+	if writer == nil {
+		err = errors.New("model: save binary writer is nil")
+		return checksum, err
+	}
+
+	if err = s.validate(); err != nil {
+		return checksum, err
+	}
+
+	if checksum, err = encodeSequentialBinary(writer, s); err != nil {
+		err = fmt.Errorf("model: save sequential binary: %w", err)
+		return ModelChecksum{}, err
+	}
+
+	return checksum, nil
 }
 
 func (s *Sequential) trainFitEpoch(trainingData *data.Dataset, config FitConfig, epoch int, scratch *fitScratch) (err error) {
