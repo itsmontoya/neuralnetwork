@@ -13,19 +13,20 @@ import (
 )
 
 const (
-	serializationFormatSequential        = "neuralnetwork.sequential"
-	serializationLayerActivation         = "activation"
-	serializationLayerBatchNormalization = "batch_normalization"
-	serializationLayerConv2D             = "conv2d"
-	serializationLayerDense              = "dense"
-	serializationLayerDropout            = "dropout"
-	serializationLayerFlatten            = "flatten"
-	serializationLayerGatherLastValid    = "gather_last_valid"
-	serializationLayerLastStep           = "last_step"
-	serializationLayerMaxPool2D          = "max_pool2d"
-	serializationLayerSimpleRNN          = "simple_rnn"
-	serializationDropoutSeed             = 1
-	serializationVersion                 = 1
+	serializationFormatSequential          = "neuralnetwork.sequential"
+	serializationLayerActivation           = "activation"
+	serializationLayerBatchNormalization   = "batch_normalization"
+	serializationLayerBatchNormalization2D = "batch_normalization2d"
+	serializationLayerConv2D               = "conv2d"
+	serializationLayerDense                = "dense"
+	serializationLayerDropout              = "dropout"
+	serializationLayerFlatten              = "flatten"
+	serializationLayerGatherLastValid      = "gather_last_valid"
+	serializationLayerLastStep             = "last_step"
+	serializationLayerMaxPool2D            = "max_pool2d"
+	serializationLayerSimpleRNN            = "simple_rnn"
+	serializationDropoutSeed               = 1
+	serializationVersion                   = 1
 )
 
 type sequentialDocument struct {
@@ -143,6 +144,8 @@ func serializedLayerFromLayer(index int, currentLayer layerpkg.Layer) (serialize
 		serialized, err = serializedActivationLayer(index, current)
 	case *layerpkg.BatchNormalization:
 		serialized, err = serializedBatchNormalizationLayer(index, current)
+	case *layerpkg.BatchNormalization2D:
+		serialized, err = serializedBatchNormalization2DLayer(index, current)
 	case *layerpkg.Conv2D:
 		serialized, err = serializedConv2DLayer(index, current)
 	case *layerpkg.Dense:
@@ -173,6 +176,8 @@ func (s serializedLayer) layer(index int) (currentLayer layerpkg.Layer, err erro
 		currentLayer, err = s.activationLayer(index)
 	case serializationLayerBatchNormalization:
 		currentLayer, err = s.batchNormalizationLayer(index)
+	case serializationLayerBatchNormalization2D:
+		currentLayer, err = s.batchNormalization2DLayer(index)
 	case serializationLayerConv2D:
 		currentLayer, err = s.conv2DLayer(index)
 	case serializationLayerDense:
@@ -364,6 +369,136 @@ func (s serializedLayer) batchNormalizationLayer(index int) (batchNormLayer *lay
 
 	if err = s.RunningVariance.copyInto(batchNormLayer.RunningVariance()); err != nil {
 		err = fmt.Errorf("model: layer %d batch normalization running variance copy failed: %w", index, err)
+		return nil, err
+	}
+
+	return batchNormLayer, nil
+}
+
+func serializedBatchNormalization2DLayer(
+	index int,
+	batchNormLayer *layerpkg.BatchNormalization2D,
+) (serialized serializedLayer, err error) {
+	var (
+		shape           layerpkg.SpatialShape
+		gamma           serializedMatrix
+		beta            serializedMatrix
+		runningMean     serializedMatrix
+		runningVariance serializedMatrix
+	)
+
+	if batchNormLayer == nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d layer is nil", index)
+		return serialized, err
+	}
+	if batchNormLayer.Gamma() == nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d gamma parameter is nil", index)
+		return serialized, err
+	}
+	if batchNormLayer.Beta() == nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d beta parameter is nil", index)
+		return serialized, err
+	}
+	if gamma, err = serializedMatrixFromMatrix(batchNormLayer.Gamma().Values()); err != nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d gamma serialize failed: %w", index, err)
+		return serialized, err
+	}
+	if beta, err = serializedMatrixFromMatrix(batchNormLayer.Beta().Values()); err != nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d beta serialize failed: %w", index, err)
+		return serialized, err
+	}
+	if runningMean, err = serializedMatrixFromMatrix(batchNormLayer.RunningMean()); err != nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d running mean serialize failed: %w", index, err)
+		return serialized, err
+	}
+	if runningVariance, err = serializedMatrixFromMatrix(batchNormLayer.RunningVariance()); err != nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d running variance serialize failed: %w", index, err)
+		return serialized, err
+	}
+
+	shape = batchNormLayer.InputShape()
+	serialized = serializedLayer{
+		Type:            serializationLayerBatchNormalization2D,
+		Momentum:        batchNormLayer.Momentum(),
+		Epsilon:         batchNormLayer.Epsilon(),
+		Gamma:           &gamma,
+		Beta:            &beta,
+		RunningMean:     &runningMean,
+		RunningVariance: &runningVariance,
+		InputChannels:   shape.Channels(),
+		InputHeight:     shape.Height(),
+		InputWidth:      shape.Width(),
+	}
+	return serialized, nil
+}
+
+func (s serializedLayer) batchNormalization2DLayer(
+	index int,
+) (batchNormLayer *layerpkg.BatchNormalization2D, err error) {
+	var (
+		inputShape layerpkg.SpatialShape
+		config     layerpkg.BatchNormalization2DConfig
+	)
+
+	if s.Gamma == nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d gamma is missing", index)
+		return nil, err
+	}
+	if s.Beta == nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d beta is missing", index)
+		return nil, err
+	}
+	if s.RunningMean == nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d running mean is missing", index)
+		return nil, err
+	}
+	if s.RunningVariance == nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d running variance is missing", index)
+		return nil, err
+	}
+	if err = s.Gamma.validate(); err != nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d gamma load failed: %w", index, err)
+		return nil, err
+	}
+	if err = s.Beta.validate(); err != nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d beta load failed: %w", index, err)
+		return nil, err
+	}
+	if err = s.RunningMean.validate(); err != nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d running mean load failed: %w", index, err)
+		return nil, err
+	}
+	if err = s.RunningVariance.validate(); err != nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d running variance load failed: %w", index, err)
+		return nil, err
+	}
+	if inputShape, err = s.spatialInputShape(index, serializationLayerBatchNormalization2D); err != nil {
+		return nil, err
+	}
+
+	config = layerpkg.BatchNormalization2DConfig{
+		InputShape: inputShape,
+		Momentum:   s.Momentum,
+		Epsilon:    s.Epsilon,
+	}
+	if batchNormLayer, err = layerpkg.NewBatchNormalization2D(config); err != nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d construct failed: %w", index, err)
+		return nil, err
+	}
+	if err = s.Gamma.copyInto(batchNormLayer.Gamma().Values()); err != nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d gamma copy failed: %w", index, err)
+		return nil, err
+	}
+	if err = s.Beta.copyInto(batchNormLayer.Beta().Values()); err != nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d beta copy failed: %w", index, err)
+		return nil, err
+	}
+	if err = s.RunningMean.copyInto(batchNormLayer.RunningMean()); err != nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d running mean copy failed: %w", index, err)
+		return nil, err
+	}
+	if err = s.RunningVariance.copyInto(batchNormLayer.RunningVariance()); err != nil {
+		err = fmt.Errorf("model: layer %d batch normalization2d running variance copy failed: %w", index, err)
 		return nil, err
 	}
 
