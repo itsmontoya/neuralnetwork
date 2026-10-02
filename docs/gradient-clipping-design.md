@@ -3,7 +3,7 @@
 Status: implemented and verified additive optimizer and training contract.
 
 This document freezes the additive public and behavioral contract for
-[ROADMAP Item 2](../ROADMAP.md#2-add-opt-in-gradient-clipping-and-recurrent-training-controls).
+[ROADMAP Item 8](../ROADMAP.md#8-add-opt-in-gradient-clipping-and-recurrent-training-controls).
 The declarations below are implemented in package `optimizer` and recorded in
 the additive post-v1 API inventory in
 [v1-api-review.md](v1-api-review.md). Focused optimizer and model tests cover

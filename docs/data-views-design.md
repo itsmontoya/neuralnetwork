@@ -3,7 +3,7 @@
 Status: implemented and verified.
 
 This document records the implemented additive public and behavioral contract
-for [ROADMAP Item 3](../ROADMAP.md#3-add-opt-in-zero-copy-data-views).
+for [ROADMAP Item 9](../ROADMAP.md#9-add-opt-in-zero-copy-data-views).
 
 The matrix row-window primitive; whole-object, contiguous-row,
 explicit-selection, batching, and splitting operations; and ordinary and
@@ -466,9 +466,9 @@ preserves their meanings and avoids breaking unkeyed literals.
 
 This boundary does not decide:
 
-* ROADMAP Item 4's long-term sequence/container representation;
-* Items 5 and 15's mask, ragged, packed, or loss-reduction semantics; or
-* Item 31's general tensor, public device tensor, automatic differentiation,
+* ROADMAP Item 10's long-term sequence/container representation;
+* Items 11 and 20's mask, ragged, packed, or loss-reduction semantics; or
+* Item 36's general tensor, public device tensor, automatic differentiation,
   or `layer.Layer` contract.
 
 The view remains a dense two-dimensional matrix plus an optional aligned

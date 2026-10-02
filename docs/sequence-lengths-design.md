@@ -5,7 +5,7 @@ Status: implemented.
 This document freezes the additive contract for associating one positive
 logical length with every padded, time-major sequence row and selecting the
 last valid emitted step. It is the implementation contract for
-[ROADMAP Item 1](../ROADMAP.md#1-add-explicit-sequence-lengths-and-safe-last-valid-selection).
+[ROADMAP Item 7](../ROADMAP.md#7-add-explicit-sequence-lengths-and-safe-last-valid-selection).
 The `data.SequenceLengths`, `data.SequenceDataset`, `data.SequenceBatch`,
 `layer.GatherLastValid`, and length-aware `model.Sequential` APIs in this
 document are implemented, including version `1` persistence. The complete
@@ -688,14 +688,14 @@ general sequence container or a new layer-wide context contract.
 A new request containing values and lengths could be passed through parallel
 model and layer APIs. That would either require every layer to understand the
 request, introduce adapters around every existing layer, or create a second
-general layer contract. ROADMAP Items 4 and 31 own those broader container and
+general layer contract. ROADMAP Items 10 and 36 own those broader container and
 layer-boundary decisions. The current milestone needs lengths only at one
 many-to-one boundary, so the additional abstraction is not justified.
 
 ### General additive side-input layer interface
 
 A public interface accepting arbitrary metadata or masks would make future
-propagation semantics look settled before ROADMAP Items 4, 5, and 15 decide
+propagation semantics look settled before ROADMAP Items 10, 11, and 20 decide
 them. The model instead recognizes the concrete `GatherLastValid` capability
 privately. This does not prevent a later reviewed interface from replacing the
 private orchestration.
@@ -729,8 +729,8 @@ keep fixed-length and non-sequence callers source-compatible.
 
 A tensor, ragged tensor, packed representation, general sequence value,
 metadata map, automatic mask propagation, or mask inside `SimpleRNN` is
-rejected for this milestone. Those choices belong to ROADMAP Items 4, 5, 15,
-and 31 and require broader consumers than last-valid selection.
+rejected for this milestone. Those choices belong to ROADMAP Items 10, 11, 20,
+and 36 and require broader consumers than last-valid selection.
 
 ## Compatibility and Non-Goals
 
