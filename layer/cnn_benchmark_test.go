@@ -20,20 +20,36 @@ func Benchmark_Conv2DForward(b *testing.B) {
 	var tests []testcase
 	tests = []testcase{
 		{
-			name:           "SingleImage",
+			name:           "OCRBatch1Input",
 			batchSize:      1,
 			inputChannels:  1,
-			inputHeight:    12,
-			inputWidth:     10,
-			outputChannels: 4,
+			inputHeight:    96,
+			inputWidth:     256,
+			outputChannels: 16,
 		},
 		{
-			name:           "BatchMultiChannel",
+			name:           "OCRBatch8Input",
 			batchSize:      8,
-			inputChannels:  3,
-			inputHeight:    16,
-			inputWidth:     12,
-			outputChannels: 8,
+			inputChannels:  1,
+			inputHeight:    96,
+			inputWidth:     256,
+			outputChannels: 16,
+		},
+		{
+			name:           "OCRBatch8Block2",
+			batchSize:      8,
+			inputChannels:  16,
+			inputHeight:    48,
+			inputWidth:     128,
+			outputChannels: 32,
+		},
+		{
+			name:           "OCRBatch8Block3",
+			batchSize:      8,
+			inputChannels:  32,
+			inputHeight:    24,
+			inputWidth:     64,
+			outputChannels: 64,
 		},
 	}
 
@@ -57,20 +73,36 @@ func Benchmark_Conv2DBackward(b *testing.B) {
 	var tests []testcase
 	tests = []testcase{
 		{
-			name:           "SingleImage",
+			name:           "OCRBatch1Input",
 			batchSize:      1,
 			inputChannels:  1,
-			inputHeight:    12,
-			inputWidth:     10,
-			outputChannels: 4,
+			inputHeight:    96,
+			inputWidth:     256,
+			outputChannels: 16,
 		},
 		{
-			name:           "BatchMultiChannel",
+			name:           "OCRBatch8Input",
 			batchSize:      8,
-			inputChannels:  3,
-			inputHeight:    16,
-			inputWidth:     12,
-			outputChannels: 8,
+			inputChannels:  1,
+			inputHeight:    96,
+			inputWidth:     256,
+			outputChannels: 16,
+		},
+		{
+			name:           "OCRBatch8Block2",
+			batchSize:      8,
+			inputChannels:  16,
+			inputHeight:    48,
+			inputWidth:     128,
+			outputChannels: 32,
+		},
+		{
+			name:           "OCRBatch8Block3",
+			batchSize:      8,
+			inputChannels:  32,
+			inputHeight:    24,
+			inputWidth:     64,
+			outputChannels: 64,
 		},
 	}
 
