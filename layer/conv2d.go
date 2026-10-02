@@ -509,6 +509,7 @@ func (c *Conv2D) forwardInto(rows int) {
 	var (
 		inputShape     SpatialShape
 		outputShape    SpatialShape
+		inputChannels  int
 		inputHeight    int
 		inputWidth     int
 		outputHeight   int
@@ -522,23 +523,28 @@ func (c *Conv2D) forwardInto(rows int) {
 		paddingWidth   int
 		inputSize      int
 		outputSize     int
+		outputPlane    int
 		batch          int
 		outputChannel  int
-		outputRow      int
-		outputCol      int
 		inputChannel   int
 		kernelRow      int
 		kernelCol      int
+		outputRow      int
+		outputCol      int
 		inputRow       int
 		inputCol       int
+		inputRowBase   int
+		outputRowBase  int
+		outputBase     int
 		inputIndex     int
 		outputIndex    int
 		weightIndex    int
-		sum            float32
+		weight         float32
 	)
 
 	inputShape = c.config.InputShape()
 	outputShape = c.config.OutputShape()
+	inputChannels = inputShape.Channels()
 	inputHeight = inputShape.Height()
 	inputWidth = inputShape.Width()
 	outputHeight = outputShape.Height()
@@ -552,34 +558,40 @@ func (c *Conv2D) forwardInto(rows int) {
 	paddingWidth = c.config.PaddingWidth()
 	inputSize = inputShape.Size()
 	outputSize = outputShape.Size()
+	outputPlane = outputHeight * outputWidth
 
 	for batch = 0; batch < rows; batch++ {
 		for outputChannel = 0; outputChannel < outputChannels; outputChannel++ {
-			for outputRow = 0; outputRow < outputHeight; outputRow++ {
-				for outputCol = 0; outputCol < outputWidth; outputCol++ {
-					sum = c.biasValues[outputChannel]
-					for inputChannel = 0; inputChannel < inputShape.Channels(); inputChannel++ {
-						for kernelRow = 0; kernelRow < kernelHeight; kernelRow++ {
+			outputBase = batch*outputSize + outputChannel*outputPlane
+			for outputIndex = outputBase; outputIndex < outputBase+outputPlane; outputIndex++ {
+				c.outputValues[outputIndex] = c.biasValues[outputChannel]
+			}
+
+			for inputChannel = 0; inputChannel < inputChannels; inputChannel++ {
+				for kernelRow = 0; kernelRow < kernelHeight; kernelRow++ {
+					for kernelCol = 0; kernelCol < kernelWidth; kernelCol++ {
+						weightIndex = ((inputChannel*kernelHeight+kernelRow)*kernelWidth+kernelCol)*outputChannels + outputChannel
+						weight = c.weightValues[weightIndex]
+						for outputRow = 0; outputRow < outputHeight; outputRow++ {
 							inputRow = outputRow*strideHeight + kernelRow - paddingHeight
 							if inputRow < 0 || inputRow >= inputHeight {
 								continue
 							}
 
-							for kernelCol = 0; kernelCol < kernelWidth; kernelCol++ {
+							inputRowBase = batch*inputSize + (inputChannel*inputHeight+inputRow)*inputWidth
+							outputRowBase = outputBase + outputRow*outputWidth
+							for outputCol = 0; outputCol < outputWidth; outputCol++ {
 								inputCol = outputCol*strideWidth + kernelCol - paddingWidth
 								if inputCol < 0 || inputCol >= inputWidth {
 									continue
 								}
 
-								inputIndex = batch*inputSize + (inputChannel*inputHeight+inputRow)*inputWidth + inputCol
-								weightIndex = ((inputChannel*kernelHeight+kernelRow)*kernelWidth+kernelCol)*outputChannels + outputChannel
-								sum += c.inputValues[inputIndex] * c.weightValues[weightIndex]
+								inputIndex = inputRowBase + inputCol
+								outputIndex = outputRowBase + outputCol
+								c.outputValues[outputIndex] += c.inputValues[inputIndex] * weight
 							}
 						}
 					}
-
-					outputIndex = batch*outputSize + (outputChannel*outputHeight+outputRow)*outputWidth + outputCol
-					c.outputValues[outputIndex] = sum
 				}
 			}
 		}
@@ -590,6 +602,7 @@ func (c *Conv2D) backwardInto(rows int) {
 	var (
 		inputShape     SpatialShape
 		outputShape    SpatialShape
+		inputChannels  int
 		inputHeight    int
 		inputWidth     int
 		outputHeight   int
@@ -603,19 +616,24 @@ func (c *Conv2D) backwardInto(rows int) {
 		paddingWidth   int
 		inputSize      int
 		outputSize     int
+		outputPlane    int
 		batch          int
 		outputChannel  int
-		outputRow      int
-		outputCol      int
 		inputChannel   int
 		kernelRow      int
 		kernelCol      int
+		outputRow      int
+		outputCol      int
 		inputRow       int
 		inputCol       int
+		inputRowBase   int
+		outputRowBase  int
+		outputBase     int
 		inputIndex     int
 		outputIndex    int
 		weightIndex    int
 		gradient       float32
+		weight         float32
 	)
 
 	clear(c.inputGradientValues)
@@ -623,6 +641,7 @@ func (c *Conv2D) backwardInto(rows int) {
 	clear(c.biasGradientValues)
 	inputShape = c.config.InputShape()
 	outputShape = c.config.OutputShape()
+	inputChannels = inputShape.Channels()
 	inputHeight = inputShape.Height()
 	inputWidth = inputShape.Width()
 	outputHeight = outputShape.Height()
@@ -636,31 +655,43 @@ func (c *Conv2D) backwardInto(rows int) {
 	paddingWidth = c.config.PaddingWidth()
 	inputSize = inputShape.Size()
 	outputSize = outputShape.Size()
+	outputPlane = outputHeight * outputWidth
 
 	for batch = 0; batch < rows; batch++ {
 		for outputChannel = 0; outputChannel < outputChannels; outputChannel++ {
+			outputBase = batch*outputSize + outputChannel*outputPlane
 			for outputRow = 0; outputRow < outputHeight; outputRow++ {
+				outputRowBase = outputBase + outputRow*outputWidth
 				for outputCol = 0; outputCol < outputWidth; outputCol++ {
-					outputIndex = batch*outputSize + (outputChannel*outputHeight+outputRow)*outputWidth + outputCol
+					outputIndex = outputRowBase + outputCol
 					gradient = c.outputGradientValues[outputIndex]
 					c.biasGradientValues[outputChannel] += gradient
+				}
+			}
 
-					for inputChannel = 0; inputChannel < inputShape.Channels(); inputChannel++ {
-						for kernelRow = 0; kernelRow < kernelHeight; kernelRow++ {
+			for inputChannel = 0; inputChannel < inputChannels; inputChannel++ {
+				for kernelRow = 0; kernelRow < kernelHeight; kernelRow++ {
+					for kernelCol = 0; kernelCol < kernelWidth; kernelCol++ {
+						weightIndex = ((inputChannel*kernelHeight+kernelRow)*kernelWidth+kernelCol)*outputChannels + outputChannel
+						weight = c.weightValues[weightIndex]
+						for outputRow = 0; outputRow < outputHeight; outputRow++ {
 							inputRow = outputRow*strideHeight + kernelRow - paddingHeight
 							if inputRow < 0 || inputRow >= inputHeight {
 								continue
 							}
 
-							for kernelCol = 0; kernelCol < kernelWidth; kernelCol++ {
+							inputRowBase = batch*inputSize + (inputChannel*inputHeight+inputRow)*inputWidth
+							outputRowBase = outputBase + outputRow*outputWidth
+							for outputCol = 0; outputCol < outputWidth; outputCol++ {
 								inputCol = outputCol*strideWidth + kernelCol - paddingWidth
 								if inputCol < 0 || inputCol >= inputWidth {
 									continue
 								}
 
-								inputIndex = batch*inputSize + (inputChannel*inputHeight+inputRow)*inputWidth + inputCol
-								weightIndex = ((inputChannel*kernelHeight+kernelRow)*kernelWidth+kernelCol)*outputChannels + outputChannel
-								c.inputGradientValues[inputIndex] += gradient * c.weightValues[weightIndex]
+								inputIndex = inputRowBase + inputCol
+								outputIndex = outputRowBase + outputCol
+								gradient = c.outputGradientValues[outputIndex]
+								c.inputGradientValues[inputIndex] += gradient * weight
 								c.weightGradientValues[weightIndex] += c.inputValues[inputIndex] * gradient
 							}
 						}
