@@ -254,6 +254,20 @@ and follows training/evaluation mode. `layer.NewBatchNormalization` and
 parameters plus running statistics for evaluation; batch normalization remains
 per flattened feature rather than per spatial channel.
 
+## Multi-head classification
+
+`activation.NewSegmentedSoftmax` treats ordered column ranges as independent
+categorical heads. Each width must be positive, and model inputs must have
+exactly the sum of those widths as their column count. Forward and backward
+normalization never crosses a segment boundary.
+
+The [multi-head example](examples/multihead/main.go) predicts an animal and a
+color from one row of logits with widths `2` and `3`:
+
+```bash
+go run ./examples/multihead
+```
+
 ## Metrics
 
 The `metric` package provides reporting-only metrics for regression, binary

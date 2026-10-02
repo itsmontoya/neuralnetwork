@@ -13,6 +13,13 @@ func Test_Name_BuiltInActivations(t *testing.T) {
 		serialized string
 	}
 
+	var segmented *activation.SegmentedSoftmax
+	var err error
+
+	if segmented, err = activation.NewSegmentedSoftmax(2, 3); err != nil {
+		t.Fatalf("NewSegmentedSoftmax returned error: %v", err)
+	}
+
 	tests := []testcase{
 		{
 			name:       "elu",
@@ -48,6 +55,11 @@ func Test_Name_BuiltInActivations(t *testing.T) {
 			name:       "softmax",
 			function:   activation.Softmax{},
 			serialized: "softmax",
+		},
+		{
+			name:       "segmented softmax",
+			function:   segmented,
+			serialized: "segmented_softmax",
 		},
 		{
 			name:       "tanh",
@@ -127,6 +139,21 @@ func Test_FromName_RejectsUnknownName(t *testing.T) {
 		t.Fatal("FromName error = nil, want error")
 	}
 
+	if function != nil {
+		t.Fatal("FromName returned activation on error")
+	}
+}
+
+func Test_FromName_RejectsSegmentedSoftmaxWithoutConfiguration(t *testing.T) {
+	var (
+		function activation.Activation
+		err      error
+	)
+
+	function, err = activation.FromName("segmented_softmax")
+	if err == nil {
+		t.Fatal("FromName error = nil, want configuration error")
+	}
 	if function != nil {
 		t.Fatal("FromName returned activation on error")
 	}

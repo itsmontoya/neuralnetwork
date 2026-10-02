@@ -1306,7 +1306,9 @@ func (s *Sequential) FitWithLengthViews(
 // The document uses format "neuralnetwork.sequential", version 1, and layer
 // types "dense", "activation", "dropout", "batch_normalization", "conv2d",
 // "max_pool2d", "flatten", "simple_rnn", "last_step", or
-// "gather_last_valid". It stores supported layer configuration, trainable
+// "gather_last_valid". Configured activation fields, including segmented
+// softmax widths, are additive to existing version 1 documents. Save stores
+// supported layer configuration, trainable
 // parameter values, and batch-normalization running statistics. It does not
 // serialize optimizer state, accumulated gradients, forward caches, recurrent
 // hidden histories, gathered length snapshots, training history, callbacks,
