@@ -95,10 +95,34 @@ func train() (predictions *matrix.Matrix, err error) {
 		return nil, err
 	}
 
-	predictions, err = network.Predict(inputs)
-	return predictions, err
+predictions, err = network.Predict(inputs)
+return predictions, err
 }
 ```
+
+## Concurrent inference
+
+`Sequential.NewInferenceSession` creates evaluation-only runtime state while
+sharing trained parameters. A session is single-goroutine, but separate
+sessions can predict concurrently without sharing outputs or layer scratch:
+
+```go
+session, err := network.NewInferenceSession()
+if err != nil {
+	return err
+}
+defer session.Close()
+
+predictions, err := session.Predict(inputs)
+```
+
+`Predict` returns session-owned output that is reused by that session's next
+prediction. Use `PredictInto` with a caller-owned destination when results must
+be retained. While any session is active, model execution, training, and layer
+addition return `model.ErrInferenceSessionsActive`. Callers must likewise not
+mutate layer or parameter handles directly until all sessions close. Closing is
+idempotent; it releases the session's runtime references without affecting
+other sessions.
 
 ## Data
 
