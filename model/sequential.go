@@ -2,6 +2,7 @@
 package model
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -1135,6 +1136,23 @@ func (s *Sequential) Fit(trainingData *data.Dataset, config FitConfig) (history 
 	}
 
 	return history, nil
+}
+
+// FitWithBatchSource trains the model from lazy, resettable training and
+// validation batch sources.
+func (s *Sequential) FitWithBatchSource(
+	ctx context.Context,
+	trainingSource BatchSource,
+	config BatchSourceFitConfig,
+) (history TrainingHistory, err error) {
+	if err = s.beginOwnerUse("batch source fit"); err != nil {
+		return history, err
+	}
+	defer s.endOwnerUse()
+
+	s.invalidateLengthAwareForward()
+	history, err = fitWithBatchSource(s, ctx, trainingSource, config)
+	return history, err
 }
 
 // FitWithLengths trains across aligned sequence datasets and logical lengths.
