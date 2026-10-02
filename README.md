@@ -158,8 +158,8 @@ aligned sequence-data contracts, view lifetimes, and performance guidance.
 
 The initial CNN path represents each image as one flattened matrix row in
 channels-first `CHW` order. It composes `Conv2D`, existing activation layers,
-`MaxPool2D`, `Flatten`, and `Dense` through the unchanged `model.Sequential`
-and `data.Dataset` APIs.
+`MaxPool2D`, fixed or adaptive average pooling, `Flatten`, and `Dense` through
+the unchanged `model.Sequential` and `data.Dataset` APIs.
 
 See the [CNN guide](docs/cnn.md) for layout formulas, construction, training,
 serialization, ownership, determinism, and current limitations. The runnable
@@ -265,12 +265,14 @@ training details.
 
 The `layer` package includes dense layers, activation layers, inverted dropout,
 per-feature batch normalization, trainable two-dimensional convolution,
-parameter-free two-dimensional max pooling, per-channel spatial batch
-normalization, a spatial-to-dense flatten adapter,
+parameter-free two-dimensional max, average, and adaptive-average pooling,
+per-channel spatial batch normalization, a spatial-to-dense flatten adapter,
 a stateless `SimpleRNN`, a fixed-length sequence-to-dense `LastStep` adapter,
 and an explicit-length `GatherLastValid` adapter.
-`layer.NewSpatialShape`, `layer.NewConv2DConfig`, and
-`layer.NewMaxPool2DConfig` validate explicit channels-first spatial geometry;
+`layer.NewSpatialShape`, `layer.NewConv2DConfig`,
+`layer.NewMaxPool2DConfig`, `layer.NewAveragePool2DConfig`, and
+`layer.NewAdaptiveAveragePool2DConfig` validate explicit channels-first spatial
+geometry;
 `layer.NewSequenceShape` and `layer.NewSimpleRNNConfig` validate explicit
 time-major sequence geometry.
 `layer.NewDropout` requires a caller-owned random source for deterministic masks
@@ -279,6 +281,9 @@ and follows training/evaluation mode. `layer.NewBatchNormalization` and
 parameters plus running statistics for evaluation; batch normalization remains
 per flattened feature. `layer.NewBatchNormalization2D` instead aggregates each
 NCHW channel across batch and spatial positions and preserves spatial shape.
+Fixed average pooling emits only complete windows. Adaptive average pooling
+uses explicit output dimensions, with `1x1` providing global average pooling.
+See [Average Pooling](docs/average-pooling.md) for exact edge and bin behavior.
 
 ## Multi-head classification
 
@@ -314,7 +319,8 @@ target expectations, and confusion-matrix orientation are documented in
 Use `Sequential.Save` and `model.LoadSequential` to persist sequential models
 with the v1 JSON contract. The format is `neuralnetwork.sequential`, version
 `1`, and supports `dense`, `activation`, `dropout`, `batch_normalization`,
-`conv2d`, `max_pool2d`, `flatten`, `simple_rnn`, `last_step`, and
+`batch_normalization2d`, `conv2d`, `max_pool2d`, `average_pool2d`,
+`adaptive_average_pool2d`, `flatten`, `simple_rnn`, `last_step`, and
 `gather_last_valid` layers. CNN and RNN layer names and fields are additive.
 The gather record stores its sequence shape but not invocation lengths.
 Existing ANN-, CNN-, and fixed-length RNN version `1` documents retain their

@@ -220,11 +220,19 @@ func encodeBinaryLayer(writer io.Writer, current serializedLayer, buffer []byte)
 		matrices      []*serializedMatrix
 		value         int
 		width         int
+		windowHeight  int
+		windowWidth   int
 		currentMatrix *serializedMatrix
 	)
 
 	if err = writeBinaryString(writer, current.Type); err != nil {
 		return err
+	}
+	windowHeight = current.WindowHeight
+	windowWidth = current.WindowWidth
+	if current.Type == serializationLayerAdaptiveAveragePool2D {
+		windowHeight = current.OutputHeight
+		windowWidth = current.OutputWidth
 	}
 	integers = []int{
 		current.InputSize,
@@ -286,8 +294,8 @@ func encodeBinaryLayer(writer io.Writer, current serializedLayer, buffer []byte)
 		current.StrideWidth,
 		current.PaddingHeight,
 		current.PaddingWidth,
-		current.WindowHeight,
-		current.WindowWidth,
+		windowHeight,
+		windowWidth,
 	}
 	for _, value = range integers {
 		if err = writeBinaryNonnegativeInt(writer, value); err != nil {
@@ -381,6 +389,12 @@ func decodeBinaryLayer(reader io.Reader, buffer []byte, totalValues *uint64) (cu
 		if *destination, err = readBinaryInt(reader); err != nil {
 			return current, err
 		}
+	}
+	if current.Type == serializationLayerAdaptiveAveragePool2D {
+		current.OutputHeight = current.WindowHeight
+		current.OutputWidth = current.WindowWidth
+		current.WindowHeight = 0
+		current.WindowWidth = 0
 	}
 
 	return current, nil

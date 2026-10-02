@@ -120,7 +120,8 @@ if err != nil {
 
 `random` is a caller-owned `*rand.Rand`. Passing a source created with the same
 seed gives deterministic initialization. `Conv2D`, `MaxPool2D`, and `Flatten`
-do not create or read a random source themselves.
+do not create or read a random source themselves. The same is true for fixed
+and adaptive average pooling.
 
 ### Convolution Shapes
 
@@ -172,6 +173,14 @@ outputWidth  = floor((inputWidth - windowWidth) / strideWidth) + 1
 Incomplete bottom and right windows are ignored. Ties select the first value in
 window-row, then window-column traversal order. Backward propagation adds
 gradients when overlapping windows selected the same input position.
+
+`AveragePool2D` uses the same valid/no-padding output formula and emits only
+complete windows. `AdaptiveAveragePool2D` instead accepts explicit positive
+output dimensions; its `1x1` case is global average pooling. Adaptive bins use
+floor starts and ceiling ends, covering every input position and overlapping
+when dimensions do not divide evenly or the output is larger than the input.
+See [Average Pooling](average-pooling.md) for the precise bin formulas and
+backward behavior.
 
 ### Flatten
 
@@ -244,11 +253,12 @@ if err != nil {
 ```
 
 The additive layer names are `conv2d`, `batch_normalization2d`, `max_pool2d`,
-and `flatten`. Saving stores spatial configuration, convolution weights and
-biases, and spatial-normalization parameters and running statistics. Loading
-restores architecture and parameter values with zero accumulated gradients and
-empty forward caches. Optimizer state, training history, and random source
-state are not stored.
+`average_pool2d`, `adaptive_average_pool2d`, and `flatten`. Saving stores
+spatial configuration, convolution weights and biases, and
+spatial-normalization parameters and running statistics. Loading restores
+architecture and parameter values with zero accumulated gradients and empty
+forward caches. Optimizer state, training history, and random source state are
+not stored.
 
 ANN-only version `1` documents retain their existing encoding and continue to
 load. Older readers that do not know the additive CNN layer names reject CNN
@@ -263,8 +273,10 @@ returned result, so callers that need to keep a result across calls must clone
 it.
 
 `Conv2D` copies its most recent valid input for backward propagation.
-`MaxPool2D` stores only selected input positions, and `Flatten` copies values
-without reordering them. Backward before a valid forward call returns an error.
+`MaxPool2D` stores only selected input positions. Average-pooling layers retain
+the valid forward batch shape but do not retain caller input values. `Flatten`
+copies values without reordering them. Backward before a valid forward call
+returns an error.
 
 ## Supported and Deferred Features
 
@@ -272,7 +284,7 @@ without reordering them. Backward before a valid forward call returns an error.
 | --- | --- | --- |
 | Data layout | Batched flattened NCHW/CHW `float32` matrix rows | A general tensor contract |
 | Convolution | Multiple input/output channels, rectangular kernels and strides, explicit symmetric zero padding | Dilation, groups, depthwise and transposed convolution, implicit padding modes |
-| Pooling | Rectangular valid max pooling, deterministic ties, overlapping-window gradients | Average and global-average pooling |
+| Pooling | Rectangular valid max and average pooling, adaptive and global-average pooling, overlapping-window gradients | Learned or stochastic pooling |
 | Composition | Existing activations, channel-wise spatial batch normalization, dropout, dense layers, datasets, losses, metrics, optimizers, training, and serialization | Spatial dropout |
 | Data loading | Caller-prepared flattened image rows | Image decoding, directory datasets, augmentation, and external dataset integrations |
 | Runtime | Clear pure-Go CPU reference kernels | SIMD, Metal, goroutine-parallel, and other accelerator-specific kernels |

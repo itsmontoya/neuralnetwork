@@ -117,6 +117,8 @@ func Test_CloneForInference_SupportsRuntimeOnlyLayers(t *testing.T) {
 	layers = []layer.Layer{
 		activationLayer,
 		dropout,
+		mustInferenceAdaptiveAveragePool2D(t, shape),
+		mustInferenceAveragePool2D(t, shape),
 		mustInferenceFlatten(t, shape),
 		mustInferenceGatherLastValid(t, sequenceShape),
 		mustInferenceLastStep(t, sequenceShape),
@@ -135,6 +137,41 @@ func Test_CloneForInference_SupportsRuntimeOnlyLayers(t *testing.T) {
 	if clone.(*layer.SimpleRNN).InputWeights() != layers[len(layers)-1].(*layer.SimpleRNN).InputWeights() {
 		t.Fatal("simple RNN clone did not share input weights")
 	}
+}
+
+func mustInferenceAveragePool2D(tb testing.TB, shape layer.SpatialShape) (pooling *layer.AveragePool2D) {
+	var (
+		config layer.AveragePool2DConfig
+		err    error
+	)
+
+	tb.Helper()
+	if config, err = layer.NewAveragePool2DConfig(shape, 2, 2, 1, 1); err != nil {
+		tb.Fatalf("NewAveragePool2DConfig returned error: %v", err)
+	}
+	if pooling, err = layer.NewAveragePool2D(config); err != nil {
+		tb.Fatalf("NewAveragePool2D returned error: %v", err)
+	}
+	return pooling
+}
+
+func mustInferenceAdaptiveAveragePool2D(
+	tb testing.TB,
+	shape layer.SpatialShape,
+) (pooling *layer.AdaptiveAveragePool2D) {
+	var (
+		config layer.AdaptiveAveragePool2DConfig
+		err    error
+	)
+
+	tb.Helper()
+	if config, err = layer.NewAdaptiveAveragePool2DConfig(shape, 1, 1); err != nil {
+		tb.Fatalf("NewAdaptiveAveragePool2DConfig returned error: %v", err)
+	}
+	if pooling, err = layer.NewAdaptiveAveragePool2D(config); err != nil {
+		tb.Fatalf("NewAdaptiveAveragePool2D returned error: %v", err)
+	}
+	return pooling
 }
 
 func Test_CloneForInference_RejectsUnsupportedLayer(t *testing.T) {

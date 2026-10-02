@@ -212,10 +212,14 @@ func binarySerializationLayers(tb testing.TB) (layers []layer.Layer) {
 		segmented         *activation.SegmentedSoftmax
 		batchNorm         *layer.BatchNormalization
 		batchNorm2D       *layer.BatchNormalization2D
+		averagePool       *layer.AveragePool2D
+		adaptivePool      *layer.AdaptiveAveragePool2D
 		dropout           *layer.Dropout
 		spatialShape      layer.SpatialShape
 		convConfig        layer.Conv2DConfig
 		poolConfig        layer.MaxPool2DConfig
+		averageConfig     layer.AveragePool2DConfig
+		adaptiveConfig    layer.AdaptiveAveragePool2DConfig
 		batchNorm2DConfig layer.BatchNormalization2DConfig
 		err               error
 	)
@@ -236,12 +240,26 @@ func binarySerializationLayers(tb testing.TB) (layers []layer.Layer) {
 	}
 	convConfig = mustSerializationConv2DConfig(tb, spatialShape, 3, 2, 2, 1, 1, 0, 0)
 	poolConfig = mustSerializationMaxPool2DConfig(tb, spatialShape, 2, 2, 1, 1)
+	if averageConfig, err = layer.NewAveragePool2DConfig(spatialShape, 2, 2, 1, 1); err != nil {
+		tb.Fatalf("NewAveragePool2DConfig returned error: %v", err)
+	}
+	if averagePool, err = layer.NewAveragePool2D(averageConfig); err != nil {
+		tb.Fatalf("NewAveragePool2D returned error: %v", err)
+	}
+	if adaptiveConfig, err = layer.NewAdaptiveAveragePool2DConfig(spatialShape, 2, 2); err != nil {
+		tb.Fatalf("NewAdaptiveAveragePool2DConfig returned error: %v", err)
+	}
+	if adaptivePool, err = layer.NewAdaptiveAveragePool2D(adaptiveConfig); err != nil {
+		tb.Fatalf("NewAdaptiveAveragePool2D returned error: %v", err)
+	}
 	if dropout, err = layer.NewDropout(0.25, rand.New(rand.NewSource(7))); err != nil {
 		tb.Fatalf("NewDropout returned error: %v", err)
 	}
 
 	layers = []layer.Layer{
 		mustActivationLayer(tb, segmented),
+		adaptivePool,
+		averagePool,
 		batchNorm,
 		batchNorm2D,
 		mustSerializationConv2D(tb, convConfig, make([]float32, 2*2*2*3), make([]float32, 3)),
@@ -339,6 +357,8 @@ func binarySerializationLayerName(index int) (name string) {
 
 	names = []string{
 		"activation",
+		"adaptive_average_pool2d",
+		"average_pool2d",
 		"batch_normalization",
 		"batch_normalization2d",
 		"conv2d",

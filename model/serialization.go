@@ -13,20 +13,22 @@ import (
 )
 
 const (
-	serializationFormatSequential          = "neuralnetwork.sequential"
-	serializationLayerActivation           = "activation"
-	serializationLayerBatchNormalization   = "batch_normalization"
-	serializationLayerBatchNormalization2D = "batch_normalization2d"
-	serializationLayerConv2D               = "conv2d"
-	serializationLayerDense                = "dense"
-	serializationLayerDropout              = "dropout"
-	serializationLayerFlatten              = "flatten"
-	serializationLayerGatherLastValid      = "gather_last_valid"
-	serializationLayerLastStep             = "last_step"
-	serializationLayerMaxPool2D            = "max_pool2d"
-	serializationLayerSimpleRNN            = "simple_rnn"
-	serializationDropoutSeed               = 1
-	serializationVersion                   = 1
+	serializationFormatSequential           = "neuralnetwork.sequential"
+	serializationLayerActivation            = "activation"
+	serializationLayerAdaptiveAveragePool2D = "adaptive_average_pool2d"
+	serializationLayerAveragePool2D         = "average_pool2d"
+	serializationLayerBatchNormalization    = "batch_normalization"
+	serializationLayerBatchNormalization2D  = "batch_normalization2d"
+	serializationLayerConv2D                = "conv2d"
+	serializationLayerDense                 = "dense"
+	serializationLayerDropout               = "dropout"
+	serializationLayerFlatten               = "flatten"
+	serializationLayerGatherLastValid       = "gather_last_valid"
+	serializationLayerLastStep              = "last_step"
+	serializationLayerMaxPool2D             = "max_pool2d"
+	serializationLayerSimpleRNN             = "simple_rnn"
+	serializationDropoutSeed                = 1
+	serializationVersion                    = 1
 )
 
 type sequentialDocument struct {
@@ -131,6 +133,8 @@ type serializedLayer struct {
 	PaddingWidth     int               `json:"padding_width,omitempty"`
 	WindowHeight     int               `json:"window_height,omitempty"`
 	WindowWidth      int               `json:"window_width,omitempty"`
+	OutputHeight     int               `json:"output_height,omitempty"`
+	OutputWidth      int               `json:"output_width,omitempty"`
 }
 
 func serializedLayerFromLayer(index int, currentLayer layerpkg.Layer) (serialized serializedLayer, err error) {
@@ -142,6 +146,10 @@ func serializedLayerFromLayer(index int, currentLayer layerpkg.Layer) (serialize
 	switch current := currentLayer.(type) {
 	case *layerpkg.Activation:
 		serialized, err = serializedActivationLayer(index, current)
+	case *layerpkg.AdaptiveAveragePool2D:
+		serialized, err = serializedAdaptiveAveragePool2DLayer(index, current)
+	case *layerpkg.AveragePool2D:
+		serialized, err = serializedAveragePool2DLayer(index, current)
 	case *layerpkg.BatchNormalization:
 		serialized, err = serializedBatchNormalizationLayer(index, current)
 	case *layerpkg.BatchNormalization2D:
@@ -174,6 +182,10 @@ func (s serializedLayer) layer(index int) (currentLayer layerpkg.Layer, err erro
 	switch s.Type {
 	case serializationLayerActivation:
 		currentLayer, err = s.activationLayer(index)
+	case serializationLayerAdaptiveAveragePool2D:
+		currentLayer, err = s.adaptiveAveragePool2DLayer(index)
+	case serializationLayerAveragePool2D:
+		currentLayer, err = s.averagePool2DLayer(index)
 	case serializationLayerBatchNormalization:
 		currentLayer, err = s.batchNormalizationLayer(index)
 	case serializationLayerBatchNormalization2D:
@@ -928,6 +940,139 @@ func serializedMaxPool2DLayer(index int, poolLayer *layerpkg.MaxPool2D) (seriali
 		WindowWidth:   config.WindowWidth(),
 	}
 	return serialized, nil
+}
+
+func serializedAveragePool2DLayer(index int, poolLayer *layerpkg.AveragePool2D) (serialized serializedLayer, err error) {
+	var (
+		config         layerpkg.AveragePool2DConfig
+		expectedConfig layerpkg.AveragePool2DConfig
+		shape          layerpkg.SpatialShape
+	)
+
+	if poolLayer == nil {
+		err = fmt.Errorf("model: layer %d average pool2d layer is nil", index)
+		return serialized, err
+	}
+	config = poolLayer.Config()
+	shape = config.InputShape()
+	if expectedConfig, err = layerpkg.NewAveragePool2DConfig(
+		shape,
+		config.WindowHeight(),
+		config.WindowWidth(),
+		config.StrideHeight(),
+		config.StrideWidth(),
+	); err != nil {
+		err = fmt.Errorf("model: layer %d average pool2d configuration serialize failed: %w", index, err)
+		return serialized, err
+	}
+	if expectedConfig != config {
+		err = fmt.Errorf("model: layer %d average pool2d configuration is inconsistent", index)
+		return serialized, err
+	}
+
+	serialized = serializedLayer{
+		Type:          serializationLayerAveragePool2D,
+		InputChannels: shape.Channels(),
+		InputHeight:   shape.Height(),
+		InputWidth:    shape.Width(),
+		StrideHeight:  config.StrideHeight(),
+		StrideWidth:   config.StrideWidth(),
+		WindowHeight:  config.WindowHeight(),
+		WindowWidth:   config.WindowWidth(),
+	}
+	return serialized, nil
+}
+
+func (s serializedLayer) averagePool2DLayer(index int) (poolLayer *layerpkg.AveragePool2D, err error) {
+	var (
+		inputShape layerpkg.SpatialShape
+		config     layerpkg.AveragePool2DConfig
+	)
+
+	if inputShape, err = s.spatialInputShape(index, serializationLayerAveragePool2D); err != nil {
+		return nil, err
+	}
+	if config, err = layerpkg.NewAveragePool2DConfig(
+		inputShape,
+		s.WindowHeight,
+		s.WindowWidth,
+		s.StrideHeight,
+		s.StrideWidth,
+	); err != nil {
+		err = fmt.Errorf("model: layer %d average pool2d configuration load failed: %w", index, err)
+		return nil, err
+	}
+	if poolLayer, err = layerpkg.NewAveragePool2D(config); err != nil {
+		err = fmt.Errorf("model: layer %d average pool2d construct failed: %w", index, err)
+		return nil, err
+	}
+	return poolLayer, nil
+}
+
+func serializedAdaptiveAveragePool2DLayer(
+	index int,
+	poolLayer *layerpkg.AdaptiveAveragePool2D,
+) (serialized serializedLayer, err error) {
+	var (
+		config         layerpkg.AdaptiveAveragePool2DConfig
+		expectedConfig layerpkg.AdaptiveAveragePool2DConfig
+		shape          layerpkg.SpatialShape
+	)
+
+	if poolLayer == nil {
+		err = fmt.Errorf("model: layer %d adaptive average pool2d layer is nil", index)
+		return serialized, err
+	}
+	config = poolLayer.Config()
+	shape = config.InputShape()
+	if expectedConfig, err = layerpkg.NewAdaptiveAveragePool2DConfig(
+		shape,
+		config.OutputHeight(),
+		config.OutputWidth(),
+	); err != nil {
+		err = fmt.Errorf("model: layer %d adaptive average pool2d configuration serialize failed: %w", index, err)
+		return serialized, err
+	}
+	if expectedConfig != config {
+		err = fmt.Errorf("model: layer %d adaptive average pool2d configuration is inconsistent", index)
+		return serialized, err
+	}
+
+	serialized = serializedLayer{
+		Type:          serializationLayerAdaptiveAveragePool2D,
+		InputChannels: shape.Channels(),
+		InputHeight:   shape.Height(),
+		InputWidth:    shape.Width(),
+		OutputHeight:  config.OutputHeight(),
+		OutputWidth:   config.OutputWidth(),
+	}
+	return serialized, nil
+}
+
+func (s serializedLayer) adaptiveAveragePool2DLayer(
+	index int,
+) (poolLayer *layerpkg.AdaptiveAveragePool2D, err error) {
+	var (
+		inputShape layerpkg.SpatialShape
+		config     layerpkg.AdaptiveAveragePool2DConfig
+	)
+
+	if inputShape, err = s.spatialInputShape(index, serializationLayerAdaptiveAveragePool2D); err != nil {
+		return nil, err
+	}
+	if config, err = layerpkg.NewAdaptiveAveragePool2DConfig(
+		inputShape,
+		s.OutputHeight,
+		s.OutputWidth,
+	); err != nil {
+		err = fmt.Errorf("model: layer %d adaptive average pool2d configuration load failed: %w", index, err)
+		return nil, err
+	}
+	if poolLayer, err = layerpkg.NewAdaptiveAveragePool2D(config); err != nil {
+		err = fmt.Errorf("model: layer %d adaptive average pool2d construct failed: %w", index, err)
+		return nil, err
+	}
+	return poolLayer, nil
 }
 
 func (s serializedLayer) maxPool2DLayer(index int) (poolLayer *layerpkg.MaxPool2D, err error) {

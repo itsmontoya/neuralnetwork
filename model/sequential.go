@@ -37,7 +37,8 @@ func NewSequential(layers ...layer.Layer) (out *Sequential, err error) {
 //
 // The document must use format "neuralnetwork.sequential", version 1, and
 // a supported dense, activation, dropout, batch-normalization, convolution,
-// max-pooling, flatten, simple recurrent, last-step, or gather-last-valid layer
+// max-pooling, average-pooling, adaptive-average-pooling, flatten, simple
+// recurrent, last-step, or gather-last-valid layer
 // type. Loading restores architecture, parameter values, and
 // batch-normalization running statistics only. Optimizer state, accumulated
 // gradients, forward caches, recurrent hidden histories, gathered length
@@ -1440,7 +1441,8 @@ func (s *Sequential) FitWithLengthViews(
 // The document uses format "neuralnetwork.sequential", version 1, and layer
 // types "dense", "activation", "dropout", "batch_normalization",
 // "batch_normalization2d", "conv2d",
-// "max_pool2d", "flatten", "simple_rnn", "last_step", or
+// "max_pool2d", "average_pool2d", "adaptive_average_pool2d", "flatten",
+// "simple_rnn", "last_step", or
 // "gather_last_valid". Configured activation fields, including segmented
 // softmax widths, are additive to existing version 1 documents. Save stores
 // supported layer configuration, trainable

@@ -21,6 +21,10 @@ func CloneForInference(source Layer) (out Layer, err error) {
 	switch current := source.(type) {
 	case *Activation:
 		out, err = cloneActivationForInference(current)
+	case *AdaptiveAveragePool2D:
+		out, err = NewAdaptiveAveragePool2D(current.Config())
+	case *AveragePool2D:
+		out, err = NewAveragePool2D(current.Config())
 	case *BatchNormalization:
 		out, err = cloneBatchNormalizationForInference(current)
 	case *BatchNormalization2D:

@@ -509,8 +509,8 @@ func Test_LoadSequential_RejectsMalformedCNNLayers(t *testing.T) {
 		},
 		{
 			name:      "unknown layer type has index context",
-			layerJSON: `{"type": "average_pool2d"}`,
-			wantError: `unknown layer type "average_pool2d"`,
+			layerJSON: `{"type": "future_pool2d"}`,
+			wantError: `unknown layer type "future_pool2d"`,
 		},
 	}
 
