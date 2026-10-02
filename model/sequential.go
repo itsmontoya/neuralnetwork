@@ -1304,7 +1304,8 @@ func (s *Sequential) FitWithLengthViews(
 // Save writes the model using the v1 JSON contract.
 //
 // The document uses format "neuralnetwork.sequential", version 1, and layer
-// types "dense", "activation", "dropout", "batch_normalization", "conv2d",
+// types "dense", "activation", "dropout", "batch_normalization",
+// "batch_normalization2d", "conv2d",
 // "max_pool2d", "flatten", "simple_rnn", "last_step", or
 // "gather_last_valid". Configured activation fields, including segmented
 // softmax widths, are additive to existing version 1 documents. Save stores
