@@ -268,6 +268,13 @@ color from one row of logits with widths `2` and `3`:
 go run ./examples/multihead
 ```
 
+`loss.NewSegmentedCategoricalCrossEntropy` trains the same independent heads.
+For widths `2, 3`, a target row such as `[0, 1, 1, 0, 0]` selects the second
+class in the first head and the first class in the second head. Every segment
+must be one-hot encoded. This is independent categorical classification, not
+multi-label binary classification. Loss and gradients are averaged over both
+batch rows and segments so adding heads does not increase their scale.
+
 ## Metrics
 
 The `metric` package provides reporting-only metrics for regression, binary
