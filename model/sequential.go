@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/itsmontoya/neuralnetwork/data"
 	"github.com/itsmontoya/neuralnetwork/internal/device"
@@ -70,6 +71,9 @@ type Sequential struct {
 	lengthAwareForwardRows    int
 	lengthAwareForwardColumns int
 	training                  bool
+	inferenceMutex            sync.Mutex
+	activeInferenceSessions   int
+	ownerInUse                bool
 }
 
 type sequenceLengthLayer interface {
@@ -87,6 +91,11 @@ type sequenceLengthLayer interface {
 func (s *Sequential) Add(next layer.Layer) (err error) {
 	var modeLayer trainingModeLayer
 	var ok bool
+
+	if err = s.beginOwnerUse("add layer"); err != nil {
+		return err
+	}
+	defer s.endOwnerUse()
 
 	s.invalidateLengthAwareForward()
 	if err = s.validate(); err != nil {
@@ -109,6 +118,16 @@ func (s *Sequential) Add(next layer.Layer) (err error) {
 
 // Predict runs a forward pass through every layer.
 func (s *Sequential) Predict(input *matrix.Matrix) (output *matrix.Matrix, err error) {
+	if err = s.beginOwnerUse("predict"); err != nil {
+		return nil, err
+	}
+	defer s.endOwnerUse()
+
+	output, err = s.predictOwned(input)
+	return output, err
+}
+
+func (s *Sequential) predictOwned(input *matrix.Matrix) (output *matrix.Matrix, err error) {
 	var (
 		execution *device.Execution
 		owned     bool
@@ -160,6 +179,19 @@ func (s *Sequential) Predict(input *matrix.Matrix) (output *matrix.Matrix, err e
 
 // PredictWithLengths runs a forward pass using one logical length per input row.
 func (s *Sequential) PredictWithLengths(
+	input *matrix.Matrix,
+	lengths *data.SequenceLengths,
+) (output *matrix.Matrix, err error) {
+	if err = s.beginOwnerUse("predict with lengths"); err != nil {
+		return nil, err
+	}
+	defer s.endOwnerUse()
+
+	output, err = s.predictWithLengthsOwned(input, lengths)
+	return output, err
+}
+
+func (s *Sequential) predictWithLengthsOwned(
 	input *matrix.Matrix,
 	lengths *data.SequenceLengths,
 ) (output *matrix.Matrix, err error) {
@@ -342,6 +374,11 @@ func (s *Sequential) Backward(outputGradient *matrix.Matrix) (inputGradient *mat
 		owned     bool
 	)
 
+	if err = s.beginOwnerUse("backward"); err != nil {
+		return nil, err
+	}
+	defer s.endOwnerUse()
+
 	s.invalidateLengthAwareForward()
 	if err = s.validateOrdinaryGraph("backward", "BackwardWithLengths"); err != nil {
 		return nil, err
@@ -393,6 +430,11 @@ func (s *Sequential) BackwardWithLengths(
 		execution     *device.Execution
 		owned         bool
 	)
+
+	if err = s.beginOwnerUse("backward with lengths"); err != nil {
+		return nil, err
+	}
+	defer s.endOwnerUse()
 
 	if err = s.validateLengthAwareBackward(outputGradient); err != nil {
 		s.invalidateLengthAwareForward()
@@ -618,8 +660,30 @@ func (s *Sequential) Training() (training bool) {
 	return training
 }
 
+// NewInferenceSession constructs an evaluation-only session with independent
+// layer runtime state and shared model parameters.
+func (s *Sequential) NewInferenceSession() (session *InferenceSession, err error) {
+	session, err = newInferenceSession(s)
+	return session, err
+}
+
 // TrainBatch runs one supervised training step and updates trainable parameters.
 func (s *Sequential) TrainBatch(
+	input,
+	targets *matrix.Matrix,
+	lossFunc loss.Loss,
+	optimizerRule optimizer.Optimizer,
+) (metrics TrainMetrics, err error) {
+	if err = s.beginOwnerUse("train batch"); err != nil {
+		return metrics, err
+	}
+	defer s.endOwnerUse()
+
+	metrics, err = s.trainBatch(input, targets, lossFunc, optimizerRule)
+	return metrics, err
+}
+
+func (s *Sequential) trainBatch(
 	input,
 	targets *matrix.Matrix,
 	lossFunc loss.Loss,
@@ -729,6 +793,22 @@ func (s *Sequential) TrainBatch(
 
 // TrainBatchWithLengths runs one supervised step with aligned logical lengths.
 func (s *Sequential) TrainBatchWithLengths(
+	input,
+	targets *matrix.Matrix,
+	lengths *data.SequenceLengths,
+	lossFunc loss.Loss,
+	optimizerRule optimizer.Optimizer,
+) (metrics TrainMetrics, err error) {
+	if err = s.beginOwnerUse("train batch with lengths"); err != nil {
+		return metrics, err
+	}
+	defer s.endOwnerUse()
+
+	metrics, err = s.trainBatchWithLengths(input, targets, lengths, lossFunc, optimizerRule)
+	return metrics, err
+}
+
+func (s *Sequential) trainBatchWithLengths(
 	input,
 	targets *matrix.Matrix,
 	lengths *data.SequenceLengths,
@@ -973,6 +1053,11 @@ func (s *Sequential) Fit(trainingData *data.Dataset, config FitConfig) (history 
 		earlyStoppingState earlyStoppingState
 		scratch            fitScratch
 	)
+	if err = s.beginOwnerUse("fit"); err != nil {
+		return history, err
+	}
+	defer s.endOwnerUse()
+
 	s.invalidateLengthAwareForward()
 	defer func() {
 		var cleanupErr error
@@ -1049,6 +1134,11 @@ func (s *Sequential) FitWithLengths(
 		earlyStoppingState earlyStoppingState
 		scratch            fitScratch
 	)
+
+	if err = s.beginOwnerUse("fit with lengths"); err != nil {
+		return history, err
+	}
+	defer s.endOwnerUse()
 
 	s.invalidateLengthAwareForward()
 	defer func() {
@@ -1150,6 +1240,11 @@ func (s *Sequential) FitWithViews(
 		scratch            fitScratch
 	)
 
+	if err = s.beginOwnerUse("fit with views"); err != nil {
+		return history, err
+	}
+	defer s.endOwnerUse()
+
 	s.invalidateLengthAwareForward()
 	defer func() {
 		var cleanupErr error
@@ -1227,6 +1322,11 @@ func (s *Sequential) FitWithLengthViews(
 		earlyStoppingState earlyStoppingState
 		scratch            fitScratch
 	)
+
+	if err = s.beginOwnerUse("fit with length views"); err != nil {
+		return history, err
+	}
+	defer s.endOwnerUse()
 
 	s.invalidateLengthAwareForward()
 	defer func() {
@@ -1361,7 +1461,7 @@ func (s *Sequential) trainFitEpoch(trainingData *data.Dataset, config FitConfig,
 			return err
 		}
 
-		if _, err = s.TrainBatch(inputs, targets, config.Loss, config.Optimizer); err != nil {
+		if _, err = s.trainBatch(inputs, targets, config.Loss, config.Optimizer); err != nil {
 			err = fmt.Errorf("model: epoch %d train batch failed: %w", epoch, err)
 			return err
 		}
@@ -1408,7 +1508,7 @@ func (s *Sequential) trainViewFitEpoch(
 			if targets, callbackErr = view.Targets(); callbackErr != nil {
 				return callbackErr
 			}
-			if _, callbackErr = s.TrainBatch(
+			if _, callbackErr = s.trainBatch(
 				inputs,
 				targets,
 				fitConfig.Loss,
@@ -1840,7 +1940,7 @@ func (s *Sequential) evaluateFitDataset(
 		}
 	}()
 
-	if predictions, err = s.Predict(inputs); err != nil {
+	if predictions, err = s.predictOwned(inputs); err != nil {
 		return 0, 0, false, err
 	}
 
@@ -1891,7 +1991,7 @@ func (s *Sequential) evaluateFitDatasetView(
 			}
 		}()
 
-		if predictions, callbackErr = s.Predict(inputs); callbackErr != nil {
+		if predictions, callbackErr = s.predictOwned(inputs); callbackErr != nil {
 			return callbackErr
 		}
 		if lossValue, callbackErr = lossFunc.Value(
@@ -2386,6 +2486,72 @@ func (s *Sequential) validate() (err error) {
 	}
 
 	return nil
+}
+
+func (s *Sequential) beginOwnerUse(operation string) (err error) {
+	if s == nil {
+		return nil
+	}
+
+	s.inferenceMutex.Lock()
+	defer s.inferenceMutex.Unlock()
+	if s.activeInferenceSessions > 0 {
+		err = fmt.Errorf(
+			"model: cannot %s while inference sessions are active: count=%d: %w",
+			operation,
+			s.activeInferenceSessions,
+			ErrInferenceSessionsActive,
+		)
+		return err
+	}
+	if s.ownerInUse {
+		err = fmt.Errorf("model: cannot %s while sequential model is in use: %w", operation, ErrSequentialInUse)
+		return err
+	}
+
+	s.ownerInUse = true
+	return nil
+}
+
+func (s *Sequential) beginInferenceSessionCreation() (err error) {
+	if s == nil {
+		err = errors.New("model: sequential model is nil")
+		return err
+	}
+
+	s.inferenceMutex.Lock()
+	defer s.inferenceMutex.Unlock()
+	if s.ownerInUse {
+		err = fmt.Errorf("model: cannot create inference session while sequential model is in use: %w", ErrSequentialInUse)
+		return err
+	}
+
+	s.ownerInUse = true
+	return nil
+}
+
+func (s *Sequential) endOwnerUse() {
+	if s == nil {
+		return
+	}
+
+	s.inferenceMutex.Lock()
+	s.ownerInUse = false
+	s.inferenceMutex.Unlock()
+}
+
+func (s *Sequential) registerInferenceSession() {
+	s.inferenceMutex.Lock()
+	s.activeInferenceSessions++
+	s.inferenceMutex.Unlock()
+}
+
+func (s *Sequential) releaseInferenceSession() {
+	s.inferenceMutex.Lock()
+	if s.activeInferenceSessions > 0 {
+		s.activeInferenceSessions--
+	}
+	s.inferenceMutex.Unlock()
 }
 
 func validateLengthAwareInput(input *matrix.Matrix) (rows int, err error) {
