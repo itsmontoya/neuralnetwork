@@ -1,8 +1,9 @@
 # Inference tensor and kernel contract
 
 Status: NN-01 design contract for the additive NN-02 through NN-12 work.
-The signatures below are proposed APIs, not implemented functionality at this
-revision. Each implementation task must document its shipped subset and tests.
+The NN-02 storage APIs are implemented; see the [storage handoff](handoffs/NN-02.md).
+The remaining signatures are proposed APIs until their implementation tasks
+document the shipped subset and tests.
 
 ## Boundary and compatibility
 
