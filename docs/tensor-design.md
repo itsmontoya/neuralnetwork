@@ -3,6 +3,7 @@
 Status: NN-01 design contract for the additive NN-02 through NN-12 work.
 The NN-02 storage APIs are implemented; see the [storage handoff](handoffs/NN-02.md).
 The NN-03 shared shape APIs are implemented; see the [shape handoff](handoffs/NN-03.md).
+The NN-04 arithmetic APIs are implemented; see the [arithmetic handoff](handoffs/NN-04.md).
 The remaining signatures are proposed APIs until their implementation tasks
 document the shipped subset and tests.
 
@@ -207,6 +208,14 @@ by signed zero produces signed infinity, zero divided by zero produces NaN,
 and NaN/infinity follow IEEE floating arithmetic. It cannot blindly reuse the
 matrix division API, which rejects zero denominators. Exact NaN payloads are
 not promised; fixtures must distinguish NaN, signed infinity, and signed zero.
+
+NN-04 pins its selected arithmetic fixtures to ONNX 1.16.2/NumPy 1.26.4,
+using IR 8/opset 13 reference graphs without finalizing RT-01's runtime profile.
+Nonempty matching shapes reuse matrix Add/Sub/Mul through copying adapters;
+broadcasting and Div use direct float32 arithmetic. All shape/type/identity and
+index-plan validation precedes destination writes, including empty results.
+The checked-in fixtures and generator are documented in
+[`tensor/testdata/README.md`](../tensor/testdata/README.md).
 
 MatMul rejects rank-zero inputs, promotes a left vector to `[1, K]` and a right
 vector to `[K, 1]`, broadcasts batch prefixes, checks equal contraction lengths,
