@@ -126,3 +126,11 @@ workflow and migration guidance are documented in [rnn.md](rnn.md); layout,
 shape, state, backpropagation, ownership, determinism, and serialization
 decisions are recorded in [rnn-design.md](rnn-design.md) and
 [sequence-lengths-design.md](sequence-lengths-design.md).
+
+## Additive Inference Tensor Backend
+
+NN-01 records a separate post-v1 tensor and forward-kernel design in
+[tensor-design.md](tensor-design.md). It permits concrete float32/int64 tensors
+for an inference backend while preserving the matrix-based ANN, CNN, RNN,
+training, and serialization contracts above. Its API proposals are implemented
+by subsequent tasks; this design document alone adds no production API.
