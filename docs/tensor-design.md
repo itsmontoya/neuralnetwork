@@ -610,3 +610,6 @@ optimization. NN-13 requires a working RT-12 runtime and before/after MLP and
 shape-heavy graph measurements. That dependency is currently unavailable; do
 not invent benchmarks or expose mutable initializer/device storage to claim
 completion. Keep the copying bridge until evidence supports a narrower change.
+The fresh dependency assessment, unchanged ownership boundary, and concrete
+resume plan are recorded in [the NN-13 handoff](handoffs/NN-13.md). NN-13 remains
+unchecked; this report does not ship an optimization or benchmark result.
