@@ -64,3 +64,40 @@ bias ignores Beta. Fixtures explicitly cover nonfinite values in these cases.
 
 Fixture SHA-256:
 `b01790cce2772a2037a9c14d5d93778552dc3df0292fbef973eb5fc580519833`.
+
+`activations.json` adds 38 original NN-06 ReLU/Sigmoid/Tanh/Softmax cases:
+
+```sh
+/private/tmp/neuralnetwork-onnx-reference/bin/python tensor/testdata/generate_activations.py
+```
+
+The same pinned environment evaluates IR 8/opset 13 graphs. Cases cover scalar
+and rank-one/two/three elementwise inputs, first/middle/final and negative
+Softmax axes, large logits, singleton axes, empty shapes, and separate
+noncontiguous slices containing NaNs or infinities. The fixture SHA-256 is
+`32289003d230f1ef4b845ecb029b69d4f8c1ce07c2a4100a7d3c5b879256ccac`.
+
+Finite values use `abs(got-want) <= 1e-6 + 1e-6*abs(want)`. Signed zeros and
+infinity signs are exact; NaNs compare by classification. Existing stable
+float32 activation formulas may round differently from the NumPy reference.
+These are fixture tolerances, not an error bound for every possible input.
+
+The tests explicitly assert two reference differences. Existing library ReLU
+maps NaN to positive zero, whereas the pinned NumPy maximum returns NaN. The
+fixture retains that NaN reference value and the test asserts the library's
+compatibility result. Softmax over an empty axis returns an empty tensor in
+the library; the pinned evaluator raises a zero-size maximum-reduction error.
+Two fixtures record this rejection in `reference_error` and require a
+successful empty library result. No case is skipped or counted as agreement
+with that rejected reference behavior. Empty values with a nonempty reduction
+axis are also tested against successful reference results.
+
+The pinned sources are
+[ReLU](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_relu.py),
+[Sigmoid](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_sigmoid.py),
+[Tanh](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_tanh.py), and
+[Softmax](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_softmax.py).
+Softmax subtracts the slice maximum and normalizes exponentials. A slice with
+NaN, positive infinity, or only negative infinities produces NaNs throughout;
+finite slices with some negative infinities assign those elements zero.
+The tests verify that special values do not affect other logical slices.
