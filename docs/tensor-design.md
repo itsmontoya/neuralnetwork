@@ -5,6 +5,7 @@ The NN-02 storage APIs are implemented; see the [storage handoff](handoffs/NN-02
 The NN-03 shared shape APIs are implemented; see the [shape handoff](handoffs/NN-03.md).
 The NN-04 arithmetic APIs are implemented; see the [arithmetic handoff](handoffs/NN-04.md).
 The NN-07 transform APIs are implemented; see the [transform handoff](handoffs/NN-07.md).
+The NN-08 Concat/Gather APIs are implemented; see the [indexing handoff](handoffs/NN-08.md).
 The remaining signatures are proposed APIs until their implementation tasks
 document the shipped subset and tests.
 
@@ -357,6 +358,17 @@ negative index values against the selected dimension and validate every index
 before writes, even when another output dimension makes the result empty.
 Scalar, multidimensional, repeated, and empty indices are supported. Gathering
 from an axis of size zero is valid only when the indices tensor is empty.
+
+NN-08 copies contiguous typed blocks after all shape, type, identity, and index
+validation. Shape planners check the int64 byte bound for both supported types;
+empty outputs skip unused block products only after every index is checked.
+Forty-eight exact typed fixtures cover numerical order and ownership. Forty-two
+agree with ONNX 1.16.2 ReferenceEvaluator. Its Gather shortcut returns `[0]`
+for every empty indices tensor; six fixtures retain that actual reference shape
+and compare the specified prefix/index/suffix result against NumPy 1.26.4
+`take` instead. This difference is explicit rather than treated as agreement.
+See the [NN-08 handoff](handoffs/NN-08.md) and
+[fixture provenance](../tensor/testdata/README.md).
 
 ## Convolution and pooling (NN-09, NN-10)
 
