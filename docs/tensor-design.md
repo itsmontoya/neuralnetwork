@@ -281,10 +281,20 @@ no valid axis. Compute by logical outer/axis/inner indices with stable maximum
 subtraction and local scratch, reusing row softmax only when it has identical
 semantics. An empty output, including an axis of length zero, succeeds without
 writes after axis validation. Finite slices normalize stably. A slice containing
-NaN, positive infinity, or only negative infinities may yield NaNs under the
-straight maximum-subtraction formula; NN-06 must record pinned reference cases
-and its exact behavior. Do not invent a uniform distribution or claim portable
-special-value conformance without those fixtures.
+NaN, positive infinity, or only negative infinities produces NaNs throughout
+that slice. Finite slices containing negative infinity give it zero probability.
+Other logical slices remain independent.
+
+NN-06 implements these APIs through copying elementwise activation adapters
+and a call-local arbitrary-axis softmax. Its 38 pinned ONNX 1.16.2/NumPy 1.26.4
+fixtures use finite absolute/relative tolerances of `1e-6`, exact signed zeros
+and infinity signs, and NaN classification. Two differences are explicit:
+ReLU retains this library's positive-zero result for NaN rather than the
+reference's NaN, and empty Softmax axes are accepted although the pinned
+evaluator rejects a zero-length maximum reduction. These cases are directly
+tested, not advertised as reference agreement. See the
+[NN-06 handoff](handoffs/NN-06.md) and
+[fixture provenance](../tensor/testdata/README.md).
 
 ## Type-preserving transforms and indexing (NN-07, NN-08)
 
