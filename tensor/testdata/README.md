@@ -167,3 +167,34 @@ and [Concat](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_con
 They otherwise delegate numerical selection/copying to NumPy. Library validation
 rejects unsupported types, scalar data/concat axes, malformed axes/shapes, and
 every out-of-range index before writing, including when the result is empty.
+
+`convolution.json` adds 46 original NN-09 float32 NCHW Conv cases:
+
+```sh
+/private/tmp/neuralnetwork-onnx-reference/bin/python tensor/testdata/generate_convolution.py
+```
+
+The same pinned environment generates expected values with an independent
+vectorized NumPy padded-window/einsum contraction. Forty cases also agree
+with ONNX 1.16.2 ReferenceEvaluator IR 8/opset 13 (Conv schema 11). Cases cover
+ordinary/grouped/depthwise convolution and channel multipliers, asymmetric
+padding, independent strides/dilations, omitted bias, multiple batches,
+initializer/runtime weights, fractional accumulation, boundary kernels, and
+empty spatial inputs with bias-only padded results. Numerical comparisons use
+`atol=rtol=1e-5`; shapes are exact. Fixture SHA-256:
+`039b09171de2da1ad0e66b8b80b2a3b8a71f8eb47f6085fece3d16fe0b5973f2`.
+
+Six empty/clamped-output cases retain the evaluator's actual exception in
+`reference_error`: empty batches, empty grouped batches, and a kernel producing
+negative spatial geometry, each with/without bias. Their expected values use
+the contracted nonnegative concrete output shape and NumPy, rather than
+counting rejected evaluator calls as agreement. No test is skipped.
+
+Pinned primary sources are the
+[Conv reference](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_conv.py)
+and [schema definitions](https://github.com/onnx/onnx/blob/v1.16.2/onnx/defs/nn/old.cc).
+The versioned [Conv-11 definition](https://onnx.ai/onnx/operators/onnx__Conv.html#conv-11)
+specifies the NCHW/filter layout and mathematical attributes. Library padding
+skips absent samples; these finite fixtures do not independently cover NaN or
+infinity interactions with padding. The runtime owns automatic padding and
+schema-specific restrictions.
