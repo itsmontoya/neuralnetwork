@@ -6,6 +6,7 @@ The NN-03 shared shape APIs are implemented; see the [shape handoff](handoffs/NN
 The NN-04 arithmetic APIs are implemented; see the [arithmetic handoff](handoffs/NN-04.md).
 The NN-07 transform APIs are implemented; see the [transform handoff](handoffs/NN-07.md).
 The NN-08 Concat/Gather APIs are implemented; see the [indexing handoff](handoffs/NN-08.md).
+The NN-09 convolution APIs are implemented; see the [convolution handoff](handoffs/NN-09.md).
 The remaining signatures are proposed APIs until their implementation tasks
 document the shipped subset and tests.
 
@@ -417,6 +418,13 @@ constants. Reuse the existing Conv2D loop structure where appropriate, accountin
 for the different matrix layout `[C*kH*kW, M]`; never reinterpret ONNX-layout
 weight bytes as that matrix. Avoid optimizer parameters, gradient buffers,
 argmax history, or backward input caches. Packing is optional future work.
+
+The NN-09 implementation adapts the existing layer's direct cross-correlation
+loop without constructing a layer. It accumulates float32 products, then adds
+bias. Finite fixtures use absolute and relative tolerances of `1e-5`; shape
+and integer geometry comparisons are exact. Padding skips samples outside the
+input rather than multiplying an explicit padded array. Nonfinite padding
+semantics are not independently covered by these fixtures.
 
 Max pooling supports dilation and values only, with padded samples excluded
 from maxima (negative infinity is the initial identity). There is no indices
