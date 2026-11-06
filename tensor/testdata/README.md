@@ -309,3 +309,49 @@ The versioned [BatchNormalization-9 definition](https://onnx.ai/onnx/operators/o
 supplies the inference boundary. ONNX is Apache-2.0 licensed; ONNX Runtime is
 MIT licensed. The original generator does not copy upstream implementation or
 fixture data. These fixtures make no general backend-equivalence claim.
+
+`reductions_math.json` adds 99 original NN-12 ReduceSum/ReduceMean/ReduceMax,
+Exp/Log/Sqrt, and broadcast Pow cases:
+
+```sh
+/private/tmp/neuralnetwork-onnx-reference/bin/python tensor/testdata/generate_reductions_math.py
+```
+
+Generation uses the same pinned Python 3.9.6, ONNX 1.16.2, NumPy 1.26.4, and
+protobuf 4.25.3. NumPy reductions and vectorized unary/power expressions form
+independent expectations rather than reproducing Go's coordinate loops. All
+99 cases agree with executed ONNX ReferenceEvaluator models; exact actual
+shapes/bits and selected opsets are retained. SHA-256:
+`165660321fe5c25f792562b57b547165b1ff9474352826e102e3295562d0a0fc`.
+
+Reduction models use IR 8/opset 18 so every operator can express explicit empty
+axes as identity with `noop_with_empty_axes=1`. Identity models omit the
+optional axes input; all nonempty axis lists are supplied as int64 tensors.
+The library always receives resolved mathematical axes and does not select
+omitted-axis defaults. These fixtures do not expand the initial runtime
+profile or implement its versioned reduction adapters. Exp/Log/Sqrt/Pow models
+use IR 8/opset 13. Ordinary Go tests need only the checked-in JSON.
+
+Cases cover reordered/negative/multiple/all/no axes, keepdims on/off, scalar
+identity, zero-count reductions, empty outputs, noncontiguous logical slices,
+NaNs/infinities, math domains, signed zeros, and multidirectional/scalar Pow.
+Zero-count identities are sum positive zero, mean NaN, and max negative
+infinity. The pinned max reference explicitly supplies this empty identity;
+NumPy expectations use `initial=-inf`. Literal Go tests independently assert
+these values and multi-axis results. Empty-axis identity copies preserve all
+bits. Nonempty max zero-tie signs and NaN payloads are not cross-backend
+promises. Finite comparisons use `atol=rtol=1e-5`, infinity signs and unary/Pow
+zero signs compare exactly, and NaNs compare by classification. Float32
+row-major sum/mean accumulation may round differently from NumPy's reduction
+algorithm; the selected tolerances are fixture bounds, not universal guarantees.
+
+Pinned primary implementations are
+[ReduceSum](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_reduce_sum.py),
+[ReduceMean](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_reduce_mean.py),
+[ReduceMax](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_reduce_max.py),
+[Exp](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_exp.py),
+[Log](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_log.py),
+[Sqrt](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_sqrt.py), and
+[Pow](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_pow.py).
+ONNX is Apache-2.0 licensed. The original generator copies no upstream code or
+fixture data, and these selected cases do not establish general compatibility.

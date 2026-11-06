@@ -8,8 +8,9 @@ The NN-07 transform APIs are implemented; see the [transform handoff](handoffs/N
 The NN-08 Concat/Gather APIs are implemented; see the [indexing handoff](handoffs/NN-08.md).
 The NN-09 convolution APIs are implemented; see the [convolution handoff](handoffs/NN-09.md).
 The NN-10 pooling APIs are implemented; see the [pooling handoff](handoffs/NN-10.md).
-The remaining signatures are proposed APIs until their implementation tasks
-document the shipped subset and tests.
+The NN-12 reduction/math APIs are implemented; see the [reduction handoff](handoffs/NN-12.md).
+The signatures below are implemented additions. Each task's handoff records
+its shipped subset, numerical limits, and checks.
 
 ## Boundary and compatibility
 
@@ -502,13 +503,29 @@ identity copy, including a scalar input. Runtime schema defaults and
 attribute-versus-input axis choices are outside this API. `PowInto` uses
 multidirectional broadcasting, and Exp/Log/Sqrt preserve input shape.
 
-Use the ordinary floating math contract, including negative sqrt/log yielding
-NaN and log(0) yielding negative infinity; document signed-zero and nonfinite
-fixtures. Reduction identities and zero-count mean/max must be selected against
-the pinned reference in NN-12 and explicitly documented there. A permitted
-empty output must still pass all argument validation. Unsupported empty
-reduction cases return an error before destination writes. Do not imply that
-these primitives alone provide transformer support or approximate GELU.
+Use the ordinary floating math contract: negative sqrt/log yields NaN, either
+zero sign's logarithm yields negative infinity, and sqrt preserves negative
+zero. Pow uses the existing float32 wrapper around standard-library power,
+including its nonfinite and signed-zero rules. Floating domains produce values
+rather than returned errors. NaN payloads are not promised for numerical work.
+
+NN-12 reduces in row-major float32 order. Zero-count reductions produce positive
+zero for sum, NaN for mean, and negative infinity for max, matching the pinned
+ONNX/NumPy cases. A result with zero elements is a validated no-op and skips
+unused iteration products. Empty axes are identity copies, preserving bits,
+including scalar inputs. NaNs propagate within their reduction result; zero-tie
+signs for nonempty max and bitwise nonempty sums/means are not cross-backend
+promises. Finite fixtures use `atol=rtol=1e-5`.
+
+All shape/axis/type/alias/stride checks precede destination writes. Call-local
+axis/stride metadata is not retained. The 99 offline fixtures all agree with
+ONNX 1.16.2 ReferenceEvaluator and independent NumPy 1.26.4. Their reduction
+models use opset 18 to represent explicit no-op axes with
+`noop_with_empty_axes=1`; math models use opset 13. These test adapters do not
+expand the runtime profile or move schema policy into this package. See the
+[NN-12 handoff](handoffs/NN-12.md) and
+[fixture provenance](../tensor/testdata/README.md). These primitives do not
+imply transformer support or approximate GELU.
 
 ## Proposed usage
 
