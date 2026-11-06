@@ -2,6 +2,7 @@
 
 Status: NN-01 design contract for the additive NN-02 through NN-12 work.
 The NN-02 storage APIs are implemented; see the [storage handoff](handoffs/NN-02.md).
+The NN-03 shared shape APIs are implemented; see the [shape handoff](handoffs/NN-03.md).
 The remaining signatures are proposed APIs until their implementation tasks
 document the shipped subset and tests.
 
@@ -154,6 +155,10 @@ func ValidateBroadcastTo(source, destination []int64) (err error)
 
 These public helpers serve runtime planning without allocating numeric payloads.
 They validate concrete dimensions and checked host-representable shape arithmetic.
+`ValidateShape` checks the selected type; the two broadcasting helpers check
+float32 payload sizes for their numerical callers. Explicit stride requests
+reject unrepresentable suffix products even for an empty shape; kernels with
+empty outputs can skip unused stride planning after validating their arguments.
 Returned shapes are independent copies. Private shared helpers provide shape
 equality, contiguous strides, checked sums/products and offsets; kernels must
 reuse them rather than duplicate unchecked arithmetic. Each later task owns its
