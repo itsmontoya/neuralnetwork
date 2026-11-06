@@ -138,3 +138,32 @@ expand-dims implementations:
 [Unsqueeze](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_unsqueeze.py).
 Empty axes are explicit identity transforms in the library; the runtime resolves
 omitted-axis schema defaults separately. No transform returns borrowed storage.
+
+`indexing.json` adds 48 original NN-08 Concat/Gather cases for both storage types:
+
+```sh
+/private/tmp/neuralnetwork-onnx-reference/bin/python tensor/testdata/generate_indexing.py
+```
+
+The same pinned environment generates all expected values. Shapes, int64 values,
+and float32 bits compare exactly, including large integers, both integer extrema,
+NaN payloads, infinities, and signed zero. The fixture SHA-256 is
+`2a99fa5b3ae99842c9b6f29c6b6e63f37aab0371f739a0dcbda99d734440f282`.
+
+Cases cover feature-map/shape-vector concatenation, negative axes, empty inputs,
+scalar/multidimensional/repeated/negative/empty Gather indices, and empty data
+prefixes/suffixes. Forty-two cases agree with ONNX 1.16.2 ReferenceEvaluator
+using IR 8/opset 13 and an independent NumPy result. Six empty-indices Gather
+cases use NumPy 1.26.4 `take` for the specified output shape. The pinned Gather
+implementation returns `[0]` for every empty indices tensor, losing the data
+prefix, multidimensional indices shape, and suffix. Each fixture records that
+actual result in `reference_shape` and explains the difference; tests assert
+the contracted shape instead of counting evaluator agreement or skipping it.
+
+The versioned [Gather-13 definition](https://onnx.ai/onnx/operators/onnx__Gather.html#gather-13)
+specifies how the data and indices ranks form the output. Pinned primary sources
+are [Gather](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_gather.py)
+and [Concat](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_concat.py).
+They otherwise delegate numerical selection/copying to NumPy. Library validation
+rejects unsupported types, scalar data/concat axes, malformed axes/shapes, and
+every out-of-range index before writing, including when the result is empty.

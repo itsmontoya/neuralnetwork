@@ -1,0 +1,2426 @@
+[
+  {
+    "name": "concat feature channels float32",
+    "operation": "Concat",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          1,
+          1,
+          2,
+          2
+        ],
+        "bits": [
+          2147483648,
+          2143294004,
+          2139095040,
+          4286578688
+        ]
+      },
+      {
+        "shape": [
+          1,
+          2,
+          2,
+          2
+        ],
+        "bits": [
+          1120403456,
+          1120534528,
+          1120665600,
+          1120796672,
+          1120927744,
+          1121058816,
+          1121189888,
+          1121320960
+        ]
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      1,
+      3,
+      2,
+      2
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1120403456,
+        1120534528,
+        1120665600,
+        1120796672,
+        1120927744,
+        1121058816,
+        1121189888,
+        1121320960
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      1,
+      3,
+      2,
+      2
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat batches float32",
+    "operation": "Concat",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          1,
+          2,
+          2,
+          1
+        ],
+        "bits": [
+          2147483648,
+          2143294004,
+          2139095040,
+          4286578688
+        ]
+      },
+      {
+        "shape": [
+          2,
+          2,
+          2,
+          1
+        ],
+        "bits": [
+          1120403456,
+          1120534528,
+          1120665600,
+          1120796672,
+          1120927744,
+          1121058816,
+          1121189888,
+          1121320960
+        ]
+      }
+    ],
+    "axis": 0,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      3,
+      2,
+      2,
+      1
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1120403456,
+        1120534528,
+        1120665600,
+        1120796672,
+        1120927744,
+        1121058816,
+        1121189888,
+        1121320960
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      3,
+      2,
+      2,
+      1
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat final negative axis float32",
+    "operation": "Concat",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          2
+        ],
+        "bits": [
+          2147483648,
+          2143294004,
+          2139095040,
+          4286578688
+        ]
+      },
+      {
+        "shape": [
+          2,
+          1
+        ],
+        "bits": [
+          1120403456,
+          1120534528
+        ]
+      }
+    ],
+    "axis": -1,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004,
+        1120403456,
+        2139095040,
+        4286578688,
+        1120534528
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat middle axis float32",
+    "operation": "Concat",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          1,
+          2
+        ],
+        "bits": [
+          2147483648,
+          2143294004,
+          2139095040,
+          4286578688
+        ]
+      },
+      {
+        "shape": [
+          2,
+          3,
+          2
+        ],
+        "bits": [
+          1120403456,
+          1120534528,
+          1120665600,
+          1120796672,
+          1120927744,
+          1121058816,
+          1121189888,
+          1121320960,
+          1121452032,
+          1121583104,
+          1121714176,
+          1121845248
+        ]
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      2,
+      4,
+      2
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004,
+        1120403456,
+        1120534528,
+        1120665600,
+        1120796672,
+        1120927744,
+        1121058816,
+        2139095040,
+        4286578688,
+        1121189888,
+        1121320960,
+        1121452032,
+        1121583104,
+        1121714176,
+        1121845248
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      4,
+      2
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat shape vectors float32",
+    "operation": "Concat",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2
+        ],
+        "bits": [
+          2147483648,
+          2143294004
+        ]
+      },
+      {
+        "shape": [
+          0
+        ],
+        "bits": []
+      },
+      {
+        "shape": [
+          3
+        ],
+        "bits": [
+          1128792064,
+          1128857600,
+          1128923136
+        ]
+      }
+    ],
+    "axis": 0,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      5
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004,
+        1128792064,
+        1128857600,
+        1128923136
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      5
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat single input float32",
+    "operation": "Concat",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3
+        ],
+        "bits": [
+          2147483648,
+          2143294004,
+          2139095040,
+          4286578688,
+          1082130432,
+          1084227584
+        ]
+      }
+    ],
+    "axis": -2,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082130432,
+        1084227584
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat empty axis input float32",
+    "operation": "Concat",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          0,
+          3
+        ],
+        "bits": []
+      },
+      {
+        "shape": [
+          2,
+          2,
+          3
+        ],
+        "bits": [
+          1120403456,
+          1120534528,
+          1120665600,
+          1120796672,
+          1120927744,
+          1121058816,
+          1121189888,
+          1121320960,
+          1121452032,
+          1121583104,
+          1121714176,
+          1121845248
+        ]
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      2,
+      2,
+      3
+    ],
+    "output": {
+      "bits": [
+        1120403456,
+        1120534528,
+        1120665600,
+        1120796672,
+        1120927744,
+        1121058816,
+        1121189888,
+        1121320960,
+        1121452032,
+        1121583104,
+        1121714176,
+        1121845248
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      2,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat all empty axis float32",
+    "operation": "Concat",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          0,
+          3
+        ],
+        "bits": []
+      },
+      {
+        "shape": [
+          2,
+          0,
+          3
+        ],
+        "bits": []
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      2,
+      0,
+      3
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      0,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat empty prefix float32",
+    "operation": "Concat",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          0,
+          2,
+          3
+        ],
+        "bits": []
+      },
+      {
+        "shape": [
+          0,
+          4,
+          3
+        ],
+        "bits": []
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      0,
+      6,
+      3
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      0,
+      6,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat empty suffix float32",
+    "operation": "Concat",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3,
+          0
+        ],
+        "bits": []
+      },
+      {
+        "shape": [
+          2,
+          1,
+          0
+        ],
+        "bits": []
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      2,
+      4,
+      0
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      4,
+      0
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat empty vectors float32",
+    "operation": "Concat",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          0
+        ],
+        "bits": []
+      },
+      {
+        "shape": [
+          0
+        ],
+        "bits": []
+      }
+    ],
+    "axis": 0,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      0
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      0
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather vector scalar negative index float32",
+    "operation": "Gather",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          4
+        ],
+        "bits": [
+          2147483648,
+          2143294004,
+          2139095040,
+          4286578688
+        ]
+      }
+    ],
+    "axis": 0,
+    "indices_shape": [],
+    "indices": [
+      -1
+    ],
+    "output_shape": [],
+    "output": {
+      "bits": [
+        4286578688
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather matrix scalar index float32",
+    "operation": "Gather",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3
+        ],
+        "bits": [
+          2147483648,
+          2143294004,
+          2139095040,
+          4286578688,
+          1082130432,
+          1084227584
+        ]
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [
+      1
+    ],
+    "output_shape": [
+      2
+    ],
+    "output": {
+      "bits": [
+        2143294004,
+        1082130432
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather first axis float32",
+    "operation": "Gather",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3,
+          2
+        ],
+        "bits": [
+          2147483648,
+          2143294004,
+          2139095040,
+          4286578688,
+          1082130432,
+          1084227584,
+          1086324736,
+          1088421888,
+          1090519040,
+          1091567616,
+          1092616192,
+          1093664768
+        ]
+      }
+    ],
+    "axis": 0,
+    "indices_shape": [
+      2
+    ],
+    "indices": [
+      1,
+      0
+    ],
+    "output_shape": [
+      2,
+      3,
+      2
+    ],
+    "output": {
+      "bits": [
+        1086324736,
+        1088421888,
+        1090519040,
+        1091567616,
+        1092616192,
+        1093664768,
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082130432,
+        1084227584
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      3,
+      2
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather middle multidimensional float32",
+    "operation": "Gather",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3,
+          2
+        ],
+        "bits": [
+          2147483648,
+          2143294004,
+          2139095040,
+          4286578688,
+          1082130432,
+          1084227584,
+          1086324736,
+          1088421888,
+          1090519040,
+          1091567616,
+          1092616192,
+          1093664768
+        ]
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [
+      2,
+      2
+    ],
+    "indices": [
+      -1,
+      0,
+      1,
+      1
+    ],
+    "output_shape": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "output": {
+      "bits": [
+        1082130432,
+        1084227584,
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        2139095040,
+        4286578688,
+        1092616192,
+        1093664768,
+        1086324736,
+        1088421888,
+        1090519040,
+        1091567616,
+        1090519040,
+        1091567616
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather final negative axis float32",
+    "operation": "Gather",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          2,
+          3
+        ],
+        "bits": [
+          2147483648,
+          2143294004,
+          2139095040,
+          4286578688,
+          1082130432,
+          1084227584,
+          1086324736,
+          1088421888,
+          1090519040,
+          1091567616,
+          1092616192,
+          1093664768
+        ]
+      }
+    ],
+    "axis": -1,
+    "indices_shape": [
+      3
+    ],
+    "indices": [
+      -3,
+      -1,
+      0
+    ],
+    "output_shape": [
+      2,
+      2,
+      3
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2139095040,
+        2147483648,
+        4286578688,
+        1084227584,
+        4286578688,
+        1086324736,
+        1090519040,
+        1086324736,
+        1091567616,
+        1093664768,
+        1091567616
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      2,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather repeated rows float32",
+    "operation": "Gather",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3
+        ],
+        "bits": [
+          2147483648,
+          2143294004,
+          2139095040,
+          4286578688,
+          1082130432,
+          1084227584
+        ]
+      }
+    ],
+    "axis": 0,
+    "indices_shape": [
+      3
+    ],
+    "indices": [
+      1,
+      1,
+      0
+    ],
+    "output_shape": [
+      3,
+      3
+    ],
+    "output": {
+      "bits": [
+        4286578688,
+        1082130432,
+        1084227584,
+        4286578688,
+        1082130432,
+        1084227584,
+        2147483648,
+        2143294004,
+        2139095040
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      3,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather empty vector indices float32",
+    "operation": "Gather",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3
+        ],
+        "bits": [
+          2147483648,
+          2143294004,
+          2139095040,
+          4286578688,
+          1082130432,
+          1084227584
+        ]
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [
+      0
+    ],
+    "indices": [],
+    "output_shape": [
+      2,
+      0
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "NumPy 1.26.4 take; ONNX 1.16.2 empty-indices shape difference recorded",
+    "reference_shape": [
+      0
+    ],
+    "reference_difference": "ONNX reference empty-indices shortcut returns [0] instead of prefix + indices shape + suffix"
+  },
+  {
+    "name": "gather empty multidimensional indices float32",
+    "operation": "Gather",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3,
+          4
+        ],
+        "bits": [
+          2147483648,
+          2143294004,
+          2139095040,
+          4286578688,
+          1082130432,
+          1084227584,
+          1086324736,
+          1088421888,
+          1090519040,
+          1091567616,
+          1092616192,
+          1093664768,
+          1094713344,
+          1095761920,
+          1096810496,
+          1097859072,
+          1098907648,
+          1099431936,
+          1099956224,
+          1100480512,
+          1101004800,
+          1101529088,
+          1102053376,
+          1102577664
+        ]
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [
+      2,
+      0,
+      1
+    ],
+    "indices": [],
+    "output_shape": [
+      2,
+      2,
+      0,
+      1,
+      4
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "NumPy 1.26.4 take; ONNX 1.16.2 empty-indices shape difference recorded",
+    "reference_shape": [
+      0
+    ],
+    "reference_difference": "ONNX reference empty-indices shortcut returns [0] instead of prefix + indices shape + suffix"
+  },
+  {
+    "name": "gather zero data axis float32",
+    "operation": "Gather",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          0,
+          3
+        ],
+        "bits": []
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [
+      0
+    ],
+    "indices": [],
+    "output_shape": [
+      2,
+      0,
+      3
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "NumPy 1.26.4 take; ONNX 1.16.2 empty-indices shape difference recorded",
+    "reference_shape": [
+      0
+    ],
+    "reference_difference": "ONNX reference empty-indices shortcut returns [0] instead of prefix + indices shape + suffix"
+  },
+  {
+    "name": "gather empty prefix float32",
+    "operation": "Gather",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          0,
+          3,
+          2
+        ],
+        "bits": []
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [
+      2
+    ],
+    "indices": [
+      2,
+      0
+    ],
+    "output_shape": [
+      0,
+      2,
+      2
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      0,
+      2,
+      2
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather empty suffix float32",
+    "operation": "Gather",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3,
+          0
+        ],
+        "bits": []
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [
+      2
+    ],
+    "indices": [
+      -3,
+      -1
+    ],
+    "output_shape": [
+      2,
+      2,
+      0
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      2,
+      0
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather scalar index empty prefix float32",
+    "operation": "Gather",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          0,
+          3,
+          2
+        ],
+        "bits": []
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [
+      1
+    ],
+    "output_shape": [
+      0,
+      2
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      0,
+      2
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather row index matrix float32",
+    "operation": "Gather",
+    "data_type": "float32",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3
+        ],
+        "bits": [
+          2147483648,
+          2143294004,
+          2139095040,
+          4286578688,
+          1082130432,
+          1084227584
+        ]
+      }
+    ],
+    "axis": 0,
+    "indices_shape": [
+      2,
+      1
+    ],
+    "indices": [
+      1,
+      0
+    ],
+    "output_shape": [
+      2,
+      1,
+      3
+    ],
+    "output": {
+      "bits": [
+        4286578688,
+        1082130432,
+        1084227584,
+        2147483648,
+        2143294004,
+        2139095040
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      1,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat feature channels int64",
+    "operation": "Concat",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          1,
+          1,
+          2,
+          2
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808,
+          16777219,
+          16777220
+        ]
+      },
+      {
+        "shape": [
+          1,
+          2,
+          2,
+          2
+        ],
+        "integers": [
+          16777317,
+          16777318,
+          16777319,
+          16777320,
+          16777321,
+          16777322,
+          16777323,
+          16777324
+        ]
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      1,
+      3,
+      2,
+      2
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777317,
+        16777318,
+        16777319,
+        16777320,
+        16777321,
+        16777322,
+        16777323,
+        16777324
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      1,
+      3,
+      2,
+      2
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat batches int64",
+    "operation": "Concat",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          1,
+          2,
+          2,
+          1
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808,
+          16777219,
+          16777220
+        ]
+      },
+      {
+        "shape": [
+          2,
+          2,
+          2,
+          1
+        ],
+        "integers": [
+          16777317,
+          16777318,
+          16777319,
+          16777320,
+          16777321,
+          16777322,
+          16777323,
+          16777324
+        ]
+      }
+    ],
+    "axis": 0,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      3,
+      2,
+      2,
+      1
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777317,
+        16777318,
+        16777319,
+        16777320,
+        16777321,
+        16777322,
+        16777323,
+        16777324
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      3,
+      2,
+      2,
+      1
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat final negative axis int64",
+    "operation": "Concat",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          2
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808,
+          16777219,
+          16777220
+        ]
+      },
+      {
+        "shape": [
+          2,
+          1
+        ],
+        "integers": [
+          16777317,
+          16777318
+        ]
+      }
+    ],
+    "axis": -1,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777317,
+        16777219,
+        16777220,
+        16777318
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat middle axis int64",
+    "operation": "Concat",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          1,
+          2
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808,
+          16777219,
+          16777220
+        ]
+      },
+      {
+        "shape": [
+          2,
+          3,
+          2
+        ],
+        "integers": [
+          16777317,
+          16777318,
+          16777319,
+          16777320,
+          16777321,
+          16777322,
+          16777323,
+          16777324,
+          16777325,
+          16777326,
+          16777327,
+          16777328
+        ]
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      2,
+      4,
+      2
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777317,
+        16777318,
+        16777319,
+        16777320,
+        16777321,
+        16777322,
+        16777219,
+        16777220,
+        16777323,
+        16777324,
+        16777325,
+        16777326,
+        16777327,
+        16777328
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      4,
+      2
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat shape vectors int64",
+    "operation": "Concat",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808
+        ]
+      },
+      {
+        "shape": [
+          0
+        ],
+        "integers": []
+      },
+      {
+        "shape": [
+          3
+        ],
+        "integers": [
+          16777417,
+          16777418,
+          16777419
+        ]
+      }
+    ],
+    "axis": 0,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      5
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777417,
+        16777418,
+        16777419
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      5
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat single input int64",
+    "operation": "Concat",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808,
+          16777219,
+          16777220,
+          16777221,
+          16777222
+        ]
+      }
+    ],
+    "axis": -2,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat empty axis input int64",
+    "operation": "Concat",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          0,
+          3
+        ],
+        "integers": []
+      },
+      {
+        "shape": [
+          2,
+          2,
+          3
+        ],
+        "integers": [
+          16777317,
+          16777318,
+          16777319,
+          16777320,
+          16777321,
+          16777322,
+          16777323,
+          16777324,
+          16777325,
+          16777326,
+          16777327,
+          16777328
+        ]
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      2,
+      2,
+      3
+    ],
+    "output": {
+      "integers": [
+        16777317,
+        16777318,
+        16777319,
+        16777320,
+        16777321,
+        16777322,
+        16777323,
+        16777324,
+        16777325,
+        16777326,
+        16777327,
+        16777328
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      2,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat all empty axis int64",
+    "operation": "Concat",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          0,
+          3
+        ],
+        "integers": []
+      },
+      {
+        "shape": [
+          2,
+          0,
+          3
+        ],
+        "integers": []
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      2,
+      0,
+      3
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      0,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat empty prefix int64",
+    "operation": "Concat",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          0,
+          2,
+          3
+        ],
+        "integers": []
+      },
+      {
+        "shape": [
+          0,
+          4,
+          3
+        ],
+        "integers": []
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      0,
+      6,
+      3
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      0,
+      6,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat empty suffix int64",
+    "operation": "Concat",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3,
+          0
+        ],
+        "integers": []
+      },
+      {
+        "shape": [
+          2,
+          1,
+          0
+        ],
+        "integers": []
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      2,
+      4,
+      0
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      4,
+      0
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "concat empty vectors int64",
+    "operation": "Concat",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          0
+        ],
+        "integers": []
+      },
+      {
+        "shape": [
+          0
+        ],
+        "integers": []
+      }
+    ],
+    "axis": 0,
+    "indices_shape": [],
+    "indices": [],
+    "output_shape": [
+      0
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      0
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather vector scalar negative index int64",
+    "operation": "Gather",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          4
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808,
+          16777219,
+          16777220
+        ]
+      }
+    ],
+    "axis": 0,
+    "indices_shape": [],
+    "indices": [
+      -1
+    ],
+    "output_shape": [],
+    "output": {
+      "integers": [
+        16777220
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather matrix scalar index int64",
+    "operation": "Gather",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808,
+          16777219,
+          16777220,
+          16777221,
+          16777222
+        ]
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [
+      1
+    ],
+    "output_shape": [
+      2
+    ],
+    "output": {
+      "integers": [
+        -9223372036854775808,
+        16777221
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather first axis int64",
+    "operation": "Gather",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3,
+          2
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808,
+          16777219,
+          16777220,
+          16777221,
+          16777222,
+          16777223,
+          16777224,
+          16777225,
+          16777226,
+          16777227,
+          16777228
+        ]
+      }
+    ],
+    "axis": 0,
+    "indices_shape": [
+      2
+    ],
+    "indices": [
+      1,
+      0
+    ],
+    "output_shape": [
+      2,
+      3,
+      2
+    ],
+    "output": {
+      "integers": [
+        16777223,
+        16777224,
+        16777225,
+        16777226,
+        16777227,
+        16777228,
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      3,
+      2
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather middle multidimensional int64",
+    "operation": "Gather",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3,
+          2
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808,
+          16777219,
+          16777220,
+          16777221,
+          16777222,
+          16777223,
+          16777224,
+          16777225,
+          16777226,
+          16777227,
+          16777228
+        ]
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [
+      2,
+      2
+    ],
+    "indices": [
+      -1,
+      0,
+      1,
+      1
+    ],
+    "output_shape": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "output": {
+      "integers": [
+        16777221,
+        16777222,
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777219,
+        16777220,
+        16777227,
+        16777228,
+        16777223,
+        16777224,
+        16777225,
+        16777226,
+        16777225,
+        16777226
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather final negative axis int64",
+    "operation": "Gather",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          2,
+          3
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808,
+          16777219,
+          16777220,
+          16777221,
+          16777222,
+          16777223,
+          16777224,
+          16777225,
+          16777226,
+          16777227,
+          16777228
+        ]
+      }
+    ],
+    "axis": -1,
+    "indices_shape": [
+      3
+    ],
+    "indices": [
+      -3,
+      -1,
+      0
+    ],
+    "output_shape": [
+      2,
+      2,
+      3
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        16777219,
+        9223372036854775807,
+        16777220,
+        16777222,
+        16777220,
+        16777223,
+        16777225,
+        16777223,
+        16777226,
+        16777228,
+        16777226
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      2,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather repeated rows int64",
+    "operation": "Gather",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808,
+          16777219,
+          16777220,
+          16777221,
+          16777222
+        ]
+      }
+    ],
+    "axis": 0,
+    "indices_shape": [
+      3
+    ],
+    "indices": [
+      1,
+      1,
+      0
+    ],
+    "output_shape": [
+      3,
+      3
+    ],
+    "output": {
+      "integers": [
+        16777220,
+        16777221,
+        16777222,
+        16777220,
+        16777221,
+        16777222,
+        9223372036854775807,
+        -9223372036854775808,
+        16777219
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      3,
+      3
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather empty vector indices int64",
+    "operation": "Gather",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808,
+          16777219,
+          16777220,
+          16777221,
+          16777222
+        ]
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [
+      0
+    ],
+    "indices": [],
+    "output_shape": [
+      2,
+      0
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "NumPy 1.26.4 take; ONNX 1.16.2 empty-indices shape difference recorded",
+    "reference_shape": [
+      0
+    ],
+    "reference_difference": "ONNX reference empty-indices shortcut returns [0] instead of prefix + indices shape + suffix"
+  },
+  {
+    "name": "gather empty multidimensional indices int64",
+    "operation": "Gather",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3,
+          4
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808,
+          16777219,
+          16777220,
+          16777221,
+          16777222,
+          16777223,
+          16777224,
+          16777225,
+          16777226,
+          16777227,
+          16777228,
+          16777229,
+          16777230,
+          16777231,
+          16777232,
+          16777233,
+          16777234,
+          16777235,
+          16777236,
+          16777237,
+          16777238,
+          16777239,
+          16777240
+        ]
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [
+      2,
+      0,
+      1
+    ],
+    "indices": [],
+    "output_shape": [
+      2,
+      2,
+      0,
+      1,
+      4
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "NumPy 1.26.4 take; ONNX 1.16.2 empty-indices shape difference recorded",
+    "reference_shape": [
+      0
+    ],
+    "reference_difference": "ONNX reference empty-indices shortcut returns [0] instead of prefix + indices shape + suffix"
+  },
+  {
+    "name": "gather zero data axis int64",
+    "operation": "Gather",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          0,
+          3
+        ],
+        "integers": []
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [
+      0
+    ],
+    "indices": [],
+    "output_shape": [
+      2,
+      0,
+      3
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "NumPy 1.26.4 take; ONNX 1.16.2 empty-indices shape difference recorded",
+    "reference_shape": [
+      0
+    ],
+    "reference_difference": "ONNX reference empty-indices shortcut returns [0] instead of prefix + indices shape + suffix"
+  },
+  {
+    "name": "gather empty prefix int64",
+    "operation": "Gather",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          0,
+          3,
+          2
+        ],
+        "integers": []
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [
+      2
+    ],
+    "indices": [
+      2,
+      0
+    ],
+    "output_shape": [
+      0,
+      2,
+      2
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      0,
+      2,
+      2
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather empty suffix int64",
+    "operation": "Gather",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3,
+          0
+        ],
+        "integers": []
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [
+      2
+    ],
+    "indices": [
+      -3,
+      -1
+    ],
+    "output_shape": [
+      2,
+      2,
+      0
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      2,
+      0
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather scalar index empty prefix int64",
+    "operation": "Gather",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          0,
+          3,
+          2
+        ],
+        "integers": []
+      }
+    ],
+    "axis": 1,
+    "indices_shape": [],
+    "indices": [
+      1
+    ],
+    "output_shape": [
+      0,
+      2
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      0,
+      2
+    ],
+    "reference_difference": ""
+  },
+  {
+    "name": "gather row index matrix int64",
+    "operation": "Gather",
+    "data_type": "int64",
+    "inputs": [
+      {
+        "shape": [
+          2,
+          3
+        ],
+        "integers": [
+          9223372036854775807,
+          -9223372036854775808,
+          16777219,
+          16777220,
+          16777221,
+          16777222
+        ]
+      }
+    ],
+    "axis": 0,
+    "indices_shape": [
+      2,
+      1
+    ],
+    "indices": [
+      1,
+      0
+    ],
+    "output_shape": [
+      2,
+      1,
+      3
+    ],
+    "output": {
+      "integers": [
+        16777220,
+        16777221,
+        16777222,
+        9223372036854775807,
+        -9223372036854775808,
+        16777219
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13; NumPy 1.26.4 cross-check",
+    "reference_shape": [
+      2,
+      1,
+      3
+    ],
+    "reference_difference": ""
+  }
+]
