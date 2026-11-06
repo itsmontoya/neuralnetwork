@@ -493,3 +493,8 @@ runtime sequence container, or any change to the stable `layer.Layer` matrix
 contract. Flattened matrices plus explicit lengths supply the focused
 last-valid boundary. A broader container remains a repository-wide API
 decision and requires separate maintainer direction.
+
+NN-01's later [inference tensor design](tensor-design.md) records that separate
+additive decision for forward inference kernels. It does not replace this RNN
+milestone's matrix and explicit-length contracts or introduce a runtime
+sequence container.

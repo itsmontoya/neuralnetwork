@@ -13,6 +13,10 @@ through `FitWithViews`. It changes only scoped dataset ownership and leaves
 every CNN shape, formula, cache, parameter, and safe default recorded here
 unchanged. See [data-views-design.md](data-views-design.md).
 
+The later [inference tensor design](tensor-design.md) is a separate additive
+backend decision. It does not change this milestone's flattened matrix layout,
+layer APIs, or generic-tensor exclusion below.
+
 ## Milestone
 
 The supported model shape is:
