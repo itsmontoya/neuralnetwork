@@ -4,6 +4,7 @@ Status: NN-01 design contract for the additive NN-02 through NN-12 work.
 The NN-02 storage APIs are implemented; see the [storage handoff](handoffs/NN-02.md).
 The NN-03 shared shape APIs are implemented; see the [shape handoff](handoffs/NN-03.md).
 The NN-04 arithmetic APIs are implemented; see the [arithmetic handoff](handoffs/NN-04.md).
+The NN-07 transform APIs are implemented; see the [transform handoff](handoffs/NN-07.md).
 The remaining signatures are proposed APIs until their implementation tasks
 document the shipped subset and tests.
 
@@ -331,6 +332,22 @@ unit axes; omitted-axis ONNX policy is resolved outside this package. Unsqueeze
 inserts unit axes normalized against final output rank. Empty axis lists are
 identity copies. Scalar transitions and zero dimensions retain their exact
 element counts and typed row-major order.
+
+NN-07 implements these five transform planners and destination APIs. All
+metadata transforms copy payloads; transpose materializes row-major output.
+Shape-only planners check the int64 byte bound so each returned shape supports
+both storage types. Empty transpose skips unused stride plans after validating
+permutations and destinations; flatten still checks each required prefix/suffix
+product. All other shape, type, alias, and derived-size checks precede writes.
+
+Fifty-four exact typed fixtures preserve int64 extrema and float32 bit patterns,
+including NaN payloads and signed zero. Fifty cases agree with the pinned ONNX
+1.16.2 evaluator. Two literal-zero reshapes use NumPy 1.26.4 concrete targets;
+two empty-prefix Flatten cases use concrete NumPy products while retaining the
+ONNX evaluator's inferred-`-1` rejection. These resolved mathematical cases do
+not introduce ONNX reshape/default policy into the library. See the
+[NN-07 handoff](handoffs/NN-07.md) and
+[fixture provenance](../tensor/testdata/README.md).
 
 Concat requires a nonempty list, the same type/rank for every input, equal
 non-axis dimensions, and a checked sum along its normalized axis; scalars have

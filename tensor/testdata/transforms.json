@@ -1,0 +1,1884 @@
+[
+  {
+    "name": "reshape scalar to units float32",
+    "operation": "Reshape",
+    "data_type": "float32",
+    "input_shape": [],
+    "input": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [
+      1,
+      1
+    ],
+    "output_shape": [
+      1,
+      1
+    ],
+    "output": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "reshape units to scalar float32",
+    "operation": "Reshape",
+    "data_type": "float32",
+    "input_shape": [
+      1,
+      1
+    ],
+    "input": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [],
+    "output_shape": [],
+    "output": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "reshape rectangular float32",
+    "operation": "Reshape",
+    "data_type": "float32",
+    "input_shape": [
+      2,
+      3,
+      2
+    ],
+    "input": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872,
+        1086849024,
+        1088946176,
+        1090781184,
+        1091829760,
+        1092878336,
+        1093926912
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [
+      3,
+      4
+    ],
+    "output_shape": [
+      3,
+      4
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872,
+        1086849024,
+        1088946176,
+        1090781184,
+        1091829760,
+        1092878336,
+        1093926912
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "reshape literal empty target float32",
+    "operation": "Reshape",
+    "data_type": "float32",
+    "input_shape": [
+      0,
+      3
+    ],
+    "input": {
+      "bits": []
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [
+      3,
+      0
+    ],
+    "output_shape": [
+      3,
+      0
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "NumPy 1.26.4 concrete reshape; ONNX zero policy resolved by caller",
+    "reference_error": ""
+  },
+  {
+    "name": "flatten scalar float32",
+    "operation": "Flatten",
+    "data_type": "float32",
+    "input_shape": [],
+    "input": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      1,
+      1
+    ],
+    "output": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "flatten first endpoint float32",
+    "operation": "Flatten",
+    "data_type": "float32",
+    "input_shape": [
+      2,
+      3
+    ],
+    "input": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      1,
+      6
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "flatten final endpoint float32",
+    "operation": "Flatten",
+    "data_type": "float32",
+    "input_shape": [
+      2,
+      3
+    ],
+    "input": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872
+      ]
+    },
+    "axis": 2,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      6,
+      1
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "flatten negative split float32",
+    "operation": "Flatten",
+    "data_type": "float32",
+    "input_shape": [
+      2,
+      3,
+      2
+    ],
+    "input": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872,
+        1086849024,
+        1088946176,
+        1090781184,
+        1091829760,
+        1092878336,
+        1093926912
+      ]
+    },
+    "axis": -1,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      6,
+      2
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872,
+        1086849024,
+        1088946176,
+        1090781184,
+        1091829760,
+        1092878336,
+        1093926912
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "flatten empty suffix float32",
+    "operation": "Flatten",
+    "data_type": "float32",
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input": {
+      "bits": []
+    },
+    "axis": 1,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      2,
+      0
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "flatten empty prefix float32",
+    "operation": "Flatten",
+    "data_type": "float32",
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input": {
+      "bits": []
+    },
+    "axis": 2,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      0,
+      3
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "NumPy 1.26.4 concrete flatten products; ONNX reference inferred -1 rejects empty prefix",
+    "reference_error": "cannot reshape array of size 0 into shape (0,newaxis)"
+  },
+  {
+    "name": "transpose scalar float32",
+    "operation": "Transpose",
+    "data_type": "float32",
+    "input_shape": [],
+    "input": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [],
+    "output_shape": [],
+    "output": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "transpose rectangular float32",
+    "operation": "Transpose",
+    "data_type": "float32",
+    "input_shape": [
+      2,
+      3
+    ],
+    "input": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      1,
+      0
+    ],
+    "target": [],
+    "output_shape": [
+      3,
+      2
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        4286578688,
+        2143294004,
+        1082654720,
+        2139095040,
+        1084751872
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "transpose rank three float32",
+    "operation": "Transpose",
+    "data_type": "float32",
+    "input_shape": [
+      2,
+      3,
+      2
+    ],
+    "input": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872,
+        1086849024,
+        1088946176,
+        1090781184,
+        1091829760,
+        1092878336,
+        1093926912
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      2,
+      0,
+      1
+    ],
+    "target": [],
+    "output_shape": [
+      2,
+      2,
+      3
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2139095040,
+        1082654720,
+        1086849024,
+        1090781184,
+        1092878336,
+        2143294004,
+        4286578688,
+        1084751872,
+        1088946176,
+        1091829760,
+        1093926912
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "transpose negative permutation float32",
+    "operation": "Transpose",
+    "data_type": "float32",
+    "input_shape": [
+      2,
+      3,
+      2
+    ],
+    "input": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872,
+        1086849024,
+        1088946176,
+        1090781184,
+        1091829760,
+        1092878336,
+        1093926912
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      -1,
+      -3,
+      -2
+    ],
+    "target": [],
+    "output_shape": [
+      2,
+      2,
+      3
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2139095040,
+        1082654720,
+        1086849024,
+        1090781184,
+        1092878336,
+        2143294004,
+        4286578688,
+        1084751872,
+        1088946176,
+        1091829760,
+        1093926912
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "transpose empty float32",
+    "operation": "Transpose",
+    "data_type": "float32",
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input": {
+      "bits": []
+    },
+    "axis": 0,
+    "axes": [
+      2,
+      0,
+      1
+    ],
+    "target": [],
+    "output_shape": [
+      3,
+      2,
+      0
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "squeeze scalar identity float32",
+    "operation": "Squeeze",
+    "data_type": "float32",
+    "input_shape": [],
+    "input": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [],
+    "output_shape": [],
+    "output": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "squeeze selected negative axes float32",
+    "operation": "Squeeze",
+    "data_type": "float32",
+    "input_shape": [
+      1,
+      2,
+      1,
+      3,
+      1
+    ],
+    "input": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      0,
+      -1,
+      2
+    ],
+    "target": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "squeeze to scalar float32",
+    "operation": "Squeeze",
+    "data_type": "float32",
+    "input_shape": [
+      1,
+      1
+    ],
+    "input": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      1,
+      0
+    ],
+    "target": [],
+    "output_shape": [],
+    "output": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "squeeze empty axes identity float32",
+    "operation": "Squeeze",
+    "data_type": "float32",
+    "input_shape": [
+      1,
+      2,
+      1
+    ],
+    "input": {
+      "bits": [
+        2147483648,
+        2143294004
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      1,
+      2,
+      1
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "squeeze empty value float32",
+    "operation": "Squeeze",
+    "data_type": "float32",
+    "input_shape": [
+      1,
+      0,
+      1,
+      3
+    ],
+    "input": {
+      "bits": []
+    },
+    "axis": 0,
+    "axes": [
+      0,
+      2
+    ],
+    "target": [],
+    "output_shape": [
+      0,
+      3
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "unsqueeze scalar float32",
+    "operation": "Unsqueeze",
+    "data_type": "float32",
+    "input_shape": [],
+    "input": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      0
+    ],
+    "target": [],
+    "output_shape": [
+      1
+    ],
+    "output": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "unsqueeze scalar two axes float32",
+    "operation": "Unsqueeze",
+    "data_type": "float32",
+    "input_shape": [],
+    "input": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      1,
+      0
+    ],
+    "target": [],
+    "output_shape": [
+      1,
+      1
+    ],
+    "output": {
+      "bits": [
+        2147483648
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "unsqueeze final rank axes float32",
+    "operation": "Unsqueeze",
+    "data_type": "float32",
+    "input_shape": [
+      2,
+      3
+    ],
+    "input": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      0,
+      -1
+    ],
+    "target": [],
+    "output_shape": [
+      1,
+      2,
+      3,
+      1
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "unsqueeze unsorted axes float32",
+    "operation": "Unsqueeze",
+    "data_type": "float32",
+    "input_shape": [
+      2,
+      3
+    ],
+    "input": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      3,
+      0
+    ],
+    "target": [],
+    "output_shape": [
+      1,
+      2,
+      3,
+      1
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "unsqueeze negative axes float32",
+    "operation": "Unsqueeze",
+    "data_type": "float32",
+    "input_shape": [
+      2,
+      3
+    ],
+    "input": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      -3,
+      -1
+    ],
+    "target": [],
+    "output_shape": [
+      2,
+      1,
+      3,
+      1
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004,
+        2139095040,
+        4286578688,
+        1082654720,
+        1084751872
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "unsqueeze empty axes identity float32",
+    "operation": "Unsqueeze",
+    "data_type": "float32",
+    "input_shape": [
+      1,
+      2,
+      1
+    ],
+    "input": {
+      "bits": [
+        2147483648,
+        2143294004
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      1,
+      2,
+      1
+    ],
+    "output": {
+      "bits": [
+        2147483648,
+        2143294004
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "unsqueeze empty value float32",
+    "operation": "Unsqueeze",
+    "data_type": "float32",
+    "input_shape": [
+      0,
+      3
+    ],
+    "input": {
+      "bits": []
+    },
+    "axis": 0,
+    "axes": [
+      1,
+      -1
+    ],
+    "target": [],
+    "output_shape": [
+      0,
+      1,
+      3,
+      1
+    ],
+    "output": {
+      "bits": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "reshape scalar to units int64",
+    "operation": "Reshape",
+    "data_type": "int64",
+    "input_shape": [],
+    "input": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [
+      1,
+      1
+    ],
+    "output_shape": [
+      1,
+      1
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "reshape units to scalar int64",
+    "operation": "Reshape",
+    "data_type": "int64",
+    "input_shape": [
+      1,
+      1
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [],
+    "output_shape": [],
+    "output": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "reshape rectangular int64",
+    "operation": "Reshape",
+    "data_type": "int64",
+    "input_shape": [
+      2,
+      3,
+      2
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222,
+        16777223,
+        16777224,
+        16777225,
+        16777226,
+        16777227,
+        16777228
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [
+      3,
+      4
+    ],
+    "output_shape": [
+      3,
+      4
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222,
+        16777223,
+        16777224,
+        16777225,
+        16777226,
+        16777227,
+        16777228
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "reshape literal empty target int64",
+    "operation": "Reshape",
+    "data_type": "int64",
+    "input_shape": [
+      0,
+      3
+    ],
+    "input": {
+      "integers": []
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [
+      3,
+      0
+    ],
+    "output_shape": [
+      3,
+      0
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "NumPy 1.26.4 concrete reshape; ONNX zero policy resolved by caller",
+    "reference_error": ""
+  },
+  {
+    "name": "flatten scalar int64",
+    "operation": "Flatten",
+    "data_type": "int64",
+    "input_shape": [],
+    "input": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      1,
+      1
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "flatten first endpoint int64",
+    "operation": "Flatten",
+    "data_type": "int64",
+    "input_shape": [
+      2,
+      3
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      1,
+      6
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "flatten final endpoint int64",
+    "operation": "Flatten",
+    "data_type": "int64",
+    "input_shape": [
+      2,
+      3
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "axis": 2,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      6,
+      1
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "flatten negative split int64",
+    "operation": "Flatten",
+    "data_type": "int64",
+    "input_shape": [
+      2,
+      3,
+      2
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222,
+        16777223,
+        16777224,
+        16777225,
+        16777226,
+        16777227,
+        16777228
+      ]
+    },
+    "axis": -1,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      6,
+      2
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222,
+        16777223,
+        16777224,
+        16777225,
+        16777226,
+        16777227,
+        16777228
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "flatten empty suffix int64",
+    "operation": "Flatten",
+    "data_type": "int64",
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input": {
+      "integers": []
+    },
+    "axis": 1,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      2,
+      0
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "flatten empty prefix int64",
+    "operation": "Flatten",
+    "data_type": "int64",
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input": {
+      "integers": []
+    },
+    "axis": 2,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      0,
+      3
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "NumPy 1.26.4 concrete flatten products; ONNX reference inferred -1 rejects empty prefix",
+    "reference_error": "cannot reshape array of size 0 into shape (0,newaxis)"
+  },
+  {
+    "name": "transpose scalar int64",
+    "operation": "Transpose",
+    "data_type": "int64",
+    "input_shape": [],
+    "input": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [],
+    "output_shape": [],
+    "output": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "transpose rectangular int64",
+    "operation": "Transpose",
+    "data_type": "int64",
+    "input_shape": [
+      2,
+      3
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      1,
+      0
+    ],
+    "target": [],
+    "output_shape": [
+      3,
+      2
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        16777220,
+        -9223372036854775808,
+        16777221,
+        16777219,
+        16777222
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "transpose rank three int64",
+    "operation": "Transpose",
+    "data_type": "int64",
+    "input_shape": [
+      2,
+      3,
+      2
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222,
+        16777223,
+        16777224,
+        16777225,
+        16777226,
+        16777227,
+        16777228
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      2,
+      0,
+      1
+    ],
+    "target": [],
+    "output_shape": [
+      2,
+      2,
+      3
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        16777219,
+        16777221,
+        16777223,
+        16777225,
+        16777227,
+        -9223372036854775808,
+        16777220,
+        16777222,
+        16777224,
+        16777226,
+        16777228
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "transpose negative permutation int64",
+    "operation": "Transpose",
+    "data_type": "int64",
+    "input_shape": [
+      2,
+      3,
+      2
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222,
+        16777223,
+        16777224,
+        16777225,
+        16777226,
+        16777227,
+        16777228
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      -1,
+      -3,
+      -2
+    ],
+    "target": [],
+    "output_shape": [
+      2,
+      2,
+      3
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        16777219,
+        16777221,
+        16777223,
+        16777225,
+        16777227,
+        -9223372036854775808,
+        16777220,
+        16777222,
+        16777224,
+        16777226,
+        16777228
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "transpose empty int64",
+    "operation": "Transpose",
+    "data_type": "int64",
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input": {
+      "integers": []
+    },
+    "axis": 0,
+    "axes": [
+      2,
+      0,
+      1
+    ],
+    "target": [],
+    "output_shape": [
+      3,
+      2,
+      0
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "squeeze scalar identity int64",
+    "operation": "Squeeze",
+    "data_type": "int64",
+    "input_shape": [],
+    "input": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [],
+    "output_shape": [],
+    "output": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "squeeze selected negative axes int64",
+    "operation": "Squeeze",
+    "data_type": "int64",
+    "input_shape": [
+      1,
+      2,
+      1,
+      3,
+      1
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      0,
+      -1,
+      2
+    ],
+    "target": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "squeeze to scalar int64",
+    "operation": "Squeeze",
+    "data_type": "int64",
+    "input_shape": [
+      1,
+      1
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      1,
+      0
+    ],
+    "target": [],
+    "output_shape": [],
+    "output": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "squeeze empty axes identity int64",
+    "operation": "Squeeze",
+    "data_type": "int64",
+    "input_shape": [
+      1,
+      2,
+      1
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      1,
+      2,
+      1
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "squeeze empty value int64",
+    "operation": "Squeeze",
+    "data_type": "int64",
+    "input_shape": [
+      1,
+      0,
+      1,
+      3
+    ],
+    "input": {
+      "integers": []
+    },
+    "axis": 0,
+    "axes": [
+      0,
+      2
+    ],
+    "target": [],
+    "output_shape": [
+      0,
+      3
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "unsqueeze scalar int64",
+    "operation": "Unsqueeze",
+    "data_type": "int64",
+    "input_shape": [],
+    "input": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      0
+    ],
+    "target": [],
+    "output_shape": [
+      1
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "unsqueeze scalar two axes int64",
+    "operation": "Unsqueeze",
+    "data_type": "int64",
+    "input_shape": [],
+    "input": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      1,
+      0
+    ],
+    "target": [],
+    "output_shape": [
+      1,
+      1
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "unsqueeze final rank axes int64",
+    "operation": "Unsqueeze",
+    "data_type": "int64",
+    "input_shape": [
+      2,
+      3
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      0,
+      -1
+    ],
+    "target": [],
+    "output_shape": [
+      1,
+      2,
+      3,
+      1
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "unsqueeze unsorted axes int64",
+    "operation": "Unsqueeze",
+    "data_type": "int64",
+    "input_shape": [
+      2,
+      3
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      3,
+      0
+    ],
+    "target": [],
+    "output_shape": [
+      1,
+      2,
+      3,
+      1
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "unsqueeze negative axes int64",
+    "operation": "Unsqueeze",
+    "data_type": "int64",
+    "input_shape": [
+      2,
+      3
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "axis": 0,
+    "axes": [
+      -3,
+      -1
+    ],
+    "target": [],
+    "output_shape": [
+      2,
+      1,
+      3,
+      1
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808,
+        16777219,
+        16777220,
+        16777221,
+        16777222
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "unsqueeze empty axes identity int64",
+    "operation": "Unsqueeze",
+    "data_type": "int64",
+    "input_shape": [
+      1,
+      2,
+      1
+    ],
+    "input": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808
+      ]
+    },
+    "axis": 0,
+    "axes": [],
+    "target": [],
+    "output_shape": [
+      1,
+      2,
+      1
+    ],
+    "output": {
+      "integers": [
+        9223372036854775807,
+        -9223372036854775808
+      ]
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  },
+  {
+    "name": "unsqueeze empty value int64",
+    "operation": "Unsqueeze",
+    "data_type": "int64",
+    "input_shape": [
+      0,
+      3
+    ],
+    "input": {
+      "integers": []
+    },
+    "axis": 0,
+    "axes": [
+      1,
+      -1
+    ],
+    "target": [],
+    "output_shape": [
+      0,
+      1,
+      3,
+      1
+    ],
+    "output": {
+      "integers": []
+    },
+    "reference": "ONNX 1.16.2 ReferenceEvaluator, IR 8/opset 13",
+    "reference_error": ""
+  }
+]
