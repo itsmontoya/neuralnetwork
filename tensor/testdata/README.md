@@ -263,3 +263,49 @@ and [AveragePool-11](https://onnx.ai/onnx/operators/onnx__AveragePool.html#avera
 definitions supply the mathematical attributes. ONNX is Apache-2.0 licensed;
 [ONNX Runtime](https://github.com/microsoft/onnxruntime/blob/v1.19.2/LICENSE) is MIT licensed.
 The original generator does not copy upstream implementation or fixture data.
+
+`normalization.json` adds 31 original NN-11 stored-statistics batch-normalization
+fixtures. Independent NumPy broadcasting computes
+`scale * (x - mean) / sqrt(variance + epsilon) + bias` without reproducing the
+Go channel-index loop. Inputs, parameters, epsilon, and expected results retain
+float32 bit patterns. Models use IR 8/opset 13, BatchNormalization-9, and one
+output. The same pinned Python/ONNX/NumPy/protobuf/ORT environment records actual
+outputs from both reference implementations:
+
+```sh
+/private/tmp/neuralnetwork-onnx-reference/bin/python tensor/testdata/generate_normalization.py
+```
+
+Ordinary Go tests require no Python or runtime library. Finite comparisons use
+`atol=rtol=1e-5`; NaNs compare by classification and infinity signs exactly.
+Fixture SHA-256:
+`4788058268769cb709bfc099aa137e5417d9dd26c5391c19d4de090fa0e6b8bc`.
+
+Thirty cases agree with executed ONNX Runtime 1.19.2 CPU results, using one
+intra/inter-op thread and disabled graph optimizations. Its sole difference is
+zero variance with zero epsilon: input `[-1,0,1]`, scale 1, bias/mean/variance 0
+produces three NaNs in ORT, while the literal formula gives `[-Inf,NaN,+Inf]`.
+The kernel preserves the stated expression and records this numerical limit.
+
+ONNX 1.16.2 ReferenceEvaluator agrees on eight cases and differs on 23.
+Its BatchNormalization-9 wrapper updates means/variances using momentum even
+when only one inference output is requested. The kernel instead uses the
+supplied statistics unchanged, as required by the inference contract. For
+`[3,5]` shaped `[2,1]`, scale 2, bias 0.5, mean 1, variance 4, and epsilon 0,
+NumPy and ORT give `[2.5,4.5]`; the evaluator with default momentum 0.9 gives
+approximately `[2.2675757,4.3470764]`. Exact actual shapes/bits, result
+classification, and explicit/defaulted momentum metadata are retained; no
+disagreement is silently counted as agreement or skipped.
+
+Cases include ranks two through six, multiple batches/channels, learned
+statistics, nondefault/zero/negative-zero epsilon, empty dimensions, negative
+variance domains, and nonfinite inputs/parameters. The library does not expose
+momentum, training mode, or running-statistics updates. Runtime schema/rank/output
+restrictions remain adapter responsibilities. Pinned primary sources are the
+[normalization reference](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_batch_normalization.py),
+[schema definitions](https://github.com/onnx/onnx/blob/v1.16.2/onnx/defs/nn/old.cc),
+and [ORT CPU normalization](https://github.com/microsoft/onnxruntime/blob/v1.19.2/onnxruntime/core/providers/cpu/nn/batch_norm.cc).
+The versioned [BatchNormalization-9 definition](https://onnx.ai/onnx/operators/onnx__BatchNormalization.html#batchnormalization-9)
+supplies the inference boundary. ONNX is Apache-2.0 licensed; ONNX Runtime is
+MIT licensed. The original generator does not copy upstream implementation or
+fixture data. These fixtures make no general backend-equivalence claim.
