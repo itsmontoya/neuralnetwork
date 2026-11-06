@@ -6,18 +6,37 @@ import "fmt"
 // broadcasting. Shapes and float32 payload sizes are checked without allocation
 // of numeric storage. A zero dimension broadcasts with one to zero.
 func BroadcastShape(left, right []int64) (shape []int64, err error) {
-	var (
-		rank                          int
-		axis, leftAxis, rightAxis     int
-		leftDimension, rightDimension int64
-	)
-
 	if _, _, err = ValidateShape(left, Float32); err != nil {
 		err = fmt.Errorf("tensor: left broadcast shape is invalid: %w", err)
 		return nil, err
 	}
 	if _, _, err = ValidateShape(right, Float32); err != nil {
 		err = fmt.Errorf("tensor: right broadcast shape is invalid: %w", err)
+		return nil, err
+	}
+	if shape, err = broadcastDimensions(left, right); err != nil {
+		return nil, err
+	}
+	if _, _, err = ValidateShape(shape, Float32); err != nil {
+		err = fmt.Errorf("tensor: broadcast result shape is invalid: %w", err)
+		return nil, err
+	}
+	return shape, nil
+}
+
+// broadcastDimensions plans metadata such as batch prefixes, which do not
+// themselves own numeric payloads. Callers validate their actual output size.
+func broadcastDimensions(left, right []int64) (shape []int64, err error) {
+	var (
+		rank                          int
+		axis, leftAxis, rightAxis     int
+		leftDimension, rightDimension int64
+	)
+
+	if _, err = validateDimensions(left); err != nil {
+		return nil, err
+	}
+	if _, err = validateDimensions(right); err != nil {
 		return nil, err
 	}
 	rank = max(len(left), len(right))
@@ -43,10 +62,6 @@ func BroadcastShape(left, right []int64) (shape []int64, err error) {
 			err = fmt.Errorf("tensor: broadcast dimensions are incompatible: axis=%d left=%d right=%d", axis, leftDimension, rightDimension)
 			return nil, err
 		}
-	}
-	if _, _, err = ValidateShape(shape, Float32); err != nil {
-		err = fmt.Errorf("tensor: broadcast result shape is invalid: %w", err)
-		return nil, err
 	}
 	return shape, nil
 }
