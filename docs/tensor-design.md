@@ -231,6 +231,15 @@ plans A/B only; callers separately validate bias broadcasting. The config has
 no schema defaults: its zero value means Alpha=Beta=0 with no transposition.
 The runtime supplies any operator-default values explicitly.
 
+NN-05 implements these product APIs. To match its pinned ONNX 1.16.2 reference,
+Gemm skips the bias arithmetic when Beta is positive or negative zero, while
+still validating the supplied bias and rejecting destination aliases. Thus an
+ignored nonfinite bias does not introduce NaNs. Alpha always scales the computed
+product, including zero/nonfinite products; nil bias ignores Beta entirely.
+MatMul batch-prefix broadcasting shares the existing dimension rules without
+assigning numeric payload sizes to metadata-only prefixes. Actual input/output
+payload sizes remain checked, and empty outputs skip unused block/stride plans.
+
 For compatible nonempty float32 rank-two blocks, use copying adapters around
 `matrix.FromSlice`, `matrix.New`, `MatMulInto`, and the existing left/right
 transpose variants. For both-transposed operands, a local materialized transpose
@@ -240,6 +249,14 @@ Contraction accumulation initially follows the existing float32 matrix path;
 SIMD build choices may change rounding. Use operation-specific relative/absolute
 float32 tolerances rather than bitwise product equality, and document the
 actual tolerance and fixtures with NN-05. Empty contractions remain exact zero.
+
+The shipped NN-05 fixtures use absolute and relative tolerances of `1e-5`
+against ONNX 1.16.2/NumPy 1.26.4, classify NaNs, and require matching infinity
+signs. MatMul empty contractions are exact positive zero. Signed-zero and NaN
+payload identity for nonempty products are not promised across matrix backends.
+All nonempty batch results are accumulated in call-local storage before one
+destination copy, preserving destinations if any matrix adapter returns an
+error. The copying bridge exposes no mutable input storage or shared workspace.
 
 ## Activations (NN-06)
 
