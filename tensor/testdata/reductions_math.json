@@ -1,0 +1,5656 @@
+[
+  {
+    "name": "ReduceSum axes[0] keepFalse",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      3,
+      4
+    ],
+    "output_bits": [
+      3224371200,
+      3222274048,
+      3219128320,
+      3214934016,
+      3208642560,
+      3196059648,
+      1048576000,
+      1061158912,
+      1067450368,
+      1071644672,
+      1074790400,
+      1076887552
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      3,
+      4
+    ],
+    "reference_bits": [
+      3224371200,
+      3222274048,
+      3219128320,
+      3214934016,
+      3208642560,
+      3196059648,
+      1048576000,
+      1061158912,
+      1067450368,
+      1071644672,
+      1074790400,
+      1076887552
+    ]
+  },
+  {
+    "name": "ReduceSum axes[0] keepTrue",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      3,
+      4
+    ],
+    "output_bits": [
+      3224371200,
+      3222274048,
+      3219128320,
+      3214934016,
+      3208642560,
+      3196059648,
+      1048576000,
+      1061158912,
+      1067450368,
+      1071644672,
+      1074790400,
+      1076887552
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      3,
+      4
+    ],
+    "reference_bits": [
+      3224371200,
+      3222274048,
+      3219128320,
+      3214934016,
+      3208642560,
+      3196059648,
+      1048576000,
+      1061158912,
+      1067450368,
+      1071644672,
+      1074790400,
+      1076887552
+    ]
+  },
+  {
+    "name": "ReduceSum axes[1] keepFalse",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      4
+    ],
+    "output_bits": [
+      3233021952,
+      3231449088,
+      3229876224,
+      3226992640,
+      1079508992,
+      1082392576,
+      1083965440,
+      1085538304
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      4
+    ],
+    "reference_bits": [
+      3233021952,
+      3231449088,
+      3229876224,
+      3226992640,
+      1079508992,
+      1082392576,
+      1083965440,
+      1085538304
+    ]
+  },
+  {
+    "name": "ReduceSum axes[1] keepTrue",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      1,
+      4
+    ],
+    "output_bits": [
+      3233021952,
+      3231449088,
+      3229876224,
+      3226992640,
+      1079508992,
+      1082392576,
+      1083965440,
+      1085538304
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      1,
+      4
+    ],
+    "reference_bits": [
+      3233021952,
+      3231449088,
+      3229876224,
+      3226992640,
+      1079508992,
+      1082392576,
+      1083965440,
+      1085538304
+    ]
+  },
+  {
+    "name": "ReduceSum axes[-1] keepFalse",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      -1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output_bits": [
+      3240099840,
+      3233808384,
+      3221225472,
+      1073741824,
+      1086324736,
+      1092616192
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_bits": [
+      3240099840,
+      3233808384,
+      3221225472,
+      1073741824,
+      1086324736,
+      1092616192
+    ]
+  },
+  {
+    "name": "ReduceSum axes[-1] keepTrue",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      -1
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3,
+      1
+    ],
+    "output_bits": [
+      3240099840,
+      3233808384,
+      3221225472,
+      1073741824,
+      1086324736,
+      1092616192
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3,
+      1
+    ],
+    "reference_bits": [
+      3240099840,
+      3233808384,
+      3221225472,
+      1073741824,
+      1086324736,
+      1092616192
+    ]
+  },
+  {
+    "name": "ReduceSum axes[0, 2] keepFalse",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0,
+      2
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      3
+    ],
+    "output_bits": [
+      3238002688,
+      0,
+      1090519040
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      3
+    ],
+    "reference_bits": [
+      3238002688,
+      0,
+      1090519040
+    ]
+  },
+  {
+    "name": "ReduceSum axes[0, 2] keepTrue",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0,
+      2
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      3,
+      1
+    ],
+    "output_bits": [
+      3238002688,
+      0,
+      1090519040
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      3,
+      1
+    ],
+    "reference_bits": [
+      3238002688,
+      0,
+      1090519040
+    ]
+  },
+  {
+    "name": "ReduceSum axes[-1, -3] keepFalse",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      -1,
+      -3
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      3
+    ],
+    "output_bits": [
+      3238002688,
+      0,
+      1090519040
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      3
+    ],
+    "reference_bits": [
+      3238002688,
+      0,
+      1090519040
+    ]
+  },
+  {
+    "name": "ReduceSum axes[-1, -3] keepTrue",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      -1,
+      -3
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      3,
+      1
+    ],
+    "output_bits": [
+      3238002688,
+      0,
+      1090519040
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      3,
+      1
+    ],
+    "reference_bits": [
+      3238002688,
+      0,
+      1090519040
+    ]
+  },
+  {
+    "name": "ReduceSum axes[2, 0] keepFalse",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      2,
+      0
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      3
+    ],
+    "output_bits": [
+      3238002688,
+      0,
+      1090519040
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      3
+    ],
+    "reference_bits": [
+      3238002688,
+      0,
+      1090519040
+    ]
+  },
+  {
+    "name": "ReduceSum axes[2, 0] keepTrue",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      2,
+      0
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      3,
+      1
+    ],
+    "output_bits": [
+      3238002688,
+      0,
+      1090519040
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      3,
+      1
+    ],
+    "reference_bits": [
+      3238002688,
+      0,
+      1090519040
+    ]
+  },
+  {
+    "name": "ReduceSum all or identity [0, 1, 2] keepFalse",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0,
+      1,
+      2
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      0
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      0
+    ]
+  },
+  {
+    "name": "ReduceSum all or identity [0, 1, 2] keepTrue",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0,
+      1,
+      2
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      1,
+      1
+    ],
+    "output_bits": [
+      0
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      1,
+      1
+    ],
+    "reference_bits": [
+      0
+    ]
+  },
+  {
+    "name": "ReduceSum all or identity [] keepFalse",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3,
+      4
+    ],
+    "output_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3,
+      4
+    ],
+    "reference_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceSum all or identity [] keepTrue",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [],
+    "keep_dimensions": true,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3,
+      4
+    ],
+    "output_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3,
+      4
+    ],
+    "reference_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceSum vector",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      5
+    ],
+    "input_bits": [
+      3229614080,
+      3212836864,
+      1056964608,
+      1073741824,
+      1090519040
+    ],
+    "axes": [
+      -1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      1085276160
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      1085276160
+    ]
+  },
+  {
+    "name": "ReduceSum scalar identity",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [],
+    "input_bits": [
+      2147483648
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      2147483648
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      2147483648
+    ]
+  },
+  {
+    "name": "ReduceSum all empty to scalar",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      2,
+      0,
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      0
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      0
+    ]
+  },
+  {
+    "name": "ReduceSum nonfinite rows",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      4
+    ],
+    "input_bits": [
+      2139095040,
+      1065353216,
+      4286578688,
+      2143289344,
+      2147483648,
+      0,
+      3221225472,
+      1073741824
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2
+    ],
+    "output_bits": [
+      2143289344,
+      0
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2
+    ],
+    "reference_bits": [
+      2143289344,
+      0
+    ]
+  },
+  {
+    "name": "ReduceSum noncontiguous special slices",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      2,
+      3
+    ],
+    "input_bits": [
+      1065353216,
+      2139095040,
+      4286578688,
+      1077936128,
+      1073741824,
+      4286578688,
+      1082130432,
+      2143289344,
+      1086324736,
+      1090519040,
+      1092616192,
+      1094713344
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output_bits": [
+      1082130432,
+      2139095040,
+      4286578688,
+      1094713344,
+      2143289344,
+      1099956224
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_bits": [
+      1082130432,
+      2139095040,
+      4286578688,
+      1094713344,
+      2143289344,
+      1099956224
+    ]
+  },
+  {
+    "name": "ReduceSum all negative infinity",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      2
+    ],
+    "input_bits": [
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2
+    ],
+    "output_bits": [
+      4286578688,
+      4286578688
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2
+    ],
+    "reference_bits": [
+      4286578688,
+      4286578688
+    ]
+  },
+  {
+    "name": "ReduceSum empty reduction keepFalse",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output_bits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_bits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "ReduceSum empty output keepFalse",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      0,
+      2,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      2
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      0,
+      2
+    ],
+    "output_bits": [],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      0,
+      2
+    ],
+    "reference_bits": []
+  },
+  {
+    "name": "ReduceSum empty reduction keepTrue",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      1,
+      3
+    ],
+    "output_bits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      1,
+      3
+    ],
+    "reference_bits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "ReduceSum empty output keepTrue",
+    "operation": "ReduceSum",
+    "opset": 18,
+    "input_shape": [
+      0,
+      2,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      2
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      0,
+      2,
+      1
+    ],
+    "output_bits": [],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      0,
+      2,
+      1
+    ],
+    "reference_bits": []
+  },
+  {
+    "name": "ReduceMean axes[0] keepFalse",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      3,
+      4
+    ],
+    "output_bits": [
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      3,
+      4
+    ],
+    "reference_bits": [
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944
+    ]
+  },
+  {
+    "name": "ReduceMean axes[0] keepTrue",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      3,
+      4
+    ],
+    "output_bits": [
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      3,
+      4
+    ],
+    "reference_bits": [
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944
+    ]
+  },
+  {
+    "name": "ReduceMean axes[1] keepFalse",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      4
+    ],
+    "output_bits": [
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      4
+    ],
+    "reference_bits": [
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248
+    ]
+  },
+  {
+    "name": "ReduceMean axes[1] keepTrue",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      1,
+      4
+    ],
+    "output_bits": [
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      1,
+      4
+    ],
+    "reference_bits": [
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248
+    ]
+  },
+  {
+    "name": "ReduceMean axes[-1] keepFalse",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      -1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output_bits": [
+      3223322624,
+      3217031168,
+      3204448256,
+      1056964608,
+      1069547520,
+      1075838976
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_bits": [
+      3223322624,
+      3217031168,
+      3204448256,
+      1056964608,
+      1069547520,
+      1075838976
+    ]
+  },
+  {
+    "name": "ReduceMean axes[-1] keepTrue",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      -1
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3,
+      1
+    ],
+    "output_bits": [
+      3223322624,
+      3217031168,
+      3204448256,
+      1056964608,
+      1069547520,
+      1075838976
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3,
+      1
+    ],
+    "reference_bits": [
+      3223322624,
+      3217031168,
+      3204448256,
+      1056964608,
+      1069547520,
+      1075838976
+    ]
+  },
+  {
+    "name": "ReduceMean axes[0, 2] keepFalse",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0,
+      2
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      3
+    ],
+    "output_bits": [
+      3212836864,
+      0,
+      1065353216
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      3
+    ],
+    "reference_bits": [
+      3212836864,
+      0,
+      1065353216
+    ]
+  },
+  {
+    "name": "ReduceMean axes[0, 2] keepTrue",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0,
+      2
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      3,
+      1
+    ],
+    "output_bits": [
+      3212836864,
+      0,
+      1065353216
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      3,
+      1
+    ],
+    "reference_bits": [
+      3212836864,
+      0,
+      1065353216
+    ]
+  },
+  {
+    "name": "ReduceMean axes[-1, -3] keepFalse",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      -1,
+      -3
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      3
+    ],
+    "output_bits": [
+      3212836864,
+      0,
+      1065353216
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      3
+    ],
+    "reference_bits": [
+      3212836864,
+      0,
+      1065353216
+    ]
+  },
+  {
+    "name": "ReduceMean axes[-1, -3] keepTrue",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      -1,
+      -3
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      3,
+      1
+    ],
+    "output_bits": [
+      3212836864,
+      0,
+      1065353216
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      3,
+      1
+    ],
+    "reference_bits": [
+      3212836864,
+      0,
+      1065353216
+    ]
+  },
+  {
+    "name": "ReduceMean axes[2, 0] keepFalse",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      2,
+      0
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      3
+    ],
+    "output_bits": [
+      3212836864,
+      0,
+      1065353216
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      3
+    ],
+    "reference_bits": [
+      3212836864,
+      0,
+      1065353216
+    ]
+  },
+  {
+    "name": "ReduceMean axes[2, 0] keepTrue",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      2,
+      0
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      3,
+      1
+    ],
+    "output_bits": [
+      3212836864,
+      0,
+      1065353216
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      3,
+      1
+    ],
+    "reference_bits": [
+      3212836864,
+      0,
+      1065353216
+    ]
+  },
+  {
+    "name": "ReduceMean all or identity [0, 1, 2] keepFalse",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0,
+      1,
+      2
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      0
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      0
+    ]
+  },
+  {
+    "name": "ReduceMean all or identity [0, 1, 2] keepTrue",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0,
+      1,
+      2
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      1,
+      1
+    ],
+    "output_bits": [
+      0
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      1,
+      1
+    ],
+    "reference_bits": [
+      0
+    ]
+  },
+  {
+    "name": "ReduceMean all or identity [] keepFalse",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3,
+      4
+    ],
+    "output_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3,
+      4
+    ],
+    "reference_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMean all or identity [] keepTrue",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [],
+    "keep_dimensions": true,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3,
+      4
+    ],
+    "output_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3,
+      4
+    ],
+    "reference_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMean vector",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      5
+    ],
+    "input_bits": [
+      3229614080,
+      3212836864,
+      1056964608,
+      1073741824,
+      1090519040
+    ],
+    "axes": [
+      -1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      1066192077
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      1066192077
+    ]
+  },
+  {
+    "name": "ReduceMean scalar identity",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [],
+    "input_bits": [
+      2147483648
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      2147483648
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      2147483648
+    ]
+  },
+  {
+    "name": "ReduceMean all empty to scalar",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      2,
+      0,
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      2143289344
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      2143289344
+    ]
+  },
+  {
+    "name": "ReduceMean nonfinite rows",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      4
+    ],
+    "input_bits": [
+      2139095040,
+      1065353216,
+      4286578688,
+      2143289344,
+      2147483648,
+      0,
+      3221225472,
+      1073741824
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2
+    ],
+    "output_bits": [
+      2143289344,
+      0
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2
+    ],
+    "reference_bits": [
+      2143289344,
+      0
+    ]
+  },
+  {
+    "name": "ReduceMean noncontiguous special slices",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      2,
+      3
+    ],
+    "input_bits": [
+      1065353216,
+      2139095040,
+      4286578688,
+      1077936128,
+      1073741824,
+      4286578688,
+      1082130432,
+      2143289344,
+      1086324736,
+      1090519040,
+      1092616192,
+      1094713344
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output_bits": [
+      1073741824,
+      2139095040,
+      4286578688,
+      1086324736,
+      2143289344,
+      1091567616
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_bits": [
+      1073741824,
+      2139095040,
+      4286578688,
+      1086324736,
+      2143289344,
+      1091567616
+    ]
+  },
+  {
+    "name": "ReduceMean all negative infinity",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      2
+    ],
+    "input_bits": [
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2
+    ],
+    "output_bits": [
+      4286578688,
+      4286578688
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2
+    ],
+    "reference_bits": [
+      4286578688,
+      4286578688
+    ]
+  },
+  {
+    "name": "ReduceMean empty reduction keepFalse",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output_bits": [
+      2143289344,
+      2143289344,
+      2143289344,
+      2143289344,
+      2143289344,
+      2143289344
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_bits": [
+      2143289344,
+      2143289344,
+      2143289344,
+      2143289344,
+      2143289344,
+      2143289344
+    ]
+  },
+  {
+    "name": "ReduceMean empty output keepFalse",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      0,
+      2,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      2
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      0,
+      2
+    ],
+    "output_bits": [],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      0,
+      2
+    ],
+    "reference_bits": []
+  },
+  {
+    "name": "ReduceMean empty reduction keepTrue",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      1,
+      3
+    ],
+    "output_bits": [
+      2143289344,
+      2143289344,
+      2143289344,
+      2143289344,
+      2143289344,
+      2143289344
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      1,
+      3
+    ],
+    "reference_bits": [
+      2143289344,
+      2143289344,
+      2143289344,
+      2143289344,
+      2143289344,
+      2143289344
+    ]
+  },
+  {
+    "name": "ReduceMean empty output keepTrue",
+    "operation": "ReduceMean",
+    "opset": 18,
+    "input_shape": [
+      0,
+      2,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      2
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      0,
+      2,
+      1
+    ],
+    "output_bits": [],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      0,
+      2,
+      1
+    ],
+    "reference_bits": []
+  },
+  {
+    "name": "ReduceMax axes[0] keepFalse",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      3,
+      4
+    ],
+    "output_bits": [
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      3,
+      4
+    ],
+    "reference_bits": [
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax axes[0] keepTrue",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      3,
+      4
+    ],
+    "output_bits": [
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      3,
+      4
+    ],
+    "reference_bits": [
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax axes[1] keepFalse",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      4
+    ],
+    "output_bits": [
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      4
+    ],
+    "reference_bits": [
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax axes[1] keepTrue",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      1,
+      4
+    ],
+    "output_bits": [
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      1,
+      4
+    ],
+    "reference_bits": [
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax axes[-1] keepFalse",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      -1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output_bits": [
+      3221749760,
+      3213885440,
+      3187671040,
+      1063256064,
+      1072693248,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_bits": [
+      3221749760,
+      3213885440,
+      3187671040,
+      1063256064,
+      1072693248,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax axes[-1] keepTrue",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      -1
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3,
+      1
+    ],
+    "output_bits": [
+      3221749760,
+      3213885440,
+      3187671040,
+      1063256064,
+      1072693248,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3,
+      1
+    ],
+    "reference_bits": [
+      3221749760,
+      3213885440,
+      3187671040,
+      1063256064,
+      1072693248,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax axes[0, 2] keepFalse",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0,
+      2
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      3
+    ],
+    "output_bits": [
+      1063256064,
+      1072693248,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      3
+    ],
+    "reference_bits": [
+      1063256064,
+      1072693248,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax axes[0, 2] keepTrue",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0,
+      2
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      3,
+      1
+    ],
+    "output_bits": [
+      1063256064,
+      1072693248,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      3,
+      1
+    ],
+    "reference_bits": [
+      1063256064,
+      1072693248,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax axes[-1, -3] keepFalse",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      -1,
+      -3
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      3
+    ],
+    "output_bits": [
+      1063256064,
+      1072693248,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      3
+    ],
+    "reference_bits": [
+      1063256064,
+      1072693248,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax axes[-1, -3] keepTrue",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      -1,
+      -3
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      3,
+      1
+    ],
+    "output_bits": [
+      1063256064,
+      1072693248,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      3,
+      1
+    ],
+    "reference_bits": [
+      1063256064,
+      1072693248,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax axes[2, 0] keepFalse",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      2,
+      0
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      3
+    ],
+    "output_bits": [
+      1063256064,
+      1072693248,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      3
+    ],
+    "reference_bits": [
+      1063256064,
+      1072693248,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax axes[2, 0] keepTrue",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      2,
+      0
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      3,
+      1
+    ],
+    "output_bits": [
+      1063256064,
+      1072693248,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      3,
+      1
+    ],
+    "reference_bits": [
+      1063256064,
+      1072693248,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax all or identity [0, 1, 2] keepFalse",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0,
+      1,
+      2
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax all or identity [0, 1, 2] keepTrue",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [
+      0,
+      1,
+      2
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      1,
+      1,
+      1
+    ],
+    "output_bits": [
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      1,
+      1,
+      1
+    ],
+    "reference_bits": [
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax all or identity [] keepFalse",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3,
+      4
+    ],
+    "output_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3,
+      4
+    ],
+    "reference_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax all or identity [] keepTrue",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      3,
+      4
+    ],
+    "input_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "axes": [],
+    "keep_dimensions": true,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3,
+      4
+    ],
+    "output_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3,
+      4
+    ],
+    "reference_bits": [
+      3224895488,
+      3223846912,
+      3222798336,
+      3221749760,
+      3220176896,
+      3218079744,
+      3215982592,
+      3213885440,
+      3210739712,
+      3206545408,
+      3200253952,
+      3187671040,
+      1040187392,
+      1052770304,
+      1059061760,
+      1063256064,
+      1066401792,
+      1068498944,
+      1070596096,
+      1072693248,
+      1074266112,
+      1075314688,
+      1076363264,
+      1077411840
+    ]
+  },
+  {
+    "name": "ReduceMax vector",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      5
+    ],
+    "input_bits": [
+      3229614080,
+      3212836864,
+      1056964608,
+      1073741824,
+      1090519040
+    ],
+    "axes": [
+      -1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      1090519040
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      1090519040
+    ]
+  },
+  {
+    "name": "ReduceMax scalar identity",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [],
+    "input_bits": [
+      2147483648
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      2147483648
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      2147483648
+    ]
+  },
+  {
+    "name": "ReduceMax all empty to scalar",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      2,
+      0,
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      4286578688
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      4286578688
+    ]
+  },
+  {
+    "name": "ReduceMax nonfinite rows",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      4
+    ],
+    "input_bits": [
+      2139095040,
+      1065353216,
+      4286578688,
+      2143289344,
+      2147483648,
+      0,
+      3221225472,
+      1073741824
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2
+    ],
+    "output_bits": [
+      2143289344,
+      1073741824
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2
+    ],
+    "reference_bits": [
+      2143289344,
+      1073741824
+    ]
+  },
+  {
+    "name": "ReduceMax noncontiguous special slices",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      2,
+      3
+    ],
+    "input_bits": [
+      1065353216,
+      2139095040,
+      4286578688,
+      1077936128,
+      1073741824,
+      4286578688,
+      1082130432,
+      2143289344,
+      1086324736,
+      1090519040,
+      1092616192,
+      1094713344
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output_bits": [
+      1077936128,
+      2139095040,
+      4286578688,
+      1090519040,
+      2143289344,
+      1094713344
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_bits": [
+      1077936128,
+      2139095040,
+      4286578688,
+      1090519040,
+      2143289344,
+      1094713344
+    ]
+  },
+  {
+    "name": "ReduceMax all negative infinity",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      2
+    ],
+    "input_bits": [
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688
+    ],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2
+    ],
+    "output_bits": [
+      4286578688,
+      4286578688
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2
+    ],
+    "reference_bits": [
+      4286578688,
+      4286578688
+    ]
+  },
+  {
+    "name": "ReduceMax empty reduction keepFalse",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output_bits": [
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_bits": [
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688
+    ]
+  },
+  {
+    "name": "ReduceMax empty output keepFalse",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      0,
+      2,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      2
+    ],
+    "keep_dimensions": false,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      0,
+      2
+    ],
+    "output_bits": [],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      0,
+      2
+    ],
+    "reference_bits": []
+  },
+  {
+    "name": "ReduceMax empty reduction keepTrue",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      1
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      1,
+      3
+    ],
+    "output_bits": [
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      1,
+      3
+    ],
+    "reference_bits": [
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688,
+      4286578688
+    ]
+  },
+  {
+    "name": "ReduceMax empty output keepTrue",
+    "operation": "ReduceMax",
+    "opset": 18,
+    "input_shape": [
+      0,
+      2,
+      3
+    ],
+    "input_bits": [],
+    "axes": [
+      2
+    ],
+    "keep_dimensions": true,
+    "axes_input_present": true,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      0,
+      2,
+      1
+    ],
+    "output_bits": [],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      0,
+      2,
+      1
+    ],
+    "reference_bits": []
+  },
+  {
+    "name": "Exp scalar signed zero",
+    "operation": "Exp",
+    "opset": 13,
+    "input_shape": [],
+    "input_bits": [
+      2147483648
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      1065353216
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      1065353216
+    ]
+  },
+  {
+    "name": "Exp domains and nonfinite",
+    "operation": "Exp",
+    "opset": 13,
+    "input_shape": [
+      11
+    ],
+    "input_bits": [
+      4286578688,
+      3229614080,
+      3212836864,
+      2147483648,
+      0,
+      1048576000,
+      1065353216,
+      1082130432,
+      1120403456,
+      2139095040,
+      2143289344
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      11
+    ],
+    "output_bits": [
+      0,
+      1016466094,
+      1052531378,
+      1065353216,
+      1065353216,
+      1067735794,
+      1076754516,
+      1113220225,
+      2139095040,
+      2139095040,
+      2143289344
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      11
+    ],
+    "reference_bits": [
+      0,
+      1016466094,
+      1052531378,
+      1065353216,
+      1065353216,
+      1067735794,
+      1076754516,
+      1113220225,
+      2139095040,
+      2139095040,
+      2143289344
+    ]
+  },
+  {
+    "name": "Exp higher rank",
+    "operation": "Exp",
+    "opset": 13,
+    "input_shape": [
+      2,
+      2,
+      2
+    ],
+    "input_bits": [
+      1036831949,
+      1053129816,
+      1059840702,
+      1064634192,
+      1067390449,
+      1069787195,
+      1072183940,
+      1074161254
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      2,
+      2
+    ],
+    "output_bits": [
+      1066235454,
+      1069301435,
+      1073381374,
+      1076276211,
+      1079888579,
+      1083413017,
+      1086611399,
+      1090693281
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      2,
+      2
+    ],
+    "reference_bits": [
+      1066235454,
+      1069301435,
+      1073381374,
+      1076276211,
+      1079888579,
+      1083413017,
+      1086611399,
+      1090693281
+    ]
+  },
+  {
+    "name": "Exp empty",
+    "operation": "Exp",
+    "opset": 13,
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input_bits": [],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      0,
+      3
+    ],
+    "output_bits": [],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      0,
+      3
+    ],
+    "reference_bits": []
+  },
+  {
+    "name": "Log scalar signed zero",
+    "operation": "Log",
+    "opset": 13,
+    "input_shape": [],
+    "input_bits": [
+      2147483648
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      4286578688
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      4286578688
+    ]
+  },
+  {
+    "name": "Log domains and nonfinite",
+    "operation": "Log",
+    "opset": 13,
+    "input_shape": [
+      11
+    ],
+    "input_bits": [
+      4286578688,
+      3229614080,
+      3212836864,
+      2147483648,
+      0,
+      1048576000,
+      1065353216,
+      1082130432,
+      1120403456,
+      2139095040,
+      2143289344
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      11
+    ],
+    "output_bits": [
+      2143289344,
+      2143289344,
+      2143289344,
+      4286578688,
+      4286578688,
+      3216077336,
+      0,
+      1068593688,
+      1083399566,
+      2139095040,
+      2143289344
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      11
+    ],
+    "reference_bits": [
+      2143289344,
+      2143289344,
+      2143289344,
+      4286578688,
+      4286578688,
+      3216077336,
+      0,
+      1068593688,
+      1083399566,
+      2139095040,
+      2143289344
+    ]
+  },
+  {
+    "name": "Log higher rank",
+    "operation": "Log",
+    "opset": 13,
+    "input_shape": [
+      2,
+      2,
+      2
+    ],
+    "input_bits": [
+      1036831949,
+      1053129816,
+      1059840702,
+      1064634192,
+      1067390449,
+      1069787195,
+      1072183940,
+      1074161254
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      2,
+      2
+    ],
+    "output_bits": [
+      3222494606,
+      3212042603,
+      3201037369,
+      3174263401,
+      1046389113,
+      1054425666,
+      1058570051,
+      1061023642
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      2,
+      2
+    ],
+    "reference_bits": [
+      3222494606,
+      3212042603,
+      3201037369,
+      3174263401,
+      1046389113,
+      1054425666,
+      1058570051,
+      1061023642
+    ]
+  },
+  {
+    "name": "Log empty",
+    "operation": "Log",
+    "opset": 13,
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input_bits": [],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      0,
+      3
+    ],
+    "output_bits": [],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      0,
+      3
+    ],
+    "reference_bits": []
+  },
+  {
+    "name": "Sqrt scalar signed zero",
+    "operation": "Sqrt",
+    "opset": 13,
+    "input_shape": [],
+    "input_bits": [
+      2147483648
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [],
+    "output_bits": [
+      2147483648
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      2147483648
+    ]
+  },
+  {
+    "name": "Sqrt domains and nonfinite",
+    "operation": "Sqrt",
+    "opset": 13,
+    "input_shape": [
+      11
+    ],
+    "input_bits": [
+      4286578688,
+      3229614080,
+      3212836864,
+      2147483648,
+      0,
+      1048576000,
+      1065353216,
+      1082130432,
+      1120403456,
+      2139095040,
+      2143289344
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      11
+    ],
+    "output_bits": [
+      2143289344,
+      2143289344,
+      2143289344,
+      2147483648,
+      0,
+      1056964608,
+      1065353216,
+      1073741824,
+      1092616192,
+      2139095040,
+      2143289344
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      11
+    ],
+    "reference_bits": [
+      2143289344,
+      2143289344,
+      2143289344,
+      2147483648,
+      0,
+      1056964608,
+      1065353216,
+      1073741824,
+      1092616192,
+      2139095040,
+      2143289344
+    ]
+  },
+  {
+    "name": "Sqrt higher rank",
+    "operation": "Sqrt",
+    "opset": 13,
+    "input_shape": [
+      2,
+      2,
+      2
+    ],
+    "input_bits": [
+      1036831949,
+      1053129816,
+      1059840702,
+      1064634192,
+      1067390449,
+      1069787195,
+      1072183940,
+      1074161254
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      2,
+      2
+    ],
+    "output_bits": [
+      1050798235,
+      1058995641,
+      1062323376,
+      1064989767,
+      1066316522,
+      1067335898,
+      1068263679,
+      1069120856
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      2,
+      2
+    ],
+    "reference_bits": [
+      1050798235,
+      1058995641,
+      1062323376,
+      1064989767,
+      1066316522,
+      1067335898,
+      1068263679,
+      1069120856
+    ]
+  },
+  {
+    "name": "Sqrt empty",
+    "operation": "Sqrt",
+    "opset": 13,
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input_bits": [],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [],
+    "output_shape": [
+      2,
+      0,
+      3
+    ],
+    "output_bits": [],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      0,
+      3
+    ],
+    "reference_bits": []
+  },
+  {
+    "name": "Pow row broadcast",
+    "operation": "Pow",
+    "opset": 13,
+    "input_shape": [
+      2,
+      3
+    ],
+    "input_bits": [
+      1065353216,
+      1073741824,
+      1077936128,
+      1082130432,
+      1084227584,
+      1086324736
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [
+      3
+    ],
+    "right_bits": [
+      1073741824,
+      1077936128,
+      3212836864
+    ],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output_bits": [
+      1065353216,
+      1090519040,
+      1051372203,
+      1098907648,
+      1123680256,
+      1042983595
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_bits": [
+      1065353216,
+      1090519040,
+      1051372203,
+      1098907648,
+      1123680256,
+      1042983595
+    ]
+  },
+  {
+    "name": "Pow multidirectional",
+    "operation": "Pow",
+    "opset": 13,
+    "input_shape": [
+      2,
+      1,
+      2
+    ],
+    "input_bits": [
+      3221225472,
+      1048576000,
+      1082130432,
+      3212836864
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [
+      1,
+      3,
+      1
+    ],
+    "right_bits": [
+      0,
+      1056964608,
+      1077936128
+    ],
+    "output_shape": [
+      2,
+      3,
+      2
+    ],
+    "output_bits": [
+      1065353216,
+      1065353216,
+      2143289344,
+      1056964608,
+      3238002688,
+      1015021568,
+      1065353216,
+      1065353216,
+      1073741824,
+      2143289344,
+      1115684864,
+      3212836864
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3,
+      2
+    ],
+    "reference_bits": [
+      1065353216,
+      1065353216,
+      2143289344,
+      1056964608,
+      3238002688,
+      1015021568,
+      1065353216,
+      1065353216,
+      1073741824,
+      2143289344,
+      1115684864,
+      3212836864
+    ]
+  },
+  {
+    "name": "Pow scalar base",
+    "operation": "Pow",
+    "opset": 13,
+    "input_shape": [],
+    "input_bits": [
+      1073741824
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [
+      2,
+      3
+    ],
+    "right_bits": [
+      3225419776,
+      3221225472,
+      3212836864,
+      0,
+      1065353216,
+      1077936128
+    ],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output_bits": [
+      1040187392,
+      1048576000,
+      1056964608,
+      1065353216,
+      1073741824,
+      1090519040
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_bits": [
+      1040187392,
+      1048576000,
+      1056964608,
+      1065353216,
+      1073741824,
+      1090519040
+    ]
+  },
+  {
+    "name": "Pow scalar exponent domains",
+    "operation": "Pow",
+    "opset": 13,
+    "input_shape": [
+      2,
+      3
+    ],
+    "input_bits": [
+      3229614080,
+      3212836864,
+      2147483648,
+      0,
+      1065353216,
+      1082130432
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [
+      1056964608
+    ],
+    "output_shape": [
+      2,
+      3
+    ],
+    "output_bits": [
+      2143289344,
+      2143289344,
+      0,
+      0,
+      1065353216,
+      1073741824
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      3
+    ],
+    "reference_bits": [
+      2143289344,
+      2143289344,
+      0,
+      0,
+      1065353216,
+      1073741824
+    ]
+  },
+  {
+    "name": "Pow matching specials",
+    "operation": "Pow",
+    "opset": 13,
+    "input_shape": [
+      32
+    ],
+    "input_bits": [
+      2147483648,
+      2147483648,
+      0,
+      0,
+      3221225472,
+      3221225472,
+      3221225472,
+      4286578688,
+      4286578688,
+      2139095040,
+      2143289344,
+      1065353216,
+      3212836864,
+      1073741824,
+      1056964608,
+      2143289344,
+      2147483648,
+      2147483648,
+      0,
+      0,
+      3221225472,
+      3221225472,
+      3221225472,
+      4286578688,
+      4286578688,
+      2139095040,
+      2143289344,
+      1065353216,
+      3212836864,
+      1073741824,
+      1056964608,
+      2143289344
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [
+      32
+    ],
+    "right_bits": [
+      3225419776,
+      1077936128,
+      3212836864,
+      1073741824,
+      1056964608,
+      1077936128,
+      1082130432,
+      3225419776,
+      1077936128,
+      0,
+      0,
+      2143289344,
+      2139095040,
+      2139095040,
+      4286578688,
+      1073741824,
+      3225419776,
+      1077936128,
+      3212836864,
+      1073741824,
+      1056964608,
+      1077936128,
+      1082130432,
+      3225419776,
+      1077936128,
+      0,
+      0,
+      2143289344,
+      2139095040,
+      2139095040,
+      4286578688,
+      1073741824
+    ],
+    "output_shape": [
+      32
+    ],
+    "output_bits": [
+      4286578688,
+      2147483648,
+      2139095040,
+      0,
+      2143289344,
+      3238002688,
+      1098907648,
+      2147483648,
+      4286578688,
+      1065353216,
+      1065353216,
+      1065353216,
+      1065353216,
+      2139095040,
+      2139095040,
+      2143289344,
+      4286578688,
+      2147483648,
+      2139095040,
+      0,
+      2143289344,
+      3238002688,
+      1098907648,
+      2147483648,
+      4286578688,
+      1065353216,
+      1065353216,
+      1065353216,
+      1065353216,
+      2139095040,
+      2139095040,
+      2143289344
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      32
+    ],
+    "reference_bits": [
+      4286578688,
+      2147483648,
+      2139095040,
+      0,
+      2143289344,
+      3238002688,
+      1098907648,
+      2147483648,
+      4286578688,
+      1065353216,
+      1065353216,
+      1065353216,
+      1065353216,
+      2139095040,
+      2139095040,
+      2143289344,
+      4286578688,
+      2147483648,
+      2139095040,
+      0,
+      2143289344,
+      3238002688,
+      1098907648,
+      2147483648,
+      4286578688,
+      1065353216,
+      1065353216,
+      1065353216,
+      1065353216,
+      2139095040,
+      2139095040,
+      2143289344
+    ]
+  },
+  {
+    "name": "Pow broadcast NaN exponent",
+    "operation": "Pow",
+    "opset": 13,
+    "input_shape": [
+      6
+    ],
+    "input_bits": [
+      3212836864,
+      2147483648,
+      0,
+      1065353216,
+      1073741824,
+      2143289344
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [
+      2143289344
+    ],
+    "output_shape": [
+      6
+    ],
+    "output_bits": [
+      2143289344,
+      2143289344,
+      2143289344,
+      1065353216,
+      2143289344,
+      2143289344
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      6
+    ],
+    "reference_bits": [
+      2143289344,
+      2143289344,
+      2143289344,
+      1065353216,
+      2143289344,
+      2143289344
+    ]
+  },
+  {
+    "name": "Pow empty",
+    "operation": "Pow",
+    "opset": 13,
+    "input_shape": [
+      2,
+      0,
+      3
+    ],
+    "input_bits": [],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [
+      3
+    ],
+    "right_bits": [
+      1073741824,
+      1077936128,
+      1082130432
+    ],
+    "output_shape": [
+      2,
+      0,
+      3
+    ],
+    "output_bits": [],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      2,
+      0,
+      3
+    ],
+    "reference_bits": []
+  },
+  {
+    "name": "Pow empty zero with one",
+    "operation": "Pow",
+    "opset": 13,
+    "input_shape": [
+      0,
+      1
+    ],
+    "input_bits": [],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [
+      1,
+      3
+    ],
+    "right_bits": [
+      1073741824,
+      1077936128,
+      1082130432
+    ],
+    "output_shape": [
+      0,
+      3
+    ],
+    "output_bits": [],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [
+      0,
+      3
+    ],
+    "reference_bits": []
+  },
+  {
+    "name": "Pow scalars",
+    "operation": "Pow",
+    "opset": 13,
+    "input_shape": [],
+    "input_bits": [
+      3221225472
+    ],
+    "axes": [],
+    "keep_dimensions": false,
+    "axes_input_present": false,
+    "right_shape": [],
+    "right_bits": [
+      1077936128
+    ],
+    "output_shape": [],
+    "output_bits": [
+      3238002688
+    ],
+    "reference_result": "agree",
+    "reference_error": "",
+    "reference_shape": [],
+    "reference_bits": [
+      3238002688
+    ]
+  }
+]
