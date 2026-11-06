@@ -7,6 +7,7 @@ The NN-04 arithmetic APIs are implemented; see the [arithmetic handoff](handoffs
 The NN-07 transform APIs are implemented; see the [transform handoff](handoffs/NN-07.md).
 The NN-08 Concat/Gather APIs are implemented; see the [indexing handoff](handoffs/NN-08.md).
 The NN-09 convolution APIs are implemented; see the [convolution handoff](handoffs/NN-09.md).
+The NN-10 pooling APIs are implemented; see the [pooling handoff](handoffs/NN-10.md).
 The remaining signatures are proposed APIs until their implementation tasks
 document the shipped subset and tests.
 
@@ -430,13 +431,23 @@ Max pooling supports dilation and values only, with padded samples excluded
 from maxima (negative infinity is the initial identity). There is no indices
 destination or storage-order argument: runtimes must reject requests for indices
 or nondefault storage order. `CountIncludePad` is ignored for max pooling.
-Average pooling requires Dilations=`[1, 1]`; divisor selection includes declared
-padding only when CountIncludePad is true. Samples beyond declared padding in
-a trailing ceil window do not enlarge that divisor. NN-10 must pin and test
-the behavior of an otherwise accepted window with zero contributing samples.
+Average pooling requires Dilations=`[1, 1]`. CountIncludePad uses the full kernel
+area, including positions beyond the input in a trailing ceil window; otherwise
+only valid input samples contribute to the divisor. This corrects NN-01's
+unverified declared-padding-only assumption: executed ONNX 1.16.2 and ONNX
+Runtime 1.19.2 fixtures both require the full kernel divisor. Nonempty average
+calls require the kernel area to fit a host index, even for clipped windows.
+An average window with no valid samples yields NaN when padding is excluded
+and zero when the full kernel divisor is used. Max windows without valid
+samples yield negative infinity. Input NaNs propagate within their windows.
 Ceil mode removes trailing windows that begin at or beyond input extent plus
-begin pad. Global averaging produces `[N, C, 1, 1]`; a zero spatial reduction
-requires an explicit documented empty-reduction rule in NN-10.
+begin pad, including when several end-padding windows would otherwise remain.
+Global averaging produces `[N, C, 1, 1]`; a zero spatial reduction yields NaN.
+NN-10 fixtures explicitly retain reference differences for required ceil
+trimming, no-valid-sample max identities, NaN handling, and empty values. In
+particular, ONNX Runtime 1.19.2 does not trim one tested end-pad ceil geometry
+and uses the lowest finite float for a dilated empty max window. These are
+documented library cases, not claims of agreement with every reference path.
 
 ## Inference normalization (NN-11)
 

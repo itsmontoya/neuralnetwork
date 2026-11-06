@@ -198,3 +198,68 @@ specifies the NCHW/filter layout and mathematical attributes. Library padding
 skips absent samples; these finite fixtures do not independently cover NaN or
 infinity interactions with padding. The runtime owns automatic padding and
 schema-specific restrictions.
+
+`pooling.json` adds 65 original NN-10 MaxPool/AveragePool/GlobalAveragePool
+cases. The independent NumPy oracle uses broadcast coordinate grids, advanced
+indexing, and reductions, rather than the Go kernel's loops. It records concrete
+output shapes, float32 bits, and exact per-window average divisors.
+
+```sh
+/private/tmp/neuralnetwork-onnx-reference/bin/python -m pip install --only-binary=:all: onnxruntime==1.19.2
+/private/tmp/neuralnetwork-onnx-reference/bin/python tensor/testdata/generate_pooling.py
+```
+
+The existing Python 3.9.6 / ONNX 1.16.2 / NumPy 1.26.4 / protobuf 4.25.3
+environment also runs ONNX Runtime 1.19.2 with CPUExecutionProvider, one
+intra/inter-op thread, and graph optimizations disabled. These tools are only
+for fixture regeneration; ordinary Go tests read JSON offline. Neither ONNX
+Runtime nor a new Go dependency is needed to build or run the library.
+Numerical comparisons use `atol=rtol=1e-5`, NaN classification, and exact
+infinity signs; shapes and divisor counts are exact. Finite max-zero tie signs
+and NaN payloads are not cross-backend promises. Fixture SHA-256:
+`f413621f5e94f9073450584fd0db265ad2a41d695f28d7b9a30e40c644fa70a6`.
+
+NN-10 corrects an NN-01 draft assumption: CountIncludePad uses the full kernel
+area even for a partial ceil window beyond declared padding. For input values
+1 through 9 shaped `[1,1,3,3]`, kernel `[2,2]`, stride `[2,2]`, no padding,
+and ceil mode, both executed references give average outputs
+`[3, 2.25, 3.75, 2.25]` when including padding, with divisors `[4,4,4,4]`.
+Excluding padding gives `[3,4.5,7.5,9]` with divisors `[4,2,2,1]`.
+For `[1,1,2,2]` containing 1 through 4 with a `[3,3]` kernel and `[2,2]`
+stride, ceil mode gives `10/9` with padding included and `10/4` without.
+These literal outcomes and expected divisors are asserted in Go tests.
+
+Forty-eight cases agree with ONNX ReferenceEvaluator, IR 8/opset 13
+(MaxPool-12, AveragePool-11, GlobalAveragePool-1). Seventeen retain its exact
+errors or differing shapes/value bits and use the contracted NumPy result:
+five ceil-shape differences, nine empty/all-padding/oversized-window errors,
+and three NaN/no-valid-sample max differences. No case is skipped.
+
+The same fixtures retain actual ONNX Runtime outputs or errors: 40 agreements,
+four differences, and 21 rejections. The four differences are precise:
+
+- Input `[1,1,3,3]`, kernel/stride `[3,3]`, pads `[0,0,2,2]`, ceil mode:
+  the task requires output `[1,1,1,1]`; ORT returns `[1,1,2,2]` for max and
+  both average divisor modes, retaining windows that start on end padding.
+- Input `[1,1,1,1]`, kernel/dilation `[2,2]`, pads `[1,1,1,1]`:
+  dilation samples no actual input. The library's max identity is negative
+  infinity; ORT returns the lowest finite float32.
+
+ORT rejects the other 21 documented cases because pads must be smaller than
+kernel extents, only the batch dimension may be zero, or a raw output extent
+is negative. The library's mathematical backend permits those shapes and
+clamps nonpositive output extents; the runtime adapter still owns schema/profile
+restrictions. All-padding averages excluding padding and global averages over
+zero spatial extents produce NaN. Max/average propagate actual input NaNs;
+the pinned ONNX common pooling path instead filters them in some cases.
+
+Pinned primary sources are [common pooling](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_pool_common.py),
+[max pooling](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_max_pool.py),
+[global average pooling](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_global_average_pool.py),
+and ONNX Runtime's [pool dispatch](https://github.com/microsoft/onnxruntime/blob/v1.19.2/onnxruntime/core/providers/cpu/nn/pool.cc)
+and [MLAS pooling](https://github.com/microsoft/onnxruntime/blob/v1.19.2/onnxruntime/core/mlas/lib/pooling.cpp).
+The versioned [MaxPool-12](https://onnx.ai/onnx/operators/onnx__MaxPool.html#maxpool-12)
+and [AveragePool-11](https://onnx.ai/onnx/operators/onnx__AveragePool.html#averagepool-11)
+definitions supply the mathematical attributes. ONNX is Apache-2.0 licensed;
+[ONNX Runtime](https://github.com/microsoft/onnxruntime/blob/v1.19.2/LICENSE) is MIT licensed.
+The original generator does not copy upstream implementation or fixture data.
