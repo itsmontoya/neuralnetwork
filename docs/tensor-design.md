@@ -469,6 +469,19 @@ or backward cache. The runtime independently enforces its selected schema ranks,
 parameter requirements, and permitted output count. Test the overlapping subset
 against both existing normalization layers in evaluation mode.
 
+NN-11 implements this stateless expression directly in float32, with no retained
+scratch, optimizer parameters, or backward caches. Thirty-one offline fixtures
+use an independent NumPy 1.26.4 broadcasting oracle and retain actual ONNX
+1.16.2 and ONNX Runtime 1.19.2 CPU results. ORT agrees on 30 cases; its
+zero-variance/zero-epsilon arithmetic produces NaNs where the literal expression
+produces signed infinities and NaN. The pinned ONNX schema-9 evaluator applies
+momentum to the supplied statistics even for one inference output, disagreeing
+on 23 cases. These differences are recorded rather than changing the required
+stored-statistics formula. Both existing normalization layers agree on their
+finite evaluation-mode subset without changing parameters/statistics. See the
+[NN-11 handoff](handoffs/NN-11.md) and
+[fixture provenance](../tensor/testdata/README.md).
+
 ## Reductions and additional math (NN-12)
 
 ```go
