@@ -101,3 +101,40 @@ Softmax subtracts the slice maximum and normalizes exponentials. A slice with
 NaN, positive infinity, or only negative infinities produces NaNs throughout;
 finite slices with some negative infinities assign those elements zero.
 The tests verify that special values do not affect other logical slices.
+
+`transforms.json` adds 54 original NN-07 reshape/flatten/transpose/squeeze/
+unsqueeze cases for float32 and int64 values:
+
+```sh
+/private/tmp/neuralnetwork-onnx-reference/bin/python tensor/testdata/generate_transforms.py
+```
+
+The same pinned environment generates exact shapes and values. Integer JSON
+fields decode directly into Go int64 values, including both extrema and values
+above `2^24`. Float32 results compare all bits exactly, including NaN payloads,
+infinities, and signed zero, because these transforms perform no floating math.
+The fixture SHA-256 is
+`bd22d4f2c3b62711815aa9f475bc7b3ac408df59f2c1ed4896e86aaad0ff1284`.
+
+Fifty cases also agree with ONNX 1.16.2 ReferenceEvaluator IR 8/opset 13 graphs.
+Permutations are normalized before passing to the reference; scalar transpose
+has the equivalent omitted permutation. The four remaining cases explicitly
+exercise the library's resolved mathematical boundary with NumPy 1.26.4:
+
+- Two reshapes move a literal zero to another axis. Their concrete targets use
+  `numpy.reshape`; the runtime must already have resolved ONNX-13's special
+  zero-copy-dimension and inferred-dimension rules.
+- Two empty-prefix Flatten cases use the two checked concrete products and
+  `numpy.reshape`. The pinned ONNX reference's inferred `-1` reshape rejects
+  them; `reference_error` retains that rejection. Tests assert the documented
+  library empty shape instead of claiming ONNX evaluator agreement.
+
+The pinned ONNX sources delegate to NumPy's reshape, transpose, squeeze, and
+expand-dims implementations:
+[Reshape](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_reshape.py),
+[Flatten](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_flatten.py),
+[Transpose](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_transpose.py),
+[Squeeze](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_squeeze.py), and
+[Unsqueeze](https://github.com/onnx/onnx/blob/v1.16.2/onnx/reference/ops/op_unsqueeze.py).
+Empty axes are explicit identity transforms in the library; the runtime resolves
+omitted-axis schema defaults separately. No transform returns borrowed storage.
