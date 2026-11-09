@@ -604,12 +604,17 @@ The current documentation site also displays newer operator versions; use the
 selected version section and pin fixture sources rather than treating the
 current site version as the runtime profile.
 
-Zero-copy matrix interoperability, borrowed views, public reusable workspaces,
-constant-weight packing, and host/device coherence changes are optional later
-optimization. NN-13 requires a working RT-12 runtime and before/after MLP and
-shape-heavy graph measurements. That dependency is currently unavailable; do
-not invent benchmarks or expose mutable initializer/device storage to claim
-completion. Keep the copying bridge until evidence supports a narrower change.
-The fresh dependency assessment, unchanged ownership boundary, and concrete
-resume plan are recorded in [the NN-13 handoff](handoffs/NN-13.md). NN-13 remains
-unchecked; this report does not ship an optimization or benchmark result.
+NN-13 now shares the existing CPU matrix-product loops with private tensor
+storage through a module-internal package, preserving accumulation order and
+all public ownership/error APIs. Gemm stages a call-owned product; batched
+MatMul reuses blocks of one call-owned output workspace. The Metal build keeps
+the copying Matrix adapter and its coherence behavior. No mutable initializer
+view, public workspace, device exposure, global cache or weight packing is added.
+
+The working RT-12 runtime is merged on `main`. Before/after MLP/shape metrics,
+exact public backend/runtime revisions, fixture hashes, actual copy accounting,
+function-scoped peak numeric payload, allocation-profile checks and ownership/
+concurrency/race evidence are recorded in [the NN-13 handoff](handoffs/NN-13.md)
+and [measurement report](performance/nn13/README.md). RT-16 still owns runtime
+liveness/session reuse. The historical initial dependency assessment remains
+available in that handoff; its original missing-runtime blocker is resolved.

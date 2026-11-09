@@ -41,9 +41,11 @@ func TestProducts(t *testing.T) {
 						if test.leftTranspose {
 							leftIndex = contraction*rows + row
 						}
+
 						if test.rightTranspose {
 							rightIndex = col*inner + contraction
 						}
+
 						expected += left[leftIndex] * right[rightIndex]
 					}
 					if math.Float32bits(output[row*cols+col]) != math.Float32bits(expected) {

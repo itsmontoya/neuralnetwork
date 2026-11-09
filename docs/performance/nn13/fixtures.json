@@ -1,0 +1,351 @@
+{
+  "source": "itsmontoya/onnx@4d5a000c20ffae3e053190a4cd04322529851800/testdata/inference/provenance.json",
+  "cases": [
+    {
+      "name": "mlp_batch_1",
+      "origin": "tools/check_inference.py; original deterministic graph and values",
+      "license": "No repository LICENSE is present; original fixtures have no separately declared license.",
+      "status": "agreement",
+      "reason": "",
+      "ir_version": 8,
+      "opsets": {
+        "": 13
+      },
+      "schemas": [
+        {
+          "domain": "",
+          "operator": "Gemm",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Relu",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Gemm",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Softmax",
+          "version": 13
+        }
+      ],
+      "model": {
+        "path": "inference/models/mlp.onnx",
+        "sha256": "04df066d0a12b0e6ddf2ba89e9e452768939a745ddd574cfb39780d0e14c06f9"
+      },
+      "comparison": {
+        "absolute": 1e-05,
+        "relative": 1e-05,
+        "signed_zero": true
+      },
+      "inputs": [
+        {
+          "name": "features",
+          "tensor": {
+            "path": "inference/values/mlp_batch_1/input_features.pb",
+            "sha256": "a7c5c17b754dff70e1f1bc139307bf424a60c5f9ec608e82117fe2d8f0422519"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "probabilities",
+          "tensor": {
+            "path": "inference/values/mlp_batch_1/output_probabilities.pb",
+            "sha256": "6cd5938d54d8f5867c7501edd050016dc52b7073a39461a96c6bd6fbcc8ee3bb"
+          }
+        }
+      ],
+      "observations": {
+        "reference": {
+          "status": "returned",
+          "evaluator": "onnx.reference.ReferenceEvaluator"
+        },
+        "independent": "NumPy affine/ReLU/stable-softmax formula matched reference"
+      }
+    },
+    {
+      "name": "mlp_batch_3",
+      "origin": "tools/check_inference.py; original deterministic graph and values",
+      "license": "No repository LICENSE is present; original fixtures have no separately declared license.",
+      "status": "agreement",
+      "reason": "",
+      "ir_version": 8,
+      "opsets": {
+        "": 13
+      },
+      "schemas": [
+        {
+          "domain": "",
+          "operator": "Gemm",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Relu",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Gemm",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Softmax",
+          "version": 13
+        }
+      ],
+      "model": {
+        "path": "inference/models/mlp.onnx",
+        "sha256": "04df066d0a12b0e6ddf2ba89e9e452768939a745ddd574cfb39780d0e14c06f9"
+      },
+      "comparison": {
+        "absolute": 1e-05,
+        "relative": 1e-05,
+        "signed_zero": true
+      },
+      "inputs": [
+        {
+          "name": "features",
+          "tensor": {
+            "path": "inference/values/mlp_batch_3/input_features.pb",
+            "sha256": "8a764901fd7ba19fb1ae3a4a09f87ab2e73d1bf1744483cc5f31f2d762ada6cb"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "probabilities",
+          "tensor": {
+            "path": "inference/values/mlp_batch_3/output_probabilities.pb",
+            "sha256": "1e79f8dfb02ff5490df19d497ea382e463e4dcd15ac41ab6629892a2a0273984"
+          }
+        }
+      ],
+      "observations": {
+        "reference": {
+          "status": "returned",
+          "evaluator": "onnx.reference.ReferenceEvaluator"
+        },
+        "independent": "NumPy affine/ReLU/stable-softmax formula matched reference"
+      }
+    },
+    {
+      "name": "shape_batch_1",
+      "origin": "tools/check_inference.py; original RT-12 graph and values",
+      "license": "No repository LICENSE is present; original fixtures have no separately declared license.",
+      "status": "agreement",
+      "reason": "",
+      "ir_version": 8,
+      "opsets": {
+        "": 13
+      },
+      "schemas": [
+        {
+          "domain": "",
+          "operator": "Shape",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Gather",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Unsqueeze",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Concat",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Reshape",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Unsqueeze",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Transpose",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Squeeze",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Flatten",
+          "version": 13
+        }
+      ],
+      "model": {
+        "path": "inference/models/shape.onnx",
+        "sha256": "64800db535d7fd83d30f98d7c30ccf402c00e444a082a9d0865c812ed79b2cb6"
+      },
+      "comparison": {
+        "absolute": 0,
+        "relative": 0,
+        "signed_zero": true
+      },
+      "inputs": [
+        {
+          "name": "features",
+          "tensor": {
+            "path": "inference/values/shape_batch_1/input_features.pb",
+            "sha256": "b69d29a11b68f985ff1a3dd0e22b2460277bf783442b7f9a08a4b55bd232738c"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "reshaped",
+          "tensor": {
+            "path": "inference/values/shape_batch_1/output_reshaped.pb",
+            "sha256": "4e19bd4e43fc2a5d86a7ca711f6733fc828da7675676118a4b7b4fbd66c1683d"
+          }
+        },
+        {
+          "name": "target",
+          "tensor": {
+            "path": "inference/values/shape_batch_1/output_target.pb",
+            "sha256": "31a9093e88ce2648c089ed0f1c65acf3f28f8bf325c81e3b5708990f93bce068"
+          }
+        },
+        {
+          "name": "flat",
+          "tensor": {
+            "path": "inference/values/shape_batch_1/output_flat.pb",
+            "sha256": "5d634264ad603c390cc51d7271776c7abc072ab964da0203df10df1c29a00494"
+          }
+        }
+      ],
+      "observations": {
+        "reference": {
+          "status": "returned",
+          "evaluator": "onnx.reference.ReferenceEvaluator"
+        },
+        "independent": "NumPy reshape/transposed row-major formula matches exactly"
+      }
+    },
+    {
+      "name": "shape_batch_3",
+      "origin": "tools/check_inference.py; original RT-12 graph and values",
+      "license": "No repository LICENSE is present; original fixtures have no separately declared license.",
+      "status": "agreement",
+      "reason": "",
+      "ir_version": 8,
+      "opsets": {
+        "": 13
+      },
+      "schemas": [
+        {
+          "domain": "",
+          "operator": "Shape",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Gather",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Unsqueeze",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Concat",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Reshape",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Unsqueeze",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Transpose",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Squeeze",
+          "version": 13
+        },
+        {
+          "domain": "",
+          "operator": "Flatten",
+          "version": 13
+        }
+      ],
+      "model": {
+        "path": "inference/models/shape.onnx",
+        "sha256": "64800db535d7fd83d30f98d7c30ccf402c00e444a082a9d0865c812ed79b2cb6"
+      },
+      "comparison": {
+        "absolute": 0,
+        "relative": 0,
+        "signed_zero": true
+      },
+      "inputs": [
+        {
+          "name": "features",
+          "tensor": {
+            "path": "inference/values/shape_batch_3/input_features.pb",
+            "sha256": "3b65cf5de7b5855d7d5e36bc6c8bf35ddc70cf089c62626e7c25fdbcc5861606"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "reshaped",
+          "tensor": {
+            "path": "inference/values/shape_batch_3/output_reshaped.pb",
+            "sha256": "c287eb20c971e9fab3172d87d1e0cf51f749d8527668270f03795e5028942484"
+          }
+        },
+        {
+          "name": "target",
+          "tensor": {
+            "path": "inference/values/shape_batch_3/output_target.pb",
+            "sha256": "fd2c3ed5791ced9b46b19b887cb07994eeca5d0f668c0b0eaba887b41f5f225d"
+          }
+        },
+        {
+          "name": "flat",
+          "tensor": {
+            "path": "inference/values/shape_batch_3/output_flat.pb",
+            "sha256": "2e284a08d46aff7be896bf867d2fb51bba2f9cc40ed6c5ef3402837b08e2fa9d"
+          }
+        }
+      ],
+      "observations": {
+        "reference": {
+          "status": "returned",
+          "evaluator": "onnx.reference.ReferenceEvaluator"
+        },
+        "independent": "NumPy reshape/transposed row-major formula matches exactly"
+      }
+    }
+  ]
+}
