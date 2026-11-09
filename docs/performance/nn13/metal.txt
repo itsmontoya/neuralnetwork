@@ -1,0 +1,14 @@
+=== RUN   Test_MetalMatMulKernels
+=== RUN   Test_MetalMatMulKernels/standard
+=== RUN   Test_MetalMatMulKernels/left_transpose
+=== RUN   Test_MetalMatMulKernels/right_transpose
+--- PASS: Test_MetalMatMulKernels (0.07s)
+    --- PASS: Test_MetalMatMulKernels/standard (0.01s)
+    --- PASS: Test_MetalMatMulKernels/left_transpose (0.01s)
+    --- PASS: Test_MetalMatMulKernels/right_transpose (0.01s)
+=== RUN   Test_MetalMatrixResidencyCoherence
+--- PASS: Test_MetalMatrixResidencyCoherence (0.00s)
+=== RUN   Test_MetalExecutionSynchronizesCPUFallbackAndResumes
+--- PASS: Test_MetalExecutionSynchronizesCPUFallbackAndResumes (0.00s)
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/matrix	0.269s

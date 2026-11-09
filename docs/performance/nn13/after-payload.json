@@ -1,0 +1,256 @@
+{
+  "runtime_revision": "4d5a000c20ffae3e053190a4cd04322529851800",
+  "backend_revision": "a64fa687e269c3a1bf3ac345434b46c8ed4a59fc",
+  "metrics": [
+    {
+      "case": "mlp_batch_1",
+      "phase": "First",
+      "metrics": {
+        "copied_bytes": 168,
+        "peak_payload_bytes": 204,
+        "allocated_payload_bytes": 208,
+        "copies_by_site": {
+          "matrix.FromSlice": 12,
+          "matrix.Values": 12,
+          "tensor.Float32Values": 24,
+          "tensor.FromFloat32": 88,
+          "tensor.GemmInto": 20,
+          "tensor.activationFloat32Into": 12
+        },
+        "peak_by_site": {
+          "matrix.FromSlice": 12,
+          "matrix.New": 12,
+          "matrix.Values": 12,
+          "roots": 76,
+          "tensor.newTensor": 92
+        }
+      }
+    },
+    {
+      "case": "mlp_batch_1",
+      "phase": "Load",
+      "metrics": {
+        "copied_bytes": 68,
+        "peak_payload_bytes": 84,
+        "allocated_payload_bytes": 136,
+        "copies_by_site": {
+          "tensor.FromFloat32": 68
+        },
+        "peak_by_site": {
+          "decode.convertTensor": 24,
+          "tensor.newTensor": 60
+        }
+      }
+    },
+    {
+      "case": "mlp_batch_1",
+      "phase": "Warm",
+      "metrics": {
+        "copied_bytes": 168,
+        "peak_payload_bytes": 212,
+        "allocated_payload_bytes": 208,
+        "copies_by_site": {
+          "matrix.FromSlice": 12,
+          "matrix.Values": 12,
+          "tensor.Float32Values": 24,
+          "tensor.FromFloat32": 88,
+          "tensor.GemmInto": 20,
+          "tensor.activationFloat32Into": 12
+        },
+        "peak_by_site": {
+          "matrix.FromSlice": 12,
+          "matrix.New": 12,
+          "matrix.Values": 12,
+          "roots": 84,
+          "tensor.newTensor": 92
+        }
+      }
+    },
+    {
+      "case": "mlp_batch_3",
+      "phase": "First",
+      "metrics": {
+        "copied_bytes": 368,
+        "peak_payload_bytes": 340,
+        "allocated_payload_bytes": 488,
+        "copies_by_site": {
+          "matrix.FromSlice": 36,
+          "matrix.Values": 36,
+          "tensor.Float32Values": 72,
+          "tensor.FromFloat32": 128,
+          "tensor.GemmInto": 60,
+          "tensor.activationFloat32Into": 36
+        },
+        "peak_by_site": {
+          "matrix.FromSlice": 36,
+          "matrix.New": 36,
+          "matrix.Values": 36,
+          "roots": 92,
+          "tensor.newTensor": 140
+        }
+      }
+    },
+    {
+      "case": "mlp_batch_3",
+      "phase": "Load",
+      "metrics": {
+        "copied_bytes": 68,
+        "peak_payload_bytes": 84,
+        "allocated_payload_bytes": 136,
+        "copies_by_site": {
+          "tensor.FromFloat32": 68
+        },
+        "peak_by_site": {
+          "decode.convertTensor": 24,
+          "tensor.newTensor": 60
+        }
+      }
+    },
+    {
+      "case": "mlp_batch_3",
+      "phase": "Warm",
+      "metrics": {
+        "copied_bytes": 368,
+        "peak_payload_bytes": 364,
+        "allocated_payload_bytes": 488,
+        "copies_by_site": {
+          "matrix.FromSlice": 36,
+          "matrix.Values": 36,
+          "tensor.Float32Values": 72,
+          "tensor.FromFloat32": 128,
+          "tensor.GemmInto": 60,
+          "tensor.activationFloat32Into": 36
+        },
+        "peak_by_site": {
+          "matrix.FromSlice": 36,
+          "matrix.New": 36,
+          "matrix.Values": 36,
+          "roots": 116,
+          "tensor.newTensor": 140
+        }
+      }
+    },
+    {
+      "case": "shape_batch_1",
+      "phase": "First",
+      "metrics": {
+        "copied_bytes": 312,
+        "peak_payload_bytes": 328,
+        "allocated_payload_bytes": 336,
+        "copies_by_site": {
+          "tensor.FromFloat32": 48,
+          "tensor.FromInt64": 72,
+          "tensor.Int64Values": 40,
+          "tensor.TransposeInto": 24,
+          "tensor.concatBlocksInto": 16,
+          "tensor.copyTransformInto": 104,
+          "tensor.gatherBlocksInto": 8
+        },
+        "peak_by_site": {
+          "roots": 56,
+          "tensor.newTensor": 272
+        }
+      }
+    },
+    {
+      "case": "shape_batch_1",
+      "phase": "Load",
+      "metrics": {
+        "copied_bytes": 64,
+        "peak_payload_bytes": 40,
+        "allocated_payload_bytes": 96,
+        "copies_by_site": {
+          "tensor.FromInt64": 32,
+          "tensor.Int64Values": 32
+        },
+        "peak_by_site": {
+          "decode.convertTensor": 8,
+          "tensor.newTensor": 32
+        }
+      }
+    },
+    {
+      "case": "shape_batch_1",
+      "phase": "Warm",
+      "metrics": {
+        "copied_bytes": 312,
+        "peak_payload_bytes": 392,
+        "allocated_payload_bytes": 336,
+        "copies_by_site": {
+          "tensor.FromFloat32": 48,
+          "tensor.FromInt64": 72,
+          "tensor.Int64Values": 40,
+          "tensor.TransposeInto": 24,
+          "tensor.concatBlocksInto": 16,
+          "tensor.copyTransformInto": 104,
+          "tensor.gatherBlocksInto": 8
+        },
+        "peak_by_site": {
+          "roots": 120,
+          "tensor.newTensor": 272
+        }
+      }
+    },
+    {
+      "case": "shape_batch_3",
+      "phase": "First",
+      "metrics": {
+        "copied_bytes": 648,
+        "peak_payload_bytes": 712,
+        "allocated_payload_bytes": 672,
+        "copies_by_site": {
+          "tensor.FromFloat32": 144,
+          "tensor.FromInt64": 72,
+          "tensor.Int64Values": 40,
+          "tensor.TransposeInto": 72,
+          "tensor.concatBlocksInto": 16,
+          "tensor.copyTransformInto": 296,
+          "tensor.gatherBlocksInto": 8
+        },
+        "peak_by_site": {
+          "roots": 104,
+          "tensor.newTensor": 608
+        }
+      }
+    },
+    {
+      "case": "shape_batch_3",
+      "phase": "Load",
+      "metrics": {
+        "copied_bytes": 64,
+        "peak_payload_bytes": 40,
+        "allocated_payload_bytes": 96,
+        "copies_by_site": {
+          "tensor.FromInt64": 32,
+          "tensor.Int64Values": 32
+        },
+        "peak_by_site": {
+          "decode.convertTensor": 8,
+          "tensor.newTensor": 32
+        }
+      }
+    },
+    {
+      "case": "shape_batch_3",
+      "phase": "Warm",
+      "metrics": {
+        "copied_bytes": 648,
+        "peak_payload_bytes": 872,
+        "allocated_payload_bytes": 672,
+        "copies_by_site": {
+          "tensor.FromFloat32": 144,
+          "tensor.FromInt64": 72,
+          "tensor.Int64Values": 40,
+          "tensor.TransposeInto": 72,
+          "tensor.concatBlocksInto": 16,
+          "tensor.copyTransformInto": 296,
+          "tensor.gatherBlocksInto": 8
+        },
+        "peak_by_site": {
+          "roots": 264,
+          "tensor.newTensor": 608
+        }
+      }
+    }
+  ]
+}
