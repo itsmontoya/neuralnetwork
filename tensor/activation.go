@@ -11,8 +11,21 @@ import (
 // It preserves the existing activation's positive-zero result for NaN and
 // negative zero. All returned errors leave destination unchanged.
 func ReLUInto(input, destination *Tensor) (err error) {
-	err = activationFloat32Into(input, destination, activation.ReLU{})
-	return err
+	if err = validateTensorType("input", input, Float32); err != nil {
+		return err
+	}
+
+	if err = validateDestination(destination, Float32, input.shape, input); err != nil {
+		return err
+	}
+
+	for index, value := range input.floats {
+		destination.floats[index] = 0
+		if value > 0 {
+			destination.floats[index] = value
+		}
+	}
+	return nil
 }
 
 // SigmoidInto writes the stable float32 logistic activation into destination.

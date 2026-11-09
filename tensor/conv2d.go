@@ -99,30 +99,58 @@ func conv2DValuesInto(input, weights, bias, destination *Tensor, config Conv2DCo
 func conv2DValue(input, weights *Tensor, batch, channel, row, col int, config Conv2DConfig) (value float32) {
 	var (
 		inputChannel, kernelRow, kernelCol int
-		inputRow, inputCol                 int
+		inputRow                           int
 		inputOffset, weightOffset          int
 		channels                           = int(weights.shape[1])
 		kernelH                            = int(weights.shape[2])
 		kernelW                            = int(weights.shape[3])
 		first                              = channel / int(weights.shape[0]/config.Groups) * channels
+		inputH                             = int(input.shape[2])
+		inputW                             = int(input.shape[3])
+		inputPlane                         = inputH * inputW
+		kernelPlane                        = kernelH * kernelW
+		inputBase                          = (batch*int(input.shape[1]) + first) * inputPlane
+		weightBase                         = channel * channels * kernelPlane
+		rowStart                           = row*int(config.Strides[0]) - int(config.Pads[0])
+		colStart                           = col*int(config.Strides[1]) - int(config.Pads[1])
+		dilationW                          = int(config.Dilations[1])
+		kernelStart                        int
+		kernelEnd                          = kernelW
 	)
 
+	if inputH == 0 || inputW == 0 || colStart >= inputW {
+		return 0
+	}
+
+	if colStart < 0 {
+		kernelStart = (-colStart-1)/dilationW + 1
+	}
+
+	if kernelStart >= kernelW {
+		return 0
+	}
+
+	colStart += kernelStart * dilationW
+	if colStart >= inputW {
+		return 0
+	}
+
+	kernelEnd = min(kernelEnd, kernelStart+(inputW-1-colStart)/dilationW+1)
 	for inputChannel = 0; inputChannel < channels; inputChannel++ {
 		for kernelRow = 0; kernelRow < kernelH; kernelRow++ {
 			// The planner checks maximum padded coordinates before subtraction;
 			// valid spatial indices then bound every payload offset below.
-			inputRow = row*int(config.Strides[0]) + kernelRow*int(config.Dilations[0]) - int(config.Pads[0])
-			if inputRow < 0 || inputRow >= int(input.shape[2]) {
+			inputRow = rowStart + kernelRow*int(config.Dilations[0])
+			if inputRow < 0 || inputRow >= inputH {
 				continue
 			}
-			for kernelCol = 0; kernelCol < kernelW; kernelCol++ {
-				inputCol = col*int(config.Strides[1]) + kernelCol*int(config.Dilations[1]) - int(config.Pads[1])
-				if inputCol < 0 || inputCol >= int(input.shape[3]) {
-					continue
-				}
-				inputOffset = ((batch*int(input.shape[1])+first+inputChannel)*int(input.shape[2])+inputRow)*int(input.shape[3]) + inputCol
-				weightOffset = ((channel*channels+inputChannel)*kernelH+kernelRow)*kernelW + kernelCol
+
+			inputOffset = inputBase + inputChannel*inputPlane + inputRow*inputW + colStart
+			weightOffset = weightBase + inputChannel*kernelPlane + kernelRow*kernelW + kernelStart
+			for kernelCol = kernelStart; kernelCol < kernelEnd; kernelCol++ {
 				value += input.floats[inputOffset] * weights.floats[weightOffset]
+				inputOffset += dilationW
+				weightOffset++
 			}
 		}
 	}

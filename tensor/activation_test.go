@@ -106,6 +106,55 @@ func Test_Activations_Reference(t *testing.T) {
 	}
 }
 
+func Test_ReLUInto_Bits(t *testing.T) {
+	var tests = []struct {
+		name  string
+		input uint32
+		want  uint32
+	}{
+		{name: "positive", input: 0x3fa00000, want: 0x3fa00000},
+		{name: "negative", input: 0xbfa00000, want: 0},
+		{name: "positive zero", input: 0, want: 0},
+		{name: "negative zero", input: 0x80000000, want: 0},
+		{name: "positive subnormal", input: 0x00000001, want: 0x00000001},
+		{name: "negative subnormal", input: 0x80000001, want: 0},
+		{name: "largest finite", input: 0x7f7fffff, want: 0x7f7fffff},
+		{name: "positive infinity", input: 0x7f800000, want: 0x7f800000},
+		{name: "negative infinity", input: 0xff800000, want: 0},
+		{name: "positive quiet NaN", input: 0x7fc12345, want: 0},
+		{name: "negative quiet NaN", input: 0xffc12345, want: 0},
+		{name: "positive signaling NaN", input: 0x7f800001, want: 0},
+		{name: "negative signaling NaN", input: 0xff800001, want: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				input, output *tensor.Tensor
+				values        []float32
+				err           error
+			)
+
+			if input, err = tensor.FromFloat32(nil, []float32{math.Float32frombits(tt.input)}); err != nil {
+				t.Fatal(err)
+			}
+			if output, err = tensor.FromFloat32(nil, []float32{19}); err != nil {
+				t.Fatal(err)
+			}
+			if err = tensor.ReLUInto(input, output); err != nil {
+				t.Fatal(err)
+			}
+			if values, err = output.Float32Values(); err != nil {
+				t.Fatal(err)
+			}
+			checkFloat32Bits(t, values, []uint32{tt.want})
+			if values, err = input.Float32Values(); err != nil {
+				t.Fatal(err)
+			}
+			checkFloat32Bits(t, values, []uint32{tt.input})
+		})
+	}
+}
+
 func Test_Activations_ArgumentErrors(t *testing.T) {
 	var (
 		operations = []struct {
