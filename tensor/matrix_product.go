@@ -1,3 +1,5 @@
+//go:build metal && !purego && darwin && cgo
+
 package tensor
 
 import (
@@ -49,4 +51,14 @@ func matrixProductValues(left, right []float32, leftShape, rightShape []int64, t
 		return nil, fmt.Errorf("tensor: matrix product values: %w", err)
 	}
 	return values, nil
+}
+
+func matrixProductInto(left, right []float32, leftShape, rightShape []int64, transposeA, transposeB bool, destination []float32) (err error) {
+	var values []float32
+	if values, err = matrixProductValues(left, right, leftShape, rightShape, transposeA, transposeB); err != nil {
+		return err
+	}
+
+	copy(destination, values)
+	return nil
 }
