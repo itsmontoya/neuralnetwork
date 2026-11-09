@@ -1,0 +1,37 @@
+File: onnx.test
+Type: alloc_space
+Time: 2026-11-09 07:43:03 PST
+Showing nodes accounting for 55189.88kB, 98.48% of 56041.11kB total
+Dropped 402 nodes (cum <= 280.21kB)
+Showing top 30 nodes out of 40
+      flat  flat%   sum%        cum   cum%
+   22110kB 39.45% 39.45% 25391.98kB 45.31%  github.com/itsmontoya/onnx.newNumericalCall
+15546.91kB 27.74% 67.20% 15546.91kB 27.74%  github.com/itsmontoya/neuralnetwork/tensor.newTensor (inline)
+ 4145.62kB  7.40% 74.59%  4145.62kB  7.40%  github.com/itsmontoya/neuralnetwork/tensor.newMatMulPlan
+ 2245.55kB  4.01% 78.60%  2245.55kB  4.01%  github.com/itsmontoya/onnx.(*evaluation).checkInfo
+ 2072.81kB  3.70% 82.30%  3454.69kB  6.16%  github.com/itsmontoya/onnx.newEvaluation
+ 1381.88kB  2.47% 84.76%  1381.88kB  2.47%  github.com/itsmontoya/onnx.newRunBudget
+ 1036.45kB  1.85% 86.61%  1036.45kB  1.85%  github.com/itsmontoya/neuralnetwork/tensor.(*Tensor).Float32Values
+ 1036.41kB  1.85% 88.46%  1036.41kB  1.85%  github.com/itsmontoya/neuralnetwork/matrix.FromSlice
+ 1036.41kB  1.85% 90.31%  1036.41kB  1.85%  github.com/itsmontoya/neuralnetwork/matrix.New
+ 1036.41kB  1.85% 92.16%  1036.41kB  1.85%  github.com/itsmontoya/neuralnetwork/tensor.broadcastDimensions
+  863.73kB  1.54% 93.70%   863.73kB  1.54%  github.com/itsmontoya/neuralnetwork/tensor.(*Tensor).Shape (inline)
+  777.30kB  1.39% 95.09%   777.30kB  1.39%  github.com/itsmontoya/neuralnetwork/tensor.matrixProductValues
+  690.94kB  1.23% 96.32% 42233.62kB 75.36%  github.com/itsmontoya/onnx.(*evaluation).execute
+  518.20kB  0.92% 97.25%   518.20kB  0.92%  github.com/itsmontoya/neuralnetwork/matrix.(*Matrix).Values
+  345.47kB  0.62% 97.86%   863.75kB  1.54%  github.com/itsmontoya/neuralnetwork/tensor.broadcastStrides
+  259.10kB  0.46% 98.33%  1813.73kB  3.24%  github.com/itsmontoya/onnx.(*evaluation).publish
+   86.37kB  0.15% 98.48%  1554.62kB  2.77%  github.com/itsmontoya/onnx.(*evaluation).cloneOutput
+    0.16kB 0.00029% 98.48%   423.36kB  0.76%  github.com/itsmontoya/onnx.BenchmarkInference.func1
+    0.12kB 0.00022% 98.48% 55978.25kB 99.89%  testing.(*B).runN
+    0.03kB 5.6e-05% 98.48% 55364.02kB 98.79%  github.com/itsmontoya/onnx.BenchmarkInference.func1.4
+         0     0% 98.48%  7082.18kB 12.64%  github.com/itsmontoya/neuralnetwork/tensor.(*Tensor).Clone
+         0     0% 98.48%  1036.41kB  1.85%  github.com/itsmontoya/neuralnetwork/tensor.BroadcastShape
+         0     0% 98.48%  8810.35kB 15.72%  github.com/itsmontoya/neuralnetwork/tensor.FromFloat32
+         0     0% 98.48%  4059.34kB  7.24%  github.com/itsmontoya/neuralnetwork/tensor.GemmInto
+         0     0% 98.48%  4145.62kB  7.40%  github.com/itsmontoya/neuralnetwork/tensor.GemmShape
+         0     0% 98.48%  4145.62kB  7.40%  github.com/itsmontoya/neuralnetwork/tensor.MatMulShape (inline)
+         0     0% 98.48%  6736.56kB 12.02%  github.com/itsmontoya/neuralnetwork/tensor.New
+         0     0% 98.48%  2591.02kB  4.62%  github.com/itsmontoya/neuralnetwork/tensor.ReLUInto (inline)
+         0     0% 98.48%  1036.41kB  1.85%  github.com/itsmontoya/neuralnetwork/tensor.ValidateBroadcastTo
+         0     0% 98.48%  2591.02kB  4.62%  github.com/itsmontoya/neuralnetwork/tensor.activationFloat32Into

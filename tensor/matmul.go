@@ -49,7 +49,7 @@ func matMulBatchesInto(left, right, destination *Tensor, plan *matMulPlan) (err 
 		leftOffset, rightOffset             int64
 		coordinate                          int64
 		batch, batchCount, axis             int
-		values, output                      []float32
+		output                              []float32
 	)
 
 	if len(left.shape) > 1 {
@@ -89,14 +89,14 @@ func matMulBatchesInto(left, right, destination *Tensor, plan *matMulPlan) (err 
 		// and host conversions are bounded by the validated input lengths.
 		leftOffset *= leftBlock
 		rightOffset *= rightBlock
-		if values, err = matrixProductValues(
+		if err = matrixProductInto(
 			left.floats[int(leftOffset):int(leftOffset+leftBlock)],
 			right.floats[int(rightOffset):int(rightOffset+rightBlock)],
 			[]int64{plan.rows, plan.inner}, []int64{plan.inner, plan.cols}, false, false,
+			output[batch*int(outputBlock):(batch+1)*int(outputBlock)],
 		); err != nil {
 			return err
 		}
-		copy(output[batch*int(outputBlock):], values)
 	}
 	copy(destination.floats, output)
 	return nil
