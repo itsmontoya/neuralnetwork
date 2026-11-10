@@ -9,21 +9,21 @@ import (
 // AddInto writes the broadcast float32 sum into a disjoint destination.
 // All argument errors leave destination unchanged, including for empty results.
 func AddInto(left, right, destination *Tensor) (err error) {
-	err = binaryFloat32Into(left, right, destination, addValue, (*matrix.Matrix).AddInto)
+	err = binaryFloat32Into(left, right, destination, addValue, (*matrix.Matrix).AddInto, broadcastAddFloat32Into)
 	return err
 }
 
 // SubInto writes the broadcast float32 difference into a disjoint destination.
 // All argument errors leave destination unchanged, including for empty results.
 func SubInto(left, right, destination *Tensor) (err error) {
-	err = binaryFloat32Into(left, right, destination, subtractValue, (*matrix.Matrix).SubtractInto)
+	err = binaryFloat32Into(left, right, destination, subtractValue, (*matrix.Matrix).SubtractInto, nil)
 	return err
 }
 
 // MulInto writes the broadcast float32 product into a disjoint destination.
 // All argument errors leave destination unchanged, including for empty results.
 func MulInto(left, right, destination *Tensor) (err error) {
-	err = binaryFloat32Into(left, right, destination, multiplyValue, (*matrix.Matrix).MultiplyElementsInto)
+	err = binaryFloat32Into(left, right, destination, multiplyValue, (*matrix.Matrix).MultiplyElementsInto, nil)
 	return err
 }
 
@@ -32,11 +32,11 @@ func MulInto(left, right, destination *Tensor) (err error) {
 // quotients, including zero divided by zero. NaN payloads are unspecified.
 // All argument errors leave destination unchanged, including for empty results.
 func DivInto(left, right, destination *Tensor) (err error) {
-	err = binaryFloat32Into(left, right, destination, divideValue, nil)
+	err = binaryFloat32Into(left, right, destination, divideValue, nil, nil)
 	return err
 }
 
-func binaryFloat32Into(left, right, destination *Tensor, operation func(float32, float32) float32, matrixOperation func(*matrix.Matrix, *matrix.Matrix, *matrix.Matrix) error) (err error) {
+func binaryFloat32Into(left, right, destination *Tensor, operation func(float32, float32) float32, matrixOperation func(*matrix.Matrix, *matrix.Matrix, *matrix.Matrix) error, broadcastOperation func(*Tensor, *Tensor, *Tensor) error) (err error) {
 	var shape []int64
 
 	if err = validateTensorType("left", left, Float32); err != nil {
@@ -57,6 +57,9 @@ func binaryFloat32Into(left, right, destination *Tensor, operation func(float32,
 	if matrixOperation != nil && shapesEqual(left.shape, right.shape) {
 		err = matrixBinaryInto(left, right, destination, matrixOperation)
 		return err
+	}
+	if broadcastOperation != nil {
+		return broadcastOperation(left, right, destination)
 	}
 	err = broadcastFloat32Into(left, right, destination, operation)
 	return err

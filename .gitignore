@@ -12,6 +12,7 @@ coverage.html
 *.coverprofile
 
 # Benchmark and profiling outputs
+/.benchmarks/
 *.bench
 *.prof
 *.pprof

@@ -30,7 +30,7 @@ func SqrtInto(input, destination *Tensor) (err error) {
 // follow the standard-library power function; NaN payloads are unspecified.
 // All argument errors preserve destination.
 func PowInto(left, right, destination *Tensor) (err error) {
-	err = binaryFloat32Into(left, right, destination, f32.Pow, nil)
+	err = binaryFloat32Into(left, right, destination, f32.Pow, nil, nil)
 	return err
 }
 
