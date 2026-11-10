@@ -1,0 +1,13 @@
+tensor/conv2d_tile_portable.go:22:25: Found IsSliceInBounds
+tensor/conv2d_tile_portable.go:23:24: Found IsSliceInBounds
+tensor/conv2d_tile_portable.go:24:24: Found IsSliceInBounds
+tensor/conv2d_tile_portable.go:25:24: Found IsSliceInBounds
+tensor/conv2d_tile_portable.go:26:24: Found IsSliceInBounds
+tensor/conv2d_tile_portable.go:27:27: Found IsSliceInBounds
+tensor/conv2d_tile_portable.go:27:42: Found IsSliceInBounds
+tensor/conv2d_tile_portable.go:28:27: Found IsSliceInBounds
+tensor/conv2d_tile_portable.go:28:53: Found IsSliceInBounds
+tensor/conv2d_tile_portable.go:29:27: Found IsSliceInBounds
+tensor/conv2d_tile_portable.go:29:55: Found IsSliceInBounds
+tensor/conv2d_tile_portable.go:30:27: Found IsSliceInBounds
+tensor/conv2d_tile_portable.go:30:55: Found IsSliceInBounds
