@@ -1,0 +1,56 @@
+
+/tmp/neuralnetwork-conv4/kernel-after.test:	file format mach-o arm64
+
+Disassembly of section __TEXT,__text:
+
+0000000100193b40 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DInteriorTile.abi0>:
+100193b40: f94007e0    	ldr	x0, [sp, #0x8]
+100193b44: f94013e1    	ldr	x1, [sp, #0x20]
+100193b48: f9401fe2    	ldr	x2, [sp, #0x38]
+100193b4c: f94023e3    	ldr	x3, [sp, #0x40]
+100193b50: f94027e4    	ldr	x4, [sp, #0x48]
+100193b54: f9402be5    	ldr	x5, [sp, #0x50]
+100193b58: f9402fe6    	ldr	x6, [sp, #0x58]
+100193b5c: f94033e7    	ldr	x7, [sp, #0x60]
+100193b60: f94037e8    	ldr	x8, [sp, #0x68]
+100193b64: d37ef4c6    	lsl	x6, x6, #2
+100193b68: d37ef4e7    	lsl	x7, x7, #2
+100193b6c: d37ef508    	lsl	x8, x8, #2
+100193b70: 9b037d09    	mul	x9, x8, x3
+100193b74: d37ef4b6    	lsl	x22, x5, #2
+100193b78: 6e201c00    	eor.16b	v0, v0, v0
+100193b7c: 6e211c21    	eor.16b	v1, v1, v1
+100193b80: 6e221c42    	eor.16b	v2, v2, v2
+100193b84: 6e231c63    	eor.16b	v3, v3, v3
+100193b88: aa0003ea    	mov	x10, x0
+100193b8c: aa0103eb    	mov	x11, x1
+100193b90: aa0403ec    	mov	x12, x4
+100193b94: aa0a03f0    	mov	x16, x10
+100193b98: aa0b03f1    	mov	x17, x11
+100193b9c: 8b090233    	add	x19, x17, x9
+100193ba0: 8b090274    	add	x20, x19, x9
+100193ba4: 8b090295    	add	x21, x20, x9
+100193ba8: aa0503ef    	mov	x15, x5
+100193bac: 4c407a04    	ld1.4s	{ v4 }, [x16]
+100193bb0: 91001210    	add	x16, x16, #0x4
+100193bb4: 4ddfca25    	ld1r.4s	{ v5 }, [x17], #4
+100193bb8: 4ddfca66    	ld1r.4s	{ v6 }, [x19], #4
+100193bbc: 4ddfca87    	ld1r.4s	{ v7 }, [x20], #4
+100193bc0: 4ddfcaa8    	ld1r.4s	{ v8 }, [x21], #4
+100193bc4: 4e24cca0    	fmla.4s	v0, v5, v4
+100193bc8: 4e24ccc1    	fmla.4s	v1, v6, v4
+100193bcc: 4e24cce2    	fmla.4s	v2, v7, v4
+100193bd0: 4e24cd03    	fmla.4s	v3, v8, v4
+100193bd4: f10005ef    	subs	x15, x15, #0x1
+100193bd8: 54fffea1    	b.ne	0x100193bac <_github.com/itsmontoya/neuralnetwork/tensor.conv2DInteriorTile.abi0+0x6c>
+100193bdc: 8b07014a    	add	x10, x10, x7
+100193be0: 8b16016b    	add	x11, x11, x22
+100193be4: f100058c    	subs	x12, x12, #0x1
+100193be8: 54fffd61    	b.ne	0x100193b94 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DInteriorTile.abi0+0x54>
+100193bec: 8b060000    	add	x0, x0, x6
+100193bf0: 8b080021    	add	x1, x1, x8
+100193bf4: f1000463    	subs	x3, x3, #0x1
+100193bf8: 54fffc81    	b.ne	0x100193b88 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DInteriorTile.abi0+0x48>
+100193bfc: 4c002840    	st1.4s	{ v0, v1, v2, v3 }, [x2]
+100193c00: d65f03c0    	ret
+		...

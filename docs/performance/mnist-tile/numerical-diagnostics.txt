@@ -1,0 +1,117 @@
+# bits-go-initial.txt
+=== RUN   Test_Conv2D_TileOutputBits
+=== RUN   Test_Conv2D_TileOutputBits/subnormals
+=== RUN   Test_Conv2D_TileOutputBits/overflow_and_cancellation
+=== RUN   Test_Conv2D_TileOutputBits/signed_zeros
+=== RUN   Test_Conv2D_TileOutputBits/quiet_NaN_payloads
+    conv2d_tile_internal_test.go:59: output[0] bits = 7fc00123, want ffc00789
+=== RUN   Test_Conv2D_TileOutputBits/signaling_NaN_payloads
+    conv2d_tile_internal_test.go:59: output[0] bits = ffc00456, want 7fc00abc
+--- FAIL: Test_Conv2D_TileOutputBits (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/subnormals (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/overflow_and_cancellation (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/signed_zeros (0.00s)
+    --- FAIL: Test_Conv2D_TileOutputBits/quiet_NaN_payloads (0.00s)
+    --- FAIL: Test_Conv2D_TileOutputBits/signaling_NaN_payloads (0.00s)
+FAIL
+FAIL	github.com/itsmontoya/neuralnetwork/tensor	0.274s
+FAIL
+
+# bits-simd-weight-first.txt
+=== RUN   Test_Conv2D_TileOutputBits
+=== RUN   Test_Conv2D_TileOutputBits/subnormals
+=== RUN   Test_Conv2D_TileOutputBits/overflow_and_cancellation
+=== RUN   Test_Conv2D_TileOutputBits/signed_zeros
+=== RUN   Test_Conv2D_TileOutputBits/quiet_NaN_payloads
+=== RUN   Test_Conv2D_TileOutputBits/signaling_NaN_payloads
+--- PASS: Test_Conv2D_TileOutputBits (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/subnormals (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/overflow_and_cancellation (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/signed_zeros (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/quiet_NaN_payloads (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/signaling_NaN_payloads (0.00s)
+PASS
+ok  	github.com/itsmontoya/neuralnetwork/tensor	0.275s
+
+# bits-go-weight-first.txt
+=== RUN   Test_Conv2D_TileOutputBits
+=== RUN   Test_Conv2D_TileOutputBits/subnormals
+=== RUN   Test_Conv2D_TileOutputBits/overflow_and_cancellation
+=== RUN   Test_Conv2D_TileOutputBits/signed_zeros
+=== RUN   Test_Conv2D_TileOutputBits/quiet_NaN_payloads
+    conv2d_tile_internal_test.go:59: output[0] bits = 7fc00123, want ffc00789
+=== RUN   Test_Conv2D_TileOutputBits/signaling_NaN_payloads
+    conv2d_tile_internal_test.go:59: output[0] bits = ffc00456, want 7fc00abc
+--- FAIL: Test_Conv2D_TileOutputBits (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/subnormals (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/overflow_and_cancellation (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/signed_zeros (0.00s)
+    --- FAIL: Test_Conv2D_TileOutputBits/quiet_NaN_payloads (0.00s)
+    --- FAIL: Test_Conv2D_TileOutputBits/signaling_NaN_payloads (0.00s)
+FAIL
+FAIL	github.com/itsmontoya/neuralnetwork/tensor	0.282s
+FAIL
+
+# bits-baseline.txt
+=== RUN   Test_Conv2D_TileOutputBits
+=== RUN   Test_Conv2D_TileOutputBits/subnormals
+=== RUN   Test_Conv2D_TileOutputBits/overflow_and_cancellation
+=== RUN   Test_Conv2D_TileOutputBits/signed_zeros
+=== RUN   Test_Conv2D_TileOutputBits/quiet_NaN_payloads
+=== RUN   Test_Conv2D_TileOutputBits/signaling_NaN_payloads
+--- PASS: Test_Conv2D_TileOutputBits (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/subnormals (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/overflow_and_cancellation (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/signed_zeros (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/quiet_NaN_payloads (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/signaling_NaN_payloads (0.00s)
+PASS
+
+# bits-final-default.txt
+=== RUN   Test_Conv2D_TileOutputBits
+=== RUN   Test_Conv2D_TileOutputBits/subnormals
+=== RUN   Test_Conv2D_TileOutputBits/overflow_and_cancellation
+=== RUN   Test_Conv2D_TileOutputBits/signed_zeros
+=== RUN   Test_Conv2D_TileOutputBits/quiet_NaN_payloads
+=== RUN   Test_Conv2D_TileOutputBits/signaling_NaN_payloads
+--- PASS: Test_Conv2D_TileOutputBits (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/subnormals (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/overflow_and_cancellation (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/signed_zeros (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/quiet_NaN_payloads (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/signaling_NaN_payloads (0.00s)
+PASS
+
+# bits-final-purego.txt
+=== RUN   Test_Conv2D_TileOutputBits
+=== RUN   Test_Conv2D_TileOutputBits/subnormals
+=== RUN   Test_Conv2D_TileOutputBits/overflow_and_cancellation
+=== RUN   Test_Conv2D_TileOutputBits/signed_zeros
+=== RUN   Test_Conv2D_TileOutputBits/quiet_NaN_payloads
+=== RUN   Test_Conv2D_TileOutputBits/signaling_NaN_payloads
+--- PASS: Test_Conv2D_TileOutputBits (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/subnormals (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/overflow_and_cancellation (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/signed_zeros (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/quiet_NaN_payloads (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/signaling_NaN_payloads (0.00s)
+PASS
+
+# Reproduced rejected candidate using documented overlay
+=== RUN   Test_Conv2D_TileOutputBits
+=== RUN   Test_Conv2D_TileOutputBits/subnormals
+=== RUN   Test_Conv2D_TileOutputBits/overflow_and_cancellation
+=== RUN   Test_Conv2D_TileOutputBits/signed_zeros
+=== RUN   Test_Conv2D_TileOutputBits/quiet_NaN_payloads
+    conv2d_tile_arm64_test.go:59: output[0] bits = 7fc00123, want ffc00789
+=== RUN   Test_Conv2D_TileOutputBits/signaling_NaN_payloads
+    conv2d_tile_arm64_test.go:59: output[0] bits = ffc00456, want 7fc00abc
+--- FAIL: Test_Conv2D_TileOutputBits (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/subnormals (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/overflow_and_cancellation (0.00s)
+    --- PASS: Test_Conv2D_TileOutputBits/signed_zeros (0.00s)
+    --- FAIL: Test_Conv2D_TileOutputBits/quiet_NaN_payloads (0.00s)
+    --- FAIL: Test_Conv2D_TileOutputBits/signaling_NaN_payloads (0.00s)
+FAIL
+FAIL	github.com/itsmontoya/neuralnetwork/tensor	0.343s
+FAIL

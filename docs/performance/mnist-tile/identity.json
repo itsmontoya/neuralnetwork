@@ -1,0 +1,100 @@
+{
+  "backend_revision": "1ea5263a7e7910aafbfe91695393f8b3382c6536",
+  "release_revision": "1ea5263a7e7910aafbfe91695393f8b3382c6536",
+  "published_module": "github.com/itsmontoya/neuralnetwork v0.10.0",
+  "published_checksum": "h1:kT9R36MEq7+MhM8/d4XHFlmwCJx6xrtyITrIZJPp12M=",
+  "onnx_revision": "c3573899786ea2cc9120ed2e52f971ab32cf7beb",
+  "go_version": "go version go1.27.2 darwin/arm64",
+  "go_env": {
+    "GOARCH": "arm64",
+    "GOARM64": "v8.0",
+    "GOOS": "darwin"
+  },
+  "measurement_env": {
+    "GOWORK": "off",
+    "CGO_ENABLED": "0",
+    "GOMAXPROCS": "1",
+    "GOCACHE": "/tmp/neuralnetwork-conv-cache"
+  },
+  "sha256": {
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork/go.mod": "ad13b83f1678e80a5593cb7c291b67e07d63145332a6bfefe93cc4682251a514",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork/go.sum": "1c6e02222c9975f5aa87d290b5cf3365df9c36fdf318e460f128ee7e339a3257",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork/tensor/conv2d_config.go": "4c5e75947d92d638def436ba0b24d89ec1e602c179006df54c3e29f3c5771e9a",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork/tensor/conv2d_tile_arm64.go": "c5e07006d63122f9048e3100d8808941a2b388970246e28513eb26fba1c607d4",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork/tensor/conv2d_benchmark_test.go": "73bc34f1116a0a62f9e0c26e01e43914d741f2746cc67cbe6bfb138fdbe2526f",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork/tensor/conv2d_tile_arm64.s": "7bf035f56cc7a3787f167be741ddbd8762e4357826a2cc3ba43819a5e6bd6216",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork/tensor/conv2d_tile_arm64_test.go": "029545dbd254555eb44517dca3ab64cbc821ac3ac72294f8b493bd729c550799",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork/tensor/conv2d_channels_internal_test.go": "2146608ae3a26b535c59c262d5bb28e68563a4f3e09a4d4de3a40615082e5a47",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork/tensor/conv2d_tile_portable.go": "f1e6c815930a01bf613656e3e2a115f74e4d133b6323dcef9ae7c2f1b026332f",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork/tensor/conv2d.go": "fe01c96f2564429cf58e88a96f68ca5882cca404e4cbb70e74c21c290b92f1f6",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork/tensor/conv2d_test.go": "d497344821c5d2bbff58c10f5c95d1b20ac8c9996e572ecc7dccc451bae515e3",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork/tensor/conv2d_tile.go": "bc39bb373aef2bf3f9dfc2f5fec544eeb67b7447af9ccfcc57612d0ddcebfeaa",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork/tensor/conv2d_internal_test.go": "8535ad1cfb6c83be2134693094fa333e1aa7ce3ac4cdcc2bd14a8a333b87c53e",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx/go.mod": "0a51636db306dba6aae5adb5643bc5cbd48227353a1aa79628e82f990110a735",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx/go.sum": "f7223409f0f4aa026db4a14050d1f84df61cd9a2fdffce192f238db9805d77ba",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx/tools/compare_runtime.py": "9f32bdc790f2b323c53ac2d8fa1a8f777be8daa8d9f73aac3cd32f6f63b2bdae",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx/mnist_benchmark_test.go": "2aeb09f6ac7a3a967fbe72e0b57ee5b664e400b4190f1eb56e548e3f802bad55",
+    "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx/mnist_diagnostic_benchmark_test.go": "82d24341f790ed0f49711c0f765646ae57984cef81d7f2fb3c745c402727a340"
+  },
+  "existing_backend_changes": [
+    ".gitignore",
+    "neuralnetwork.patch"
+  ],
+  "existing_onnx_changes": [
+    "docs/performance/mnist-round4/",
+    "mnist_diagnostic_benchmark_test.go"
+  ],
+  "baseline_conv_matches_published_source": true,
+  "onnx_sources_unchanged": true,
+  "final_architecture": "arm64 && !purego; other builds retain original traversal",
+  "binaries": {
+    "kernel-before.test": {
+      "sha256": "3ea14f93406341026cc67092a2bada61a9b347f895522e820e3437ebb379c207",
+      "build_info": "/tmp/neuralnetwork-conv4/kernel-before.test: go1.27.2\n\tpath\tgithub.com/itsmontoya/neuralnetwork/tensor.test\n\tmod\tgithub.com/itsmontoya/neuralnetwork\t(devel)\t\n\tdep\tgithub.com/tphakala/simd\tv1.3.0\th1:6DBkVfF/DEf/dnkfajbtu13+EZVReIIgIoUm2GNRs/k=\n\tdep\tgolang.org/x/sys\tv0.45.0\th1:dO4czNzziLiiXplLQgBCEpCvXQ3dnkn0SdaZSYdQ+FY=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tDefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0\n"
+    },
+    "kernel-after.test": {
+      "sha256": "e29eb95495b29444344fdbffb736d20ac936784112a0bd8c2aedfc6e464feb83",
+      "build_info": "/tmp/neuralnetwork-conv4/kernel-after.test: go1.27.2\n\tpath\tgithub.com/itsmontoya/neuralnetwork/tensor.test\n\tmod\tgithub.com/itsmontoya/neuralnetwork\t(devel)\t\n\tdep\tgithub.com/tphakala/simd\tv1.3.0\th1:6DBkVfF/DEf/dnkfajbtu13+EZVReIIgIoUm2GNRs/k=\n\tdep\tgolang.org/x/sys\tv0.45.0\th1:dO4czNzziLiiXplLQgBCEpCvXQ3dnkn0SdaZSYdQ+FY=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tDefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0\n"
+    },
+    "kernel-purego-before.test": {
+      "sha256": "da72b9edef69150021cf4221b627882e8ee49bad1f68f8a6864a387f48ac3b6d",
+      "build_info": "/tmp/neuralnetwork-conv4/kernel-purego-before.test: go1.27.2\n\tpath\tgithub.com/itsmontoya/neuralnetwork/tensor.test\n\tmod\tgithub.com/itsmontoya/neuralnetwork\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-tags=purego\n\tbuild\tDefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0\n"
+    },
+    "kernel-purego-after.test": {
+      "sha256": "247bbf97db2313e0aaed58bf4fdb12cadba530a42bff890b5f9e3a15c6c77679",
+      "build_info": "/tmp/neuralnetwork-conv4/kernel-purego-after.test: go1.27.2\n\tpath\tgithub.com/itsmontoya/neuralnetwork/tensor.test\n\tmod\tgithub.com/itsmontoya/neuralnetwork\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-tags=purego\n\tbuild\tDefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0\n"
+    },
+    "onnx-before.test": {
+      "sha256": "be3deee15625fd613465eccf34683409be822a015536dc5b8f2dc41efb43f79f",
+      "build_info": "/tmp/neuralnetwork-conv4/onnx-before.test: go1.27.2\n\tpath\tgithub.com/itsmontoya/onnx.test\n\tmod\tgithub.com/itsmontoya/onnx\t(devel)\t\n\tdep\tgithub.com/itsmontoya/neuralnetwork\tv0.10.0\th1:kT9R36MEq7+MhM8/d4XHFlmwCJx6xrtyITrIZJPp12M=\n\tdep\tgithub.com/tphakala/simd\tv1.3.0\th1:6DBkVfF/DEf/dnkfajbtu13+EZVReIIgIoUm2GNRs/k=\n\tdep\tgolang.org/x/sys\tv0.45.0\th1:dO4czNzziLiiXplLQgBCEpCvXQ3dnkn0SdaZSYdQ+FY=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0\n"
+    },
+    "onnx-after.test": {
+      "sha256": "a5e5a4e42db3e8a47fc91b11f38c731cbd0d2a247d411c4174a1cd2274082035",
+      "build_info": "/tmp/neuralnetwork-conv4/onnx-after.test: go1.27.2\n\tpath\tgithub.com/itsmontoya/onnx.test\n\tmod\tgithub.com/itsmontoya/onnx\t(devel)\t\n\tdep\tgithub.com/itsmontoya/neuralnetwork\tv0.10.0\n\t=>\t/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork\t(devel)\t\n\t\n\tdep\tgithub.com/tphakala/simd\tv1.3.0\th1:6DBkVfF/DEf/dnkfajbtu13+EZVReIIgIoUm2GNRs/k=\n\tdep\tgolang.org/x/sys\tv0.45.0\th1:dO4czNzziLiiXplLQgBCEpCvXQ3dnkn0SdaZSYdQ+FY=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0\n"
+    },
+    "onnx-purego-before.test": {
+      "sha256": "5def711776c4c80b8d7a33cd878b48645925a498b397c779f2ad991a60cfda56",
+      "build_info": "/tmp/neuralnetwork-conv4/onnx-purego-before.test: go1.27.2\n\tpath\tgithub.com/itsmontoya/onnx.test\n\tmod\tgithub.com/itsmontoya/onnx\t(devel)\t\n\tdep\tgithub.com/itsmontoya/neuralnetwork\tv0.10.0\th1:kT9R36MEq7+MhM8/d4XHFlmwCJx6xrtyITrIZJPp12M=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-tags=purego\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0\n"
+    },
+    "onnx-purego-after.test": {
+      "sha256": "b2086332630abc9bf3c0ee0a01dbeef6baaee2d2d5545cfb568cfa158cf6e784",
+      "build_info": "/tmp/neuralnetwork-conv4/onnx-purego-after.test: go1.27.2\n\tpath\tgithub.com/itsmontoya/onnx.test\n\tmod\tgithub.com/itsmontoya/onnx\t(devel)\t\n\tdep\tgithub.com/itsmontoya/neuralnetwork\tv0.10.0\n\t=>\t/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork\t(devel)\t\n\t\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-tags=purego\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0\n"
+    },
+    "tensor-linux-amd64.test": {
+      "sha256": "e96f45e49394d8bdcfba07a2c490bd9d28076f591dfc5a221fab3a323040d0c5",
+      "build_info": "/tmp/neuralnetwork-conv4/tensor-linux-amd64.test: go1.27.2\n\tpath\tgithub.com/itsmontoya/neuralnetwork/tensor.test\n\tmod\tgithub.com/itsmontoya/neuralnetwork\t(devel)\t\n\tdep\tgithub.com/tphakala/simd\tv1.3.0\th1:6DBkVfF/DEf/dnkfajbtu13+EZVReIIgIoUm2GNRs/k=\n\tdep\tgolang.org/x/sys\tv0.45.0\th1:dO4czNzziLiiXplLQgBCEpCvXQ3dnkn0SdaZSYdQ+FY=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tDefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+    },
+    "tensor-linux-arm64.test": {
+      "sha256": "a4254710a34cb3b05e548ac16aec72b46cc825f17254f9d83326bb49e309324d",
+      "build_info": "/tmp/neuralnetwork-conv4/tensor-linux-arm64.test: go1.27.2\n\tpath\tgithub.com/itsmontoya/neuralnetwork/tensor.test\n\tmod\tgithub.com/itsmontoya/neuralnetwork\t(devel)\t\n\tdep\tgithub.com/tphakala/simd\tv1.3.0\th1:6DBkVfF/DEf/dnkfajbtu13+EZVReIIgIoUm2GNRs/k=\n\tdep\tgolang.org/x/sys\tv0.45.0\th1:dO4czNzziLiiXplLQgBCEpCvXQ3dnkn0SdaZSYdQ+FY=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tDefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=linux\n\tbuild\tGOARM64=v8.0\n"
+    },
+    "tensor-linux-arm64-purego.test": {
+      "sha256": "7f7355988e7356ba2b2a9f78f8372bb69f5fd785324f440d3e7b19ce98bfdcd5",
+      "build_info": "/tmp/neuralnetwork-conv4/tensor-linux-arm64-purego.test: go1.27.2\n\tpath\tgithub.com/itsmontoya/neuralnetwork/tensor.test\n\tmod\tgithub.com/itsmontoya/neuralnetwork\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-tags=purego\n\tbuild\tDefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=linux\n\tbuild\tGOARM64=v8.0\n"
+    },
+    "tensor-linux-386.test": {
+      "sha256": "7ba15bf78923d7f98491cc19df4289d5b91a2790877e44429b0f230da5b63159",
+      "build_info": "/tmp/neuralnetwork-conv4/tensor-linux-386.test: go1.27.2\n\tpath\tgithub.com/itsmontoya/neuralnetwork/tensor.test\n\tmod\tgithub.com/itsmontoya/neuralnetwork\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tDefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=386\n\tbuild\tGOOS=linux\n\tbuild\tGO386=sse2\n"
+    }
+  }
+}

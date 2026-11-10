@@ -1,0 +1,898 @@
+{
+  "mnist-kernel": [
+    {
+      "repeat": 1,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto(NoBias)?$/^MNIST",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   15764\t     51930 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    4609\t    178285 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTFirst   \t   16839\t     49994 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTSecond  \t    4843\t    177955 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 1,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto(NoBias)?$/^MNIST",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   40264\t     19081 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    8220\t     99474 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTFirst   \t   46986\t     17995 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTSecond  \t    8154\t    101472 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 2,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto(NoBias)?$/^MNIST",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   45454\t     18604 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    8355\t     99782 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTFirst   \t   46008\t     18151 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTSecond  \t    8637\t    102246 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 2,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto(NoBias)?$/^MNIST",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   16597\t     50572 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    4716\t    178623 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTFirst   \t   16644\t     50448 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTSecond  \t    4825\t    179328 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 3,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto(NoBias)?$/^MNIST",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   16308\t     51021 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    4794\t    178066 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTFirst   \t   16790\t     49972 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTSecond  \t    4867\t    177980 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 3,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto(NoBias)?$/^MNIST",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   45709\t     18450 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    8220\t     99797 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTFirst   \t   46812\t     17956 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTSecond  \t    8221\t     99463 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 4,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto(NoBias)?$/^MNIST",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   45639\t     18498 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    8384\t    100230 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTFirst   \t   46170\t     18152 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTSecond  \t    8250\t     99585 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 4,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto(NoBias)?$/^MNIST",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   16302\t     51453 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    4591\t    180466 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTFirst   \t   16663\t     50678 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTSecond  \t    4788\t    178897 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 5,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto(NoBias)?$/^MNIST",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   16360\t     51318 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    4731\t    179986 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTFirst   \t   16724\t     50365 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTSecond  \t    4587\t    179061 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 5,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto(NoBias)?$/^MNIST",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   45759\t     18404 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    8722\t    100356 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTFirst   \t   46885\t     17993 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTSecond  \t    8820\t     99429 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 6,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto(NoBias)?$/^MNIST",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   45014\t     18553 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    8516\t    101084 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTFirst   \t   46348\t     18122 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTSecond  \t    8272\t    100749 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 6,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto(NoBias)?$/^MNIST",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   16384\t     51054 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    4638\t    181024 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTFirst   \t   16641\t     50393 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTSecond  \t    4783\t    180042 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 7,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto(NoBias)?$/^MNIST",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   16378\t     51101 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    4614\t    180111 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTFirst   \t   16616\t     50484 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTSecond  \t    4759\t    179695 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 7,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto(NoBias)?$/^MNIST",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   45350\t     18539 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    8528\t    100149 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTFirst   \t   46256\t     18107 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DIntoNoBias/MNISTSecond  \t    8342\t     99961 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    }
+  ],
+  "mnist": [
+    {
+      "repeat": 1,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    2533\t    326015 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 1,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    3913\t    210394 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 2,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    4080\t    204533 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 2,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    2628\t    318295 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 3,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    2581\t    319131 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 3,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    4047\t    205146 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 4,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    4024\t    206108 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 4,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    2587\t    319257 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 5,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    2628\t    317486 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 5,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    4050\t    205664 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 6,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    4026\t    205676 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 6,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    2589\t    322491 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 7,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    2478\t    327679 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 7,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=700ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    4009\t    213008 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    }
+  ],
+  "kernels": [
+    {
+      "repeat": 1,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    4756\t     51328 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1303\t    183709 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  323384\t       737.9 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  121082\t      1984 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   97806\t      2447 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   79552\t      2997 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   67768\t      3567 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   57447\t      4214 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     657\t    366674 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     645\t    367808 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     530\t    461069 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   48663\t      5006 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   36051\t      6677 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   24387\t      9892 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   24115\t      9986 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   12135\t     19729 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    9483\t     26369 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    6178\t     38956 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    6301\t     39399 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   27145\t      8831 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8691\t     27237 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   49621\t      4819 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17908\t     13435 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15438\t     15472 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   19309\t     12410 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   92330\t      2616 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    5839\t     41071 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   30903\t      7488 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1640118\t       147.3 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  303409\t       804.9 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  679773\t       349.4 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2137828\t       112.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2112583\t       114.5 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 1,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   13023\t     18420 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    2347\t    100369 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  326700\t       742.9 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  122582\t      1991 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t  394738\t       596.2 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t  192264\t      1223 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t  131906\t      1806 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   97808\t      2466 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t    4251\t     57949 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t    3938\t     60857 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t    2979\t     82653 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t  149437\t      1597 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   75157\t      3198 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   36789\t      6451 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   78231\t      3083 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   40233\t      5997 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t   19281\t     12416 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    9370\t     25205 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t   17044\t     13217 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   26811\t      8900 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t   20419\t     11743 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   49468\t      4876 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17967\t     13406 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15050\t     15855 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18898\t     12735 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   90214\t      2653 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t   20425\t     11726 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t  131342\t      1840 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1603414\t       148.6 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  611912\t       399.2 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  661209\t       348.5 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2210450\t       110.3 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2098549\t       113.3 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 2,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   12932\t     18538 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    2352\t    101677 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  324177\t       747.6 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  123457\t      1977 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t  400065\t       588.7 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t  191484\t      1238 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t  130214\t      1834 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   95589\t      2466 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t    4198\t     57729 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t    3940\t     61474 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t    2990\t     82417 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t  148706\t      1596 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   73158\t      3235 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   37348\t      6428 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   76803\t      3079 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   40287\t      5940 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t   19350\t     12461 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    9427\t     25122 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t   20205\t     11802 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   27211\t      9665 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t   20724\t     11671 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   47970\t      5345 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17930\t     13334 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15181\t     15785 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   19041\t     12593 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   91698\t      2611 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t   20013\t     11876 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t  132507\t      1839 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1663815\t       144.5 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  640861\t       402.2 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  701155\t       347.1 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2184346\t       110.6 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2058242\t       115.8 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 2,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    4908\t     51409 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1320\t    181641 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  322692\t       744.7 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  123650\t      1971 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   98474\t      2756 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   78592\t      3035 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   67424\t      3615 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   56834\t      4250 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     661\t    363594 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     633\t    370993 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     514\t    461199 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   47373\t      5043 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   35558\t      6678 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   24312\t      9818 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   23946\t      9959 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   12164\t     19681 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    9333\t     26443 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    6204\t     39391 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    5901\t     40000 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   26803\t      8913 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8611\t     27186 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   49452\t      4804 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17859\t     13390 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15132\t     15773 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18835\t     12704 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   90706\t      2670 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    5737\t     40470 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   38364\t      6284 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1642650\t       146.2 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  304735\t       804.1 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  697588\t       348.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2155866\t       112.2 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2099175\t       115.2 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 3,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    4938\t     51576 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1278\t    181824 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  302455\t       747.4 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  120472\t      1990 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   97524\t      2441 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   78844\t      3042 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   66525\t      3611 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   56665\t      4247 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     642\t    367658 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     654\t    371796 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     510\t    460651 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   47445\t      5075 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   36010\t      6655 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   24650\t      9802 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   24417\t      9868 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   12223\t     19600 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    9378\t     26099 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    6470\t     38685 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    6405\t     39677 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   26928\t      8935 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8708\t     27277 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   49461\t      4835 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17839\t     13412 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15020\t     16008 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18850\t     12724 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   91260\t      2670 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    6298\t     39892 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   38223\t      6328 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1637356\t       146.3 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  291116\t       807.1 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  694125\t       348.3 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2127771\t       112.1 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2114596\t       113.5 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 3,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   12832\t     18676 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    2324\t    101353 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  313602\t       743.6 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  120393\t      2016 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t  431990\t       593.6 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t  194325\t      1236 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t  132331\t      1812 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   96832\t      2459 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t    4090\t     57937 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t    3939\t     60921 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t    2887\t     82318 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t  146192\t      1633 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   71803\t      3256 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   37536\t      6393 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   77740\t      3070 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   39678\t      6073 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t   19387\t     12392 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    9501\t     25106 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t   20346\t     11753 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   26924\t      8871 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t   20070\t     11952 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   49965\t      4799 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17899\t     13468 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15147\t     15774 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18978\t     12603 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   91962\t      2607 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t   20474\t     11823 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t  131481\t      1841 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1630321\t       147.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  612596\t       411.1 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  679092\t       349.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2194754\t       108.8 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2135455\t       112.8 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 4,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   12993\t     18463 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    2389\t    101947 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  305517\t       752.5 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  121716\t      1992 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t  397093\t       593.2 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t  194410\t      1252 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t  131988\t      1835 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   95942\t      2472 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t    4272\t     57718 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t    3999\t     60909 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t    2901\t     82451 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t  152018\t      1605 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   74403\t      3188 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   37824\t      6362 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   79874\t      3054 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   39628\t      6026 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t   19176\t     12482 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    9529\t     25468 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t   20391\t     11712 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   27112\t      8921 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t   20178\t     11842 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   50614\t      4766 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17902\t     13439 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15145\t     15835 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18842\t     12677 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   92104\t      2619 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t   20553\t     11647 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t  131298\t      1825 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1609237\t       148.7 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  629032\t       392.9 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  691351\t       347.7 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2155934\t       112.2 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2086582\t       114.6 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 4,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    4759\t     51799 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1350\t    181207 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  305065\t       751.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  119238\t      1987 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   95833\t      2427 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   78330\t      3057 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   65829\t      3615 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   56418\t      4270 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     640\t    373665 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     636\t    372509 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     502\t    475833 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   46738\t      5180 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   35410\t      6733 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   24256\t      9929 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   23424\t     10227 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   10000\t     20072 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    8516\t     27026 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    6002\t     39749 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    5911\t     40370 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   26542\t      8963 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8966\t     27342 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   50356\t      4799 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17762\t     13447 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15022\t     15985 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18927\t     12656 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   91365\t      2796 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    6045\t     39864 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   37856\t      6333 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1654164\t       145.7 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  290509\t       801.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  688566\t       352.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2153511\t       111.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2092408\t       114.6 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 5,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    4779\t     51130 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1316\t    182613 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  311878\t       742.8 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  121858\t      1973 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   96188\t      2458 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   78877\t      3022 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   65947\t      3611 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   55496\t      4237 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     657\t    365425 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     643\t    369812 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     507\t    471398 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   46124\t      5175 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   33412\t      7126 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   24097\t      9914 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   23924\t     10060 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   12037\t     19893 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    8960\t     26408 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    5931\t     39548 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    5948\t     39958 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   26557\t      8995 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8727\t     27406 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   50174\t      4811 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17770\t     13585 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15084\t     15848 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18939\t     12688 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   90826\t      2620 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    5779\t     40003 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   38190\t      6296 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1647938\t       145.4 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  302119\t       797.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  682027\t       350.8 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2173198\t       110.9 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2085783\t       115.6 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 5,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t   12884\t     18615 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    2354\t    100547 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  317820\t       747.9 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  123157\t      1990 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t  405930\t       586.5 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t  192328\t      1227 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t  132416\t      1816 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   97105\t      2460 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t    4142\t     57677 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t    3914\t     60741 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t    2884\t     82542 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t  150378\t      1588 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   74856\t      3235 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   36996\t      6438 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   78416\t      3073 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   40370\t      5949 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t   19242\t     12396 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    9380\t     25122 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t   20277\t     11840 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   26979\t      8858 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t   20254\t     11844 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   49002\t      4825 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17976\t     13402 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15217\t     15728 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18858\t     12677 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   93291\t      2601 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t   20524\t     11700 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t  132439\t      1835 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1585447\t       150.5 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  587377\t       407.8 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  700968\t       351.6 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2116926\t       113.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2084188\t       115.9 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    }
+  ],
+  "purego-kernels": [
+    {
+      "repeat": 1,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-purego-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    3729\t     57761 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1312\t    180805 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  318594\t       745.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  119794\t      1991 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   97785\t      2453 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   78913\t      3057 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   66799\t      3633 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   56076\t      4241 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     656\t    363539 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     637\t    370593 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     502\t    470225 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   44892\t      5270 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   34876\t      6925 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   23871\t     10037 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   23403\t     10217 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   10000\t     20159 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    9594\t     26499 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    6022\t     39531 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    5917\t     39612 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   27093\t      8868 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8823\t     27284 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   50245\t      4771 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17761\t     13443 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15130\t     15855 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18829\t     12670 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   91759\t      2629 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    5976\t     39432 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   38322\t      6282 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1655276\t       145.2 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  297740\t       796.7 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  716319\t       348.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2142548\t       111.8 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2079812\t       115.1 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 1,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-purego-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    3786\t     57483 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1334\t    180064 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  315391\t       803.8 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  120270\t      1982 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   98175\t      2456 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   77500\t      3093 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   66360\t      3633 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   55970\t      4282 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     644\t    364832 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     654\t    369797 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     535\t    456014 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   47478\t      5112 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   35942\t      6694 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   24366\t      9927 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   23623\t     10161 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   12044\t     19909 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    9590\t     26526 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    5971\t     39480 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    5908\t     39423 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   26904\t      8865 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8757\t     27214 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   48958\t      4849 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17737\t     13531 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15135\t     15742 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   19030\t     12604 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   90522\t      2621 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    5793\t     40266 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   38100\t      6280 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1634414\t       147.1 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  304052\t       792.5 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  722174\t       349.1 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2136772\t       114.8 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2040313\t       115.5 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 2,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-purego-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    4514\t     51446 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1304\t    183992 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  322322\t       747.6 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  120474\t      2012 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   97867\t      2473 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   77326\t      3037 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   67123\t      3592 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   56247\t      4287 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     652\t    365025 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     639\t    378345 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     523\t    461387 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   46638\t      5100 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   35883\t      6653 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   24219\t      9881 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   24009\t     10041 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   12188\t     19740 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    8946\t     26400 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    6324\t     39584 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    6045\t     39679 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   26812\t      8941 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8800\t     27131 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   49953\t      4784 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17760\t     13435 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15223\t     15772 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18896\t     12651 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   90366\t      2654 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    5662\t     40654 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   38487\t      6249 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1637659\t       146.3 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  302379\t       794.8 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  693716\t       348.8 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2108265\t       114.2 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2072098\t       115.9 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 2,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-purego-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    4782\t     50880 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1332\t    183851 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  319725\t       736.6 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  122470\t      1965 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   96096\t      2459 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   79316\t      3064 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   67261\t      3611 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   56226\t      4269 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     646\t    366541 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     649\t    372475 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     506\t    468036 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   47432\t      5071 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   35845\t      6663 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   24236\t      9867 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   24003\t     10044 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   12003\t     20029 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    9357\t     26764 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    6016\t     39613 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    5908\t     40449 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   27175\t      8850 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8524\t     27465 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   50097\t      4855 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17704\t     13579 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15093\t     15899 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18882\t     12689 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   91143\t      2652 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    6076\t     39770 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   38043\t      6333 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1648440\t       146.1 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  291942\t       796.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  694026\t       348.6 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2142836\t       112.1 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2099299\t       115.2 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 3,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-purego-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    4774\t     51357 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1305\t    181892 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  319047\t       741.9 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  120177\t      1998 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   98263\t      2452 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   77569\t      3067 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   66630\t      3621 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   56890\t      4266 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     637\t    373618 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     632\t    376369 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     526\t    455139 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   47661\t      5066 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   34936\t      6811 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   23882\t      9993 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   24040\t     10043 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   12031\t     19937 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    8766\t     26348 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    6007\t     39225 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    5980\t     40148 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   26834\t      8893 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8665\t     27480 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   43914\t      5026 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17949\t     13356 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15141\t     15840 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   19144\t     12517 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   87778\t      2650 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    6228\t     39603 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   37420\t      6337 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1651017\t       145.5 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  293878\t       799.1 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  691558\t       350.3 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2116556\t       113.2 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2069337\t       115.6 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 3,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-purego-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    4827\t     51359 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1304\t    181715 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  315931\t       743.3 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  120830\t      1979 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   97957\t      2447 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   78817\t      3087 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   64851\t      3652 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   55455\t      4289 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     649\t    364301 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     646\t    369536 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     522\t    464738 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   46442\t      5126 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   35806\t      6722 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   24177\t      9922 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   23936\t     10144 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   10000\t     20104 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    9451\t     26481 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    6174\t     39786 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    5977\t     39868 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   26736\t      9014 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8606\t     27525 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   48680\t      4820 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17352\t     13740 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   14898\t     16096 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18780\t     12754 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   89004\t      2678 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    6001\t     39994 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   38366\t      6255 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1611818\t       150.5 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  242005\t       950.4 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  688738\t       348.5 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2167280\t       111.1 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2103836\t       114.2 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 4,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-purego-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    4646\t     52216 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1280\t    183077 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  321907\t       745.6 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  119308\t      1991 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   97204\t      2466 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   77850\t      3059 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   65292\t      3673 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   56152\t      4270 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     630\t    374798 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     630\t    380171 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     523\t    460415 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   47106\t      5067 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   35697\t      6699 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   24123\t      9938 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   23940\t     10016 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   12122\t     19817 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    9572\t     26436 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    5952\t     39474 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    5901\t     39865 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   26587\t     10585 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8587\t     27525 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   48796\t      5268 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17796\t     13432 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15020\t     15971 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18896\t     12768 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   90582\t      2684 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    5936\t     40342 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   38038\t      6307 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1630809\t       147.6 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  292554\t       807.8 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  689043\t       352.3 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2135757\t       112.2 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2058734\t       116.6 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 4,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-purego-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    4488\t     51449 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1338\t    184765 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  316135\t       744.8 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  123991\t      1964 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   97828\t      2458 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   78076\t      3026 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   67291\t      3595 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   56360\t      4248 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     654\t    367510 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     648\t    370918 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     502\t    468186 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   47686\t      5137 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   35665\t      6725 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   24295\t      9978 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   24025\t     10012 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   12028\t     19953 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    8954\t     26449 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    6418\t     38792 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    6190\t     40126 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   26298\t      9086 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8457\t     27609 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   47707\t      4927 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   15237\t     15169 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15272\t     15743 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   19083\t     12574 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   91194\t      2922 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    6064\t     40688 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   38025\t      6340 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1620760\t       147.8 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  296454\t       810.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  699546\t       348.3 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2185978\t       110.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2092328\t       113.0 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 5,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-purego-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    4640\t     51650 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1310\t    181934 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  313678\t       745.7 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  120465\t      2000 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   96901\t      2455 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   78086\t      3067 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   64431\t      3662 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   56317\t      4263 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     664\t    365780 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     642\t    372028 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     525\t    457066 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   46760\t      5105 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   36032\t      6758 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   24060\t      9940 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   23820\t      9992 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   10000\t     20066 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    9012\t     26400 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    6020\t     39064 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    5990\t     39512 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   27064\t      8895 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8808\t     27423 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   49674\t      4814 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   17888\t     13399 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   15010\t     16002 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18728\t     12901 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   88760\t      2669 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    5816\t     40100 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   38421\t      6298 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1657410\t       145.4 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  306169\t       803.1 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  685077\t       349.2 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2178975\t       110.8 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2066055\t       115.5 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 5,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/kernel-purego-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkConv2DInto$",
+        "-test.benchtime=200ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/neuralnetwork/tensor\ncpu: Apple M3\nBenchmarkConv2DInto/MNISTFirst         \t    4754\t     51695 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/MNISTSecond        \t    1299\t    181850 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow1            \t  325795\t       748.1 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Narrow3            \t  120559\t      1993 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Exact4             \t   95943\t      2463 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail1              \t   78146\t      3060 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail2              \t   65806\t      3635 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Tail3              \t   56301\t      4231 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideExact          \t     655\t    366304 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WideTail           \t     649\t    371352 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/WidePadded         \t     525\t    456951 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters4           \t   46360\t      5099 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters5           \t   35937\t      6709 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters7           \t   23913\t      9975 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Filters8           \t   23809\t     10146 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups4            \t   10000\t     20097 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups5            \t    9513\t     26607 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups7            \t    6205\t     39589 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Groups8            \t    5733\t     40488 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Depthwise          \t   26894\t      8917 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DepthwiseMultiplier4         \t    8654\t     27417 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Fallback3                    \t   49651\t      4901 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Strided                      \t   14682\t     15176 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Dilated                      \t   14918\t     16265 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/DilatedStrided               \t   18562\t     12768 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/HeavyPadding                 \t   90110\t      2663 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Batches                      \t    5863\t     39922 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/Pointwise                    \t   38112\t      6283 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/TinyPointwise                \t 1642651\t       147.6 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyHeight                  \t  291210\t       821.3 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyWidth                   \t  682876\t       350.2 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyBatch                   \t 2162839\t       113.0 ns/op\t      32 B/op\t       1 allocs/op\nBenchmarkConv2DInto/EmptyOutput                  \t 2059861\t       116.9 ns/op\t      32 B/op\t       1 allocs/op\nPASS\n"
+    }
+  ],
+  "nodes": [
+    {
+      "repeat": 1,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNISTNodes$/(00_Conv|04_Conv)$",
+        "-test.benchtime=400ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNISTNodes/00_Conv         \t    9422\t     50832 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/00_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 1 28 28] output=[1 8 28 28] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nBenchmarkMNISTNodes/04_Conv         \t    2606\t    182431 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/04_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 8 14 14] output=[1 16 14 14] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nPASS\n"
+    },
+    {
+      "repeat": 1,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNISTNodes$/(00_Conv|04_Conv)$",
+        "-test.benchtime=400ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNISTNodes/00_Conv         \t   26113\t     18367 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/00_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 1 28 28] output=[1 8 28 28] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nBenchmarkMNISTNodes/04_Conv         \t    4791\t    100475 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/04_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 8 14 14] output=[1 16 14 14] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nPASS\n"
+    },
+    {
+      "repeat": 2,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNISTNodes$/(00_Conv|04_Conv)$",
+        "-test.benchtime=400ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNISTNodes/00_Conv         \t   25957\t     18393 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/00_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 1 28 28] output=[1 8 28 28] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nBenchmarkMNISTNodes/04_Conv         \t    4690\t    101179 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/04_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 8 14 14] output=[1 16 14 14] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nPASS\n"
+    },
+    {
+      "repeat": 2,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNISTNodes$/(00_Conv|04_Conv)$",
+        "-test.benchtime=400ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNISTNodes/00_Conv         \t    9309\t     50837 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/00_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 1 28 28] output=[1 8 28 28] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nBenchmarkMNISTNodes/04_Conv         \t    2611\t    182156 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/04_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 8 14 14] output=[1 16 14 14] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nPASS\n"
+    },
+    {
+      "repeat": 3,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNISTNodes$/(00_Conv|04_Conv)$",
+        "-test.benchtime=400ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNISTNodes/00_Conv         \t    9890\t     50995 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/00_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 1 28 28] output=[1 8 28 28] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nBenchmarkMNISTNodes/04_Conv         \t    2647\t    183825 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/04_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 8 14 14] output=[1 16 14 14] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nPASS\n"
+    },
+    {
+      "repeat": 3,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNISTNodes$/(00_Conv|04_Conv)$",
+        "-test.benchtime=400ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNISTNodes/00_Conv         \t   26281\t     18213 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/00_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 1 28 28] output=[1 8 28 28] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nBenchmarkMNISTNodes/04_Conv         \t    4713\t    106702 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/04_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 8 14 14] output=[1 16 14 14] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nPASS\n"
+    },
+    {
+      "repeat": 4,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNISTNodes$/(00_Conv|04_Conv)$",
+        "-test.benchtime=400ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNISTNodes/00_Conv         \t   25890\t     19417 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/00_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 1 28 28] output=[1 8 28 28] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nBenchmarkMNISTNodes/04_Conv         \t    4680\t    102253 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/04_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 8 14 14] output=[1 16 14 14] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nPASS\n"
+    },
+    {
+      "repeat": 4,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNISTNodes$/(00_Conv|04_Conv)$",
+        "-test.benchtime=400ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNISTNodes/00_Conv         \t    9560\t     50901 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/00_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 1 28 28] output=[1 8 28 28] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nBenchmarkMNISTNodes/04_Conv         \t    2629\t    181709 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/04_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 8 14 14] output=[1 16 14 14] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nPASS\n"
+    },
+    {
+      "repeat": 5,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNISTNodes$/(00_Conv|04_Conv)$",
+        "-test.benchtime=400ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNISTNodes/00_Conv         \t    9696\t     50916 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/00_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 1 28 28] output=[1 8 28 28] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nBenchmarkMNISTNodes/04_Conv         \t    2668\t    182475 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/04_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 8 14 14] output=[1 16 14 14] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nPASS\n"
+    },
+    {
+      "repeat": 5,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNISTNodes$/(00_Conv|04_Conv)$",
+        "-test.benchtime=400ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNISTNodes/00_Conv         \t   26384\t     18320 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/00_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 1 28 28] output=[1 8 28 28] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nBenchmarkMNISTNodes/04_Conv         \t    4790\t    100845 ns/op\t      32 B/op\t       1 allocs/op\n--- BENCH: BenchmarkMNISTNodes/04_Conv\n    mnist_diagnostic_benchmark_test.go:91: input=[1 8 14 14] output=[1 16 14 14] conv={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1} pool={Kernel:[5 5] Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] CeilMode:false CountIncludePad:false}\nPASS\n"
+    }
+  ],
+  "purego": [
+    {
+      "repeat": 1,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-purego-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=500ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    1779\t    332473 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 1,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-purego-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=500ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    1767\t    332757 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 2,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-purego-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=500ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    1867\t    320360 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 2,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-purego-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=500ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    1870\t    319451 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 3,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-purego-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=500ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    1842\t    320814 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 3,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-purego-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=500ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    1866\t    323490 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 4,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-purego-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=500ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    1855\t    319604 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 4,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-purego-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=500ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    1839\t    320701 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 5,
+      "variant": "before",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-purego-before.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=500ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    1861\t    319865 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    },
+    {
+      "repeat": 5,
+      "variant": "after",
+      "command": [
+        "/tmp/neuralnetwork-conv4/onnx-purego-after.test",
+        "-test.run=^$",
+        "-test.bench=^BenchmarkMNIST$",
+        "-test.benchtime=500ms",
+        "-test.benchmem"
+      ],
+      "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx",
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/itsmontoya/onnx\ncpu: Apple M3\nBenchmarkMNIST \t    1843\t    321037 ns/op\t  179440 B/op\t     174 allocs/op\nPASS\n"
+    }
+  ]
+}

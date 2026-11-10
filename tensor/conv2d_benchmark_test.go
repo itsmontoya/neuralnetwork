@@ -92,3 +92,51 @@ func BenchmarkConv2DInto(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkConv2DIntoNoBias matches the two existing MNIST cases with nil bias,
+// as used by ONNX graphs that add channel bias in a separate node.
+func BenchmarkConv2DIntoNoBias(b *testing.B) {
+	var tests = []struct {
+		name                     string
+		channels, width, filters int64
+	}{
+		{name: "MNISTFirst", channels: 1, width: 28, filters: 8},
+		{name: "MNISTSecond", channels: 8, width: 14, filters: 16},
+	}
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			var (
+				input, weights, output *Tensor
+				shape                  []int64
+				config                 = Conv2DConfig{Strides: [2]int64{1, 1}, Dilations: [2]int64{1, 1}, Pads: [4]int64{2, 2, 2, 2}, Groups: 1}
+				err                    error
+			)
+
+			if input, err = New(Float32, []int64{1, tt.channels, tt.width, tt.width}); err != nil {
+				b.Fatal(err)
+			}
+			if weights, err = New(Float32, []int64{tt.filters, tt.channels, 5, 5}); err != nil {
+				b.Fatal(err)
+			}
+			for index := range input.floats {
+				input.floats[index] = float32(index%17-8) * 0.125
+			}
+			for index := range weights.floats {
+				weights.floats[index] = float32(index%13-6) * 0.125
+			}
+			if shape, err = Conv2DShape(input.shape, weights.shape, config); err != nil {
+				b.Fatal(err)
+			}
+			if output, err = New(Float32, shape); err != nil {
+				b.Fatal(err)
+			}
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				if err = Conv2DInto(input, weights, nil, output, config); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}

@@ -1,0 +1,193 @@
+
+/tmp/neuralnetwork-conv4/kernel-after.test:	file format mach-o arm64
+
+Disassembly of section __TEXT,__text:
+
+0000000100183d50 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour>:
+100183d50: f9400b90    	ldr	x16, [x28, #0x10]
+100183d54: d10103f1    	sub	x17, sp, #0x40
+100183d58: eb10023f    	cmp	x17, x16
+100183d5c: 54001549    	b.ls	0x100184004 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x2b4>
+100183d60: f8140ffe    	str	x30, [sp, #-0xc0]!
+100183d64: f81f83fd    	stur	x29, [sp, #-0x8]
+100183d68: d10023fd    	sub	x29, sp, #0x8
+100183d6c: 9101c3e9    	add	x9, sp, #0x70
+100183d70: a9007d3f    	stp	xzr, xzr, [x9]
+100183d74: a9017d3f    	stp	xzr, xzr, [x9, #0x10]
+100183d78: a9027d3f    	stp	xzr, xzr, [x9, #0x20]
+100183d7c: a9037d3f    	stp	xzr, xzr, [x9, #0x30]
+100183d80: a940ac2a    	ldp	x10, x11, [x1, #0x8]
+100183d84: f100057f    	cmp	x11, #0x1
+100183d88: 540013a9    	b.ls	0x100183ffc <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x2ac>
+100183d8c: a940b54c    	ldp	x12, x13, [x10, #0x8]
+100183d90: f100097f    	cmp	x11, #0x2
+100183d94: 54001329    	b.ls	0x100183ff8 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x2a8>
+100183d98: f1000d7f    	cmp	x11, #0x3
+100183d9c: 540012c9    	b.ls	0x100183ff4 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x2a4>
+100183da0: a940b80b    	ldp	x11, x14, [x0, #0x8]
+100183da4: f10009df    	cmp	x14, #0x2
+100183da8: 54001249    	b.ls	0x100183ff0 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x2a0>
+100183dac: a941416f    	ldp	x15, x16, [x11, #0x10]
+100183db0: f1000ddf    	cmp	x14, #0x3
+100183db4: 540011c9    	b.ls	0x100183fec <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x29c>
+100183db8: f9400d4e    	ldr	x14, [x10, #0x18]
+100183dbc: 9b0e7db1    	mul	x17, x13, x14
+100183dc0: f94067f3    	ldr	x19, [sp, #0xc8]
+100183dc4: 9b067e66    	mul	x6, x19, x6
+100183dc8: f94077f3    	ldr	x19, [sp, #0xe8]
+100183dcc: 8b0f0274    	add	x20, x19, x15
+100183dd0: cb060294    	sub	x20, x20, x6
+100183dd4: 9b0f7e0f    	mul	x15, x16, x15
+100183dd8: 9b117d95    	mul	x21, x12, x17
+100183ddc: cb1300d6    	sub	x22, x6, x19
+100183de0: cb060266    	sub	x6, x19, x6
+100183de4: eb1401bf    	cmp	x13, x20
+100183de8: 9a8dc28d    	csel	x13, x20, x13, gt
+100183dec: f94087f3    	ldr	x19, [sp, #0x108]
+100183df0: b4000fd3    	cbz	x19, 0x100183fe8 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x298>
+100183df4: f940014a    	ldr	x10, [x10]
+100183df8: 9ad30d4a    	sdiv	x10, x10, x19
+100183dfc: b4000f6a    	cbz	x10, 0x100183fe8 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x298>
+100183e00: a940d073    	ldp	x19, x20, [x3, #0x8]
+100183e04: 9aca0caa    	sdiv	x10, x5, x10
+100183e08: f1000a9f    	cmp	x20, #0x2
+100183e0c: 54000ea9    	b.ls	0x100183fe0 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x290>
+100183e10: a9415e73    	ldp	x19, x23, [x19, #0x10]
+100183e14: f1000e9f    	cmp	x20, #0x3
+100183e18: 54000e29    	b.ls	0x100183fdc <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x28c>
+100183e1c: 9b177e73    	mul	x19, x19, x23
+100183e20: f10000df    	cmp	x6, #0x0
+100183e24: 9a9fc0c6    	csel	x6, x6, xzr, gt
+100183e28: eb0d00df    	cmp	x6, x13
+100183e2c: 540007ca    	b.ge	0x100183f24 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x1d4>
+100183e30: cb0601ad    	sub	x13, x13, x6
+100183e34: f940056b    	ldr	x11, [x11, #0x8]
+100183e38: 9b047d64    	mul	x4, x11, x4
+100183e3c: 9b0a1184    	madd	x4, x12, x10, x4
+100183e40: 8b1600ca    	add	x10, x6, x22
+100183e44: 9b107d4a    	mul	x10, x10, x16
+100183e48: 9b0f2884    	madd	x4, x4, x15, x10
+100183e4c: 8b0400e4    	add	x4, x7, x4
+100183e50: 9b0e7cc6    	mul	x6, x6, x14
+100183e54: d1000587    	sub	x7, x12, #0x1
+100183e58: d10005aa    	sub	x10, x13, #0x1
+100183e5c: 9b107d4a    	mul	x10, x10, x16
+100183e60: 9b0f28ea    	madd	x10, x7, x15, x10
+100183e64: 8b0a01ca    	add	x10, x14, x10
+100183e68: 8b1506ab    	add	x11, x21, x21, lsl #1
+100183e6c: 9b112ce7    	madd	x7, x7, x17, x11
+100183e70: f940180b    	ldr	x11, [x0, #0x30]
+100183e74: 8b040154    	add	x20, x10, x4
+100183e78: 91000e94    	add	x20, x20, #0x3
+100183e7c: 9b051aa6    	madd	x6, x21, x5, x6
+100183e80: 9b0d1dc7    	madd	x7, x14, x13, x7
+100183e84: eb14017f    	cmp	x11, x20
+100183e88: 54000a63    	b.lo	0x100183fd4 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x284>
+100183e8c: eb04029f    	cmp	x20, x4
+100183e90: 540009e3    	b.lo	0x100183fcc <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x27c>
+100183e94: f9401000    	ldr	x0, [x0, #0x20]
+100183e98: cb0b0094    	sub	x20, x4, x11
+100183e9c: 8a94fc94    	and	x20, x4, x20, asr #63
+100183ea0: f9401835    	ldr	x21, [x1, #0x30]
+100183ea4: 8b0600f6    	add	x22, x7, x6
+100183ea8: cb040164    	sub	x4, x11, x4
+100183eac: 8b140800    	add	x0, x0, x20, lsl #2
+100183eb0: eb1602bf    	cmp	x21, x22
+100183eb4: 54000863    	b.lo	0x100183fc0 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x270>
+100183eb8: eb1600df    	cmp	x6, x22
+100183ebc: 540007e8    	b.hi	0x100183fb8 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x268>
+100183ec0: f90093e2    	str	x2, [sp, #0x120]
+100183ec4: f90097e3    	str	x3, [sp, #0x128]
+100183ec8: f9009fe5    	str	x5, [sp, #0x138]
+100183ecc: f900abe8    	str	x8, [sp, #0x150]
+100183ed0: f9005bf3    	str	x19, [sp, #0xb0]
+100183ed4: 91000d42    	add	x2, x10, #0x3
+100183ed8: f9401021    	ldr	x1, [x1, #0x20]
+100183edc: a9008be0    	stp	x0, x2, [sp, #0x8]
+100183ee0: cb1500c0    	sub	x0, x6, x21
+100183ee4: cb0602a2    	sub	x2, x21, x6
+100183ee8: 8a80fcc0    	and	x0, x6, x0, asr #63
+100183eec: 8b000820    	add	x0, x1, x0, lsl #2
+100183ef0: a90183e4    	stp	x4, x0, [sp, #0x18]
+100183ef4: a9028be7    	stp	x7, x2, [sp, #0x28]
+100183ef8: a903b3e9    	stp	x9, x12, [sp, #0x38]
+100183efc: a904bbed    	stp	x13, x14, [sp, #0x48]
+100183f00: a905c3ef    	stp	x15, x16, [sp, #0x58]
+100183f04: f90037f1    	str	x17, [sp, #0x68]
+100183f08: 94003f0e    	bl	0x100193b40 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DInteriorTile.abi0>
+100183f0c: f94093e2    	ldr	x2, [sp, #0x120]
+100183f10: f94097e3    	ldr	x3, [sp, #0x128]
+100183f14: f9409fe5    	ldr	x5, [sp, #0x138]
+100183f18: f940abe8    	ldr	x8, [sp, #0x150]
+100183f1c: 9101c3e9    	add	x9, sp, #0x70
+100183f20: f9405bf3    	ldr	x19, [sp, #0xb0]
+100183f24: aa1f03e1    	mov	x1, xzr
+100183f28: 14000002    	b	0x100183f30 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x1e0>
+100183f2c: 91000421    	add	x1, x1, #0x1
+100183f30: f100103f    	cmp	x1, #0x4
+100183f34: 5400034a    	b.ge	0x100183f9c <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x24c>
+100183f38: f9401864    	ldr	x4, [x3, #0x30]
+100183f3c: 9b012266    	madd	x6, x19, x1, x8
+100183f40: 910010c7    	add	x7, x6, #0x4
+100183f44: eb07009f    	cmp	x4, x7
+100183f48: 54000363    	b.lo	0x100183fb4 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x264>
+100183f4c: eb0700df    	cmp	x6, x7
+100183f50: 54000308    	b.hi	0x100183fb0 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x260>
+100183f54: f9401064    	ldr	x4, [x3, #0x20]
+100183f58: 8b060884    	add	x4, x4, x6, lsl #2
+100183f5c: 8b050026    	add	x6, x1, x5
+100183f60: aa1f03e7    	mov	x7, xzr
+100183f64: 14000003    	b	0x100183f70 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x220>
+100183f68: bc277880    	str	s0, [x4, x7, lsl #2]
+100183f6c: 910004e7    	add	x7, x7, #0x1
+100183f70: f10010ff    	cmp	x7, #0x4
+100183f74: 54fffdca    	b.ge	0x100183f2c <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x1dc>
+100183f78: 8b0108ea    	add	x10, x7, x1, lsl #2
+100183f7c: bc6a7920    	ldr	s0, [x9, x10, lsl #2]
+100183f80: b4ffff42    	cbz	x2, 0x100183f68 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x218>
+100183f84: a9422c4a    	ldp	x10, x11, [x2, #0x20]
+100183f88: eb06017f    	cmp	x11, x6
+100183f8c: 54000109    	b.ls	0x100183fac <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x25c>
+100183f90: bc667941    	ldr	s1, [x10, x6, lsl #2]
+100183f94: 1e212800    	fadd	s0, s0, s1
+100183f98: 17fffff4    	b	0x100183f68 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour+0x218>
+100183f9c: b24003e0    	orr	x0, xzr, #0x1
+100183fa0: f85f83fd    	ldur	x29, [sp, #-0x8]
+100183fa4: f84c07fe    	ldr	x30, [sp], #0xc0
+100183fa8: d65f03c0    	ret
+100183fac: 97fc0625    	bl	0x100085840 <_runtime.panicBounds>
+100183fb0: 97fc0624    	bl	0x100085840 <_runtime.panicBounds>
+100183fb4: 97fc0623    	bl	0x100085840 <_runtime.panicBounds>
+100183fb8: aa1603e0    	mov	x0, x22
+100183fbc: 97fc0621    	bl	0x100085840 <_runtime.panicBounds>
+100183fc0: aa1603e0    	mov	x0, x22
+100183fc4: aa1503e1    	mov	x1, x21
+100183fc8: 97fc061e    	bl	0x100085840 <_runtime.panicBounds>
+100183fcc: aa1403e0    	mov	x0, x20
+100183fd0: 97fc061c    	bl	0x100085840 <_runtime.panicBounds>
+100183fd4: aa1403e0    	mov	x0, x20
+100183fd8: 97fc061a    	bl	0x100085840 <_runtime.panicBounds>
+100183fdc: 97fc0619    	bl	0x100085840 <_runtime.panicBounds>
+100183fe0: aa1403e0    	mov	x0, x20
+100183fe4: 97fc0617    	bl	0x100085840 <_runtime.panicBounds>
+100183fe8: 97fafde2    	bl	0x100043770 <_runtime.panicdivide>
+100183fec: 97fc0615    	bl	0x100085840 <_runtime.panicBounds>
+100183ff0: 97fc0614    	bl	0x100085840 <_runtime.panicBounds>
+100183ff4: 97fc0613    	bl	0x100085840 <_runtime.panicBounds>
+100183ff8: 97fc0612    	bl	0x100085840 <_runtime.panicBounds>
+100183ffc: 97fc0611    	bl	0x100085840 <_runtime.panicBounds>
+100184000: d503201f    	nop
+100184004: a90507e0    	stp	x0, x1, [sp, #0x50]
+100184008: a9060fe2    	stp	x2, x3, [sp, #0x60]
+10018400c: a90717e4    	stp	x4, x5, [sp, #0x70]
+100184010: a9081fe6    	stp	x6, x7, [sp, #0x80]
+100184014: f9004be8    	str	x8, [sp, #0x90]
+100184018: aa1e03e3    	mov	x3, x30
+10018401c: 97fbfdc5    	bl	0x100083730 <_runtime.morestack_noctxt.abi0>
+100184020: a94507e0    	ldp	x0, x1, [sp, #0x50]
+100184024: a9460fe2    	ldp	x2, x3, [sp, #0x60]
+100184028: a94717e4    	ldp	x4, x5, [sp, #0x70]
+10018402c: a9481fe6    	ldp	x6, x7, [sp, #0x80]
+100184030: f9404be8    	ldr	x8, [sp, #0x90]
+100184034: 17ffff47    	b	0x100183d50 <_github.com/itsmontoya/neuralnetwork/tensor.conv2DFourByFour>
+		...

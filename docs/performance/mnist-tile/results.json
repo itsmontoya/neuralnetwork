@@ -1,0 +1,8576 @@
+{
+  "mnist-kernel": {
+    "BenchmarkConv2DInto/MNISTFirst": {
+      "before": {
+        "median_ns": 51101.0,
+        "minimum_ns": 50572.0,
+        "maximum_ns": 51930.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 51930.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 50572.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51021.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51453.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51318.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51054.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51101.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 18539.0,
+        "minimum_ns": 18404.0,
+        "maximum_ns": 19081.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 19081.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18604.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18450.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18498.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18404.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18553.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18539.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -63.7208665192462
+    },
+    "BenchmarkConv2DInto/MNISTSecond": {
+      "before": {
+        "median_ns": 179986.0,
+        "minimum_ns": 178066.0,
+        "maximum_ns": 181024.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 178285.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 178623.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 178066.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 180466.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 179986.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 181024.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 180111.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 100149.0,
+        "minimum_ns": 99474.0,
+        "maximum_ns": 101084.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 99474.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 99782.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 99797.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 100230.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 100356.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 101084.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 100149.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -44.35733890413699
+    },
+    "BenchmarkConv2DIntoNoBias/MNISTFirst": {
+      "before": {
+        "median_ns": 50393.0,
+        "minimum_ns": 49972.0,
+        "maximum_ns": 50678.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 49994.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 50448.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 49972.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 50678.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 50365.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 50393.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 50484.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 18107.0,
+        "minimum_ns": 17956.0,
+        "maximum_ns": 18152.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 17995.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18151.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 17956.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18152.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 17993.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18122.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18107.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -64.06842220149625
+    },
+    "BenchmarkConv2DIntoNoBias/MNISTSecond": {
+      "before": {
+        "median_ns": 179061.0,
+        "minimum_ns": 177955.0,
+        "maximum_ns": 180042.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 177955.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 179328.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 177980.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 178897.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 179061.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 180042.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 179695.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 99961.0,
+        "minimum_ns": 99429.0,
+        "maximum_ns": 102246.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 101472.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 102246.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 99463.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 99585.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 99429.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 100749.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 99961.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -44.17489012124361
+    }
+  },
+  "mnist": {
+    "BenchmarkMNIST": {
+      "before": {
+        "median_ns": 319257.0,
+        "minimum_ns": 317486.0,
+        "maximum_ns": 327679.0,
+        "bytes": [
+          179440
+        ],
+        "allocs": [
+          174
+        ],
+        "samples": [
+          {
+            "ns": 326015.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 318295.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 319131.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 319257.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 317486.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 322491.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 327679.0,
+            "bytes": 179440,
+            "allocs": 174
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 205676.0,
+        "minimum_ns": 204533.0,
+        "maximum_ns": 213008.0,
+        "bytes": [
+          179440
+        ],
+        "allocs": [
+          174
+        ],
+        "samples": [
+          {
+            "ns": 210394.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 204533.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 205146.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 206108.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 205664.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 205676.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 213008.0,
+            "bytes": 179440,
+            "allocs": 174
+          }
+        ]
+      },
+      "change_percent": -35.576667073862126
+    }
+  },
+  "kernels": {
+    "BenchmarkConv2DInto/MNISTFirst": {
+      "before": {
+        "median_ns": 51409.0,
+        "minimum_ns": 51130.0,
+        "maximum_ns": 51799.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 51328.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51409.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51576.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51799.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51130.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 18538.0,
+        "minimum_ns": 18420.0,
+        "maximum_ns": 18676.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 18420.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18538.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18676.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18463.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18615.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -63.94016611877298
+    },
+    "BenchmarkConv2DInto/MNISTSecond": {
+      "before": {
+        "median_ns": 181824.0,
+        "minimum_ns": 181207.0,
+        "maximum_ns": 183709.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 183709.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 181641.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 181824.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 181207.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 182613.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 101353.0,
+        "minimum_ns": 100369.0,
+        "maximum_ns": 101947.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 100369.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 101677.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 101353.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 101947.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 100547.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -44.257633755719816
+    },
+    "BenchmarkConv2DInto/Narrow1": {
+      "before": {
+        "median_ns": 744.7,
+        "minimum_ns": 737.9,
+        "maximum_ns": 751.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 737.9,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 744.7,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 747.4,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 751.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 742.8,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 747.6,
+        "minimum_ns": 742.9,
+        "maximum_ns": 752.5,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 742.9,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 747.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 743.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 752.5,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 747.9,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.38941855780851853
+    },
+    "BenchmarkConv2DInto/Narrow3": {
+      "before": {
+        "median_ns": 1984.0,
+        "minimum_ns": 1971.0,
+        "maximum_ns": 1990.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 1984.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1971.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1990.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1987.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1973.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 1991.0,
+        "minimum_ns": 1977.0,
+        "maximum_ns": 2016.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 1991.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1977.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2016.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1992.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1990.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.35282258064515126
+    },
+    "BenchmarkConv2DInto/Exact4": {
+      "before": {
+        "median_ns": 2447.0,
+        "minimum_ns": 2427.0,
+        "maximum_ns": 2756.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2447.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2756.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2441.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2427.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2458.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 593.2,
+        "minimum_ns": 586.5,
+        "maximum_ns": 596.2,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 596.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 588.7,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 593.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 593.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 586.5,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -75.75807110747854
+    },
+    "BenchmarkConv2DInto/Tail1": {
+      "before": {
+        "median_ns": 3035.0,
+        "minimum_ns": 2997.0,
+        "maximum_ns": 3057.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2997.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3035.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3042.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3057.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3022.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 1236.0,
+        "minimum_ns": 1223.0,
+        "maximum_ns": 1252.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 1223.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1238.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1236.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1252.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1227.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -59.275123558484346
+    },
+    "BenchmarkConv2DInto/Tail2": {
+      "before": {
+        "median_ns": 3611.0,
+        "minimum_ns": 3567.0,
+        "maximum_ns": 3615.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 3567.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3615.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3611.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3615.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3611.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 1816.0,
+        "minimum_ns": 1806.0,
+        "maximum_ns": 1835.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 1806.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1834.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1812.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1835.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1816.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -49.70922182220991
+    },
+    "BenchmarkConv2DInto/Tail3": {
+      "before": {
+        "median_ns": 4247.0,
+        "minimum_ns": 4214.0,
+        "maximum_ns": 4270.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 4214.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4250.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4247.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4270.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4237.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 2466.0,
+        "minimum_ns": 2459.0,
+        "maximum_ns": 2472.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2466.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2466.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2459.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2472.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2460.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -41.93548387096774
+    },
+    "BenchmarkConv2DInto/WideExact": {
+      "before": {
+        "median_ns": 366674.0,
+        "minimum_ns": 363594.0,
+        "maximum_ns": 373665.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 366674.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 363594.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 367658.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 373665.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 365425.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 57729.0,
+        "minimum_ns": 57677.0,
+        "maximum_ns": 57949.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 57949.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 57729.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 57937.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 57718.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 57677.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -84.25604215188423
+    },
+    "BenchmarkConv2DInto/WideTail": {
+      "before": {
+        "median_ns": 370993.0,
+        "minimum_ns": 367808.0,
+        "maximum_ns": 372509.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 367808.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 370993.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 371796.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 372509.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 369812.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 60909.0,
+        "minimum_ns": 60741.0,
+        "maximum_ns": 61474.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 60857.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 61474.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 60921.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 60909.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 60741.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -83.58217001398948
+    },
+    "BenchmarkConv2DInto/WidePadded": {
+      "before": {
+        "median_ns": 461199.0,
+        "minimum_ns": 460651.0,
+        "maximum_ns": 475833.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 461069.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 461199.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 460651.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 475833.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 471398.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 82451.0,
+        "minimum_ns": 82318.0,
+        "maximum_ns": 82653.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 82653.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 82417.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 82318.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 82451.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 82542.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -82.12246774169067
+    },
+    "BenchmarkConv2DInto/Filters4": {
+      "before": {
+        "median_ns": 5075.0,
+        "minimum_ns": 5006.0,
+        "maximum_ns": 5180.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 5006.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5043.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5075.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5180.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5175.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 1597.0,
+        "minimum_ns": 1588.0,
+        "maximum_ns": 1633.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 1597.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1596.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1633.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1605.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1588.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -68.5320197044335
+    },
+    "BenchmarkConv2DInto/Filters5": {
+      "before": {
+        "median_ns": 6678.0,
+        "minimum_ns": 6655.0,
+        "maximum_ns": 7126.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 6677.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6678.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6655.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6733.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 7126.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 3235.0,
+        "minimum_ns": 3188.0,
+        "maximum_ns": 3256.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 3198.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3235.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3256.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3188.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3235.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -51.557352500748735
+    },
+    "BenchmarkConv2DInto/Filters7": {
+      "before": {
+        "median_ns": 9892.0,
+        "minimum_ns": 9802.0,
+        "maximum_ns": 9929.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 9892.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9818.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9802.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9929.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9914.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 6428.0,
+        "minimum_ns": 6362.0,
+        "maximum_ns": 6451.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 6451.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6428.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6393.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6362.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6438.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -35.01819652244238
+    },
+    "BenchmarkConv2DInto/Filters8": {
+      "before": {
+        "median_ns": 9986.0,
+        "minimum_ns": 9868.0,
+        "maximum_ns": 10227.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 9986.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9959.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9868.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10227.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10060.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 3073.0,
+        "minimum_ns": 3054.0,
+        "maximum_ns": 3083.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 3083.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3079.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3070.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3054.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3073.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -69.22691768475866
+    },
+    "BenchmarkConv2DInto/Groups4": {
+      "before": {
+        "median_ns": 19729.0,
+        "minimum_ns": 19600.0,
+        "maximum_ns": 20072.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 19729.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 19681.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 19600.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 20072.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 19893.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 5997.0,
+        "minimum_ns": 5940.0,
+        "maximum_ns": 6073.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 5997.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5940.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6073.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6026.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5949.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -69.60312230726342
+    },
+    "BenchmarkConv2DInto/Groups5": {
+      "before": {
+        "median_ns": 26408.0,
+        "minimum_ns": 26099.0,
+        "maximum_ns": 27026.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 26369.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26443.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26099.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27026.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26408.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 12416.0,
+        "minimum_ns": 12392.0,
+        "maximum_ns": 12482.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 12416.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12461.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12392.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12482.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12396.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -52.983944259315365
+    },
+    "BenchmarkConv2DInto/Groups7": {
+      "before": {
+        "median_ns": 39391.0,
+        "minimum_ns": 38685.0,
+        "maximum_ns": 39749.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 38956.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39391.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 38685.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39749.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39548.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 25122.0,
+        "minimum_ns": 25106.0,
+        "maximum_ns": 25468.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 25205.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 25122.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 25106.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 25468.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 25122.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -36.224010560788
+    },
+    "BenchmarkConv2DInto/Groups8": {
+      "before": {
+        "median_ns": 39958.0,
+        "minimum_ns": 39399.0,
+        "maximum_ns": 40370.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 39399.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40000.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39677.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40370.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39958.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 11802.0,
+        "minimum_ns": 11712.0,
+        "maximum_ns": 13217.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 13217.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 11802.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 11753.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 11712.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 11840.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -70.46398718654588
+    },
+    "BenchmarkConv2DInto/Depthwise": {
+      "before": {
+        "median_ns": 8935.0,
+        "minimum_ns": 8831.0,
+        "maximum_ns": 8995.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 8831.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8913.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8935.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8963.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8995.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 8900.0,
+        "minimum_ns": 8858.0,
+        "maximum_ns": 9665.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 8900.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9665.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8871.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8921.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8858.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.3917179630665957
+    },
+    "BenchmarkConv2DInto/DepthwiseMultiplier4": {
+      "before": {
+        "median_ns": 27277.0,
+        "minimum_ns": 27186.0,
+        "maximum_ns": 27406.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 27237.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27186.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27277.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27342.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27406.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 11842.0,
+        "minimum_ns": 11671.0,
+        "maximum_ns": 11952.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 11743.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 11671.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 11952.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 11842.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 11844.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -56.586134838875246
+    },
+    "BenchmarkConv2DInto/Fallback3": {
+      "before": {
+        "median_ns": 4811.0,
+        "minimum_ns": 4799.0,
+        "maximum_ns": 4835.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 4819.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4804.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4835.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4799.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4811.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 4825.0,
+        "minimum_ns": 4766.0,
+        "maximum_ns": 5345.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 4876.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5345.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4799.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4766.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4825.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.29099979214299854
+    },
+    "BenchmarkConv2DInto/Strided": {
+      "before": {
+        "median_ns": 13435.0,
+        "minimum_ns": 13390.0,
+        "maximum_ns": 13585.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 13435.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13390.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13412.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13447.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13585.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 13406.0,
+        "minimum_ns": 13334.0,
+        "maximum_ns": 13468.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 13406.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13334.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13468.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13439.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13402.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.21585411239299912
+    },
+    "BenchmarkConv2DInto/Dilated": {
+      "before": {
+        "median_ns": 15848.0,
+        "minimum_ns": 15472.0,
+        "maximum_ns": 16008.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 15472.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15773.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 16008.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15985.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15848.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 15785.0,
+        "minimum_ns": 15728.0,
+        "maximum_ns": 15855.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 15855.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15785.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15774.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15835.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15728.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.3975265017667873
+    },
+    "BenchmarkConv2DInto/DilatedStrided": {
+      "before": {
+        "median_ns": 12688.0,
+        "minimum_ns": 12410.0,
+        "maximum_ns": 12724.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 12410.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12704.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12724.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12656.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12688.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 12677.0,
+        "minimum_ns": 12593.0,
+        "maximum_ns": 12735.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 12735.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12593.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12603.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12677.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12677.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.08669609079444696
+    },
+    "BenchmarkConv2DInto/HeavyPadding": {
+      "before": {
+        "median_ns": 2670.0,
+        "minimum_ns": 2616.0,
+        "maximum_ns": 2796.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2616.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2670.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2670.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2796.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2620.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 2611.0,
+        "minimum_ns": 2601.0,
+        "maximum_ns": 2653.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2653.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2611.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2607.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2619.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2601.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -2.2097378277153523
+    },
+    "BenchmarkConv2DInto/Batches": {
+      "before": {
+        "median_ns": 40003.0,
+        "minimum_ns": 39864.0,
+        "maximum_ns": 41071.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 41071.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40470.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39892.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39864.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40003.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 11726.0,
+        "minimum_ns": 11647.0,
+        "maximum_ns": 11876.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 11726.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 11876.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 11823.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 11647.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 11700.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -70.68719846011548
+    },
+    "BenchmarkConv2DInto/Pointwise": {
+      "before": {
+        "median_ns": 6328.0,
+        "minimum_ns": 6284.0,
+        "maximum_ns": 7488.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 7488.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6284.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6328.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6333.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6296.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 1839.0,
+        "minimum_ns": 1825.0,
+        "maximum_ns": 1841.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 1840.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1839.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1841.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1825.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1835.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -70.93868520859672
+    },
+    "BenchmarkConv2DInto/TinyPointwise": {
+      "before": {
+        "median_ns": 146.2,
+        "minimum_ns": 145.4,
+        "maximum_ns": 147.3,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 147.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 146.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 146.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 145.7,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 145.4,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 148.6,
+        "minimum_ns": 144.5,
+        "maximum_ns": 150.5,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 148.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 144.5,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 147.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 148.7,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 150.5,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 1.641586867305067
+    },
+    "BenchmarkConv2DInto/EmptyHeight": {
+      "before": {
+        "median_ns": 804.1,
+        "minimum_ns": 797.0,
+        "maximum_ns": 807.1,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 804.9,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 804.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 807.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 801.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 797.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 402.2,
+        "minimum_ns": 392.9,
+        "maximum_ns": 411.1,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 399.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 402.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 411.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 392.9,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 407.8,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -49.981345603780625
+    },
+    "BenchmarkConv2DInto/EmptyWidth": {
+      "before": {
+        "median_ns": 349.4,
+        "minimum_ns": 348.0,
+        "maximum_ns": 352.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 349.4,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 348.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 348.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 352.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 350.8,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 348.5,
+        "minimum_ns": 347.1,
+        "maximum_ns": 351.6,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 348.5,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 347.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 349.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 347.7,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 351.6,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.2575844304521957
+    },
+    "BenchmarkConv2DInto/EmptyBatch": {
+      "before": {
+        "median_ns": 112.0,
+        "minimum_ns": 110.9,
+        "maximum_ns": 112.2,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 112.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 112.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 112.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 111.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 110.9,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 110.6,
+        "minimum_ns": 108.8,
+        "maximum_ns": 113.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 110.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 110.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 108.8,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 112.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 113.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -1.2500000000000067
+    },
+    "BenchmarkConv2DInto/EmptyOutput": {
+      "before": {
+        "median_ns": 114.6,
+        "minimum_ns": 113.5,
+        "maximum_ns": 115.6,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 114.5,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 115.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 113.5,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 114.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 115.6,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 114.6,
+        "minimum_ns": 112.8,
+        "maximum_ns": 115.9,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 113.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 115.8,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 112.8,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 114.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 115.9,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.0
+    }
+  },
+  "purego-kernels": {
+    "BenchmarkConv2DInto/MNISTFirst": {
+      "before": {
+        "median_ns": 51449.0,
+        "minimum_ns": 50880.0,
+        "maximum_ns": 57761.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 57761.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 50880.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51357.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51449.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51650.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 51695.0,
+        "minimum_ns": 51359.0,
+        "maximum_ns": 57483.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 57483.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51446.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51359.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 52216.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51695.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.47814340414780165
+    },
+    "BenchmarkConv2DInto/MNISTSecond": {
+      "before": {
+        "median_ns": 181934.0,
+        "minimum_ns": 180805.0,
+        "maximum_ns": 184765.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 180805.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 183851.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 181892.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 184765.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 181934.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 181850.0,
+        "minimum_ns": 180064.0,
+        "maximum_ns": 183992.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 180064.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 183992.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 181715.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 183077.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 181850.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.04617058933459317
+    },
+    "BenchmarkConv2DInto/Narrow1": {
+      "before": {
+        "median_ns": 744.8,
+        "minimum_ns": 736.6,
+        "maximum_ns": 745.7,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 745.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 736.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 741.9,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 744.8,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 745.7,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 747.6,
+        "minimum_ns": 743.3,
+        "maximum_ns": 803.8,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 803.8,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 747.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 743.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 745.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 748.1,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.375939849624074
+    },
+    "BenchmarkConv2DInto/Narrow3": {
+      "before": {
+        "median_ns": 1991.0,
+        "minimum_ns": 1964.0,
+        "maximum_ns": 2000.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 1991.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1965.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1998.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1964.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2000.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 1991.0,
+        "minimum_ns": 1979.0,
+        "maximum_ns": 2012.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 1982.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2012.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1979.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1991.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1993.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.0
+    },
+    "BenchmarkConv2DInto/Exact4": {
+      "before": {
+        "median_ns": 2455.0,
+        "minimum_ns": 2452.0,
+        "maximum_ns": 2459.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2453.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2459.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2452.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2458.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2455.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 2463.0,
+        "minimum_ns": 2447.0,
+        "maximum_ns": 2473.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2456.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2473.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2447.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2466.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2463.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.32586558044807035
+    },
+    "BenchmarkConv2DInto/Tail1": {
+      "before": {
+        "median_ns": 3064.0,
+        "minimum_ns": 3026.0,
+        "maximum_ns": 3067.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 3057.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3064.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3067.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3026.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3067.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 3060.0,
+        "minimum_ns": 3037.0,
+        "maximum_ns": 3093.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 3093.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3037.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3087.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3059.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3060.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.13054830287205776
+    },
+    "BenchmarkConv2DInto/Tail2": {
+      "before": {
+        "median_ns": 3621.0,
+        "minimum_ns": 3595.0,
+        "maximum_ns": 3662.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 3633.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3611.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3621.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3595.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3662.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 3635.0,
+        "minimum_ns": 3592.0,
+        "maximum_ns": 3673.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 3633.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3592.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3652.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3673.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3635.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.3866335266500931
+    },
+    "BenchmarkConv2DInto/Tail3": {
+      "before": {
+        "median_ns": 4263.0,
+        "minimum_ns": 4241.0,
+        "maximum_ns": 4269.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 4241.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4269.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4266.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4248.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4263.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 4282.0,
+        "minimum_ns": 4231.0,
+        "maximum_ns": 4289.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 4282.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4287.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4289.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4270.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4231.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.4456955195871526
+    },
+    "BenchmarkConv2DInto/WideExact": {
+      "before": {
+        "median_ns": 366541.0,
+        "minimum_ns": 363539.0,
+        "maximum_ns": 373618.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 363539.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 366541.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 373618.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 367510.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 365780.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 365025.0,
+        "minimum_ns": 364301.0,
+        "maximum_ns": 374798.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 364832.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 365025.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 364301.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 374798.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 366304.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.41359629618514804
+    },
+    "BenchmarkConv2DInto/WideTail": {
+      "before": {
+        "median_ns": 372028.0,
+        "minimum_ns": 370593.0,
+        "maximum_ns": 376369.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 370593.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 372475.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 376369.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 370918.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 372028.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 371352.0,
+        "minimum_ns": 369536.0,
+        "maximum_ns": 380171.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 369797.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 378345.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 369536.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 380171.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 371352.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.18170675325512864
+    },
+    "BenchmarkConv2DInto/WidePadded": {
+      "before": {
+        "median_ns": 468036.0,
+        "minimum_ns": 455139.0,
+        "maximum_ns": 470225.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 470225.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 468036.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 455139.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 468186.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 457066.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 460415.0,
+        "minimum_ns": 456014.0,
+        "maximum_ns": 464738.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 456014.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 461387.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 464738.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 460415.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 456951.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -1.6282935500687934
+    },
+    "BenchmarkConv2DInto/Filters4": {
+      "before": {
+        "median_ns": 5105.0,
+        "minimum_ns": 5066.0,
+        "maximum_ns": 5270.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 5270.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5071.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5066.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5137.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5105.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 5100.0,
+        "minimum_ns": 5067.0,
+        "maximum_ns": 5126.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 5112.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5100.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5126.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5067.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5099.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.09794319294809117
+    },
+    "BenchmarkConv2DInto/Filters5": {
+      "before": {
+        "median_ns": 6758.0,
+        "minimum_ns": 6663.0,
+        "maximum_ns": 6925.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 6925.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6663.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6811.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6725.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6758.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 6699.0,
+        "minimum_ns": 6653.0,
+        "maximum_ns": 6722.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 6694.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6653.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6722.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6699.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6709.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.8730393607576215
+    },
+    "BenchmarkConv2DInto/Filters7": {
+      "before": {
+        "median_ns": 9978.0,
+        "minimum_ns": 9867.0,
+        "maximum_ns": 10037.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 10037.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9867.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9993.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9978.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9940.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 9927.0,
+        "minimum_ns": 9881.0,
+        "maximum_ns": 9975.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 9927.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9881.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9922.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9938.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9975.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.5111244738424503
+    },
+    "BenchmarkConv2DInto/Filters8": {
+      "before": {
+        "median_ns": 10043.0,
+        "minimum_ns": 9992.0,
+        "maximum_ns": 10217.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 10217.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10044.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10043.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10012.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9992.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 10144.0,
+        "minimum_ns": 10016.0,
+        "maximum_ns": 10161.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 10161.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10041.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10144.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10016.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10146.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 1.0056755949417573
+    },
+    "BenchmarkConv2DInto/Groups4": {
+      "before": {
+        "median_ns": 20029.0,
+        "minimum_ns": 19937.0,
+        "maximum_ns": 20159.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 20159.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 20029.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 19937.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 19953.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 20066.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 19909.0,
+        "minimum_ns": 19740.0,
+        "maximum_ns": 20104.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 19909.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 19740.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 20104.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 19817.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 20097.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.5991312596734688
+    },
+    "BenchmarkConv2DInto/Groups5": {
+      "before": {
+        "median_ns": 26449.0,
+        "minimum_ns": 26348.0,
+        "maximum_ns": 26764.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 26499.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26764.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26348.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26449.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26400.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 26481.0,
+        "minimum_ns": 26400.0,
+        "maximum_ns": 26607.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 26526.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26400.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26481.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26436.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26607.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.12098756096639018
+    },
+    "BenchmarkConv2DInto/Groups7": {
+      "before": {
+        "median_ns": 39225.0,
+        "minimum_ns": 38792.0,
+        "maximum_ns": 39613.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 39531.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39613.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39225.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 38792.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39064.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 39584.0,
+        "minimum_ns": 39474.0,
+        "maximum_ns": 39786.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 39480.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39584.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39786.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39474.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39589.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.9152326322498405
+    },
+    "BenchmarkConv2DInto/Groups8": {
+      "before": {
+        "median_ns": 40126.0,
+        "minimum_ns": 39512.0,
+        "maximum_ns": 40449.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 39612.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40449.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40148.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40126.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39512.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 39865.0,
+        "minimum_ns": 39423.0,
+        "maximum_ns": 40488.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 39423.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39679.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39868.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39865.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40488.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.6504510791008333
+    },
+    "BenchmarkConv2DInto/Depthwise": {
+      "before": {
+        "median_ns": 8893.0,
+        "minimum_ns": 8850.0,
+        "maximum_ns": 9086.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 8868.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8850.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8893.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9086.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8895.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 8941.0,
+        "minimum_ns": 8865.0,
+        "maximum_ns": 10585.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 8865.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8941.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9014.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10585.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8917.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.539750365455971
+    },
+    "BenchmarkConv2DInto/DepthwiseMultiplier4": {
+      "before": {
+        "median_ns": 27465.0,
+        "minimum_ns": 27284.0,
+        "maximum_ns": 27609.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 27284.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27465.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27480.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27609.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27423.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 27417.0,
+        "minimum_ns": 27131.0,
+        "maximum_ns": 27525.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 27214.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27131.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27525.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27525.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27417.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.17476788640087282
+    },
+    "BenchmarkConv2DInto/Fallback3": {
+      "before": {
+        "median_ns": 4855.0,
+        "minimum_ns": 4771.0,
+        "maximum_ns": 5026.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 4771.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4855.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5026.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4927.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4814.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 4849.0,
+        "minimum_ns": 4784.0,
+        "maximum_ns": 5268.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 4849.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4784.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4820.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5268.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4901.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.12358393408856694
+    },
+    "BenchmarkConv2DInto/Strided": {
+      "before": {
+        "median_ns": 13443.0,
+        "minimum_ns": 13356.0,
+        "maximum_ns": 15169.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 13443.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13579.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13356.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15169.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13399.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 13531.0,
+        "minimum_ns": 13432.0,
+        "maximum_ns": 15176.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 13531.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13435.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13740.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13432.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15176.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.654615785167012
+    },
+    "BenchmarkConv2DInto/Dilated": {
+      "before": {
+        "median_ns": 15855.0,
+        "minimum_ns": 15743.0,
+        "maximum_ns": 16002.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 15855.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15899.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15840.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15743.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 16002.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 15971.0,
+        "minimum_ns": 15742.0,
+        "maximum_ns": 16265.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 15742.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15772.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 16096.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15971.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 16265.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.7316304005045682
+    },
+    "BenchmarkConv2DInto/DilatedStrided": {
+      "before": {
+        "median_ns": 12670.0,
+        "minimum_ns": 12517.0,
+        "maximum_ns": 12901.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 12670.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12689.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12517.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12574.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12901.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 12754.0,
+        "minimum_ns": 12604.0,
+        "maximum_ns": 12768.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 12604.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12651.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12754.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12768.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12768.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.6629834254143541
+    },
+    "BenchmarkConv2DInto/HeavyPadding": {
+      "before": {
+        "median_ns": 2652.0,
+        "minimum_ns": 2629.0,
+        "maximum_ns": 2922.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2629.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2652.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2650.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2922.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2669.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 2663.0,
+        "minimum_ns": 2621.0,
+        "maximum_ns": 2684.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2621.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2654.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2678.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2684.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2663.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.41478129713423684
+    },
+    "BenchmarkConv2DInto/Batches": {
+      "before": {
+        "median_ns": 39770.0,
+        "minimum_ns": 39432.0,
+        "maximum_ns": 40688.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 39432.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39770.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39603.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40688.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40100.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 40266.0,
+        "minimum_ns": 39922.0,
+        "maximum_ns": 40654.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 40266.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40654.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39994.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40342.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39922.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 1.2471712345989427
+    },
+    "BenchmarkConv2DInto/Pointwise": {
+      "before": {
+        "median_ns": 6333.0,
+        "minimum_ns": 6282.0,
+        "maximum_ns": 6340.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 6282.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6333.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6337.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6340.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6298.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 6280.0,
+        "minimum_ns": 6249.0,
+        "maximum_ns": 6307.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 6280.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6249.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6255.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6307.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6283.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.8368861519027271
+    },
+    "BenchmarkConv2DInto/TinyPointwise": {
+      "before": {
+        "median_ns": 145.5,
+        "minimum_ns": 145.2,
+        "maximum_ns": 147.8,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 145.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 146.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 145.5,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 147.8,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 145.4,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 147.6,
+        "minimum_ns": 146.3,
+        "maximum_ns": 150.5,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 147.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 146.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 150.5,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 147.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 147.6,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 1.4432989690721598
+    },
+    "BenchmarkConv2DInto/EmptyHeight": {
+      "before": {
+        "median_ns": 799.1,
+        "minimum_ns": 796.0,
+        "maximum_ns": 810.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 796.7,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 796.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 799.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 810.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 803.1,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 807.8,
+        "minimum_ns": 792.5,
+        "maximum_ns": 950.4,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 792.5,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 794.8,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 950.4,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 807.8,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 821.3,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 1.0887248154173301
+    },
+    "BenchmarkConv2DInto/EmptyWidth": {
+      "before": {
+        "median_ns": 348.6,
+        "minimum_ns": 348.0,
+        "maximum_ns": 350.3,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 348.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 348.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 350.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 348.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 349.2,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 349.1,
+        "minimum_ns": 348.5,
+        "maximum_ns": 352.3,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 349.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 348.8,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 348.5,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 352.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 350.2,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.14343086632242485
+    },
+    "BenchmarkConv2DInto/EmptyBatch": {
+      "before": {
+        "median_ns": 111.8,
+        "minimum_ns": 110.0,
+        "maximum_ns": 113.2,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 111.8,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 112.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 113.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 110.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 110.8,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 113.0,
+        "minimum_ns": 111.1,
+        "maximum_ns": 114.8,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 114.8,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 114.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 111.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 112.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 113.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 1.073345259391778
+    },
+    "BenchmarkConv2DInto/EmptyOutput": {
+      "before": {
+        "median_ns": 115.2,
+        "minimum_ns": 113.0,
+        "maximum_ns": 115.6,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 115.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 115.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 115.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 113.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 115.5,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 115.9,
+        "minimum_ns": 114.2,
+        "maximum_ns": 116.9,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 115.5,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 115.9,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 114.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 116.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 116.9,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.607638888888884
+    }
+  },
+  "nodes": {
+    "BenchmarkMNISTNodes/00_Conv": {
+      "before": {
+        "median_ns": 50901.0,
+        "minimum_ns": 50832.0,
+        "maximum_ns": 50995.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 50832.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 50837.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 50995.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 50901.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 50916.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 18367.0,
+        "minimum_ns": 18213.0,
+        "maximum_ns": 19417.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 18367.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18393.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18213.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 19417.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 18320.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -63.916229543623906
+    },
+    "BenchmarkMNISTNodes/04_Conv": {
+      "before": {
+        "median_ns": 182431.0,
+        "minimum_ns": 181709.0,
+        "maximum_ns": 183825.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 182431.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 182156.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 183825.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 181709.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 182475.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 101179.0,
+        "minimum_ns": 100475.0,
+        "maximum_ns": 106702.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 100475.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 101179.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 106702.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 102253.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 100845.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -44.538483042903884
+    }
+  },
+  "purego": {
+    "BenchmarkMNIST": {
+      "before": {
+        "median_ns": 320701.0,
+        "minimum_ns": 319451.0,
+        "maximum_ns": 332473.0,
+        "bytes": [
+          179440
+        ],
+        "allocs": [
+          174
+        ],
+        "samples": [
+          {
+            "ns": 332473.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 319451.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 320814.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 320701.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 319865.0,
+            "bytes": 179440,
+            "allocs": 174
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 321037.0,
+        "minimum_ns": 319604.0,
+        "maximum_ns": 332757.0,
+        "bytes": [
+          179440
+        ],
+        "allocs": [
+          174
+        ],
+        "samples": [
+          {
+            "ns": 332757.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 320360.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 323490.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 319604.0,
+            "bytes": 179440,
+            "allocs": 174
+          },
+          {
+            "ns": 321037.0,
+            "bytes": 179440,
+            "allocs": 174
+          }
+        ]
+      },
+      "change_percent": 0.10477048715158421
+    }
+  },
+  "comparison_validation": {
+    "standard_cases": 19,
+    "all_passed": true,
+    "go_outputs_bit_identical": true,
+    "inputs_model_tolerances_identical": true,
+    "driver_sha256": "9f32bdc790f2b323c53ac2d8fa1a8f777be8daa8d9f73aac3cd32f6f63b2bdae"
+  },
+  "rejected_checked_go": {
+    "BenchmarkConv2DInto/MNISTFirst": {
+      "before": {
+        "median_ns": 51528.0,
+        "minimum_ns": 50129.0,
+        "maximum_ns": 53187.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 50129.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51528.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 51052.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 53187.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 52003.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 25458.0,
+        "minimum_ns": 25191.0,
+        "maximum_ns": 28199.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 28199.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 25458.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 25557.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 25191.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 25228.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -50.59385188635306
+    },
+    "BenchmarkConv2DInto/MNISTSecond": {
+      "before": {
+        "median_ns": 183817.0,
+        "minimum_ns": 171156.0,
+        "maximum_ns": 187291.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 171156.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 183817.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 184064.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 187291.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 183521.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 114316.0,
+        "minimum_ns": 110882.0,
+        "maximum_ns": 115238.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 110882.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 113141.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 115238.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 114740.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 114316.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -37.8098870071865
+    },
+    "BenchmarkConv2DInto/Narrow1": {
+      "before": {
+        "median_ns": 745.5,
+        "minimum_ns": 720.7,
+        "maximum_ns": 761.9,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 720.7,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 744.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 745.5,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 750.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 761.9,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 752.4,
+        "minimum_ns": 742.0,
+        "maximum_ns": 760.6,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 742.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 742.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 760.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 760.4,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 752.4,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.9255533199195032
+    },
+    "BenchmarkConv2DInto/Narrow3": {
+      "before": {
+        "median_ns": 1990.0,
+        "minimum_ns": 1920.0,
+        "maximum_ns": 1993.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 1920.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1992.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1983.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1993.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1990.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 1994.0,
+        "minimum_ns": 1964.0,
+        "maximum_ns": 2076.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 1964.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1974.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2040.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2076.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1994.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.20100502512563345
+    },
+    "BenchmarkConv2DInto/Exact4": {
+      "before": {
+        "median_ns": 2478.0,
+        "minimum_ns": 2361.0,
+        "maximum_ns": 2504.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2361.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2444.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2478.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2504.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2491.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 989.7,
+        "minimum_ns": 978.4,
+        "maximum_ns": 993.2,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 978.4,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 989.7,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 993.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 989.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 991.3,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -60.060532687651325
+    },
+    "BenchmarkConv2DInto/Tail1": {
+      "before": {
+        "median_ns": 3055.0,
+        "minimum_ns": 2918.0,
+        "maximum_ns": 3089.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2918.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3045.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3055.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3089.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3085.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 1593.0,
+        "minimum_ns": 1569.0,
+        "maximum_ns": 1596.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 1569.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1579.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1596.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1595.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 1593.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -47.855973813420626
+    },
+    "BenchmarkConv2DInto/Tail2": {
+      "before": {
+        "median_ns": 3619.0,
+        "minimum_ns": 3462.0,
+        "maximum_ns": 3651.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 3462.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3618.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3619.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3651.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3632.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 2173.0,
+        "minimum_ns": 2165.0,
+        "maximum_ns": 2182.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2165.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2167.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2173.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2182.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2179.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -39.95578889195911
+    },
+    "BenchmarkConv2DInto/Tail3": {
+      "before": {
+        "median_ns": 4296.0,
+        "minimum_ns": 4174.0,
+        "maximum_ns": 4305.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 4174.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4285.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4300.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4305.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4296.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 2818.0,
+        "minimum_ns": 2781.0,
+        "maximum_ns": 2844.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2781.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2818.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2844.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2807.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2822.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -34.40409683426443
+    },
+    "BenchmarkConv2DInto/WideExact": {
+      "before": {
+        "median_ns": 364424.0,
+        "minimum_ns": 351921.0,
+        "maximum_ns": 373283.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 351921.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 363332.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 364424.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 373283.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 371439.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 116245.0,
+        "minimum_ns": 114886.0,
+        "maximum_ns": 116769.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 116337.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 115469.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 114886.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 116769.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 116245.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -68.10171668166751
+    },
+    "BenchmarkConv2DInto/WideTail": {
+      "before": {
+        "median_ns": 370084.0,
+        "minimum_ns": 357161.0,
+        "maximum_ns": 377943.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 357161.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 368130.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 370084.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 377943.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 376846.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 118990.0,
+        "minimum_ns": 118489.0,
+        "maximum_ns": 119918.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 118990.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 119918.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 118489.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 119091.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 118741.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -67.84783994984922
+    },
+    "BenchmarkConv2DInto/WidePadded": {
+      "before": {
+        "median_ns": 459792.0,
+        "minimum_ns": 443843.0,
+        "maximum_ns": 477613.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 443843.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 459792.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 456107.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 477613.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 468427.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 152874.0,
+        "minimum_ns": 151225.0,
+        "maximum_ns": 153902.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 152762.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 153902.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 152874.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 153424.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 151225.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -66.75148762918886
+    },
+    "BenchmarkConv2DInto/Filters4": {
+      "before": {
+        "median_ns": 5168.0,
+        "minimum_ns": 4938.0,
+        "maximum_ns": 5205.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 4938.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5168.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5125.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5202.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 5205.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 2331.0,
+        "minimum_ns": 2300.0,
+        "maximum_ns": 2338.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2300.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2336.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2331.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2338.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2325.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -54.895510835913306
+    },
+    "BenchmarkConv2DInto/Filters5": {
+      "before": {
+        "median_ns": 6807.0,
+        "minimum_ns": 6516.0,
+        "maximum_ns": 6841.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 6516.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6799.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6807.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6841.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6840.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 3982.0,
+        "minimum_ns": 3906.0,
+        "maximum_ns": 3990.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 3906.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3952.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3990.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3984.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3982.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -41.501395622153666
+    },
+    "BenchmarkConv2DInto/Filters7": {
+      "before": {
+        "median_ns": 10012.0,
+        "minimum_ns": 9605.0,
+        "maximum_ns": 10089.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 9605.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10018.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9958.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10089.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10012.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 7274.0,
+        "minimum_ns": 7090.0,
+        "maximum_ns": 7313.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 7090.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 7229.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 7274.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 7313.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 7310.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -27.347183379944063
+    },
+    "BenchmarkConv2DInto/Filters8": {
+      "before": {
+        "median_ns": 10152.0,
+        "minimum_ns": 9740.0,
+        "maximum_ns": 10234.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 9740.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10234.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10121.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10172.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 10152.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 4508.0,
+        "minimum_ns": 4445.0,
+        "maximum_ns": 4524.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 4508.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4524.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4445.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4509.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4453.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -55.594956658786444
+    },
+    "BenchmarkConv2DInto/Groups4": {
+      "before": {
+        "median_ns": 20114.0,
+        "minimum_ns": 19274.0,
+        "maximum_ns": 20333.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 19274.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 20333.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 20114.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 20123.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 20076.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 8821.0,
+        "minimum_ns": 8730.0,
+        "maximum_ns": 8985.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 8821.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8730.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8985.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8881.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8736.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -56.1449736501939
+    },
+    "BenchmarkConv2DInto/Groups5": {
+      "before": {
+        "median_ns": 26605.0,
+        "minimum_ns": 25605.0,
+        "maximum_ns": 26829.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 25605.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26829.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26539.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26605.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 26731.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 15505.0,
+        "minimum_ns": 15478.0,
+        "maximum_ns": 15557.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 15478.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15505.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15557.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15556.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15491.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -41.72148092463822
+    },
+    "BenchmarkConv2DInto/Groups7": {
+      "before": {
+        "median_ns": 39555.0,
+        "minimum_ns": 38155.0,
+        "maximum_ns": 40203.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 38155.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39555.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39208.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40203.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39828.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 28698.0,
+        "minimum_ns": 28454.0,
+        "maximum_ns": 28975.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 28463.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 28454.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 28761.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 28698.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 28975.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -27.447857413727718
+    },
+    "BenchmarkConv2DInto/Groups8": {
+      "before": {
+        "median_ns": 40053.0,
+        "minimum_ns": 38866.0,
+        "maximum_ns": 40168.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 38866.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40053.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 39778.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40168.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40081.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 17317.0,
+        "minimum_ns": 17221.0,
+        "maximum_ns": 17662.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 17361.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 17317.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 17221.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 17662.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 17282.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -56.76478665767857
+    },
+    "BenchmarkConv2DInto/Depthwise": {
+      "before": {
+        "median_ns": 8953.0,
+        "minimum_ns": 8910.0,
+        "maximum_ns": 9074.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 8924.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9043.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9074.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8910.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8953.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 8964.0,
+        "minimum_ns": 8933.0,
+        "maximum_ns": 9075.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 8964.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8933.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9005.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 8963.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 9075.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.12286384452138144
+    },
+    "BenchmarkConv2DInto/DepthwiseMultiplier4": {
+      "before": {
+        "median_ns": 27353.0,
+        "minimum_ns": 27136.0,
+        "maximum_ns": 27815.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 27136.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27815.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27462.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27331.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 27353.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 15199.0,
+        "minimum_ns": 14876.0,
+        "maximum_ns": 15406.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 15406.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15286.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15175.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15199.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 14876.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -44.43388293788616
+    },
+    "BenchmarkConv2DInto/Fallback3": {
+      "before": {
+        "median_ns": 4820.0,
+        "minimum_ns": 4688.0,
+        "maximum_ns": 4876.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 4688.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4815.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4820.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4869.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4876.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 4844.0,
+        "minimum_ns": 4716.0,
+        "maximum_ns": 4902.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 4716.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4816.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4902.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4844.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 4866.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 0.49792531120331773
+    },
+    "BenchmarkConv2DInto/Strided": {
+      "before": {
+        "median_ns": 13579.0,
+        "minimum_ns": 13191.0,
+        "maximum_ns": 13844.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 13191.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13661.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13844.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13511.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13579.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 13449.0,
+        "minimum_ns": 13175.0,
+        "maximum_ns": 13503.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 13175.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13451.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13443.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13503.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 13449.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.9573606303851512
+    },
+    "BenchmarkConv2DInto/Dilated": {
+      "before": {
+        "median_ns": 15845.0,
+        "minimum_ns": 15497.0,
+        "maximum_ns": 15904.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 15497.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15845.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15904.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15869.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15809.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 15658.0,
+        "minimum_ns": 15618.0,
+        "maximum_ns": 16054.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 15658.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 16054.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15618.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15866.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 15643.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -1.1801830230356525
+    },
+    "BenchmarkConv2DInto/DilatedStrided": {
+      "before": {
+        "median_ns": 12604.0,
+        "minimum_ns": 12494.0,
+        "maximum_ns": 12786.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 12494.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12603.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12604.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12786.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12652.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 12544.0,
+        "minimum_ns": 12536.0,
+        "maximum_ns": 12779.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 12544.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12586.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12536.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12779.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 12540.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.476039352586477
+    },
+    "BenchmarkConv2DInto/HeavyPadding": {
+      "before": {
+        "median_ns": 2634.0,
+        "minimum_ns": 2607.0,
+        "maximum_ns": 2669.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2621.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2641.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2607.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2669.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2634.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 2578.0,
+        "minimum_ns": 2556.0,
+        "maximum_ns": 2652.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 2556.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2582.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2574.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2652.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 2578.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -2.1260440394836766
+    },
+    "BenchmarkConv2DInto/Batches": {
+      "before": {
+        "median_ns": 40106.0,
+        "minimum_ns": 39068.0,
+        "maximum_ns": 40910.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 39068.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40019.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40274.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40910.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 40106.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 17342.0,
+        "minimum_ns": 17200.0,
+        "maximum_ns": 17618.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 17618.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 17200.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 17239.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 17556.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 17342.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -56.75958709420037
+    },
+    "BenchmarkConv2DInto/Pointwise": {
+      "before": {
+        "median_ns": 6322.0,
+        "minimum_ns": 6307.0,
+        "maximum_ns": 6393.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 6322.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6315.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6393.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6367.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 6307.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 3342.0,
+        "minimum_ns": 3324.0,
+        "maximum_ns": 3353.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 3344.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3324.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3333.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3342.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 3353.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -47.13698196773173
+    },
+    "BenchmarkConv2DInto/TinyPointwise": {
+      "before": {
+        "median_ns": 146.5,
+        "minimum_ns": 145.4,
+        "maximum_ns": 147.5,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 147.5,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 147.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 145.4,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 145.5,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 146.5,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 145.9,
+        "minimum_ns": 145.3,
+        "maximum_ns": 148.2,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 145.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 145.5,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 148.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 145.9,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 146.1,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.4095563139931757
+    },
+    "BenchmarkConv2DInto/EmptyHeight": {
+      "before": {
+        "median_ns": 815.6,
+        "minimum_ns": 792.1,
+        "maximum_ns": 826.0,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 792.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 826.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 818.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 801.7,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 815.6,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 383.9,
+        "minimum_ns": 375.3,
+        "maximum_ns": 391.7,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 383.9,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 380.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 375.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 391.7,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 384.7,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -52.93035801863659
+    },
+    "BenchmarkConv2DInto/EmptyWidth": {
+      "before": {
+        "median_ns": 347.6,
+        "minimum_ns": 344.6,
+        "maximum_ns": 347.8,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 347.4,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 347.8,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 344.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 347.6,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 347.8,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 351.4,
+        "minimum_ns": 349.4,
+        "maximum_ns": 354.7,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 349.4,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 351.4,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 354.7,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 351.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 352.0,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 1.0932105868814546
+    },
+    "BenchmarkConv2DInto/EmptyBatch": {
+      "before": {
+        "median_ns": 112.1,
+        "minimum_ns": 109.9,
+        "maximum_ns": 114.3,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 109.9,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 112.1,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 114.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 110.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 113.6,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 113.3,
+        "minimum_ns": 111.2,
+        "maximum_ns": 113.7,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 113.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 113.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 111.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 113.4,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 113.7,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": 1.070472792149868
+    },
+    "BenchmarkConv2DInto/EmptyOutput": {
+      "before": {
+        "median_ns": 116.3,
+        "minimum_ns": 113.3,
+        "maximum_ns": 116.9,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 116.9,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 116.7,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 116.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 113.3,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 115.3,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "after": {
+        "median_ns": 116.2,
+        "minimum_ns": 115.0,
+        "maximum_ns": 116.9,
+        "bytes": [
+          32
+        ],
+        "allocs": [
+          1
+        ],
+        "samples": [
+          {
+            "ns": 116.9,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 116.9,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 115.0,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 116.2,
+            "bytes": 32,
+            "allocs": 1
+          },
+          {
+            "ns": 115.3,
+            "bytes": 32,
+            "allocs": 1
+          }
+        ]
+      },
+      "change_percent": -0.08598452278589797
+    }
+  }
+}

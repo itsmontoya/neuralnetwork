@@ -1,0 +1,73 @@
+tensor/conv2d.go:12:19: inlining call to fmt.Errorf
+tensor/conv2d.go:15:30: inlining call to ValidateShape
+tensor/conv2d.go:16:25: inlining call to fmt.Errorf
+tensor/conv2d.go:18:30: inlining call to ValidateShape
+tensor/conv2d.go:19:25: inlining call to fmt.Errorf
+tensor/conv2d.go:22:19: inlining call to fmt.Errorf
+tensor/conv2d.go:26:19: inlining call to fmt.Errorf
+tensor/conv2d.go:30:25: inlining call to fmt.Errorf
+tensor/conv2d.go:33:25: inlining call to fmt.Errorf
+tensor/conv2d.go:36:30: inlining call to ValidateShape
+tensor/conv2d.go:37:25: inlining call to fmt.Errorf
+tensor/conv2d.go:12:19: inlining call to errors.New
+tensor/conv2d.go:16:25: inlining call to errors.New
+tensor/conv2d.go:19:25: inlining call to errors.New
+tensor/conv2d.go:22:19: inlining call to errors.New
+tensor/conv2d.go:26:19: inlining call to errors.New
+tensor/conv2d.go:30:25: inlining call to errors.New
+tensor/conv2d.go:33:25: inlining call to errors.New
+tensor/conv2d.go:37:25: inlining call to errors.New
+tensor/conv2d.go:62:18: inlining call to shapesEqual
+tensor/conv2d.go:63:20: inlining call to fmt.Errorf
+tensor/conv2d.go:63:20: inlining call to errors.New
+tensor/conv2d.go:8:18: input does not escape
+tensor/conv2d.go:8:25: leaking param: weights
+tensor/conv2d.go:12:19: &errors.errorString{...} escapes to heap
+tensor/conv2d.go:16:25: ... argument does not escape
+tensor/conv2d.go:16:25: &errors.errorString{...} escapes to heap
+tensor/conv2d.go:19:25: ... argument does not escape
+tensor/conv2d.go:19:25: &errors.errorString{...} escapes to heap
+tensor/conv2d.go:22:19: &errors.errorString{...} escapes to heap
+tensor/conv2d.go:26:19: ... argument does not escape
+tensor/conv2d.go:26:97: input[1] escapes to heap
+tensor/conv2d.go:26:102: weights escapes to heap
+tensor/conv2d.go:26:117: config.Groups escapes to heap
+tensor/conv2d.go:26:19: &errors.errorString{...} escapes to heap
+tensor/conv2d.go:30:25: ... argument does not escape
+tensor/conv2d.go:30:25: &errors.errorString{...} escapes to heap
+tensor/conv2d.go:33:25: ... argument does not escape
+tensor/conv2d.go:33:25: &errors.errorString{...} escapes to heap
+tensor/conv2d.go:35:17: []int64{...} escapes to heap
+tensor/conv2d.go:37:25: ... argument does not escape
+tensor/conv2d.go:37:25: &errors.errorString{...} escapes to heap
+tensor/conv2d_tile_arm64.go:12:25: input does not escape
+tensor/conv2d_tile_arm64.go:12:32: weights does not escape
+tensor/conv2d_tile_arm64.go:12:51: sums does not escape
+tensor/conv2d_tile.go:7:23: input does not escape
+tensor/conv2d_tile.go:7:30: weights does not escape
+tensor/conv2d_tile.go:7:39: bias does not escape
+tensor/conv2d_tile.go:7:45: destination does not escape
+tensor/conv2d.go:193:23: input does not escape
+tensor/conv2d.go:193:30: weights does not escape
+tensor/conv2d.go:237:25: input does not escape
+tensor/conv2d.go:237:32: weights does not escape
+tensor/conv2d.go:130:18: input does not escape
+tensor/conv2d.go:130:25: weights does not escape
+tensor/conv2d.go:301:30: input does not escape
+tensor/conv2d.go:301:37: weights does not escape
+tensor/conv2d.go:301:46: bias does not escape
+tensor/conv2d.go:301:52: destination does not escape
+tensor/conv2d.go:77:23: input does not escape
+tensor/conv2d.go:77:30: weights does not escape
+tensor/conv2d.go:77:39: bias does not escape
+tensor/conv2d.go:77:45: destination does not escape
+tensor/conv2d.go:46:17: input does not escape
+tensor/conv2d.go:46:24: leaking param content: weights
+tensor/conv2d.go:46:33: leaking param content: bias
+tensor/conv2d.go:46:39: leaking param content: destination
+tensor/conv2d.go:62:38: []int64{...} does not escape
+tensor/conv2d.go:63:20: ... argument does not escape
+tensor/conv2d.go:63:71: bias.shape escapes to heap
+tensor/conv2d.go:63:92: weights.shape[0] escapes to heap
+tensor/conv2d.go:63:20: &errors.errorString{...} escapes to heap
+tensor/conv2d.go:67:30: ... argument does not escape

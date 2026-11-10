@@ -1,0 +1,55 @@
+//go:build !arm64 || purego
+
+package tensor
+
+// conv2DInteriorTile accumulates sixteen independent outputs without changing
+// their channel/row/column reduction order. Its caller checks complete spans.
+func conv2DInteriorTile(input, weights []float32, sums *[16]float32, channels, rows, kernelW, inputPlane, inputW, kernelPlane int) {
+	var (
+		a0, a1, a2, a3       float32
+		b0, b1, b2, b3       float32
+		c0, c1, c2, c3       float32
+		d0, d1, d2, d3       float32
+		channel, row, column int
+		filterSize           = channels * kernelPlane
+	)
+
+	for channel = 0; channel < channels; channel++ {
+		for row = 0; row < rows; row++ {
+			// Equal explicit row lengths keep payload checks outside reduction.
+			var (
+				inputOffset  = channel*inputPlane + row*inputW
+				weightOffset = channel*kernelPlane + row*kernelW
+				span         = input[inputOffset : inputOffset+kernelW+3]
+				x0           = span[:kernelW]
+				x1           = span[1 : kernelW+1]
+				x2           = span[2 : kernelW+2]
+				x3           = span[3 : kernelW+3]
+				w0           = weights[weightOffset:][:kernelW]
+				w1           = weights[weightOffset+filterSize:][:kernelW]
+				w2           = weights[weightOffset+2*filterSize:][:kernelW]
+				w3           = weights[weightOffset+3*filterSize:][:kernelW]
+			)
+
+			for column = 0; column < len(x0); column++ {
+				a0 += x0[column] * w0[column]
+				a1 += x1[column] * w0[column]
+				a2 += x2[column] * w0[column]
+				a3 += x3[column] * w0[column]
+				b0 += x0[column] * w1[column]
+				b1 += x1[column] * w1[column]
+				b2 += x2[column] * w1[column]
+				b3 += x3[column] * w1[column]
+				c0 += x0[column] * w2[column]
+				c1 += x1[column] * w2[column]
+				c2 += x2[column] * w2[column]
+				c3 += x3[column] * w2[column]
+				d0 += x0[column] * w3[column]
+				d1 += x1[column] * w3[column]
+				d2 += x2[column] * w3[column]
+				d3 += x3[column] * w3[column]
+			}
+		}
+	}
+	*sums = [16]float32{a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, d0, d1, d2, d3}
+}
