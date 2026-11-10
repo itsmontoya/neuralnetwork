@@ -1,0 +1,95 @@
+{"name": "backend-default", "command": ["go", "test", "./..."], "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork", "env": {"GOWORK": "off", "CGO_ENABLED": "0", "GOCACHE": "/private/tmp/onnx-profile-go-cache"}, "exit_code": 0}
+ok  	github.com/itsmontoya/neuralnetwork/activation	0.281s
+ok  	github.com/itsmontoya/neuralnetwork/data	0.934s
+ok  	github.com/itsmontoya/neuralnetwork/examples/cnn	1.579s
+ok  	github.com/itsmontoya/neuralnetwork/examples/heart	0.494s
+ok  	github.com/itsmontoya/neuralnetwork/examples/multiclass	0.702s
+ok  	github.com/itsmontoya/neuralnetwork/examples/multihead	1.131s
+ok  	github.com/itsmontoya/neuralnetwork/examples/regression	1.344s
+ok  	github.com/itsmontoya/neuralnetwork/examples/rnn	1.752s
+ok  	github.com/itsmontoya/neuralnetwork/examples/rnn_lengths	1.642s
+ok  	github.com/itsmontoya/neuralnetwork/examples/toycode	1.655s
+ok  	github.com/itsmontoya/neuralnetwork/examples/xor	1.639s
+ok  	github.com/itsmontoya/neuralnetwork/internal/device	1.736s
+?   	github.com/itsmontoya/neuralnetwork/internal/f32	[no test files]
+ok  	github.com/itsmontoya/neuralnetwork/internal/float32product	1.675s
+ok  	github.com/itsmontoya/neuralnetwork/internal/scratch	1.665s
+ok  	github.com/itsmontoya/neuralnetwork/internal/testutil	1.661s
+ok  	github.com/itsmontoya/neuralnetwork/layer	1.775s
+ok  	github.com/itsmontoya/neuralnetwork/loss	1.614s
+ok  	github.com/itsmontoya/neuralnetwork/matrix	1.625s
+ok  	github.com/itsmontoya/neuralnetwork/metric	1.609s
+ok  	github.com/itsmontoya/neuralnetwork/model	1.888s
+ok  	github.com/itsmontoya/neuralnetwork/optimizer	1.618s
+ok  	github.com/itsmontoya/neuralnetwork/tensor	1.392s
+?   	github.com/itsmontoya/neuralnetwork/tools/nn13/instrument	[no test files]
+ok  	github.com/itsmontoya/neuralnetwork/tools/nn13/trace	1.520s
+
+{"name": "backend-purego", "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork", "command": ["go", "test", "-tags=purego", "./tensor"], "env": {"GOCACHE": "/private/tmp/onnx-profile-go-cache", "CGO_ENABLED": "0", "GOWORK": "off"}, "exit_code": 0, "seconds": 0.7102320194244385}
+ok  	github.com/itsmontoya/neuralnetwork/tensor	0.299s
+
+{"name": "backend-vet", "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork", "command": ["go", "vet", "./..."], "env": {"GOCACHE": "/private/tmp/onnx-profile-go-cache", "CGO_ENABLED": "0", "GOWORK": "off"}, "exit_code": 0, "seconds": 0.22810077667236328}
+
+{"name": "backend-race", "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork", "command": ["go", "test", "-race", "./..."], "env": {"GOCACHE": "/private/tmp/onnx-profile-go-cache", "CGO_ENABLED": "1", "GOWORK": "off"}, "exit_code": 0, "seconds": 2.5890190601348877}
+ok  	github.com/itsmontoya/neuralnetwork/activation	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/data	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/cnn	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/heart	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/multiclass	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/multihead	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/regression	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/rnn	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/rnn_lengths	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/toycode	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/examples/xor	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/internal/device	(cached)
+?   	github.com/itsmontoya/neuralnetwork/internal/f32	[no test files]
+ok  	github.com/itsmontoya/neuralnetwork/internal/float32product	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/internal/scratch	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/internal/testutil	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/layer	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/loss	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/matrix	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/metric	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/model	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/optimizer	(cached)
+ok  	github.com/itsmontoya/neuralnetwork/tensor	1.529s
+?   	github.com/itsmontoya/neuralnetwork/tools/nn13/instrument	[no test files]
+ok  	github.com/itsmontoya/neuralnetwork/tools/nn13/trace	(cached)
+
+{"name": "scalar-regressions", "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/neuralnetwork", "command": ["go", "test", "-overlay", "/private/tmp/neuralnetwork-conv3.vEnp2v/baseline-overlay.json", "./tensor", "-run", "^Test_Conv2D_"], "env": {"GOCACHE": "/private/tmp/onnx-profile-go-cache", "CGO_ENABLED": "0", "GOWORK": "off"}, "exit_code": 0, "seconds": 0.7081530094146729}
+ok  	github.com/itsmontoya/neuralnetwork/tensor	0.289s
+
+{"name": "onnx-default", "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx", "command": ["go", "test", "./..."], "env": {"GOCACHE": "/private/tmp/onnx-profile-go-cache", "CGO_ENABLED": "0", "GOWORK": "/private/tmp/neuralnetwork-conv3.vEnp2v/go.work"}, "exit_code": 0, "seconds": 7.14782190322876}
+ok  	github.com/itsmontoya/onnx	4.373s
+?   	github.com/itsmontoya/onnx/examples/external	[no test files]
+?   	github.com/itsmontoya/onnx/examples/inference	[no test files]
+?   	github.com/itsmontoya/onnx/examples/normalization	[no test files]
+?   	github.com/itsmontoya/onnx/internal/capability	[no test files]
+ok  	github.com/itsmontoya/onnx/internal/decode	(cached)
+ok  	github.com/itsmontoya/onnx/internal/graph	(cached)
+?   	github.com/itsmontoya/onnx/internal/onnxpb	[no test files]
+ok  	github.com/itsmontoya/onnx/internal/operators	6.338s
+?   	github.com/itsmontoya/onnx/internal/profile	[no test files]
+ok  	github.com/itsmontoya/onnx/internal/runtimeerror	(cached)
+?   	github.com/itsmontoya/onnx/tools/capabilitiesgen	[no test files]
+?   	github.com/itsmontoya/onnx/tools/compare_runtime	[no test files]
+?   	github.com/itsmontoya/onnx/tools/onnxgen	[no test files]
+
+{"name": "onnx-purego", "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx", "command": ["go", "test", "-tags=purego", "./..."], "env": {"GOCACHE": "/private/tmp/onnx-profile-go-cache", "CGO_ENABLED": "0", "GOWORK": "/private/tmp/neuralnetwork-conv3.vEnp2v/go.work"}, "exit_code": 0, "seconds": 6.653316020965576}
+ok  	github.com/itsmontoya/onnx	4.252s
+?   	github.com/itsmontoya/onnx/examples/external	[no test files]
+?   	github.com/itsmontoya/onnx/examples/inference	[no test files]
+?   	github.com/itsmontoya/onnx/examples/normalization	[no test files]
+?   	github.com/itsmontoya/onnx/internal/capability	[no test files]
+ok  	github.com/itsmontoya/onnx/internal/decode	(cached)
+ok  	github.com/itsmontoya/onnx/internal/graph	(cached)
+?   	github.com/itsmontoya/onnx/internal/onnxpb	[no test files]
+ok  	github.com/itsmontoya/onnx/internal/operators	6.315s
+?   	github.com/itsmontoya/onnx/internal/profile	[no test files]
+ok  	github.com/itsmontoya/onnx/internal/runtimeerror	(cached)
+?   	github.com/itsmontoya/onnx/tools/capabilitiesgen	[no test files]
+?   	github.com/itsmontoya/onnx/tools/compare_runtime	[no test files]
+?   	github.com/itsmontoya/onnx/tools/onnxgen	[no test files]
+
+{"name": "onnx-vet", "cwd": "/Users/itsmontoya/go/src/github.com/itsmontoya/onnx", "command": ["go", "vet", "./..."], "env": {"GOCACHE": "/private/tmp/onnx-profile-go-cache", "CGO_ENABLED": "0", "GOWORK": "/private/tmp/neuralnetwork-conv3.vEnp2v/go.work"}, "exit_code": 0, "seconds": 0.1152200698852539}

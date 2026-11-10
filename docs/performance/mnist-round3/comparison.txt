@@ -1,0 +1,24 @@
+Standard settings: --warmup 10 --iterations 100 --seed 0 --random-cases 16 --atol 1e-4 --rtol 1e-5 --ort-optimizations disabled
+
+PASS: 19 cases; max absolute error 1.9073486e-05
+Top-1 agreement: 19/19; original/conversion/upstream checks recorded
+go: median 452.77 us; p95 566.76 us (1900 runs)
+ort: median 44.62 us; p95 47.54 us (1900 runs)
+Report: /private/tmp/neuralnetwork-conv3.vEnp2v/ort-base.json
+PASS: 19 cases; max absolute error 1.9073486e-05
+Top-1 agreement: 19/19; original/conversion/upstream checks recorded
+go: median 325.48 us; p95 386.63 us (1900 runs)
+ort: median 44.25 us; p95 45.96 us (1900 runs)
+Report: /private/tmp/neuralnetwork-conv3.vEnp2v/ort-final.json
+
+{
+  "standard_cases": 19,
+  "all_passed": true,
+  "go_outputs_bit_identical": true,
+  "model_and_inputs_identical": true,
+  "additional_cases": 131,
+  "additional_outputs_bit_identical": true,
+  "additional_input_sha256": "7801b001c362560478a24c275e1134e79794905fcfe5619ec9e31e214b29afe8",
+  "additional_input_source": "/private/tmp/onnx-profile-round3/validation-inputs.json",
+  "additional_case_generation": "random.Random(20261109); upstream, zeros, ones, 64 uniform[0,1], 64 uniform[-10,10]"
+}

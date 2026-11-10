@@ -75,6 +75,14 @@ func Conv2DInto(input, weights, bias, destination *Tensor, config Conv2DConfig) 
 }
 
 func conv2DValuesInto(input, weights, bias, destination *Tensor, config Conv2DConfig) {
+	// The original traversal is cheaper when there are no channel blocks or
+	// every column already belongs to an interior four-column block.
+	if weights.shape[0]/config.Groups >= 4 &&
+		(config.Dilations[1] != 1 || config.Pads[1] != 0 || config.Pads[3] != 0 || destination.shape[3]%4 != 0) {
+		conv2DChannelBlocksInto(input, weights, bias, destination, config)
+		return
+	}
+
 	var (
 		batch, channel, row, col, offset int
 		value                            float32
@@ -221,4 +229,147 @@ func conv2DFourValues(input, weights *Tensor, batch, channel, row, start int, co
 		}
 	}
 	return first, second, third, fourth
+}
+
+// conv2DFourChannels shares samples and clipped geometry across four filters.
+// Each accumulator retains the scalar kernel's channel/row/column order.
+func conv2DFourChannels(input, weights *Tensor, batch, channel, row, col int, config Conv2DConfig) (first, second, third, fourth float32) {
+	var (
+		inputChannel, kernelRow, kernelCol  int
+		inputRow, inputOffset, weightOffset int
+		channels                            = int(weights.shape[1])
+		kernelH                             = int(weights.shape[2])
+		kernelW                             = int(weights.shape[3])
+		inputH                              = int(input.shape[2])
+		inputW                              = int(input.shape[3])
+		inputPlane                          = inputH * inputW
+		kernelPlane                         = kernelH * kernelW
+		filterSize                          = channels * kernelPlane
+		groupStart                          = channel / int(weights.shape[0]/config.Groups) * channels
+		inputBase                           = (batch*int(input.shape[1]) + groupStart) * inputPlane
+		weightBase                          = channel * filterSize
+		rowStart                            = row*int(config.Strides[0]) - int(config.Pads[0])
+		colStart                            = col*int(config.Strides[1]) - int(config.Pads[1])
+		dilationW                           = int(config.Dilations[1])
+		kernelStart                         int
+		kernelEnd                           = kernelW
+	)
+
+	if inputH == 0 || inputW == 0 || colStart >= inputW {
+		return 0, 0, 0, 0
+	}
+
+	if colStart < 0 {
+		kernelStart = (-colStart-1)/dilationW + 1
+	}
+
+	if kernelStart >= kernelW {
+		return 0, 0, 0, 0
+	}
+
+	colStart += kernelStart * dilationW
+	if colStart >= inputW {
+		return 0, 0, 0, 0
+	}
+
+	kernelEnd = min(kernelEnd, kernelStart+(inputW-1-colStart)/dilationW+1)
+	for inputChannel = 0; inputChannel < channels; inputChannel++ {
+		for kernelRow = 0; kernelRow < kernelH; kernelRow++ {
+			inputRow = rowStart + kernelRow*int(config.Dilations[0])
+			if inputRow < 0 || inputRow >= inputH {
+				continue
+			}
+
+			inputOffset = inputBase + inputChannel*inputPlane + inputRow*inputW + colStart
+			weightOffset = weightBase + inputChannel*kernelPlane + kernelRow*kernelW + kernelStart
+
+			for kernelCol = kernelStart; kernelCol < kernelEnd; kernelCol++ {
+				sample := input.floats[inputOffset]
+				first += sample * weights.floats[weightOffset]
+				second += sample * weights.floats[weightOffset+filterSize]
+				third += sample * weights.floats[weightOffset+2*filterSize]
+				fourth += sample * weights.floats[weightOffset+3*filterSize]
+				inputOffset += dilationW
+				weightOffset++
+			}
+		}
+	}
+	return first, second, third, fourth
+}
+
+func conv2DChannelBlocksInto(input, weights, bias, destination *Tensor, config Conv2DConfig) {
+	var (
+		batch, channel, row, col, lane int
+		filters                        = int(weights.shape[0] / config.Groups)
+		height                         = int(destination.shape[2])
+		width                          = int(destination.shape[3])
+		plane                          = height * width
+	)
+
+	for batch = 0; batch < int(destination.shape[0]); batch++ {
+		for channel = 0; channel < int(destination.shape[1]); {
+			var lanes = 1
+
+			// Channel blocks must stay within a group so all four filters
+			// read the same input channels.
+			if channel%filters+4 <= filters {
+				lanes = 4
+			}
+
+			for row = 0; row < height; row++ {
+				for col = 0; col < width; col++ {
+					var (
+						start  = col*int(config.Strides[1]) - int(config.Pads[1])
+						offset = (batch*int(destination.shape[1])+channel)*plane + row*width + col
+					)
+
+					if config.Dilations[1] == 1 && col+3 < width && start >= 0 &&
+						start+3*int(config.Strides[1])+(int(weights.shape[3])-1) < int(input.shape[3]) {
+						for lane = 0; lane < lanes; lane++ {
+							var (
+								first, second, third, fourth = conv2DFourValues(input, weights, batch, channel+lane, row, start, config)
+								values                       = destination.floats[offset+lane*plane : offset+lane*plane+4]
+							)
+
+							if bias != nil {
+								first += bias.floats[channel+lane]
+								second += bias.floats[channel+lane]
+								third += bias.floats[channel+lane]
+								fourth += bias.floats[channel+lane]
+							}
+
+							values[0], values[1], values[2], values[3] = first, second, third, fourth
+						}
+						col += 3
+						continue
+					}
+
+					if lanes == 4 {
+						var first, second, third, fourth = conv2DFourChannels(input, weights, batch, channel, row, col, config)
+
+						if bias != nil {
+							first += bias.floats[channel]
+							second += bias.floats[channel+1]
+							third += bias.floats[channel+2]
+							fourth += bias.floats[channel+3]
+						}
+
+						destination.floats[offset] = first
+						destination.floats[offset+plane] = second
+						destination.floats[offset+2*plane] = third
+						destination.floats[offset+3*plane] = fourth
+						continue
+					}
+
+					var value = conv2DValue(input, weights, batch, channel, row, col, config)
+
+					if bias != nil {
+						value += bias.floats[channel]
+					}
+					destination.floats[offset] = value
+				}
+			}
+			channel += lanes
+		}
+	}
 }

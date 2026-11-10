@@ -1,0 +1,36 @@
+File: onnx-base.test
+Type: alloc_space
+Time: 2026-11-09 17:49:01 PST
+Showing nodes accounting for 600.70MB, 99.92% of 601.17MB total
+Showing top 30 nodes out of 460
+      flat  flat%   sum%        cum   cum%
+  427.73MB 71.15% 71.15%   427.73MB 71.15%  github.com/itsmontoya/neuralnetwork/tensor.newTensor (inline)
+  136.64MB 22.73% 93.88%   136.64MB 22.73%  github.com/itsmontoya/neuralnetwork/tensor.(*Tensor).Float32Values
+   10.39MB  1.73% 95.61%    10.82MB  1.80%  github.com/itsmontoya/onnx.newCNNCall
+   10.28MB  1.71% 97.32%    11.40MB  1.90%  github.com/itsmontoya/onnx.newNumericalCall
+    5.14MB  0.86% 98.17%     5.14MB  0.86%  github.com/itsmontoya/onnx.newShapeCall
+    1.39MB  0.23% 98.40%     2.68MB  0.45%  github.com/itsmontoya/onnx/internal/operators.ResolveReshapeMode
+    0.96MB  0.16% 98.56%     0.96MB  0.16%  github.com/itsmontoya/neuralnetwork/tensor.broadcastDimensions
+    0.75MB  0.12% 98.69%     0.75MB  0.12%  github.com/itsmontoya/neuralnetwork/tensor.(*Tensor).Shape
+    0.65MB  0.11% 98.80%     0.65MB  0.11%  slices.Clone[go.shape.[]github.com/itsmontoya/onnx/internal/graph.Dimension,go.shape.struct { Kind github.com/itsmontoya/onnx/internal/graph.DimensionKind; Value int64; Symbol string; Denotation string }] (inline)
+    0.64MB  0.11% 98.90%     1.29MB  0.21%  github.com/itsmontoya/onnx/internal/operators.(*shapePlanner).reshape
+    0.64MB  0.11% 99.01%     0.64MB  0.11%  github.com/itsmontoya/neuralnetwork/matrix.FromSlice
+    0.64MB  0.11% 99.12%     0.64MB  0.11%  github.com/itsmontoya/neuralnetwork/tensor.newMatMulPlan
+    0.59MB 0.098% 99.22%     0.59MB 0.098%  github.com/itsmontoya/onnx.newRunStorage
+    0.54MB 0.089% 99.31%   511.87MB 85.15%  github.com/itsmontoya/onnx.(*evaluation).execute
+    0.48MB  0.08% 99.39%     1.50MB  0.25%  github.com/itsmontoya/onnx.newEvaluation
+    0.43MB 0.071% 99.46%     0.43MB 0.071%  github.com/itsmontoya/neuralnetwork/tensor.Conv2DShape
+    0.43MB 0.071% 99.53%     0.43MB 0.071%  github.com/itsmontoya/neuralnetwork/tensor.Pool2DShape
+    0.43MB 0.071% 99.60%     1.23MB   0.2%  github.com/itsmontoya/neuralnetwork/tensor.broadcastStrides
+    0.43MB 0.071% 99.67%     0.43MB 0.071%  github.com/itsmontoya/onnx.newRunBudget
+    0.37MB 0.062% 99.73%     0.37MB 0.062%  github.com/itsmontoya/neuralnetwork/tensor.contiguousStrides
+    0.32MB 0.053% 99.79%     0.32MB 0.053%  github.com/itsmontoya/neuralnetwork/matrix.New
+    0.16MB 0.027% 99.81%     0.16MB 0.027%  github.com/itsmontoya/neuralnetwork/matrix.(*Matrix).Values
+    0.16MB 0.027% 99.84%     0.16MB 0.027%  github.com/itsmontoya/neuralnetwork/tensor.matMulBatchesInto
+    0.11MB 0.018% 99.86%     0.11MB 0.018%  github.com/itsmontoya/neuralnetwork/tensor.(*Tensor).Int64Values
+    0.11MB 0.018% 99.88%     0.11MB 0.018%  github.com/itsmontoya/neuralnetwork/tensor.ReshapeShape
+    0.08MB 0.013% 99.89%     0.64MB  0.11%  github.com/itsmontoya/onnx.(*evaluation).publish
+    0.07MB 0.011% 99.90%     0.08MB 0.013%  google.golang.org/protobuf/internal/impl.(*MessageInfo).makeStructInfo
+    0.06MB 0.0095% 99.91%     0.06MB 0.0095%  github.com/itsmontoya/onnx/internal/decode.readWire
+    0.04MB 0.0074% 99.92%     0.06MB 0.0097%  google.golang.org/protobuf/internal/filedesc.(*Message).unmarshalFull
+    0.04MB 0.0058% 99.92%     0.04MB 0.0058%  reflect.growslice
