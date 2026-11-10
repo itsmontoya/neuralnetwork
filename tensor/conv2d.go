@@ -305,6 +305,9 @@ func conv2DChannelBlocksInto(input, weights, bias, destination *Tensor, config C
 		height                         = int(destination.shape[2])
 		width                          = int(destination.shape[3])
 		plane                          = height * width
+		// Empty inputs and single-product reductions keep the cheaper scalar path.
+		residual = conv2DHasInteriorTile && config.Strides[1] == 1 && config.Dilations == [2]int64{1, 1} &&
+			input.shape[2] != 0 && input.shape[3] != 0 && weights.shape[1]*weights.shape[2]*weights.shape[3] > 1
 	)
 
 	for batch = 0; batch < int(destination.shape[0]); batch++ {
@@ -351,6 +354,10 @@ func conv2DChannelBlocksInto(input, weights, bias, destination *Tensor, config C
 					}
 
 					if lanes == 4 {
+						if residual && conv2DResidualChannels(input, weights, bias, destination, batch, channel, row, start, offset, config) {
+							continue
+						}
+
 						var first, second, third, fourth = conv2DFourChannels(input, weights, batch, channel, row, col, config)
 
 						if bias != nil {

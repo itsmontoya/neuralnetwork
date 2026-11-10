@@ -22,6 +22,7 @@ func Test_Conv2D_ChannelBlocks(t *testing.T) {
 		{name: "tiles with entirely padded rows", batch: 1, channels: 2, height: 1, width: 7, kernelH: 2, kernelW: 1, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}, pads: [4]int64{4, 1, 3, 1}},
 		{name: "padding and spatial blocks", batch: 2, channels: 3, height: 5, width: 14, kernelH: 3, kernelW: 3, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}, pads: [4]int64{2, 3, 1, 4}, bias: true},
 		{name: "one column", batch: 1, channels: 3, height: 3, width: 3, kernelH: 3, kernelW: 3, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}},
+		{name: "single residual at payload end", batch: 1, channels: 1, height: 1, width: 1, kernelH: 1, kernelW: 1, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}, bias: true},
 		{name: "three columns", batch: 1, channels: 3, height: 3, width: 5, kernelH: 3, kernelW: 3, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}, bias: true},
 		{name: "exact spatial block", batch: 1, channels: 2, height: 4, width: 6, kernelH: 2, kernelW: 3, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}},
 		{name: "one remainder", batch: 1, channels: 2, height: 4, width: 7, kernelH: 2, kernelW: 3, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}},
@@ -33,6 +34,7 @@ func Test_Conv2D_ChannelBlocks(t *testing.T) {
 		{name: "dilated strided", batch: 2, channels: 2, height: 9, width: 17, kernelH: 2, kernelW: 3, strides: [2]int64{2, 3}, dilations: [2]int64{2, 2}, pads: [4]int64{3, 4, 1, 2}},
 		{name: "depthwise multiplier", batch: 2, channels: 1, height: 4, width: 14, kernelH: 2, kernelW: 3, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}, pads: [4]int64{1, 1, 0, 1}, bias: true},
 		{name: "fully padded windows", batch: 1, channels: 1, height: 1, width: 1, kernelH: 3, kernelW: 3, strides: [2]int64{1, 1}, dilations: [2]int64{2, 2}, pads: [4]int64{6, 7, 4, 5}, bias: true},
+		{name: "unit dilation fully padded windows", batch: 2, channels: 2, height: 1, width: 2, kernelH: 3, kernelW: 3, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}, pads: [4]int64{5, 6, 4, 3}, bias: true},
 		{name: "pointwise", batch: 1, channels: 3, height: 2, width: 7, kernelH: 1, kernelW: 1, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}},
 		{name: "empty height", batch: 1, channels: 2, height: 0, width: 14, kernelH: 1, kernelW: 2, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}, pads: [4]int64{2, 3, 1, 4}, bias: true},
 		{name: "empty width", batch: 1, channels: 2, height: 3, width: 0, kernelH: 1, kernelW: 2, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}, pads: [4]int64{2, 3, 1, 4}},
@@ -40,7 +42,7 @@ func Test_Conv2D_ChannelBlocks(t *testing.T) {
 		{name: "empty output", batch: 1, channels: 2, height: 1, width: 1, kernelH: 2, kernelW: 2, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}},
 	}
 	for _, tt := range tests {
-		for _, filters := range []int64{4, 5, 7, 8} {
+		for _, filters := range []int64{3, 4, 5, 7, 8} {
 			for _, groups := range []int64{1, 2} {
 				for _, numbers := range []string{"finite", "rounded", "nonfinite"} {
 					t.Run(fmt.Sprintf("%s/filters%d/groups%d/%s", tt.name, filters, groups, numbers), func(t *testing.T) {

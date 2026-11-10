@@ -466,11 +466,11 @@ func Test_Conv2D_DynamicWeightsAndConcurrency(t *testing.T) {
 		results                                    = make(chan error, 4)
 		err                                        error
 	)
-	input, _ = tensor.FromFloat32([]int64{1, 1, 1, 4}, []float32{1, 2, 3, 4})
-	weights, _ = tensor.FromFloat32([]int64{5, 1, 1, 1}, []float32{2, 2, 2, 2, 2})
-	nextWeights, _ = tensor.FromFloat32([]int64{5, 1, 1, 1}, []float32{3, 3, 3, 3, 3})
-	first, _ = tensor.New(tensor.Float32, []int64{1, 5, 1, 4})
-	second, _ = tensor.New(tensor.Float32, []int64{1, 5, 1, 4})
+	input, _ = tensor.FromFloat32([]int64{1, 2, 1, 7}, []float32{1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7})
+	weights, _ = tensor.FromFloat32([]int64{5, 2, 1, 1}, slices.Repeat([]float32{1, 1}, 5))
+	nextWeights, _ = tensor.FromFloat32([]int64{5, 2, 1, 1}, slices.Repeat([]float32{1, 2}, 5))
+	first, _ = tensor.New(tensor.Float32, []int64{1, 5, 1, 7})
+	second, _ = tensor.New(tensor.Float32, []int64{1, 5, 1, 7})
 	if err = tensor.Conv2DInto(input, weights, nil, first, config); err != nil {
 		t.Fatal(err)
 	}
@@ -478,11 +478,11 @@ func Test_Conv2D_DynamicWeightsAndConcurrency(t *testing.T) {
 		t.Fatal(err)
 	}
 	values, _ = first.Float32Values()
-	if !slices.Equal(values, slices.Repeat([]float32{2, 4, 6, 8}, 5)) {
+	if !slices.Equal(values, slices.Repeat([]float32{2, 4, 6, 8, 10, 12, 14}, 5)) {
 		t.Fatalf("earlier output changed: %v", values)
 	}
 	values, _ = second.Float32Values()
-	if !slices.Equal(values, slices.Repeat([]float32{3, 6, 9, 12}, 5)) {
+	if !slices.Equal(values, slices.Repeat([]float32{3, 6, 9, 12, 15, 18, 21}, 5)) {
 		t.Fatalf("dynamic weights result=%v", values)
 	}
 	for worker := 0; worker < 4; worker++ {
@@ -504,7 +504,7 @@ func Test_Conv2D_DynamicWeightsAndConcurrency(t *testing.T) {
 					return
 				}
 				got, _ = output.Float32Values()
-				if !slices.Equal(got, slices.Repeat([]float32{2, 4, 6, 8}, 5)) {
+				if !slices.Equal(got, slices.Repeat([]float32{2, 4, 6, 8, 10, 12, 14}, 5)) {
 					results <- fmt.Errorf("concurrent result=%v", got)
 					return
 				}
