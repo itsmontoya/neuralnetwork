@@ -1,6 +1,9 @@
 package tensor
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 // BenchmarkConv2DInto includes validation and reuses a disjoint destination.
 // Tensor construction and payload initialization are outside timing.
@@ -10,9 +13,23 @@ func BenchmarkConv2DInto(b *testing.B) {
 		batch, channels, height, width int64
 		filters, groups, kernel        int64
 		stride, dilation, pad          int64
+		nonfinite                      bool
 	}{
 		{name: "MNISTFirst", batch: 1, channels: 1, height: 28, width: 28, filters: 8, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2},
 		{name: "MNISTSecond", batch: 1, channels: 8, height: 14, width: 14, filters: 16, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2},
+		{name: "Width07", batch: 1, channels: 3, height: 5, width: 7, filters: 8, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2},
+		{name: "Width08", batch: 1, channels: 3, height: 5, width: 8, filters: 8, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2},
+		{name: "Width09", batch: 1, channels: 3, height: 5, width: 9, filters: 8, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2},
+		{name: "Width10", batch: 1, channels: 3, height: 5, width: 10, filters: 8, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2},
+		{name: "Width13", batch: 1, channels: 3, height: 5, width: 13, filters: 8, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2},
+		{name: "Width14", batch: 1, channels: 3, height: 5, width: 14, filters: 8, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2},
+		{name: "Width15", batch: 1, channels: 3, height: 5, width: 15, filters: 8, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2},
+		{name: "Width16", batch: 1, channels: 3, height: 5, width: 16, filters: 8, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2},
+		{name: "Width27", batch: 1, channels: 3, height: 5, width: 27, filters: 8, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2},
+		{name: "Width28", batch: 1, channels: 3, height: 5, width: 28, filters: 8, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2},
+		{name: "Width29", batch: 1, channels: 3, height: 5, width: 29, filters: 8, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2},
+		{name: "ShortHeight", batch: 1, channels: 1, height: 1, width: 14, filters: 4, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2},
+		{name: "Nonfinite", batch: 1, channels: 8, height: 14, width: 14, filters: 16, groups: 1, kernel: 5, stride: 1, dilation: 1, pad: 2, nonfinite: true},
 		{name: "Narrow1", batch: 1, channels: 3, height: 8, width: 3, filters: 8, groups: 1, kernel: 3, stride: 1, dilation: 1},
 		{name: "Narrow3", batch: 1, channels: 3, height: 8, width: 5, filters: 8, groups: 1, kernel: 3, stride: 1, dilation: 1},
 		{name: "Exact4", batch: 1, channels: 3, height: 8, width: 6, filters: 8, groups: 1, kernel: 3, stride: 1, dilation: 1},
@@ -75,6 +92,11 @@ func BenchmarkConv2DInto(b *testing.B) {
 			}
 			for index := range bias.floats {
 				bias.floats[index] = float32(index%7-3) * 0.125
+			}
+			if tt.nonfinite {
+				input.floats[0] = math.Float32frombits(0x7fc00123)
+				weights.floats[0] = float32(math.Inf(1))
+				bias.floats[0] = math.Float32frombits(0xff800456)
 			}
 			if shape, err = Conv2DShape(input.shape, weights.shape, config); err != nil {
 				b.Fatal(err)
