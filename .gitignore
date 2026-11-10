@@ -1,6 +1,8 @@
 # Go build outputs
 /bin/
 /neuralnetwork
+/docs
+/tools
 *.test
 *.out
 
@@ -10,6 +12,7 @@ coverage.html
 *.coverprofile
 
 # Benchmark and profiling outputs
+/.benchmarks/
 *.bench
 *.prof
 *.pprof
@@ -22,3 +25,5 @@ bench.out
 # Planning files
 TODO.md
 ROADMAP.md
+CurrentRoadmap.md
+NEEDS.md
