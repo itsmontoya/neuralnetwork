@@ -1,0 +1,871 @@
+# mnist / base
+
+# Repetition 1; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1930	    431488 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 2; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1946	    439231 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 3; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1876	    445538 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 4; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1900	    442663 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 5; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1878	    444358 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 6; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1872	    446558 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 7; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1878	    449054 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# mnist / final
+
+# Repetition 1; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    2580	    322236 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 2; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    2616	    318111 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 3; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    2616	    320218 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 4; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    2569	    319452 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 5; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    2620	    320970 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 6; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    2557	    321260 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 7; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    2598	    319730 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# kernels / base
+
+# Repetition 1; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/tensor
+cpu: Apple M3
+BenchmarkConv2DInto/MNISTFirst         	    3090	     69738 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/MNISTSecond        	     802	    294580 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow1            	  135596	      1763 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow3            	   46236	      5123 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Exact4             	   95070	      2475 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail1              	   58315	      4105 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail2              	   42390	      5681 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail3              	   32298	      8625 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideExact          	     566	    384932 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideTail           	     631	    381700 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WidePadded         	     470	    497660 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters4           	   37376	      6632 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters5           	   29587	      8221 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters7           	   20886	     11496 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters8           	   18574	     12810 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups4            	    9546	     25173 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups5            	    7549	     32629 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups7            	    5527	     55452 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups8            	    4723	     50481 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Depthwise          	   26606	      9167 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DepthwiseMultiplier4         	    6710	     35637 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Fallback3                    	   49387	      4842 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Strided                      	   12270	     19591 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Dilated                      	    4903	     49215 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DilatedStrided               	    6354	     39027 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/HeavyPadding                 	   28312	      8497 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Batches                      	    4741	     50579 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Pointwise                    	   37471	      6396 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/TinyPointwise                	 1439620	       167.7 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyHeight                  	  250336	       976.1 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyWidth                   	  288960	       975.3 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyBatch                   	 2160993	       110.6 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyOutput                  	 1319659	       170.6 ns/op	      32 B/op	       1 allocs/op
+PASS
+
+# Repetition 2; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/tensor
+cpu: Apple M3
+BenchmarkConv2DInto/MNISTFirst         	    3717	     63957 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/MNISTSecond        	     796	    299086 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow1            	  132679	      1757 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow3            	   45639	      5114 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Exact4             	   95996	      2484 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail1              	   57788	      4100 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail2              	   40920	      5835 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail3              	   31572	      7428 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideExact          	     634	    376144 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideTail           	     628	    379971 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WidePadded         	     487	    491646 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters4           	   36940	      6568 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters5           	   29022	      8313 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters7           	   20979	     11323 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters8           	   18927	     12687 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups4            	    8866	     28939 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups5            	    6877	     32982 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups7            	    5259	     44877 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups8            	    4689	     51066 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Depthwise          	   26100	      9231 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DepthwiseMultiplier4         	    6696	     35846 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Fallback3                    	   48992	      4897 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Strided                      	   12268	     19678 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Dilated                      	    4761	     49481 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DilatedStrided               	    6135	     40246 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/HeavyPadding                 	   27298	      8780 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Batches                      	    4792	     50169 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Pointwise                    	   38102	      6414 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/TinyPointwise                	 1420990	       168.9 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyHeight                  	  249122	       961.9 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyWidth                   	  285496	       825.0 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyBatch                   	 2092846	       114.0 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyOutput                  	 2038374	       118.4 ns/op	      32 B/op	       1 allocs/op
+PASS
+
+# Repetition 3; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/tensor
+cpu: Apple M3
+BenchmarkConv2DInto/MNISTFirst         	    3852	     62637 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/MNISTSecond        	     813	    307522 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow1            	  132172	      1784 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow3            	   46197	      5148 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Exact4             	   96394	      2518 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail1              	   55012	      4160 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail2              	   41839	      5691 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail3              	   31946	      7532 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideExact          	     634	    373565 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideTail           	     631	    381170 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WidePadded         	     489	    489311 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters4           	   37538	      6492 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters5           	   29133	      8265 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters7           	   21012	     11410 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters8           	   18729	     12801 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups4            	    9474	     25396 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups5            	    7616	     31657 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups7            	    5436	     44517 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups8            	    4556	     50583 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Depthwise          	   26247	      9181 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DepthwiseMultiplier4         	    6832	     35601 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Fallback3                    	   48505	      4870 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Strided                      	   12177	     19693 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Dilated                      	    4947	     49500 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DilatedStrided               	    6147	     39854 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/HeavyPadding                 	   27457	      8740 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Batches                      	    4519	     53694 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Pointwise                    	   36579	      6557 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/TinyPointwise                	 1400954	       170.5 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyHeight                  	  254197	       951.2 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyWidth                   	  288841	       825.7 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyBatch                   	 2172148	       111.2 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyOutput                  	 2087434	       116.3 ns/op	      32 B/op	       1 allocs/op
+PASS
+
+# Repetition 4; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/tensor
+cpu: Apple M3
+BenchmarkConv2DInto/MNISTFirst         	    3736	     88848 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/MNISTSecond        	     700	    325399 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow1            	  133272	      1792 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow3            	   45421	      5183 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Exact4             	   95774	      2525 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail1              	   56644	      4210 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail2              	   41126	      5803 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail3              	   31262	      7575 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideExact          	     602	    467086 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideTail           	     586	    431019 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WidePadded         	     457	    502305 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters4           	   37086	      6604 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters5           	   29029	      8229 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters7           	   20724	     11530 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters8           	   18477	     12859 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups4            	    9499	     26217 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups5            	    7429	     32335 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups7            	    5475	     44512 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups8            	    4756	     50919 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Depthwise          	   26335	      9131 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DepthwiseMultiplier4         	    6769	     35368 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Fallback3                    	   49764	      4856 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Strided                      	   12128	     19796 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Dilated                      	    4813	     49937 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DilatedStrided               	    6027	     40855 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/HeavyPadding                 	   27621	      8640 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Batches                      	    4713	     57032 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Pointwise                    	   36915	      6444 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/TinyPointwise                	 1444430	       165.6 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyHeight                  	  258452	       964.6 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyWidth                   	  288398	       834.9 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyBatch                   	 2104119	       113.2 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyOutput                  	 1979248	       119.7 ns/op	      32 B/op	       1 allocs/op
+PASS
+
+# Repetition 5; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/tensor
+cpu: Apple M3
+BenchmarkConv2DInto/MNISTFirst         	    3592	     64167 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/MNISTSecond        	     810	    299801 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow1            	  126794	      1839 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow3            	   46651	      5085 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Exact4             	   94719	      2622 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail1              	   57375	      4191 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail2              	   41050	      5895 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail3              	   30552	      7631 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideExact          	     627	    374748 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideTail           	     626	    385497 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WidePadded         	     488	    493606 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters4           	   36576	      6501 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters5           	   29538	      8070 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters7           	   21439	     11187 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters8           	   18340	     13017 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups4            	    9015	     25830 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups5            	    6764	     46770 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups7            	    5444	     55102 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups8            	    4732	     51188 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Depthwise          	   26491	      9033 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DepthwiseMultiplier4         	    6751	     35643 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Fallback3                    	   48973	      4874 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Strided                      	   12187	     19698 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Dilated                      	    4868	     49407 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DilatedStrided               	    6156	     41943 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/HeavyPadding                 	   25102	      9145 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Batches                      	    4556	     59454 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Pointwise                    	   37438	      6428 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/TinyPointwise                	 1408431	       169.7 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyHeight                  	  254529	       940.6 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyWidth                   	  291384	       827.9 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyBatch                   	 2079174	       114.8 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyOutput                  	 1998782	       119.9 ns/op	      32 B/op	       1 allocs/op
+PASS
+
+# kernels / final
+
+# Repetition 1; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/tensor
+cpu: Apple M3
+BenchmarkConv2DInto/MNISTFirst         	    4130	     54277 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/MNISTSecond        	    1314	    184421 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow1            	  316262	       748.8 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow3            	  119563	      1996 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Exact4             	   97735	      2476 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail1              	   78886	      3050 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail2              	   66495	      3626 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail3              	   56228	      4827 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideExact          	     556	    400537 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideTail           	     624	    379627 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WidePadded         	     505	    482590 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters4           	   45474	      5404 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters5           	   34539	      6957 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters7           	   23480	     10181 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters8           	   23496	     10176 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups4            	   10000	     20254 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups5            	    8937	     27246 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups7            	    5976	     39876 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups8            	    5972	     40391 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Depthwise          	   26420	      9193 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DepthwiseMultiplier4         	    8781	     27779 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Fallback3                    	   46233	      5027 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Strided                      	   17680	     13545 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Dilated                      	   15084	     15905 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DilatedStrided               	   18903	     12744 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/HeavyPadding                 	   89289	      2634 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Batches                      	    6007	     39982 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Pointwise                    	   37977	      6750 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/TinyPointwise                	 1477171	       159.3 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyHeight                  	  296114	       821.0 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyWidth                   	  555886	       366.1 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyBatch                   	 1961827	       119.6 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyOutput                  	 1983199	       120.0 ns/op	      32 B/op	       1 allocs/op
+PASS
+
+# Repetition 2; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/tensor
+cpu: Apple M3
+BenchmarkConv2DInto/MNISTFirst         	    4482	     52288 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/MNISTSecond        	    1305	    183991 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow1            	  308863	       757.4 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow3            	  118461	      2011 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Exact4             	   94123	      2501 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail1              	   77361	      3105 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail2              	   65180	      3676 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail3              	   55348	      4331 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideExact          	     618	    376242 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideTail           	     622	    384784 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WidePadded         	     512	    468447 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters4           	   45440	      5307 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters5           	   33842	      7062 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters7           	   23376	     10253 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters8           	   23090	     10273 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups4            	   10000	     20160 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups5            	    8959	     26699 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups7            	    6032	     39793 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups8            	    5949	     40296 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Depthwise          	   26702	      9019 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DepthwiseMultiplier4         	    8796	     27528 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Fallback3                    	   48818	      4914 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Strided                      	   17589	     13646 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Dilated                      	   15260	     15694 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DilatedStrided               	   18992	     12618 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/HeavyPadding                 	   91602	      2586 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Batches                      	    5856	     40192 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Pointwise                    	   37954	      6330 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/TinyPointwise                	 1597149	       150.8 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyHeight                  	  296644	       823.3 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyWidth                   	  672975	       350.3 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyBatch                   	 2169464	       110.1 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyOutput                  	 2050194	       116.2 ns/op	      32 B/op	       1 allocs/op
+PASS
+
+# Repetition 3; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/tensor
+cpu: Apple M3
+BenchmarkConv2DInto/MNISTFirst         	    4638	     52549 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/MNISTSecond        	    1285	    186941 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow1            	  300614	       748.2 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow3            	  120915	      1988 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Exact4             	   96841	      2485 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail1              	   77475	      3721 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail2              	   64009	      3694 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail3              	   55580	      4298 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideExact          	     643	    372242 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideTail           	     632	    380955 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WidePadded         	     482	    477840 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters4           	   46107	      5199 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters5           	   34783	      6933 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters7           	   23127	     10374 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters8           	   23565	     10245 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups4            	   10000	     20222 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups5            	    8964	     26654 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups7            	    6040	     39576 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups8            	    6042	     39732 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Depthwise          	   26810	      8987 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DepthwiseMultiplier4         	    8734	     27507 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Fallback3                    	   49570	      4846 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Strided                      	   17769	     13539 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Dilated                      	   15097	     15888 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DilatedStrided               	   18802	     12756 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/HeavyPadding                 	   91011	      2631 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Batches                      	    5937	     40251 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Pointwise                    	   37484	      6428 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/TinyPointwise                	 1612759	       149.8 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyHeight                  	  296250	       828.8 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyWidth                   	  693908	       414.0 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyBatch                   	 2100049	       114.1 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyOutput                  	 2087028	       115.2 ns/op	      32 B/op	       1 allocs/op
+PASS
+
+# Repetition 4; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/tensor
+cpu: Apple M3
+BenchmarkConv2DInto/MNISTFirst         	    4605	     52408 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/MNISTSecond        	    1292	    185423 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow1            	  321079	       745.0 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow3            	  119745	      2046 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Exact4             	   92698	      2550 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail1              	   76718	      3117 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail2              	   63432	      3788 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail3              	   54098	      4399 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideExact          	     642	    380274 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideTail           	     613	    394958 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WidePadded         	     492	    482212 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters4           	   45457	      5234 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters5           	   34978	      6992 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters7           	   23286	     10329 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters8           	   23064	     10391 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups4            	   10000	     20717 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups5            	    8818	     27025 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups7            	    6044	     41153 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups8            	    5269	     43656 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Depthwise          	   26246	      9077 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DepthwiseMultiplier4         	    8700	     27619 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Fallback3                    	   48444	      4956 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Strided                      	   17329	     13822 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Dilated                      	   14826	     16157 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DilatedStrided               	   18193	     13107 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/HeavyPadding                 	   88125	      2668 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Batches                      	    5822	     41135 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Pointwise                    	   37194	      9702 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/TinyPointwise                	 1550042	       152.8 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyHeight                  	  294258	       829.0 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyWidth                   	  701574	       628.1 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyBatch                   	 1000000	       306.3 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyOutput                  	 1789212	       132.4 ns/op	      32 B/op	       1 allocs/op
+PASS
+
+# Repetition 5; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/neuralnetwork/tensor
+cpu: Apple M3
+BenchmarkConv2DInto/MNISTFirst         	    4674	     51917 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/MNISTSecond        	    1302	    184213 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow1            	  316695	       873.1 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Narrow3            	  119190	      2023 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Exact4             	   95569	      2505 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail1              	   77394	      3105 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail2              	   64779	      3715 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Tail3              	   54799	      4376 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideExact          	     621	    376123 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WideTail           	     632	    378610 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/WidePadded         	     502	    470380 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters4           	   46506	      5143 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters5           	   35432	      6790 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters7           	   23820	     10079 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Filters8           	   23604	     10118 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups4            	   10000	     20070 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups5            	    9020	     26892 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups7            	    5922	     40283 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Groups8            	    5917	     40414 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Depthwise          	   25834	      9284 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DepthwiseMultiplier4         	    8515	     27651 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Fallback3                    	   48745	      4923 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Strided                      	   17341	     13740 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Dilated                      	   14851	     16146 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/DilatedStrided               	   18771	     12788 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/HeavyPadding                 	   89751	      2674 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Batches                      	    5714	     41566 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/Pointwise                    	   37440	      6513 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/TinyPointwise                	 1602780	       149.8 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyHeight                  	  286500	       814.4 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyWidth                   	  684638	       350.2 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyBatch                   	 2084818	       114.0 ns/op	      32 B/op	       1 allocs/op
+BenchmarkConv2DInto/EmptyOutput                  	 2040066	       119.0 ns/op	      32 B/op	       1 allocs/op
+PASS
+
+# nodes / base
+
+# Repetition 1; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNISTNodes/00_Conv         	    5533	     62640 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/00_Conv
+    conv3_probe_test.go:83: input=[1 1 28 28] weights=[8 1 5 5] output=[1 8 28 28] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+BenchmarkMNISTNodes/04_Conv         	    1252	    292630 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/04_Conv
+    conv3_probe_test.go:83: input=[1 8 14 14] weights=[16 8 5 5] output=[1 16 14 14] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+PASS
+
+# Repetition 2; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNISTNodes/00_Conv         	    6058	     61878 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/00_Conv
+    conv3_probe_test.go:83: input=[1 1 28 28] weights=[8 1 5 5] output=[1 8 28 28] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+BenchmarkMNISTNodes/04_Conv         	    1213	    291873 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/04_Conv
+    conv3_probe_test.go:83: input=[1 8 14 14] weights=[16 8 5 5] output=[1 16 14 14] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+PASS
+
+# Repetition 3; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNISTNodes/00_Conv         	    5664	     61863 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/00_Conv
+    conv3_probe_test.go:83: input=[1 1 28 28] weights=[8 1 5 5] output=[1 8 28 28] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+BenchmarkMNISTNodes/04_Conv         	    1233	    292538 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/04_Conv
+    conv3_probe_test.go:83: input=[1 8 14 14] weights=[16 8 5 5] output=[1 16 14 14] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+PASS
+
+# Repetition 4; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNISTNodes/00_Conv         	    5499	     62532 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/00_Conv
+    conv3_probe_test.go:83: input=[1 1 28 28] weights=[8 1 5 5] output=[1 8 28 28] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+BenchmarkMNISTNodes/04_Conv         	    1210	    293608 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/04_Conv
+    conv3_probe_test.go:83: input=[1 8 14 14] weights=[16 8 5 5] output=[1 16 14 14] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+PASS
+
+# Repetition 5; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNISTNodes/00_Conv         	    5851	     62286 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/00_Conv
+    conv3_probe_test.go:83: input=[1 1 28 28] weights=[8 1 5 5] output=[1 8 28 28] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+BenchmarkMNISTNodes/04_Conv         	    1228	    292649 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/04_Conv
+    conv3_probe_test.go:83: input=[1 8 14 14] weights=[16 8 5 5] output=[1 16 14 14] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+PASS
+
+# nodes / final
+
+# Repetition 1; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNISTNodes/00_Conv         	    7221	     51540 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/00_Conv
+    conv3_probe_test.go:83: input=[1 1 28 28] weights=[8 1 5 5] output=[1 8 28 28] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+BenchmarkMNISTNodes/04_Conv         	    1954	    181439 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/04_Conv
+    conv3_probe_test.go:83: input=[1 8 14 14] weights=[16 8 5 5] output=[1 16 14 14] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+PASS
+
+# Repetition 2; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNISTNodes/00_Conv         	    7256	     50943 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/00_Conv
+    conv3_probe_test.go:83: input=[1 1 28 28] weights=[8 1 5 5] output=[1 8 28 28] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+BenchmarkMNISTNodes/04_Conv         	    2005	    182051 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/04_Conv
+    conv3_probe_test.go:83: input=[1 8 14 14] weights=[16 8 5 5] output=[1 16 14 14] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+PASS
+
+# Repetition 3; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNISTNodes/00_Conv         	    7203	     51178 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/00_Conv
+    conv3_probe_test.go:83: input=[1 1 28 28] weights=[8 1 5 5] output=[1 8 28 28] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+BenchmarkMNISTNodes/04_Conv         	    1960	    180706 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/04_Conv
+    conv3_probe_test.go:83: input=[1 8 14 14] weights=[16 8 5 5] output=[1 16 14 14] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+PASS
+
+# Repetition 4; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNISTNodes/00_Conv         	    7207	     50960 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/00_Conv
+    conv3_probe_test.go:83: input=[1 1 28 28] weights=[8 1 5 5] output=[1 8 28 28] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+BenchmarkMNISTNodes/04_Conv         	    2007	    182469 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/04_Conv
+    conv3_probe_test.go:83: input=[1 8 14 14] weights=[16 8 5 5] output=[1 16 14 14] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+PASS
+
+# Repetition 5; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNISTNodes/00_Conv         	    7044	     59616 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/00_Conv
+    conv3_probe_test.go:83: input=[1 1 28 28] weights=[8 1 5 5] output=[1 8 28 28] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+BenchmarkMNISTNodes/04_Conv         	    1950	    182968 ns/op	      32 B/op	       1 allocs/op
+--- BENCH: BenchmarkMNISTNodes/04_Conv
+    conv3_probe_test.go:83: input=[1 8 14 14] weights=[16 8 5 5] output=[1 16 14 14] config={Strides:[1 1] Dilations:[1 1] Pads:[2 2 2 2] Groups:1}
+PASS
+
+# small / base
+
+# Repetition 1; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   67742	      3514 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   66544	      3666 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   36566	      6632 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36290	      6633 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   37170	      6414 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   30608	      7717 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+# Repetition 2; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   68215	      3525 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   65902	      3648 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   36787	      6507 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36356	      6612 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   37444	      6414 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   31830	      7507 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+# Repetition 3; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   69255	      3504 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   66500	      3679 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   36876	      6472 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36444	      6579 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   37387	      6403 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   31881	      7520 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+# Repetition 4; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   67743	      3543 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   56252	      4519 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   36970	      6499 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36658	      7249 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   33028	      7113 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   31704	      7541 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+# Repetition 5; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   69123	      3499 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   66474	      3632 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   36883	      6494 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36444	      6649 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   37702	      6393 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   32025	      7497 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+# small / final
+
+# Repetition 1; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   69234	      3513 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   66268	      3627 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   35389	      6617 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36145	      7375 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   32560	      7198 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   31581	      7589 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+# Repetition 2; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   69412	      3497 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   66662	      3612 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   36998	      6489 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36669	      6566 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   37777	      6458 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   31306	      7610 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+# Repetition 3; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   68137	      3502 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   67045	      3615 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   36640	      6514 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36417	      6578 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   36475	      6440 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   31867	      7546 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+# Repetition 4; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   69198	      3488 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   64676	      3639 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   36375	      6562 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36093	      6646 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   37594	      6440 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   32013	      7493 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+# Repetition 5; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   67940	      3559 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   65937	      3669 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   35878	      6585 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36177	      6620 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   37495	      6414 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   31767	      7545 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+# purego / base
+
+# Repetition 1; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1324	    449190 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 2; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1305	    449030 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 3; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1324	    448170 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 4; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1330	    450007 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 5; base
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1323	    448932 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# purego / final
+
+# Repetition 1; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1776	    332662 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 2; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1850	    321890 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 3; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1840	    322682 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 4; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1846	    322383 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+# Repetition 5; final
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1834	    321652 ns/op	  179440 B/op	     174 allocs/op
+PASS
