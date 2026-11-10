@@ -354,6 +354,18 @@ func conv2DChannelBlocksInto(input, weights, bias, destination *Tensor, config C
 					}
 
 					if lanes == 4 {
+						if residual {
+							var columns = min(4, width-col)
+
+							// Keep the released interior partition and its NaN priority.
+							if start < 0 {
+								columns = min(columns, -start)
+							}
+							if columns > 1 && conv2DResidualTile(input, weights, bias, destination, batch, channel, row, start, offset, columns, config) {
+								col += columns - 1
+								continue
+							}
+						}
 						if residual && conv2DResidualChannels(input, weights, bias, destination, batch, channel, row, start, offset, config) {
 							continue
 						}
