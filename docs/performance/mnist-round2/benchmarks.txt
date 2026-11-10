@@ -1,0 +1,409 @@
+## before / mnist / repetition 1
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     828	    715534 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## broadcast / mnist / repetition 1
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     856	    692037 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## convolution / mnist / repetition 1
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1252	    468425 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## after / mnist / repetition 1
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1330	    441557 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## prototype / mnist / repetition 1
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1336	    442541 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## broadcast / mnist / repetition 2
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     884	    669059 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## convolution / mnist / repetition 2
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1323	    450407 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## after / mnist / repetition 2
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1396	    426869 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## prototype / mnist / repetition 2
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1400	    432011 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## before / mnist / repetition 2
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     853	    694552 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## convolution / mnist / repetition 3
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1321	    452418 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## after / mnist / repetition 3
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1395	    431134 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## prototype / mnist / repetition 3
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1387	    433867 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## before / mnist / repetition 3
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     856	    703743 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## broadcast / mnist / repetition 3
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     866	    684170 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## after / mnist / repetition 4
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1380	    436317 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## prototype / mnist / repetition 4
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1356	    436437 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## before / mnist / repetition 4
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     853	    703938 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## broadcast / mnist / repetition 4
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     865	    687655 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## convolution / mnist / repetition 4
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1284	    461656 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## prototype / mnist / repetition 5
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1389	    437013 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## before / mnist / repetition 5
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     838	    708583 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## broadcast / mnist / repetition 5
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     883	    689550 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## convolution / mnist / repetition 5
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1293	    465366 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## after / mnist / repetition 5
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1362	    438082 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## before-purego / mnist / repetition 1
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     799	    740092 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## after-purego / mnist / repetition 1
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1304	    450598 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## after-purego / mnist / repetition 2
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1370	    434760 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## before-purego / mnist / repetition 2
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     840	    744784 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## before-purego / mnist / repetition 3
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     823	    725811 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## after-purego / mnist / repetition 3
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1340	    444187 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## after-purego / mnist / repetition 4
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1364	    442021 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## before-purego / mnist / repetition 4
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     836	    721600 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## before-purego / mnist / repetition 5
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	     831	    722056 ns/op	  179504 B/op	     176 allocs/op
+PASS
+
+## after-purego / mnist / repetition 5
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkMNIST 	    1330	    439975 ns/op	  179440 B/op	     174 allocs/op
+PASS
+
+## before / small / repetition 1
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   68852	      3495 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   66030	      3625 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   36807	      6500 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   37412	      6506 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   37782	      6358 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   31681	      7546 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+## after / small / repetition 1
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   68604	      3475 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   66312	      3617 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   37484	      6388 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   35583	      6630 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   37872	      6298 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   32322	      7428 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+## after / small / repetition 2
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   70098	      3437 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   66207	      3578 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   37188	      6389 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36808	      6477 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   37725	      6340 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   24169	      8492 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+## before / small / repetition 2
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   60243	      3847 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   66931	      3935 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   37170	      6445 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36894	      6563 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   37813	      6349 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   32130	      7519 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+## before / small / repetition 3
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   69903	      3452 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   66674	      3594 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   37552	      6495 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36164	      6672 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   37849	      6326 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   32136	      7452 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+## after / small / repetition 3
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   69890	      3462 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   66882	      3587 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   37239	      6412 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   37156	      6472 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   38250	      6292 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   32176	      7542 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+## after / small / repetition 4
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   68868	      3614 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   65470	      3624 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   36656	      6550 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36271	      6628 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   38017	      6317 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   32112	      7446 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+## before / small / repetition 4
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   69726	      3461 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   67338	      3605 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   36175	      6521 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36444	      6548 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   38024	      6318 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   32214	      7436 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+## before / small / repetition 5
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   69692	      3457 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   67243	      3640 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   36890	      6457 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   35989	      6590 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   37546	      6396 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   31527	      7558 ns/op	    9256 B/op	     116 allocs/op
+PASS
+
+## after / small / repetition 5
+goos: darwin
+goarch: arm64
+pkg: github.com/itsmontoya/onnx
+cpu: Apple M3
+BenchmarkInference/mlp_batch_1/Warm    	   69361	      3504 ns/op	    4528 B/op	      78 allocs/op
+BenchmarkInference/mlp_batch_3/Warm    	   66670	      3639 ns/op	    4712 B/op	      78 allocs/op
+BenchmarkInference/shape_batch_1/Warm  	   37135	      6456 ns/op	   10928 B/op	     138 allocs/op
+BenchmarkInference/shape_batch_3/Warm  	   36729	      6538 ns/op	   11320 B/op	     138 allocs/op
+BenchmarkInference/cnn_batch_1/Warm    	   37598	      6371 ns/op	    8200 B/op	     116 allocs/op
+BenchmarkInference/cnn_batch_3/Warm    	   32460	      7515 ns/op	    9256 B/op	     116 allocs/op
+PASS
