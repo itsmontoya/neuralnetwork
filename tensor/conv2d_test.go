@@ -466,11 +466,11 @@ func Test_Conv2D_DynamicWeightsAndConcurrency(t *testing.T) {
 		results                                    = make(chan error, 4)
 		err                                        error
 	)
-	input, _ = tensor.FromFloat32([]int64{1, 1, 2, 2}, []float32{1, 2, 3, 4})
+	input, _ = tensor.FromFloat32([]int64{1, 1, 1, 4}, []float32{1, 2, 3, 4})
 	weights, _ = tensor.FromFloat32([]int64{5, 1, 1, 1}, []float32{2, 2, 2, 2, 2})
 	nextWeights, _ = tensor.FromFloat32([]int64{5, 1, 1, 1}, []float32{3, 3, 3, 3, 3})
-	first, _ = tensor.New(tensor.Float32, []int64{1, 5, 2, 2})
-	second, _ = tensor.New(tensor.Float32, []int64{1, 5, 2, 2})
+	first, _ = tensor.New(tensor.Float32, []int64{1, 5, 1, 4})
+	second, _ = tensor.New(tensor.Float32, []int64{1, 5, 1, 4})
 	if err = tensor.Conv2DInto(input, weights, nil, first, config); err != nil {
 		t.Fatal(err)
 	}

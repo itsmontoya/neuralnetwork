@@ -16,6 +16,10 @@ func Test_Conv2D_ChannelBlocks(t *testing.T) {
 		pads                           [4]int64
 		bias                           bool
 	}{
+		{name: "tile ends at payload boundary", batch: 1, channels: 1, height: 1, width: 4, kernelH: 1, kernelW: 1, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}, bias: true},
+		{name: "two tiles end at row boundary", batch: 2, channels: 3, height: 2, width: 10, kernelH: 2, kernelW: 3, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}},
+		{name: "height stride with unit width stride", batch: 2, channels: 2, height: 7, width: 11, kernelH: 3, kernelW: 4, strides: [2]int64{2, 1}, dilations: [2]int64{1, 1}, pads: [4]int64{2, 0, 1, 0}, bias: true},
+		{name: "tiles with entirely padded rows", batch: 1, channels: 2, height: 1, width: 7, kernelH: 2, kernelW: 1, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}, pads: [4]int64{4, 1, 3, 1}},
 		{name: "padding and spatial blocks", batch: 2, channels: 3, height: 5, width: 14, kernelH: 3, kernelW: 3, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}, pads: [4]int64{2, 3, 1, 4}, bias: true},
 		{name: "one column", batch: 1, channels: 3, height: 3, width: 3, kernelH: 3, kernelW: 3, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}},
 		{name: "three columns", batch: 1, channels: 3, height: 3, width: 5, kernelH: 3, kernelW: 3, strides: [2]int64{1, 1}, dilations: [2]int64{1, 1}, bias: true},
