@@ -84,6 +84,28 @@ func conv2DValuesInto(input, weights, bias, destination *Tensor, config Conv2DCo
 		for channel = 0; channel < int(destination.shape[1]); channel++ {
 			for row = 0; row < int(destination.shape[2]); row++ {
 				for col = 0; col < int(destination.shape[3]); col++ {
+					var start = col*int(config.Strides[1]) - int(config.Pads[1])
+
+					if config.Dilations[1] == 1 && col+3 < int(destination.shape[3]) && start >= 0 &&
+						start+3*int(config.Strides[1])+(int(weights.shape[3])-1) < int(input.shape[3]) {
+						var (
+							first, second, third, fourth = conv2DFourValues(input, weights, batch, channel, row, start, config)
+							values                       = destination.floats[offset : offset+4]
+						)
+
+						if bias != nil {
+							first += bias.floats[channel]
+							second += bias.floats[channel]
+							third += bias.floats[channel]
+							fourth += bias.floats[channel]
+						}
+
+						values[0], values[1], values[2], values[3] = first, second, third, fourth
+						col += 3
+						offset += 4
+						continue
+					}
+
 					value = conv2DValue(input, weights, batch, channel, row, col, config)
 					if bias != nil {
 						value += bias.floats[channel]
@@ -155,4 +177,48 @@ func conv2DValue(input, weights *Tensor, batch, channel, row, col int, config Co
 		}
 	}
 	return value
+}
+
+// conv2DFourValues preserves each output's accumulation order while sharing
+// weights and geometry across four interior columns with unit width dilation.
+func conv2DFourValues(input, weights *Tensor, batch, channel, row, start int, config Conv2DConfig) (first, second, third, fourth float32) {
+	var (
+		inputChannel, kernelRow, kernelCol  int
+		inputRow, inputOffset, weightOffset int
+		inputValues, weightValues           []float32
+		weight                              float32
+		channels                            = int(weights.shape[1])
+		kernelH                             = int(weights.shape[2])
+		kernelW                             = int(weights.shape[3])
+		inputH                              = int(input.shape[2])
+		inputW                              = int(input.shape[3])
+		inputPlane                          = inputH * inputW
+		kernelPlane                         = kernelH * kernelW
+		groupStart                          = channel / int(weights.shape[0]/config.Groups) * channels
+		inputBase                           = (batch*int(input.shape[1]) + groupStart) * inputPlane
+		weightBase                          = channel * channels * kernelPlane
+		rowStart                            = row*int(config.Strides[0]) - int(config.Pads[0])
+		stride                              = int(config.Strides[1])
+	)
+
+	for inputChannel = 0; inputChannel < channels; inputChannel++ {
+		for kernelRow = 0; kernelRow < kernelH; kernelRow++ {
+			inputRow = rowStart + kernelRow*int(config.Dilations[0])
+			if inputRow < 0 || inputRow >= inputH {
+				continue
+			}
+
+			inputOffset = inputBase + inputChannel*inputPlane + inputRow*inputW + start
+			weightOffset = weightBase + inputChannel*kernelPlane + kernelRow*kernelW
+			inputValues = input.floats[inputOffset : inputOffset+3*stride+kernelW]
+			weightValues = weights.floats[weightOffset : weightOffset+kernelW]
+			for kernelCol, weight = range weightValues {
+				first += inputValues[kernelCol] * weight
+				second += inputValues[kernelCol+stride] * weight
+				third += inputValues[kernelCol+2*stride] * weight
+				fourth += inputValues[kernelCol+3*stride] * weight
+			}
+		}
+	}
+	return first, second, third, fourth
 }

@@ -1,0 +1,109 @@
+## before
+/private/tmp/neuralnetwork-round2-1ax_txuw/before.test: go1.27.2
+	path	github.com/itsmontoya/onnx.test
+	mod	github.com/itsmontoya/onnx	(devel)
+	dep	github.com/itsmontoya/neuralnetwork	(devel)
+	dep	github.com/tphakala/simd	v1.3.0	h1:6DBkVfF/DEf/dnkfajbtu13+EZVReIIgIoUm2GNRs/k=
+	dep	golang.org/x/sys	v0.45.0	h1:dO4czNzziLiiXplLQgBCEpCvXQ3dnkn0SdaZSYdQ+FY=
+	dep	google.golang.org/protobuf	v1.36.12	h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	DefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0
+	build	CGO_ENABLED=0
+	build	GOARCH=arm64
+	build	GOOS=darwin
+	build	GOARM64=v8.0
+
+## after
+/private/tmp/neuralnetwork-round2-1ax_txuw/after.test: go1.27.2
+	path	github.com/itsmontoya/onnx.test
+	mod	github.com/itsmontoya/onnx	(devel)
+	dep	github.com/itsmontoya/neuralnetwork	(devel)
+	dep	github.com/tphakala/simd	v1.3.0	h1:6DBkVfF/DEf/dnkfajbtu13+EZVReIIgIoUm2GNRs/k=
+	dep	golang.org/x/sys	v0.45.0	h1:dO4czNzziLiiXplLQgBCEpCvXQ3dnkn0SdaZSYdQ+FY=
+	dep	google.golang.org/protobuf	v1.36.12	h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	DefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0
+	build	CGO_ENABLED=0
+	build	GOARCH=arm64
+	build	GOOS=darwin
+	build	GOARM64=v8.0
+
+## broadcast
+/private/tmp/neuralnetwork-round2-1ax_txuw/broadcast.test: go1.27.2
+	path	github.com/itsmontoya/onnx.test
+	mod	github.com/itsmontoya/onnx	(devel)
+	dep	github.com/itsmontoya/neuralnetwork	(devel)
+	dep	github.com/tphakala/simd	v1.3.0	h1:6DBkVfF/DEf/dnkfajbtu13+EZVReIIgIoUm2GNRs/k=
+	dep	golang.org/x/sys	v0.45.0	h1:dO4czNzziLiiXplLQgBCEpCvXQ3dnkn0SdaZSYdQ+FY=
+	dep	google.golang.org/protobuf	v1.36.12	h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	DefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0
+	build	CGO_ENABLED=0
+	build	GOARCH=arm64
+	build	GOOS=darwin
+	build	GOARM64=v8.0
+
+## convolution
+/private/tmp/neuralnetwork-round2-1ax_txuw/convolution.test: go1.27.2
+	path	github.com/itsmontoya/onnx.test
+	mod	github.com/itsmontoya/onnx	(devel)
+	dep	github.com/itsmontoya/neuralnetwork	(devel)
+	dep	github.com/tphakala/simd	v1.3.0	h1:6DBkVfF/DEf/dnkfajbtu13+EZVReIIgIoUm2GNRs/k=
+	dep	golang.org/x/sys	v0.45.0	h1:dO4czNzziLiiXplLQgBCEpCvXQ3dnkn0SdaZSYdQ+FY=
+	dep	google.golang.org/protobuf	v1.36.12	h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	DefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0
+	build	CGO_ENABLED=0
+	build	GOARCH=arm64
+	build	GOOS=darwin
+	build	GOARM64=v8.0
+
+## prototype
+/private/tmp/neuralnetwork-round2-1ax_txuw/prototype.test: go1.27.2
+	path	github.com/itsmontoya/onnx.test
+	mod	github.com/itsmontoya/onnx	(devel)
+	dep	github.com/itsmontoya/neuralnetwork	(devel)
+	dep	github.com/tphakala/simd	v1.3.0	h1:6DBkVfF/DEf/dnkfajbtu13+EZVReIIgIoUm2GNRs/k=
+	dep	golang.org/x/sys	v0.45.0	h1:dO4czNzziLiiXplLQgBCEpCvXQ3dnkn0SdaZSYdQ+FY=
+	dep	google.golang.org/protobuf	v1.36.12	h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	DefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0
+	build	CGO_ENABLED=0
+	build	GOARCH=arm64
+	build	GOOS=darwin
+	build	GOARM64=v8.0
+
+## before-purego
+/private/tmp/neuralnetwork-round2-1ax_txuw/before-purego.test: go1.27.2
+	path	github.com/itsmontoya/onnx.test
+	mod	github.com/itsmontoya/onnx	(devel)
+	dep	github.com/itsmontoya/neuralnetwork	(devel)
+	dep	google.golang.org/protobuf	v1.36.12	h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	-tags=purego
+	build	DefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0
+	build	CGO_ENABLED=0
+	build	GOARCH=arm64
+	build	GOOS=darwin
+	build	GOARM64=v8.0
+
+## after-purego
+/private/tmp/neuralnetwork-round2-1ax_txuw/after-purego.test: go1.27.2
+	path	github.com/itsmontoya/onnx.test
+	mod	github.com/itsmontoya/onnx	(devel)
+	dep	github.com/itsmontoya/neuralnetwork	(devel)
+	dep	google.golang.org/protobuf	v1.36.12	h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	-tags=purego
+	build	DefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0
+	build	CGO_ENABLED=0
+	build	GOARCH=arm64
+	build	GOOS=darwin
+	build	GOARM64=v8.0

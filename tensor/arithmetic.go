@@ -89,30 +89,36 @@ func matrixBinaryInto(left, right, destination *Tensor, operation func(*matrix.M
 
 func broadcastFloat32Into(left, right, destination *Tensor, operation func(float32, float32) float32) (err error) {
 	var (
-		outputStrides, leftStrides, rightStrides []int64
-		leftOffset, rightOffset, coordinate      int64
-		index, axis                              int
+		coordinates, leftStrides, rightStrides []int64
+		leftOffset, rightOffset                int64
+		index, axis                            int
 	)
 
-	if outputStrides, err = contiguousStrides(destination.shape); err != nil {
-		return err
-	}
 	if leftStrides, err = broadcastStrides(left.shape, destination.shape); err != nil {
 		return err
 	}
+
 	if rightStrides, err = broadcastStrides(right.shape, destination.shape); err != nil {
 		return err
 	}
+
+	coordinates = make([]int64, len(destination.shape))
 	for index = range destination.floats {
-		leftOffset, rightOffset = 0, 0
-		for axis = range destination.shape {
-			coordinate = int64(index) / outputStrides[axis] % destination.shape[axis]
-			// Validated strides and broadcast dimensions bound each offset by
-			// its input's checked payload length, including host-int conversion.
-			leftOffset += coordinate * leftStrides[axis]
-			rightOffset += coordinate * rightStrides[axis]
-		}
 		destination.floats[index] = operation(left.floats[int(leftOffset)], right.floats[int(rightOffset)])
+		// Carry from the trailing axis; broadcast axes have zero source stride.
+		// Offsets stay within the validated input payloads, including on reset.
+		for axis = len(coordinates) - 1; axis >= 0; axis-- {
+			coordinates[axis]++
+			if coordinates[axis] < destination.shape[axis] {
+				leftOffset += leftStrides[axis]
+				rightOffset += rightStrides[axis]
+				break
+			}
+
+			coordinates[axis] = 0
+			leftOffset -= (destination.shape[axis] - 1) * leftStrides[axis]
+			rightOffset -= (destination.shape[axis] - 1) * rightStrides[axis]
+		}
 	}
 	return nil
 }

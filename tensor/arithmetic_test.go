@@ -284,6 +284,134 @@ func Test_Arithmetic_EmptyUnusedStrides(t *testing.T) {
 	}
 }
 
+func Test_Arithmetic_BroadcastCarries(t *testing.T) {
+	var (
+		tests = []struct {
+			name        string
+			left, right []int64
+			output      []int64
+		}{
+			{name: "scalars"},
+			{name: "left scalar", right: []int64{2, 3, 4}, output: []int64{2, 3, 4}},
+			{name: "right scalar", left: []int64{2, 3, 4}, output: []int64{2, 3, 4}},
+			{name: "alternating axes", left: []int64{2, 1, 3, 1, 5}, right: []int64{1, 4, 1, 6, 1}, output: []int64{2, 4, 3, 6, 5}},
+			{name: "trailing singleton axes", left: []int64{2, 1, 3, 1, 1}, right: []int64{1, 4, 1, 1, 1}, output: []int64{2, 4, 3, 1, 1}},
+			{name: "rank promotion", left: []int64{3, 1}, right: []int64{2, 1, 4}, output: []int64{2, 3, 4}},
+			{name: "all singleton axes", left: []int64{1, 1, 1, 1}, right: []int64{1}, output: []int64{1, 1, 1, 1}},
+			{name: "empty result", left: []int64{2, 0, 1}, right: []int64{1, 1, 3}, output: []int64{2, 0, 3}},
+			{name: "equal shapes", left: []int64{2, 3, 4}, right: []int64{2, 3, 4}, output: []int64{2, 3, 4}},
+			{name: "leading carry", left: []int64{2, 1, 1}, right: []int64{1, 3, 4}, output: []int64{2, 3, 4}},
+			{name: "singleton carries", left: []int64{1, 2, 1, 1, 3, 1, 1, 1}, right: []int64{1, 1, 1, 1, 1, 1, 4, 1}, output: []int64{1, 2, 1, 1, 3, 1, 4, 1}},
+		}
+		operations = []struct {
+			name  string
+			run   func(*tensor.Tensor, *tensor.Tensor, *tensor.Tensor) error
+			value func(float32, float32) float32
+		}{
+			{name: "Add", run: tensor.AddInto, value: func(left, right float32) (value float32) { return left + right }},
+			{name: "Sub", run: tensor.SubInto, value: func(left, right float32) (value float32) { return left - right }},
+			{name: "Mul", run: tensor.MulInto, value: func(left, right float32) (value float32) { return left * right }},
+			{name: "Div", run: tensor.DivInto, value: func(left, right float32) (value float32) { return left / right }},
+		}
+	)
+	for _, operation := range operations {
+		for _, tt := range tests {
+			t.Run(operation.name+"/"+tt.name, func(t *testing.T) {
+				var (
+					left, right, destination *tensor.Tensor
+					inputs                   [2]*tensor.Tensor
+					originals                [2][]float32
+					got, want                []float32
+					err                      error
+				)
+
+				for sourceIndex, shape := range [][]int64{tt.left, tt.right} {
+					var (
+						count  = 1
+						values []float32
+					)
+
+					for _, dimension := range shape {
+						count *= int(dimension)
+					}
+					values = make([]float32, count)
+					for index := range values {
+						values[index] = float32((sourceIndex+1)*(index+1)) * 0.25
+						switch index % 11 {
+						case 0:
+							values[index] = math.Float32frombits(0x80000000)
+						case 3:
+							values[index] = float32(math.Inf(-1))
+						case 7:
+							values[index] = float32(math.NaN())
+						}
+					}
+					originals[sourceIndex] = values
+					if inputs[sourceIndex], err = tensor.FromFloat32(shape, values); err != nil {
+						t.Fatal(err)
+					}
+				}
+				left, right = inputs[0], inputs[1]
+				if destination, err = tensor.New(tensor.Float32, tt.output); err != nil {
+					t.Fatal(err)
+				}
+				if err = operation.run(left, right, destination); err != nil {
+					t.Fatal(err)
+				}
+				if got, err = destination.Float32Values(); err != nil {
+					t.Fatal(err)
+				}
+
+				want = make([]float32, len(got))
+				for index := range want {
+					var values [2]float32
+
+					// Decode each index independently so carries cannot affect the reference.
+					for sourceIndex, shape := range [][]int64{tt.left, tt.right} {
+						var (
+							remainder    = index
+							sourceStride = 1
+							sourceOffset int
+						)
+
+						for axis := len(tt.output) - 1; axis >= 0; axis-- {
+							var (
+								coordinate = remainder % int(tt.output[axis])
+								sourceAxis = axis - (len(tt.output) - len(shape))
+							)
+
+							remainder /= int(tt.output[axis])
+							if sourceAxis >= 0 {
+								if shape[sourceAxis] != 1 {
+									sourceOffset += coordinate * sourceStride
+								}
+								sourceStride *= int(shape[sourceAxis])
+							}
+						}
+						values[sourceIndex] = originals[sourceIndex][sourceOffset]
+					}
+					want[index] = operation.value(values[0], values[1])
+				}
+				for index, value := range want {
+					if math.Float32bits(got[index]) != math.Float32bits(value) && !(math.IsNaN(float64(got[index])) && math.IsNaN(float64(value))) {
+						t.Fatalf("output[%d] = %v (%08x), want %v (%08x)", index, got[index], math.Float32bits(got[index]), value, math.Float32bits(value))
+					}
+				}
+				for sourceIndex, source := range inputs {
+					if got, err = source.Float32Values(); err != nil {
+						t.Fatal(err)
+					}
+					for index, original := range originals[sourceIndex] {
+						if math.Float32bits(got[index]) != math.Float32bits(original) {
+							t.Fatalf("source %d changed at index %d", sourceIndex, index)
+						}
+					}
+				}
+			})
+		}
+	}
+}
+
 func Test_Arithmetic_ConcurrentAndOutputLifetime(t *testing.T) {
 	var (
 		left, right, first, second *tensor.Tensor
