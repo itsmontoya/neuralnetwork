@@ -75,10 +75,11 @@ func Conv2DInto(input, weights, bias, destination *Tensor, config Conv2DConfig) 
 }
 
 func conv2DValuesInto(input, weights, bias, destination *Tensor, config Conv2DConfig) {
-	// The original traversal is cheaper when there are no channel blocks or
-	// every column already belongs to an interior four-column block.
+	// Joint tiles share input loads even when every column is interior. Keep
+	// the original traversal where neither joint tiles nor edge blocks apply.
 	if weights.shape[0]/config.Groups >= 4 &&
-		(config.Dilations[1] != 1 || config.Pads[1] != 0 || config.Pads[3] != 0 || destination.shape[3]%4 != 0) {
+		(conv2DHasInteriorTile && config.Strides[1] == 1 && config.Dilations == [2]int64{1, 1} ||
+			config.Dilations[1] != 1 || config.Pads[1] != 0 || config.Pads[3] != 0 || destination.shape[3]%4 != 0) {
 		conv2DChannelBlocksInto(input, weights, bias, destination, config)
 		return
 	}
@@ -325,6 +326,11 @@ func conv2DChannelBlocksInto(input, weights, bias, destination *Tensor, config C
 
 					if config.Dilations[1] == 1 && col+3 < width && start >= 0 &&
 						start+3*int(config.Strides[1])+(int(weights.shape[3])-1) < int(input.shape[3]) {
+						if lanes == 4 && config.Strides[1] == 1 && config.Dilations[0] == 1 &&
+							conv2DFourByFour(input, weights, bias, destination, batch, channel, row, start, offset, config) {
+							col += 3
+							continue
+						}
 						for lane = 0; lane < lanes; lane++ {
 							var (
 								first, second, third, fourth = conv2DFourValues(input, weights, batch, channel+lane, row, start, config)
