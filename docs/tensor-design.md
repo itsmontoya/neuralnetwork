@@ -146,9 +146,9 @@ synchronization. Kernels have no hidden mutable global scratch or training state
 Scratch belongs to the invocation. There is no public workspace API in this
 first contract: introduce one in NN-13 only if measured runtime costs justify
 it, with session/call ownership, size planning, and a copying fallback.
-These synchronous kernels do not accept a context or promise cancellation
-inside a kernel; the runtime must state that granularity until a later bounded
-cancellation extension is implemented.
+Except for the additive `ReLUPreservingNaNInto` operation described below,
+these synchronous kernels do not accept a context or promise cancellation
+inside a kernel; the runtime must state that granularity.
 
 ## Shared shape planning (NN-03 and each kernel task)
 
@@ -267,6 +267,7 @@ error. The copying bridge exposes no mutable input storage or shared workspace.
 
 ```go
 func ReLUInto(input, destination *Tensor) (err error)
+func ReLUPreservingNaNInto(ctx context.Context, input, destination *Tensor) (hasNaN bool, err error)
 func SigmoidInto(input, destination *Tensor) (err error)
 func TanhInto(input, destination *Tensor) (err error)
 func SoftmaxInto(input, destination *Tensor, axis int64) (err error)
@@ -280,6 +281,28 @@ are valid no-ops after validation. Existing ReLU maps NaN and negative zero to
 positive zero; preserve and test that behavior rather than claiming stronger
 ONNX special-value agreement. Sigmoid uses the existing stable sign split;
 Tanh uses the existing float32 helper. Preserve existing activation/backward APIs.
+
+`ReLUPreservingNaNInto` is a separate portable operation for callers requiring
+original float32 NaN bits, including sign, payload and signaling bits. Positive
+values, subnormals and positive infinity are copied unchanged. All other
+non-NaN values, including negative zero, become positive zero. On success it
+reports whether any NaN was encountered during the same traversal. It accepts
+all validated float32 shapes, including scalars and empties, and requires an
+identically shaped, disjoint caller-owned destination. Pointer and shallow-copy
+aliases are rejected even for empties. It retains no references, allocates no
+payload scratch, and supports shared read-only inputs with distinct outputs.
+
+Input validation, destination validation, and the nil-context check complete
+before any write, in that order. These errors leave the destination unchanged
+and take precedence over cancellation. After validation it checks `ctx.Err()`
+before traversal, before every chunk of at most 1,024 elements (including the
+first), and after traversal. Empties still receive the pre/post checks. Context
+errors are returned directly; `hasNaN` is false on every error and is only
+meaningful on success. Cancellation can leave a computed prefix and unchanged
+suffix, or a complete result when detected by the final check. This cancellation
+contract is distinct from validation atomicity. Callers needing a different
+failure destination state must explicitly restore it. Existing `ReLUInto` and
+the activation package retain their NaN-to-zero behavior.
 
 Softmax normalizes exactly one axis, including a nonfinal axis; rank zero has
 no valid axis. Compute by logical outer/axis/inner indices with stable maximum
