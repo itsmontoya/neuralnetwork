@@ -312,6 +312,12 @@ func conv2DChannelBlocksInto(input, weights, bias, destination *Tensor, config C
 
 	for batch = 0; batch < int(destination.shape[0]); batch++ {
 		for channel = 0; channel < int(destination.shape[1]); {
+			if conv2DHasEightFilterTile && residual && channel%filters+8 <= filters &&
+				conv2DEightFilterRows(input, weights, bias, destination, batch, channel, config) {
+				channel += 8
+				continue
+			}
+
 			var lanes = 1
 
 			// Channel blocks must stay within a group so all four filters

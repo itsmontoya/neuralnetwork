@@ -1,0 +1,449 @@
+//go:build arm64 && !purego && !race
+
+#include "textflag.h"
+
+// Eight filter accumulators share each spatial input load. The Go caller
+// bounds every span and retains the released spatial partition. No stack
+// accumulators or output reloads are needed. Each reduction retains tap order.
+
+TEXT ·conv2DEightInterior(SB), NOSPLIT, $0-152
+	MOVD input_base+0(FP), R0
+	MOVD weights_base+24(FP), R1
+	MOVD output_base+48(FP), R2
+	MOVD channels+96(FP), R3
+	MOVD rows+104(FP), R4
+	MOVD kernelW+112(FP), R5
+	MOVD inputPlane+120(FP), R6
+	MOVD inputW+128(FP), R7
+	MOVD kernelPlane+136(FP), R8
+	LSL $2, R6, R6
+	LSL $2, R7, R7
+	LSL $2, R8, R8
+	MUL R3, R8, R9 // byte distance between filters
+	LSL $2, R5, R22
+	VEOR V0.B16, V0.B16, V0.B16
+	VEOR V1.B16, V1.B16, V1.B16
+	VEOR V2.B16, V2.B16, V2.B16
+	VEOR V3.B16, V3.B16, V3.B16
+	VEOR V4.B16, V4.B16, V4.B16
+	VEOR V5.B16, V5.B16, V5.B16
+	VEOR V6.B16, V6.B16, V6.B16
+	VEOR V7.B16, V7.B16, V7.B16
+
+channel_loop:
+	MOVD R0, R10
+	MOVD R1, R11
+	MOVD R4, R12
+row_loop:
+	MOVD R10, R16
+	MOVD R11, R17
+	ADD R9, R17, R19
+	ADD R9, R19, R20
+	ADD R9, R20, R21
+	MOVD R5, R15
+column_loop:
+	VLD1 (R16), [V8.S4]
+	ADD $4, R16, R16
+	ADD R9<<2, R17, R13
+	VLD1R (R13), [V13.S4]
+	ADD R9<<2, R19, R13
+	VLD1R (R13), [V14.S4]
+	ADD R9<<2, R20, R13
+	VLD1R (R13), [V15.S4]
+	ADD R9<<2, R21, R13
+	VLD1R (R13), [V16.S4]
+	VLD1R.P 4(R17), [V9.S4]
+	VLD1R.P 4(R19), [V10.S4]
+	VLD1R.P 4(R20), [V11.S4]
+	VLD1R.P 4(R21), [V12.S4]
+	// Match the scalar spatial helper's weight-first NaN operand priority.
+	VFMLA V8.S4, V9.S4, V0.S4
+	VFMLA V8.S4, V10.S4, V1.S4
+	VFMLA V8.S4, V11.S4, V2.S4
+	VFMLA V8.S4, V12.S4, V3.S4
+	VFMLA V8.S4, V13.S4, V4.S4
+	VFMLA V8.S4, V14.S4, V5.S4
+	VFMLA V8.S4, V15.S4, V6.S4
+	VFMLA V8.S4, V16.S4, V7.S4
+	SUBS $1, R15, R15
+	BNE column_loop
+	ADD R7, R10, R10
+	ADD R22, R11, R11
+	SUBS $1, R12, R12
+	BNE row_loop
+	ADD R6, R0, R0
+	ADD R8, R1, R1
+	SUBS $1, R3, R3
+	BNE channel_loop
+	MOVD bias_base+72(FP), R1
+	MOVD bias_len+80(FP), R3
+	CBZ R3, store
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V9.S4, V0.S4, V0.S4
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V9.S4, V1.S4, V1.S4
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V9.S4, V2.S4, V2.S4
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V9.S4, V3.S4, V3.S4
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V9.S4, V4.S4, V4.S4
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V9.S4, V5.S4, V5.S4
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V9.S4, V6.S4, V6.S4
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V9.S4, V7.S4, V7.S4
+store:
+	MOVD plane+144(FP), R3
+	LSL $2, R3, R3
+	VST1 [V0.S4], (R2)
+	ADD R3, R2, R2
+	VST1 [V1.S4], (R2)
+	ADD R3, R2, R2
+	VST1 [V2.S4], (R2)
+	ADD R3, R2, R2
+	VST1 [V3.S4], (R2)
+	ADD R3, R2, R2
+	VST1 [V4.S4], (R2)
+	ADD R3, R2, R2
+	VST1 [V5.S4], (R2)
+	ADD R3, R2, R2
+	VST1 [V6.S4], (R2)
+	ADD R3, R2, R2
+	VST1 [V7.S4], (R2)
+	RET
+
+TEXT ·conv2DEightResidual(SB), NOSPLIT, $0-184
+	MOVD input_base+0(FP), R0
+	MOVD weights_base+24(FP), R1
+	MOVD output_base+48(FP), R2
+	MOVD channels+96(FP), R3
+	MOVD rows+104(FP), R4
+	MOVD columns+112(FP), R5
+	MOVD inputPlane+120(FP), R6
+	MOVD inputW+128(FP), R7
+	MOVD kernelPlane+136(FP), R8
+	MOVD kernelW+144(FP), R22
+	MOVD first+152(FP), R23
+	MOVD end+160(FP), R24
+	MOVD width+168(FP), R25
+	LSL $2, R6, R6
+	LSL $2, R7, R7
+	LSL $2, R8, R8
+	LSL $2, R22, R22
+	MUL R3, R8, R9
+	VEOR V0.B16, V0.B16, V0.B16
+	VEOR V1.B16, V1.B16, V1.B16
+	VEOR V2.B16, V2.B16, V2.B16
+	VEOR V3.B16, V3.B16, V3.B16
+	VEOR V4.B16, V4.B16, V4.B16
+	VEOR V5.B16, V5.B16, V5.B16
+	VEOR V6.B16, V6.B16, V6.B16
+	VEOR V7.B16, V7.B16, V7.B16
+	// Lane indices for the clipped-column mask.
+	MOVD $0x0000000100000000, R13
+	VMOV R13, V31.D[0]
+	MOVD $0x0000000300000002, R13
+	VMOV R13, V31.D[1]
+
+channel_loop:
+	MOVD R0, R10
+	MOVD R1, R11
+	MOVD R4, R12
+row_loop:
+	MOVD R10, R16
+	MOVD R11, R17
+	ADD R9, R17, R19
+	ADD R9, R19, R20
+	ADD R9, R20, R21
+	MOVD R23, R26
+	MOVD R24, R27
+	MOVD R5, R15
+column_loop:
+	CBNZ R26, clipped_column
+	SUB R25, R27, R14
+	ADD $1, R14, R14
+	CMP $0, R14
+	BLE clipped_column
+	CMP R15, R14
+	CSEL LT, R14, R15, R14
+	SUB R14, R15, R15
+	SUB R14, R27, R27
+	MOVD R14, R26
+	CMP $2, R25
+	BEQ common_two
+	CMP $3, R25
+	BEQ common_three
+	B common_four
+clipped_column:
+	CMP R25, R27
+	CSEL LT, R27, R25, R14 // last valid lane, exclusive
+	CBNZ R26, left_load
+	CMP $4, R14
+	BNE short_load
+	VLD1 (R16), [V8.S4]
+	B weights
+short_load:
+	CMP $2, R14
+	BLT one_load
+	FMOVD (R16), F8
+	BEQ weights
+	ADD $8, R16, R13
+	VLD1 (R13), V8.S[2]
+	B weights
+one_load:
+	FMOVS (R16), F8
+	B weights
+left_load:
+	VEOR V8.B16, V8.B16, V8.B16
+	MOVD R16, R13
+	CMP $2, R26
+	BEQ left_two
+	BGT left_three
+	VLD1.P 4(R13), V8.S[1]
+	CMP $2, R14
+	BEQ weights
+left_two:
+	VLD1.P 4(R13), V8.S[2]
+	CMP $3, R14
+	BEQ weights
+left_three:
+	VLD1 (R13), V8.S[3]
+weights:
+	ADD R9<<2, R17, R13
+	VLD1R (R13), [V13.S4]
+	ADD R9<<2, R19, R13
+	VLD1R (R13), [V14.S4]
+	ADD R9<<2, R20, R13
+	VLD1R (R13), [V15.S4]
+	ADD R9<<2, R21, R13
+	VLD1R (R13), [V16.S4]
+	VLD1R.P 4(R17), [V9.S4]
+	VLD1R.P 4(R19), [V10.S4]
+	VLD1R.P 4(R20), [V11.S4]
+	VLD1R.P 4(R21), [V12.S4]
+	// Retain the prior sum in padded lanes, including signed zero and NaN bits.
+	VDUP R26, V25.S4
+	VDUP R14, V26.S4
+	VCMGE V25.S4, V31.S4, V25.S4
+	VCMGT V31.S4, V26.S4, V26.S4
+	VAND V26.B16, V25.B16, V25.B16
+	VMOV V0.B16, V17.B16
+	VMOV V1.B16, V18.B16
+	VMOV V2.B16, V19.B16
+	VMOV V3.B16, V20.B16
+	VMOV V4.B16, V21.B16
+	VMOV V5.B16, V22.B16
+	VMOV V6.B16, V23.B16
+	VMOV V7.B16, V24.B16
+	VFMLA V9.S4, V8.S4, V17.S4
+	VFMLA V10.S4, V8.S4, V18.S4
+	VFMLA V11.S4, V8.S4, V19.S4
+	VFMLA V12.S4, V8.S4, V20.S4
+	VFMLA V13.S4, V8.S4, V21.S4
+	VFMLA V14.S4, V8.S4, V22.S4
+	VFMLA V15.S4, V8.S4, V23.S4
+	VFMLA V16.S4, V8.S4, V24.S4
+	VBIT V25.B16, V17.B16, V0.B16
+	VBIT V25.B16, V18.B16, V1.B16
+	VBIT V25.B16, V19.B16, V2.B16
+	VBIT V25.B16, V20.B16, V3.B16
+	VBIT V25.B16, V21.B16, V4.B16
+	VBIT V25.B16, V22.B16, V5.B16
+	VBIT V25.B16, V23.B16, V6.B16
+	VBIT V25.B16, V24.B16, V7.B16
+	CBZ R26, advance_input
+	SUB $1, R26, R26
+	B next_column
+advance_input:
+	ADD $4, R16, R16
+next_column:
+	SUB $1, R27, R27
+	SUBS $1, R15, R15
+	BNE column_loop
+	B row_done
+common_two:
+	FMOVD (R16), F8
+	ADD R9<<2, R17, R13
+	VLD1R (R13), [V13.S4]
+	ADD R9<<2, R19, R13
+	VLD1R (R13), [V14.S4]
+	ADD R9<<2, R20, R13
+	VLD1R (R13), [V15.S4]
+	ADD R9<<2, R21, R13
+	VLD1R (R13), [V16.S4]
+	VLD1R.P 4(R17), [V9.S4]
+	VLD1R.P 4(R19), [V10.S4]
+	VLD1R.P 4(R20), [V11.S4]
+	VLD1R.P 4(R21), [V12.S4]
+	VFMLA V9.S4, V8.S4, V0.S4
+	VFMLA V10.S4, V8.S4, V1.S4
+	VFMLA V11.S4, V8.S4, V2.S4
+	VFMLA V12.S4, V8.S4, V3.S4
+	VFMLA V13.S4, V8.S4, V4.S4
+	VFMLA V14.S4, V8.S4, V5.S4
+	VFMLA V15.S4, V8.S4, V6.S4
+	VFMLA V16.S4, V8.S4, V7.S4
+	ADD $4, R16, R16
+	SUBS $1, R26, R26
+	BNE common_two
+	B common_done
+common_three:
+	FMOVD (R16), F8
+	ADD $8, R16, R13
+	VLD1 (R13), V8.S[2]
+	ADD R9<<2, R17, R13
+	VLD1R (R13), [V13.S4]
+	ADD R9<<2, R19, R13
+	VLD1R (R13), [V14.S4]
+	ADD R9<<2, R20, R13
+	VLD1R (R13), [V15.S4]
+	ADD R9<<2, R21, R13
+	VLD1R (R13), [V16.S4]
+	VLD1R.P 4(R17), [V9.S4]
+	VLD1R.P 4(R19), [V10.S4]
+	VLD1R.P 4(R20), [V11.S4]
+	VLD1R.P 4(R21), [V12.S4]
+	VFMLA V9.S4, V8.S4, V0.S4
+	VFMLA V10.S4, V8.S4, V1.S4
+	VFMLA V11.S4, V8.S4, V2.S4
+	VFMLA V12.S4, V8.S4, V3.S4
+	VFMLA V13.S4, V8.S4, V4.S4
+	VFMLA V14.S4, V8.S4, V5.S4
+	VFMLA V15.S4, V8.S4, V6.S4
+	VFMLA V16.S4, V8.S4, V7.S4
+	ADD $4, R16, R16
+	SUBS $1, R26, R26
+	BNE common_three
+	B common_done
+common_four:
+	VLD1 (R16), [V8.S4]
+	ADD R9<<2, R17, R13
+	VLD1R (R13), [V13.S4]
+	ADD R9<<2, R19, R13
+	VLD1R (R13), [V14.S4]
+	ADD R9<<2, R20, R13
+	VLD1R (R13), [V15.S4]
+	ADD R9<<2, R21, R13
+	VLD1R (R13), [V16.S4]
+	VLD1R.P 4(R17), [V9.S4]
+	VLD1R.P 4(R19), [V10.S4]
+	VLD1R.P 4(R20), [V11.S4]
+	VLD1R.P 4(R21), [V12.S4]
+	VFMLA V9.S4, V8.S4, V0.S4
+	VFMLA V10.S4, V8.S4, V1.S4
+	VFMLA V11.S4, V8.S4, V2.S4
+	VFMLA V12.S4, V8.S4, V3.S4
+	VFMLA V13.S4, V8.S4, V4.S4
+	VFMLA V14.S4, V8.S4, V5.S4
+	VFMLA V15.S4, V8.S4, V6.S4
+	VFMLA V16.S4, V8.S4, V7.S4
+	ADD $4, R16, R16
+	SUBS $1, R26, R26
+	BNE common_four
+	B common_done
+common_done:
+	CBNZ R15, column_loop
+row_done:
+	ADD R7, R10, R10
+	ADD R22, R11, R11
+	SUBS $1, R12, R12
+	BNE row_loop
+	ADD R6, R0, R0
+	ADD R8, R1, R1
+	SUBS $1, R3, R3
+	BNE channel_loop
+	MOVD bias_base+72(FP), R1
+	MOVD bias_len+80(FP), R3
+	CBZ R3, store
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V0.S4, V9.S4, V0.S4
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V1.S4, V9.S4, V1.S4
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V2.S4, V9.S4, V2.S4
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V3.S4, V9.S4, V3.S4
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V4.S4, V9.S4, V4.S4
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V5.S4, V9.S4, V5.S4
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V6.S4, V9.S4, V6.S4
+	VLD1R.P 4(R1), [V9.S4]
+	VFADD V7.S4, V9.S4, V7.S4
+store:
+	MOVD plane+176(FP), R3
+	LSL $2, R3, R3
+	CMP $4, R25
+	BEQ store_four
+	CMP $3, R25
+	BEQ store_three
+	FMOVD F0, (R2)
+	ADD R3, R2, R2
+	FMOVD F1, (R2)
+	ADD R3, R2, R2
+	FMOVD F2, (R2)
+	ADD R3, R2, R2
+	FMOVD F3, (R2)
+	ADD R3, R2, R2
+	FMOVD F4, (R2)
+	ADD R3, R2, R2
+	FMOVD F5, (R2)
+	ADD R3, R2, R2
+	FMOVD F6, (R2)
+	ADD R3, R2, R2
+	FMOVD F7, (R2)
+	RET
+store_three:
+	FMOVD F0, (R2)
+	ADD $8, R2, R13
+	VST1 V0.S[2], (R13)
+	ADD R3, R2, R2
+	FMOVD F1, (R2)
+	ADD $8, R2, R13
+	VST1 V1.S[2], (R13)
+	ADD R3, R2, R2
+	FMOVD F2, (R2)
+	ADD $8, R2, R13
+	VST1 V2.S[2], (R13)
+	ADD R3, R2, R2
+	FMOVD F3, (R2)
+	ADD $8, R2, R13
+	VST1 V3.S[2], (R13)
+	ADD R3, R2, R2
+	FMOVD F4, (R2)
+	ADD $8, R2, R13
+	VST1 V4.S[2], (R13)
+	ADD R3, R2, R2
+	FMOVD F5, (R2)
+	ADD $8, R2, R13
+	VST1 V5.S[2], (R13)
+	ADD R3, R2, R2
+	FMOVD F6, (R2)
+	ADD $8, R2, R13
+	VST1 V6.S[2], (R13)
+	ADD R3, R2, R2
+	FMOVD F7, (R2)
+	ADD $8, R2, R13
+	VST1 V7.S[2], (R13)
+	RET
+store_four:
+	VST1 [V0.S4], (R2)
+	ADD R3, R2, R2
+	VST1 [V1.S4], (R2)
+	ADD R3, R2, R2
+	VST1 [V2.S4], (R2)
+	ADD R3, R2, R2
+	VST1 [V3.S4], (R2)
+	ADD R3, R2, R2
+	VST1 [V4.S4], (R2)
+	ADD R3, R2, R2
+	VST1 [V5.S4], (R2)
+	ADD R3, R2, R2
+	VST1 [V6.S4], (R2)
+	ADD R3, R2, R2
+	VST1 [V7.S4], (R2)
+	RET
+
