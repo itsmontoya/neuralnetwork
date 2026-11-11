@@ -162,6 +162,7 @@ func Test_Activations_ArgumentErrors(t *testing.T) {
 			run  func(*tensor.Tensor, *tensor.Tensor) error
 		}{
 			{name: "ReLU", run: tensor.ReLUInto},
+			{name: "ReLUPreservingNaN", run: preservingNaNReLU},
 			{name: "Sigmoid", run: tensor.SigmoidInto},
 			{name: "Tanh", run: tensor.TanhInto},
 			{name: "Softmax", run: func(input, output *tensor.Tensor) (err error) {
@@ -304,6 +305,7 @@ func Test_Activations_AliasesAndEmptySizes(t *testing.T) {
 			run  func(*tensor.Tensor, *tensor.Tensor) error
 		}{
 			{name: "ReLU", run: tensor.ReLUInto},
+			{name: "ReLUPreservingNaN", run: preservingNaNReLU},
 			{name: "Sigmoid", run: tensor.SigmoidInto},
 			{name: "Tanh", run: tensor.TanhInto},
 			{name: "Softmax", run: func(input, output *tensor.Tensor) (err error) {
@@ -416,6 +418,7 @@ func Test_Activations_OutputLifetimeAndConcurrency(t *testing.T) {
 		run  func(*tensor.Tensor, *tensor.Tensor) error
 	}{
 		{name: "ReLU", run: tensor.ReLUInto},
+		{name: "ReLUPreservingNaN", run: preservingNaNReLU},
 		{name: "Sigmoid", run: tensor.SigmoidInto},
 		{name: "Tanh", run: tensor.TanhInto},
 		{name: "Softmax", run: func(input, output *tensor.Tensor) (err error) {
