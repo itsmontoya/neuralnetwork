@@ -446,4 +446,3 @@ store_four:
 	ADD R3, R2, R2
 	VST1 [V7.S4], (R2)
 	RET
-
