@@ -16,6 +16,9 @@ func MaxPool2DInto(input, destination *Tensor, config Pool2DConfig) (err error) 
 	if len(destination.floats) == 0 {
 		return nil
 	}
+	if maxPool2DSmallWindowsInto(input, destination, config) {
+		return nil
+	}
 	for batch = 0; batch < int(destination.shape[0]); batch++ {
 		for channel = 0; channel < int(destination.shape[1]); channel++ {
 			for row = 0; row < int(destination.shape[2]); row++ {
