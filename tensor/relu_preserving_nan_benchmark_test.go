@@ -10,7 +10,7 @@ import (
 )
 
 func BenchmarkReLUPreservingNaNInto(b *testing.B) {
-	for _, size := range []int{0, 1, 2, 3, 7, 14, 31, 32, 33, 42, 1023, 1024, 1025, 3136, 6272, 8193} {
+	for _, size := range []int{0, 1, 2, 3, 4, 5, 7, 14, 15, 16, 17, 31, 32, 33, 42, 1023, 1024, 1025, 3136, 6272, 8193} {
 		for _, pattern := range []string{"finite", "mixed", "allNaN"} {
 			b.Run(fmt.Sprintf("%d/%s", size, pattern), func(operation *testing.B) {
 				var (
