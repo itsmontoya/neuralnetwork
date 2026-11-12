@@ -43,14 +43,16 @@ func ReLUPreservingNaNInto(ctx context.Context, input, destination *Tensor) (has
 			return false, err
 		}
 		end := min(offset+1024, len(input.floats))
-		for index, value := range input.floats[offset:end] {
+		chunkNaN, next := reluPreservingNaNPrefix(input, destination, offset, end)
+		hasNaN = chunkNaN || hasNaN
+		for index, value := range input.floats[next:end] {
 			bits := math.Float32bits(value)
 			if bits&0x7fffffff > 0x7f800000 {
 				hasNaN = true
 			} else if bits&0x80000000 != 0 {
 				value = 0
 			}
-			destination.floats[offset+index] = value
+			destination.floats[next+index] = value
 		}
 		offset = end
 	}
