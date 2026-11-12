@@ -6,6 +6,7 @@ func broadcastAddFloat32Into(left, right, destination *Tensor) (err error) {
 		span, axes                             = scalarBroadcastSpan(left.shape, right.shape, destination.shape)
 		scalarLeft                             bool
 		coordinates, leftStrides, rightStrides []int64
+		leftBuffer, rightBuffer                [broadcastStackRank]int64
 		leftOffset, rightOffset                int64
 	)
 	if span == 1 {
@@ -16,10 +17,10 @@ func broadcastAddFloat32Into(left, right, destination *Tensor) (err error) {
 		return broadcastFloat32Into(left, right, destination, addValue)
 	}
 	// Plan both inputs completely before writing any output.
-	if leftStrides, err = broadcastStrides(left.shape, destination.shape); err != nil {
+	if leftStrides, err = broadcastStridesInto(left.shape, destination.shape, leftBuffer[:]); err != nil {
 		return err
 	}
-	if rightStrides, err = broadcastStrides(right.shape, destination.shape); err != nil {
+	if rightStrides, err = broadcastStridesInto(right.shape, destination.shape, rightBuffer[:]); err != nil {
 		return err
 	}
 	coordinates = make([]int64, axes)

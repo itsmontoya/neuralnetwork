@@ -25,7 +25,10 @@ func validateDestination(destination *Tensor, dataType DataType, shape []int64, 
 		return err
 	}
 	if !shapesEqual(destination.shape, shape) {
-		err = fmt.Errorf("tensor: destination shape is %v, want %v", destination.shape, shape)
+		// Formatting a local copy keeps successful callers' shape scratch on the stack.
+		expected := make([]int64, len(shape))
+		copy(expected, shape)
+		err = fmt.Errorf("tensor: destination shape is %v, want %v", destination.shape, expected)
 		return err
 	}
 	for index, input = range inputs {

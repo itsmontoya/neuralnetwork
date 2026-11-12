@@ -227,3 +227,60 @@ func Test_AddInto_ConcurrentSpans(t *testing.T) {
 	}
 	workers.Wait()
 }
+
+func Test_AddInto_MetadataRankBoundaries(t *testing.T) {
+	for _, rank := range []int{7, 8, 9, 32, 33} {
+		var (
+			leftShape  = make([]int64, rank)
+			rightShape = make([]int64, rank)
+			left       *Tensor
+			right      *Tensor
+			output     *Tensor
+			shape      []int64
+			err        error
+		)
+
+		for axis := range leftShape {
+			leftShape[axis], rightShape[axis] = 1, 1
+		}
+		leftShape[0], leftShape[rank-1], rightShape[1] = 2, 3, 4
+		if left, err = FromFloat32(leftShape, []float32{1, 2, 3, 4, 5, 6}); err != nil {
+			t.Fatal(err)
+		}
+
+		if right, err = FromFloat32(rightShape, []float32{10, 20, 30, 40}); err != nil {
+			t.Fatal(err)
+		}
+
+		if shape, err = BroadcastShape(leftShape, rightShape); err != nil {
+			t.Fatal(err)
+		}
+
+		if output, err = New(Float32, shape); err != nil {
+			t.Fatal(err)
+		}
+
+		for _, reverse := range []bool{false, true} {
+			var first, second = left, right
+			if reverse {
+				first, second = right, left
+			}
+
+			if err = AddInto(first, second, output); err != nil {
+				t.Fatal(err)
+			}
+
+			for batch := 0; batch < 2; batch++ {
+				for channel := 0; channel < 4; channel++ {
+					for position := 0; position < 3; position++ {
+						index := batch*12 + channel*3 + position
+						want := float32(batch*3+position+1) + float32((channel+1)*10)
+						if output.floats[index] != want {
+							t.Fatalf("rank=%d reverse=%v output[%d]=%v, want %v", rank, reverse, index, output.floats[index], want)
+						}
+					}
+				}
+			}
+		}
+	}
+}
