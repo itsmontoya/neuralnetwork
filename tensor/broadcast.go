@@ -2,10 +2,17 @@ package tensor
 
 import "fmt"
 
+// Bound common-rank scratch to 64 bytes per shape; higher ranks remain supported.
+const broadcastStackRank = 8
+
 // BroadcastShape returns an owned shape using trailing-axis multidirectional
 // broadcasting. Shapes and float32 payload sizes are checked without allocation
 // of numeric storage. A zero dimension broadcasts with one to zero.
 func BroadcastShape(left, right []int64) (shape []int64, err error) {
+	return broadcastShapeInto(left, right, []int64{})
+}
+
+func broadcastShapeInto(left, right, buffer []int64) (shape []int64, err error) {
 	if _, _, err = ValidateShape(left, Float32); err != nil {
 		err = fmt.Errorf("tensor: left broadcast shape is invalid: %w", err)
 		return nil, err
@@ -14,7 +21,7 @@ func BroadcastShape(left, right []int64) (shape []int64, err error) {
 		err = fmt.Errorf("tensor: right broadcast shape is invalid: %w", err)
 		return nil, err
 	}
-	if shape, err = broadcastDimensions(left, right); err != nil {
+	if shape, err = broadcastDimensionsInto(left, right, buffer); err != nil {
 		return nil, err
 	}
 	if _, _, err = ValidateShape(shape, Float32); err != nil {
@@ -27,6 +34,10 @@ func BroadcastShape(left, right []int64) (shape []int64, err error) {
 // broadcastDimensions plans metadata such as batch prefixes, which do not
 // themselves own numeric payloads. Callers validate their actual output size.
 func broadcastDimensions(left, right []int64) (shape []int64, err error) {
+	return broadcastDimensionsInto(left, right, []int64{})
+}
+
+func broadcastDimensionsInto(left, right, buffer []int64) (shape []int64, err error) {
 	var (
 		rank                          int
 		axis, leftAxis, rightAxis     int
@@ -40,7 +51,11 @@ func broadcastDimensions(left, right []int64) (shape []int64, err error) {
 		return nil, err
 	}
 	rank = max(len(left), len(right))
-	shape = make([]int64, rank)
+	if cap(buffer) < rank {
+		buffer = make([]int64, rank)
+	}
+
+	shape = buffer[:rank]
 	for axis = 0; axis < rank; axis++ {
 		leftAxis = axis - (rank - len(left))
 		rightAxis = axis - (rank - len(right))
@@ -69,13 +84,16 @@ func broadcastDimensions(left, right []int64) (shape []int64, err error) {
 // ValidateBroadcastTo checks that source can broadcast to exactly destination.
 // It rejects extra source axes and never enlarges the destination shape.
 func ValidateBroadcastTo(source, destination []int64) (err error) {
-	var shape []int64
+	var (
+		shape  []int64
+		buffer [broadcastStackRank]int64
+	)
 
 	if len(source) > len(destination) {
 		err = fmt.Errorf("tensor: broadcast source rank exceeds destination rank: source=%d destination=%d", len(source), len(destination))
 		return err
 	}
-	if shape, err = BroadcastShape(source, destination); err != nil {
+	if shape, err = broadcastShapeInto(source, destination, buffer[:]); err != nil {
 		return err
 	}
 	if !shapesEqual(shape, destination) {

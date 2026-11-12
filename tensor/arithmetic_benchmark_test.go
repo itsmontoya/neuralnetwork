@@ -26,6 +26,8 @@ func BenchmarkAddInto(b *testing.B) {
 		{name: "Fallback", left: []int64{2, 1, 3}, right: []int64{1, 4, 3}},
 		{name: "FallbackVector", left: []int64{7, 31}, right: []int64{31}},
 		{name: "Empty", left: []int64{2, 0, 3}, right: []int64{1, 1, 3}},
+		{name: "RankEight", left: []int64{2, 1, 1, 1, 1, 1, 1, 3}, right: []int64{1, 4, 1, 1, 1, 1, 1, 1}},
+		{name: "RankNine", left: []int64{2, 1, 1, 1, 1, 1, 1, 1, 3}, right: []int64{1, 4, 1, 1, 1, 1, 1, 1, 1}},
 	}
 	for _, tt := range tests {
 		b.Run(tt.name, func(b *testing.B) {

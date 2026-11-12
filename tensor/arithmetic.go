@@ -37,7 +37,10 @@ func DivInto(left, right, destination *Tensor) (err error) {
 }
 
 func binaryFloat32Into(left, right, destination *Tensor, operation func(float32, float32) float32, matrixOperation func(*matrix.Matrix, *matrix.Matrix, *matrix.Matrix) error, broadcastOperation func(*Tensor, *Tensor, *Tensor) error) (err error) {
-	var shape []int64
+	var (
+		shape  []int64
+		buffer [broadcastStackRank]int64
+	)
 
 	if err = validateTensorType("left", left, Float32); err != nil {
 		return err
@@ -45,7 +48,7 @@ func binaryFloat32Into(left, right, destination *Tensor, operation func(float32,
 	if err = validateTensorType("right", right, Float32); err != nil {
 		return err
 	}
-	if shape, err = BroadcastShape(left.shape, right.shape); err != nil {
+	if shape, err = broadcastShapeInto(left.shape, right.shape, buffer[:]); err != nil {
 		return err
 	}
 	if err = validateDestination(destination, Float32, shape, left, right); err != nil {
@@ -93,15 +96,16 @@ func matrixBinaryInto(left, right, destination *Tensor, operation func(*matrix.M
 func broadcastFloat32Into(left, right, destination *Tensor, operation func(float32, float32) float32) (err error) {
 	var (
 		coordinates, leftStrides, rightStrides []int64
+		leftBuffer, rightBuffer                [broadcastStackRank]int64
 		leftOffset, rightOffset                int64
 		index, axis                            int
 	)
 
-	if leftStrides, err = broadcastStrides(left.shape, destination.shape); err != nil {
+	if leftStrides, err = broadcastStridesInto(left.shape, destination.shape, leftBuffer[:]); err != nil {
 		return err
 	}
 
-	if rightStrides, err = broadcastStrides(right.shape, destination.shape); err != nil {
+	if rightStrides, err = broadcastStridesInto(right.shape, destination.shape, rightBuffer[:]); err != nil {
 		return err
 	}
 
@@ -128,22 +132,31 @@ func broadcastFloat32Into(left, right, destination *Tensor, operation func(float
 
 // broadcastStrides is for nonempty, validated broadcast operations only.
 func broadcastStrides(input, output []int64) (strides []int64, err error) {
-	var (
-		inputStrides []int64
-		axis, shift  int
-	)
+	return broadcastStridesInto(input, output, []int64{})
+}
 
+// broadcastStridesInto avoids a temporary contiguous-stride slice.
+// Insufficient caller capacity falls back to an owned allocation.
+func broadcastStridesInto(input, output, buffer []int64) (strides []int64, err error) {
+	var stride int64 = 1
 	if err = ValidateBroadcastTo(input, output); err != nil {
 		return nil, err
 	}
-	if inputStrides, err = contiguousStrides(input); err != nil {
-		return nil, err
+
+	if cap(buffer) < len(output) {
+		buffer = make([]int64, len(output))
 	}
-	strides = make([]int64, len(output))
-	shift = len(output) - len(input)
-	for axis = range input {
+
+	strides = buffer[:len(output)]
+	clear(strides)
+	shift := len(output) - len(input)
+	for axis := len(input) - 1; axis >= 0; axis-- {
 		if input[axis] != 1 {
-			strides[axis+shift] = inputStrides[axis]
+			strides[axis+shift] = stride
+		}
+
+		if stride, err = checkedMultiply(stride, input[axis]); err != nil {
+			return nil, fmt.Errorf("tensor: contiguous stride is invalid at axis %d: %w", axis, err)
 		}
 	}
 	return strides, nil
