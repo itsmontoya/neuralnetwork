@@ -63,7 +63,7 @@ func Test_ReLUPreservingNaNInto_ExceptionalBits(t *testing.T) {
 
 func Test_ReLUPreservingNaNInto_LegacyCorrection(t *testing.T) {
 	var (
-		sizes    = []int{0, 1, 2, 3, 7, 14, 31, 32, 33, 42, 1023, 1024, 1025, 3136, 6272, 8193}
+		sizes    = []int{0, 1, 2, 3, 4, 5, 7, 14, 15, 16, 17, 31, 32, 33, 42, 1023, 1024, 1025, 3136, 6272, 8193}
 		patterns = []string{"finite", "mixed", "random bits", "all NaN", "first NaN", "middle NaN", "last NaN"}
 		nanBits  = []uint32{0x7fc12345, 0xffc54321, 0x7f800001, 0xff800002, 0x7fffffff, 0xffffffff}
 	)
@@ -182,7 +182,7 @@ func legacyCorrectedReLU(t *testing.T, input *tensor.Tensor) (values []float32) 
 }
 
 func Test_ReLUPreservingNaNInto_Cancellation(t *testing.T) {
-	for _, size := range []int{0, 1, 1023, 1024, 1025, 2049, 8193} {
+	for _, size := range []int{0, 1, 3, 4, 5, 7, 1023, 1024, 1025, 2049, 8193} {
 		checks := 2 + (size+1023)/1024
 		for boundary := 1; boundary <= checks+1; boundary++ {
 			t.Run(fmt.Sprintf("%d/check%d", size, boundary), func(t *testing.T) {
@@ -277,6 +277,50 @@ func Test_ReLUPreservingNaNInto_ErrorPrecedence(t *testing.T) {
 			}
 			checkFloat32Bits(t, got, []uint32{math.Float32bits(91)})
 		})
+	}
+}
+
+func Test_ReLUPreservingNaNInto_SingleNaNLanes(t *testing.T) {
+	for _, size := range []int{4, 5, 7, 8, 9, 1024, 1025, 2049} {
+		for _, position := range []int{0, 1, 2, 3, size - 1} {
+			for _, bits := range []uint32{0x7f800001, 0xff800001, 0x7fc12345, 0xffc54321} {
+				t.Run(fmt.Sprintf("%d/%d/%08x", size, position, bits), func(t *testing.T) {
+					var (
+						values        = make([]float32, size)
+						input, output *tensor.Tensor
+						got           []float32
+						err           error
+					)
+
+					for index := range values {
+						values[index] = 1
+					}
+					values[position] = math.Float32frombits(bits)
+					if input, err = tensor.FromFloat32([]int64{int64(size)}, values); err != nil {
+						t.Fatal(err)
+					}
+
+					if output, err = tensor.New(tensor.Float32, input.Shape()); err != nil {
+						t.Fatal(err)
+					}
+
+					hasNaN, runErr := tensor.ReLUPreservingNaNInto(context.Background(), input, output)
+					if runErr != nil || !hasNaN {
+						t.Fatalf("hasNaN=%t err=%v", hasNaN, runErr)
+					}
+
+					if got, err = output.Float32Values(); err != nil {
+						t.Fatal(err)
+					}
+
+					for index, value := range got {
+						if math.Float32bits(value) != math.Float32bits(values[index]) {
+							t.Fatalf("index=%d got=%08x want=%08x", index, math.Float32bits(value), math.Float32bits(values[index]))
+						}
+					}
+				})
+			}
+		}
 	}
 }
 
