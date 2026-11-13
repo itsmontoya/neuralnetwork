@@ -1,11 +1,16 @@
 # Tensor arithmetic matrix adapters (Pass 16)
 
 The equal-shape Add/Sub/Mul adapter now uses the existing
-`Matrix.ValuesInto(destination.floats)` instead of allocating `Matrix.Values()`
+`Matrix.ValuesInto` with the captured destination slice instead of allocating `Matrix.Values()`
 and copying its result a second time. For `[1,10]` Add, this removes **48 B and
 one allocation per call: 336 B / 7 objects → 288 B / 6 objects**. The input
 matrix copies and private output matrix remain. MatMul is unchanged and retains
 its complete output staging and planning allocations.
+
+The adapter captures the three invocation-local slice headers before creating
+the matrices. These headers reference existing tensor storage for this call;
+they add no payload buffers or retained aliases. The final measurements below
+use this form of the adapter.
 
 ## Scope and contract
 
@@ -14,9 +19,11 @@ the v0.10.9 merge). Branch: `optimization-pass-16-matrix-adapters`.
 The default branch was checked against the remote before branching; it had no
 subsequent fix for this mechanism. The initial worktree was clean.
 
-Commits: `2065cd6` adds contract tests and reusable baseline probes; `fa87db8`
-implements the production adapter change. The following documentation commit
-records the measurements and validation. No release, tag, or merge is performed.
+Commits `2065cd6`, `fa87db8` and `718560b` establish the tests, initial adapter
+change and initial report. The follow-up records the final slice-header form
+and fresh measurements/validation. The complete commit list is in
+[PR #128](https://github.com/itsmontoya/neuralnetwork/pull/128).
+No release, tag, or merge is performed.
 
 Production changes are confined to `tensor/arithmetic.go`. Reusable benchmarks
 are in `tensor/matrix_adapter_benchmark_test.go`; focused regressions are in
@@ -38,9 +45,10 @@ Inputs remain read-only; repeated left/right inputs are allowed. The destination
 must remain disjoint, including pointer/shallow-copy aliases of empty tensors.
 Its shape and backing storage are preserved and completely overwritten on
 success. Actual shapes and values are validated anew on each call. No geometry
-or payload is cached, borrowed, retained, or exposed. Arbitrary ranks, scalars,
-empty outputs, broadcast fallbacks and architecture-selected matrix arithmetic
-remain on their existing paths, including purego and Metal-tagged builds.
+or payload is cached or retained across calls, and no aliases are exposed.
+Arbitrary ranks, scalars, empty outputs, broadcast fallbacks and
+architecture-selected matrix arithmetic remain on their existing paths,
+including purego and Metal-tagged builds.
 
 `ValuesInto` validates the source and destination length, then synchronizes host
 values **before** copying. Every returned error precedes its write. The adapter
@@ -98,11 +106,14 @@ adapter change, not a planning rewrite.
 
 ## Measurement policy and evidence
 
-Measured 2026-11-12: Apple M3, Mac15,13, 8 cores, 24 GiB; macOS 26.5.2
+Final comparison measured 2026-11-13, following exploratory runs on 2026-11-12:
+Apple M3, Mac15,13, 8 cores, 24 GiB; macOS 26.5.2
 (25F84), Darwin 25.5.0; Go 1.27.2, darwin/arm64. Module declares Go 1.26.1;
 dependencies remain simd v1.3.0 and x/sys v0.45.0.
 
-Both binaries use the same benchmark source, toolchain and host. Build policy:
+Both binaries use the same benchmark and correctness-test source, toolchain and
+host. A Go overlay supplies the original base's `tensor/arithmetic.go` for the
+baseline; all other production source is unchanged from that base. Build policy:
 `GOWORK=off CGO_ENABLED=0 GOARM64=v8.0`, default optimization, no gcflags;
 the purego pair additionally uses `-tags=purego`. Latency uses `GOMAXPROCS=1`,
 200 ms per benchmark, eight repetitions **per version per mode**, sequential
@@ -122,10 +133,13 @@ separately from the balanced comparison.
 
 Raw samples, executable binaries, scripts, allocation profiles, compiler output,
 disassembly, and verification logs are together at:
-`.benchmarks/matrix-adapters/20261112-Or0as6/` (gitignored).
-`measure.py` reproduces the balanced series; `summary.json` retains every
-sample and derived statistics. `validate.py` records individual check commands,
-environment overrides, logs and exit statuses in `validation.json`.
+`.benchmarks/matrix-adapters/20261112-Or0as6/20261113-final/` (gitignored).
+There, `measure.py` reproduces the balanced series and `summary.json` retains
+every sample and derived statistic. `validate.py` records individual check
+commands, environment overrides, logs and exit statuses in `validation.json`.
+The parent run directory preserves the original baseline, source overlays,
+fault-injection generator and rejected adapter experiments; its `final/`
+subdirectory is an earlier return-form experiment, not the final comparison.
 
 ### default build
 
@@ -134,59 +148,59 @@ constant across the eight samples unless shown otherwise.
 
 | Scope | Before µs/op; CV | After µs/op; CV | B/op before → after | allocs/op before → after |
 | --- | ---: | ---: | ---: | ---: |
-| Public broadcast Add/MNISTFirst/Forward | 1.944000 [1.908000–1.973000]; 1.11% | 1.985500 [1.956000–2.146000]; 3.19% | 0 → 0 | 0 → 0 |
-| Public broadcast Add/MNISTFirst/Reverse | 1.955000 [1.864000–2.113000]; 3.37% | 1.973500 [1.862000–1.999000]; 2.03% | 0 → 0 | 0 → 0 |
-| Public broadcast Add/MNISTSecond/Forward | 1.199000 [1.147000–1.226000]; 1.98% | 1.222500 [1.176000–1.247000]; 1.72% | 0 → 0 | 0 → 0 |
-| Public broadcast Add/MNISTSecond/Reverse | 1.202000 [1.151000–1.221000]; 1.86% | 1.222000 [1.185000–1.295000]; 2.36% | 0 → 0 | 0 → 0 |
-| Public broadcast Add/Batch/Forward | 0.826000 [0.805400–0.877000]; 3.19% | 0.817050 [0.777900–0.877200]; 3.12% | 0 → 0 | 0 → 0 |
-| Public broadcast Add/Batch/Reverse | 0.899350 [0.860200–0.956100]; 2.75% | 0.895750 [0.860400–0.951900]; 3.27% | 0 → 0 | 0 → 0 |
-| Public Add/0 | 0.054005 [0.050580–0.054500]; 2.25% | 0.053945 [0.052790–0.054440]; 0.85% | 0 → 0 | 0 → 0 |
-| Public Add/1 | 0.165550 [0.156600–0.168200]; 1.97% | 0.161650 [0.159800–0.163800]; 0.67% | 160 → 156 | 7 → 6 |
-| Public Add/10 | 0.179900 [0.173300–0.181800]; 1.40% | 0.170750 [0.168400–0.172500]; 0.69% | 336 → 288 | 7 → 6 |
-| Public Add/15 | 0.183900 [0.175500–0.185500]; 1.64% | 0.174200 [0.171700–0.174800]; 0.58% | 400 → 336 | 7 → 6 |
-| Public Add/16 | 0.183250 [0.175900–0.186400]; 1.57% | 0.173850 [0.173100–0.175500]; 0.46% | 400 → 336 | 7 → 6 |
-| Public Add/17 | 0.190100 [0.183100–0.191400]; 1.31% | 0.178150 [0.177200–0.180800]; 0.72% | 464 → 384 | 7 → 6 |
-| Public Add/4096 | 4.690500 [4.553000–4.862000]; 1.73% | 3.640000 [3.489000–3.696000]; 1.87% | 65680 → 49296 | 7 → 6 |
-| Public Add/65536 | 63.380000 [61.136000–70.514000]; 4.01% | 50.997500 [49.728000–51.637000]; 1.09% | 1048720 → 786576 | 7 → 6 |
-| Public Sub/0 | 0.053900 [0.051850–0.057860]; 2.94% | 0.053770 [0.053460–0.054180]; 0.35% | 0 → 0 | 0 → 0 |
-| Public Sub/1 | 0.166200 [0.158800–0.201600]; 7.73% | 0.161250 [0.158600–0.162900]; 0.96% | 160 → 156 | 7 → 6 |
-| Public Sub/10 | 0.180350 [0.173400–0.221100]; 7.56% | 0.171000 [0.167200–0.172100]; 1.00% | 336 → 288 | 7 → 6 |
-| Public Sub/15 | 0.184750 [0.178300–0.267700]; 14.13% | 0.173550 [0.172500–0.175000]; 0.48% | 400 → 336 | 7 → 6 |
-| Public Sub/16 | 0.183150 [0.178200–0.189000]; 1.71% | 0.173250 [0.170800–0.174900]; 0.83% | 400 → 336 | 7 → 6 |
-| Public Sub/17 | 0.189550 [0.186200–0.198900]; 1.86% | 0.178900 [0.176000–0.192400]; 2.63% | 464 → 384 | 7 → 6 |
-| Public Sub/4096 | 4.740000 [4.508000–5.014000]; 2.83% | 3.625000 [3.568000–3.690000]; 1.29% | 65680 → 49296 | 7 → 6 |
-| Public Sub/65536 | 63.300000 [62.062000–65.236000]; 1.46% | 51.060000 [49.924000–52.383000]; 1.61% | 1048720 → 786576 | 7 → 6 |
-| Public Mul/0 | 0.054010 [0.052640–0.054400]; 0.94% | 0.053840 [0.053530–0.054500]; 0.55% | 0 → 0 | 0 → 0 |
-| Public Mul/1 | 0.166950 [0.162400–0.169000]; 1.13% | 0.163650 [0.162400–0.166700]; 0.76% | 160 → 156 | 7 → 6 |
-| Public Mul/10 | 0.179550 [0.176500–0.182600]; 1.00% | 0.170100 [0.169100–0.172200]; 0.65% | 336 → 288 | 7 → 6 |
-| Public Mul/15 | 0.183150 [0.179000–0.187400]; 1.37% | 0.174750 [0.171800–0.177000]; 0.92% | 400 → 336 | 7 → 6 |
-| Public Mul/16 | 0.181550 [0.177200–0.184500]; 1.12% | 0.173000 [0.170600–0.174500]; 0.62% | 400 → 336 | 7 → 6 |
-| Public Mul/17 | 0.188900 [0.183100–0.189700]; 1.10% | 0.177850 [0.176500–0.238500]; 10.80% | 464 → 384 | 7 → 6 |
-| Public Mul/4096 | 4.719000 [4.566000–4.916000]; 2.00% | 3.647500 [3.529000–3.769000]; 1.71% | 65680 → 49296 | 7 → 6 |
-| Public Mul/65536 | 63.264500 [62.290000–67.004000]; 2.55% | 51.188000 [48.828000–52.361000]; 1.84% | 1048720 → 786576 | 7 → 6 |
-| Matrix scope/Adapter | 0.102850 [0.100800–0.103500]; 0.77% | 0.093400 [0.091240–0.093790]; 0.85% | 336 → 288 | 7 → 6 |
-| Matrix scope/FromSlice | 0.023735 [0.023050–0.024170]; 1.26% | 0.023880 [0.023230–0.024590]; 1.51% | 96 → 96 | 2 → 2 |
-| Matrix scope/New | 0.022470 [0.021710–0.022710]; 1.36% | 0.022560 [0.021790–0.022800]; 1.26% | 96 → 96 | 2 → 2 |
-| Matrix scope/MatrixAdd | 0.019570 [0.019340–0.019700]; 0.53% | 0.019605 [0.019520–0.019830]; 0.45% | 0 → 0 | 0 → 0 |
-| Matrix scope/Values | 0.015960 [0.015720–0.016180]; 0.80% | 0.015960 [0.015450–0.017420]; 3.34% | 48 → 48 | 1 → 1 |
-| Matrix scope/ValuesInto | 0.005053 [0.005019–0.005063]; 0.26% | 0.005052 [0.005035–0.005157]; 0.79% | 0 → 0 | 0 → 0 |
-| Matrix scope/Copy | 0.001868 [0.001856–0.001886]; 0.44% | 0.001871 [0.001865–0.002041]; 2.97% | 0 → 0 | 0 → 0 |
-| MatMul/MNIST/Complete | 1.687500 [1.675000–1.708000]; 0.57% | 1.691000 [1.669000–1.700000]; 0.58% | 144 → 144 | 3 → 3 |
-| MatMul/MNIST/Plan | 0.062135 [0.060980–0.066810]; 3.27% | 0.061140 [0.060530–0.066070]; 2.75% | 96 → 96 | 2 → 2 |
-| MatMul/MNIST/Staging | 1.580000 [1.532000–1.592000]; 1.08% | 1.576500 [1.566000–1.590000]; 0.46% | 48 → 48 | 1 → 1 |
-| MatMul/MNIST/Kernel | 1.578500 [1.504000–1.677000]; 3.32% | 1.564000 [1.551000–1.571000]; 0.47% | 0 → 0 | 0 → 0 |
-| MatMul/Dot/Complete | 0.414900 [0.394300–0.758100]; 26.87% | 0.413100 [0.407900–0.444000]; 2.86% | 96 → 96 | 2 → 2 |
-| MatMul/Dot/Plan | 0.051745 [0.050700–0.052840]; 1.26% | 0.051190 [0.050060–0.062280]; 7.12% | 96 → 96 | 2 → 2 |
-| MatMul/Dot/Staging | 0.313500 [0.296800–0.731900]; 38.69% | 0.310600 [0.306500–0.340100]; 3.23% | 0 → 0 | 0 → 0 |
-| MatMul/Dot/Kernel | 0.246050 [0.238700–0.439300]; 26.87% | 0.245850 [0.242000–0.284800]; 5.21% | 0 → 0 | 0 → 0 |
-| MatMul/Batch/Complete | 2.777000 [2.685000–2.802000]; 1.25% | 2.788000 [2.768000–3.341000]; 6.36% | 1200 → 1200 | 7 → 7 |
-| MatMul/Batch/Plan | 0.085835 [0.084080–0.093530]; 3.10% | 0.086080 [0.083910–0.090360]; 2.25% | 128 → 128 | 3 → 3 |
-| MatMul/Batch/Staging | 2.632000 [2.558000–2.661000]; 1.09% | 2.653500 [2.619000–2.677000]; 0.67% | 1072 → 1072 | 4 → 4 |
+| Public broadcast Add/MNISTFirst/Forward | 1.893000 [1.860000–2.137000]; 4.69% | 1.883500 [1.860000–2.116000]; 4.11% | 0 → 0 | 0 → 0 |
+| Public broadcast Add/MNISTFirst/Reverse | 1.898500 [1.860000–2.042000]; 3.41% | 1.890000 [1.874000–1.927000]; 0.94% | 0 → 0 | 0 → 0 |
+| Public broadcast Add/MNISTSecond/Forward | 1.158500 [1.146000–1.194000]; 1.30% | 1.159500 [1.139000–1.177000]; 1.07% | 0 → 0 | 0 → 0 |
+| Public broadcast Add/MNISTSecond/Reverse | 1.165500 [1.147000–1.258000]; 2.93% | 1.162500 [1.146000–1.174000]; 0.76% | 0 → 0 | 0 → 0 |
+| Public broadcast Add/Batch/Forward | 0.808000 [0.768600–0.852300]; 3.01% | 0.798100 [0.765400–0.896400]; 4.60% | 0 → 0 | 0 → 0 |
+| Public broadcast Add/Batch/Reverse | 0.869650 [0.855700–0.904000]; 1.53% | 0.873050 [0.862900–0.930100]; 2.28% | 0 → 0 | 0 → 0 |
+| Public Add/0 | 0.053330 [0.050790–0.054190]; 1.78% | 0.053315 [0.051800–0.054340]; 1.53% | 0 → 0 | 0 → 0 |
+| Public Add/1 | 0.163800 [0.155700–0.165200]; 1.78% | 0.161600 [0.157200–0.163300]; 1.29% | 160 → 156 | 7 → 6 |
+| Public Add/10 | 0.178700 [0.169800–0.180300]; 1.77% | 0.170000 [0.168700–0.180900]; 2.22% | 336 → 288 | 7 → 6 |
+| Public Add/15 | 0.182000 [0.173600–0.183800]; 1.65% | 0.173350 [0.170100–0.181900]; 1.94% | 400 → 336 | 7 → 6 |
+| Public Add/16 | 0.182050 [0.173600–0.188200]; 2.08% | 0.173300 [0.169500–0.175300]; 0.96% | 400 → 336 | 7 → 6 |
+| Public Add/17 | 0.189200 [0.180800–0.196000]; 2.19% | 0.177350 [0.176600–0.190100]; 2.36% | 464 → 384 | 7 → 6 |
+| Public Add/4096 | 4.644000 [4.568000–4.785000]; 1.65% | 3.609000 [3.371000–3.664000]; 2.59% | 65680 → 49296 | 7 → 6 |
+| Public Add/65536 | 62.571000 [62.071000–63.088000]; 0.51% | 50.183500 [49.400000–51.064000]; 1.00% | 1048720 → 786576 | 7 → 6 |
+| Public Sub/0 | 0.053465 [0.050790–0.054510]; 1.90% | 0.053505 [0.052290–0.054080]; 1.16% | 0 → 0 | 0 → 0 |
+| Public Sub/1 | 0.164550 [0.155300–0.181300]; 4.20% | 0.160700 [0.157600–0.161900]; 0.82% | 160 → 156 | 7 → 6 |
+| Public Sub/10 | 0.178500 [0.170500–0.182200]; 1.87% | 0.169350 [0.165800–0.185700]; 3.39% | 336 → 288 | 7 → 6 |
+| Public Sub/15 | 0.182550 [0.174000–0.185300]; 1.81% | 0.171950 [0.167000–0.173400]; 1.11% | 400 → 336 | 7 → 6 |
+| Public Sub/16 | 0.181150 [0.172400–0.231900]; 9.29% | 0.172100 [0.168500–0.195900]; 4.71% | 400 → 336 | 7 → 6 |
+| Public Sub/17 | 0.188650 [0.183900–0.191200]; 1.32% | 0.176500 [0.174200–0.178300]; 0.71% | 464 → 384 | 7 → 6 |
+| Public Sub/4096 | 4.696500 [4.481000–4.851000]; 2.19% | 3.585000 [3.544000–3.636000]; 0.87% | 65680 → 49296 | 7 → 6 |
+| Public Sub/65536 | 62.448500 [60.687000–64.469000]; 1.77% | 50.241500 [48.658000–50.765000]; 1.23% | 1048720 → 786576 | 7 → 6 |
+| Public Mul/0 | 0.053345 [0.050730–0.054170]; 1.82% | 0.053465 [0.051810–0.053930]; 1.38% | 0 → 0 | 0 → 0 |
+| Public Mul/1 | 0.165450 [0.156700–0.167300]; 1.88% | 0.161750 [0.159000–0.163200]; 0.83% | 160 → 156 | 7 → 6 |
+| Public Mul/10 | 0.177950 [0.176900–0.185400]; 1.42% | 0.168550 [0.167500–0.170700]; 0.68% | 336 → 288 | 7 → 6 |
+| Public Mul/15 | 0.181150 [0.175500–0.183700]; 1.31% | 0.172100 [0.169500–0.174200]; 0.88% | 400 → 336 | 7 → 6 |
+| Public Mul/16 | 0.180250 [0.175000–0.183200]; 1.30% | 0.170300 [0.167900–0.171400]; 0.75% | 400 → 336 | 7 → 6 |
+| Public Mul/17 | 0.187700 [0.178900–0.195800]; 2.33% | 0.175850 [0.174500–0.178900]; 0.83% | 464 → 384 | 7 → 6 |
+| Public Mul/4096 | 4.761500 [4.508000–4.878000]; 2.64% | 3.605000 [3.515000–3.820000]; 2.31% | 65680 → 49296 | 7 → 6 |
+| Public Mul/65536 | 62.857500 [61.528000–63.223000]; 0.86% | 50.364000 [49.300000–53.211000]; 2.18% | 1048720 → 786576 | 7 → 6 |
+| Matrix scope/Adapter | 0.102000 [0.098940–0.110400]; 3.30% | 0.093320 [0.092640–0.100800]; 2.68% | 336 → 288 | 7 → 6 |
+| Matrix scope/FromSlice | 0.023360 [0.022710–0.023870]; 1.65% | 0.023820 [0.023710–0.024270]; 0.81% | 96 → 96 | 2 → 2 |
+| Matrix scope/New | 0.021830 [0.021470–0.022580]; 1.96% | 0.022465 [0.022300–0.022800]; 0.62% | 96 → 96 | 2 → 2 |
+| Matrix scope/MatrixAdd | 0.019455 [0.018850–0.021140]; 3.15% | 0.019435 [0.019290–0.019780]; 0.75% | 0 → 0 | 0 → 0 |
+| Matrix scope/Values | 0.015850 [0.015410–0.016090]; 1.16% | 0.015815 [0.015440–0.015970]; 0.97% | 48 → 48 | 1 → 1 |
+| Matrix scope/ValuesInto | 0.005055 [0.004937–0.005505]; 3.17% | 0.005034 [0.004998–0.005061]; 0.37% | 0 → 0 | 0 → 0 |
+| Matrix scope/Copy | 0.001862 [0.001809–0.001874]; 1.01% | 0.001861 [0.001845–0.001867]; 0.35% | 0 → 0 | 0 → 0 |
+| MatMul/MNIST/Complete | 1.676000 [1.603000–1.686000]; 1.60% | 1.677000 [1.621000–1.701000]; 1.63% | 144 → 144 | 3 → 3 |
+| MatMul/MNIST/Plan | 0.061020 [0.058730–0.062070]; 1.59% | 0.061175 [0.060270–0.067380]; 3.47% | 96 → 96 | 2 → 2 |
+| MatMul/MNIST/Staging | 1.562500 [1.477000–1.589000]; 2.17% | 1.559500 [1.502000–1.669000]; 3.20% | 48 → 48 | 1 → 1 |
+| MatMul/MNIST/Kernel | 1.531000 [1.494000–1.570000]; 1.45% | 1.544000 [1.505000–1.578000]; 1.60% | 0 → 0 | 0 → 0 |
+| MatMul/Dot/Complete | 0.402350 [0.400200–0.811500]; 29.72% | 0.407950 [0.392800–0.777500]; 32.32% | 96 → 96 | 2 → 2 |
+| MatMul/Dot/Plan | 0.051225 [0.049860–0.051570]; 0.98% | 0.051470 [0.050140–0.054280]; 2.23% | 96 → 96 | 2 → 2 |
+| MatMul/Dot/Staging | 0.306500 [0.300900–0.809600]; 44.42% | 0.316950 [0.299900–0.663100]; 35.83% | 0 → 0 | 0 → 0 |
+| MatMul/Dot/Kernel | 0.241750 [0.233900–0.390300]; 18.99% | 0.244600 [0.234400–0.619600]; 43.59% | 0 → 0 | 0 → 0 |
+| MatMul/Batch/Complete | 2.724000 [2.658000–2.744000]; 0.98% | 2.721500 [2.635000–2.796000]; 1.72% | 1200 → 1200 | 7 → 7 |
+| MatMul/Batch/Plan | 0.083820 [0.081380–0.085770]; 1.53% | 0.083880 [0.082390–0.085020]; 1.12% | 128 → 128 | 3 → 3 |
+| MatMul/Batch/Staging | 2.579500 [2.491000–2.954000]; 5.06% | 2.578000 [2.504000–2.631000]; 1.64% | 1072 → 1072 | 4 → 4 |
 
-Public Add/10 improves in 8/8 paired rounds; median paired saving 0.010350 µs (not an ONNX saving).
+Public Add/10 improves in 7/8 paired rounds; median paired saving 0.008700 µs (not an ONNX saving).
 
-Add/10 before samples (µs, round order): 0.173300, 0.180100, 0.180600, 0.179100, 0.179500, 0.179700, 0.181700, 0.181800.
-Add/10 after samples (µs, round order): 0.170800, 0.172500, 0.169700, 0.169300, 0.168400, 0.171100, 0.170700, 0.170800.
+Add/10 before samples (µs, round order): 0.169800, 0.178200, 0.177400, 0.179200, 0.178400, 0.180000, 0.179000, 0.180300.
+Add/10 after samples (µs, round order): 0.180900, 0.172900, 0.171900, 0.169000, 0.170100, 0.168700, 0.169900, 0.168900.
 
 ### purego build
 
@@ -195,96 +209,91 @@ constant across the eight samples unless shown otherwise.
 
 | Scope | Before µs/op; CV | After µs/op; CV | B/op before → after | allocs/op before → after |
 | --- | ---: | ---: | ---: | ---: |
-| Public broadcast Add/MNISTFirst/Forward | 1.979000 [1.969000–2.186000]; 3.60% | 1.984500 [1.960000–2.172000]; 4.01% | 0 → 0 | 0 → 0 |
-| Public broadcast Add/MNISTFirst/Reverse | 1.984000 [1.971000–2.110000]; 2.14% | 1.988500 [1.971000–2.011000]; 0.61% | 0 → 0 | 0 → 0 |
-| Public broadcast Add/MNISTSecond/Forward | 1.231000 [1.204000–1.281000]; 1.72% | 1.217500 [1.200000–1.227000]; 0.70% | 0 → 0 | 0 → 0 |
-| Public broadcast Add/MNISTSecond/Reverse | 1.225500 [1.210000–1.298000]; 2.13% | 1.234500 [1.224000–1.240000]; 0.38% | 0 → 0 | 0 → 0 |
-| Public broadcast Add/Batch/Forward | 0.829700 [0.823000–0.939500]; 4.35% | 0.893850 [0.877300–0.905400]; 1.04% | 0 → 0 | 0 → 0 |
-| Public broadcast Add/Batch/Reverse | 0.834300 [0.829200–0.842400]; 0.49% | 0.822750 [0.818200–0.826500]; 0.34% | 0 → 0 | 0 → 0 |
-| Public Add/0 | 0.054335 [0.053940–0.054960]; 0.48% | 0.054265 [0.054040–0.054650]; 0.37% | 0 → 0 | 0 → 0 |
-| Public Add/1 | 0.165650 [0.163400–0.172000]; 1.52% | 0.160350 [0.158700–0.161800]; 0.68% | 160 → 156 | 7 → 6 |
-| Public Add/10 | 0.179350 [0.177400–0.183700]; 1.22% | 0.168750 [0.167200–0.182600]; 2.75% | 336 → 288 | 7 → 6 |
-| Public Add/15 | 0.183700 [0.181400–0.207900]; 4.33% | 0.172650 [0.170800–0.174900]; 0.72% | 400 → 336 | 7 → 6 |
-| Public Add/16 | 0.186300 [0.182300–0.204200]; 3.62% | 0.173500 [0.171600–0.176600]; 0.87% | 400 → 336 | 7 → 6 |
-| Public Add/17 | 0.192600 [0.188400–0.195500]; 1.12% | 0.179050 [0.176200–0.204700]; 4.83% | 464 → 384 | 7 → 6 |
-| Public Add/4096 | 5.873000 [5.714000–6.059000]; 1.76% | 4.775000 [4.691000–5.537000]; 5.34% | 65680 → 49296 | 7 → 6 |
-| Public Add/65536 | 85.400500 [82.295000–86.943000]; 1.60% | 71.157000 [69.296000–71.780000]; 1.05% | 1048720 → 786576 | 7 → 6 |
-| Public Sub/0 | 0.054175 [0.053840–0.054690]; 0.47% | 0.054290 [0.054150–0.054520]; 0.21% | 0 → 0 | 0 → 0 |
-| Public Sub/1 | 0.164700 [0.163000–0.226000]; 11.75% | 0.161150 [0.159400–0.181600]; 4.24% | 160 → 156 | 7 → 6 |
-| Public Sub/10 | 0.181050 [0.177300–0.184800]; 1.27% | 0.169100 [0.168100–0.172900]; 1.02% | 336 → 288 | 7 → 6 |
-| Public Sub/15 | 0.184150 [0.181200–0.222400]; 6.85% | 0.172200 [0.171100–0.174800]; 0.76% | 400 → 336 | 7 → 6 |
-| Public Sub/16 | 0.185100 [0.181800–0.198500]; 2.68% | 0.173000 [0.171300–0.175400]; 0.84% | 400 → 336 | 7 → 6 |
-| Public Sub/17 | 0.191300 [0.188700–0.203400]; 2.26% | 0.178650 [0.176700–0.194000]; 2.92% | 464 → 384 | 7 → 6 |
-| Public Sub/4096 | 5.889500 [5.845000–6.007000]; 1.04% | 4.762000 [4.700000–4.866000]; 1.19% | 65680 → 49296 | 7 → 6 |
-| Public Sub/65536 | 85.088500 [82.016000–86.628000]; 1.58% | 71.081500 [70.348000–73.152000]; 1.23% | 1048720 → 786576 | 7 → 6 |
-| Public Mul/0 | 0.054090 [0.053890–0.054530]; 0.38% | 0.054280 [0.054190–0.058100]; 2.30% | 0 → 0 | 0 → 0 |
-| Public Mul/1 | 0.165150 [0.163300–0.167600]; 0.87% | 0.160750 [0.158600–0.161300]; 0.50% | 160 → 156 | 7 → 6 |
-| Public Mul/10 | 0.179800 [0.178100–0.205700]; 5.02% | 0.169000 [0.167700–0.170000]; 0.51% | 336 → 288 | 7 → 6 |
-| Public Mul/15 | 0.183750 [0.181900–0.187700]; 1.12% | 0.174050 [0.171400–0.206300]; 6.12% | 400 → 336 | 7 → 6 |
-| Public Mul/16 | 0.184950 [0.182200–0.187200]; 0.84% | 0.173500 [0.171400–0.175300]; 0.76% | 400 → 336 | 7 → 6 |
-| Public Mul/17 | 0.190650 [0.187900–0.192600]; 0.79% | 0.178550 [0.176700–0.179500]; 0.55% | 464 → 384 | 7 → 6 |
-| Public Mul/4096 | 5.878500 [5.824000–5.985000]; 0.76% | 4.801000 [4.706000–4.866000]; 0.96% | 65680 → 49296 | 7 → 6 |
-| Public Mul/65536 | 85.526500 [84.271000–86.096000]; 0.79% | 71.628000 [69.957000–71.928000]; 0.92% | 1048720 → 786576 | 7 → 6 |
-| Matrix scope/Adapter | 0.101800 [0.099560–0.125300]; 7.58% | 0.092185 [0.089990–0.094320]; 1.35% | 336 → 288 | 7 → 6 |
-| Matrix scope/FromSlice | 0.024085 [0.023210–0.024430]; 1.40% | 0.023830 [0.022950–0.023980]; 1.30% | 96 → 96 | 2 → 2 |
-| Matrix scope/New | 0.022490 [0.021590–0.023220]; 1.84% | 0.022400 [0.021540–0.022790]; 1.53% | 96 → 96 | 2 → 2 |
-| Matrix scope/MatrixAdd | 0.018540 [0.018420–0.018870]; 0.80% | 0.018540 [0.018410–0.019150]; 1.21% | 0 → 0 | 0 → 0 |
-| Matrix scope/Values | 0.015930 [0.015340–0.016020]; 1.31% | 0.015995 [0.015580–0.017400]; 3.14% | 48 → 48 | 1 → 1 |
-| Matrix scope/ValuesInto | 0.005061 [0.005037–0.005087]; 0.29% | 0.005050 [0.005038–0.005621]; 3.68% | 0 → 0 | 0 → 0 |
-| Matrix scope/Copy | 0.001874 [0.001864–0.001885]; 0.35% | 0.001866 [0.001859–0.001881]; 0.41% | 0 → 0 | 0 → 0 |
-| MatMul/MNIST/Complete | 1.698500 [1.688000–1.718000]; 0.55% | 1.702000 [1.691000–1.732000]; 0.70% | 144 → 144 | 3 → 3 |
-| MatMul/MNIST/Plan | 0.061635 [0.060910–0.062500]; 0.67% | 0.061445 [0.060990–0.062250]; 0.59% | 96 → 96 | 2 → 2 |
-| MatMul/MNIST/Staging | 1.589500 [1.577000–1.600000]; 0.43% | 1.590500 [1.587000–1.596000]; 0.22% | 48 → 48 | 1 → 1 |
-| MatMul/MNIST/Kernel | 1.571500 [1.542000–1.585000]; 0.75% | 1.571000 [1.540000–1.592000]; 0.92% | 0 → 0 | 0 → 0 |
-| MatMul/Dot/Complete | 0.412050 [0.397000–0.423200]; 2.05% | 0.410800 [0.397900–0.421900]; 1.70% | 96 → 96 | 2 → 2 |
-| MatMul/Dot/Plan | 0.051890 [0.051250–0.052590]; 0.81% | 0.051640 [0.050940–0.051990]; 0.59% | 96 → 96 | 2 → 2 |
-| MatMul/Dot/Staging | 0.308200 [0.306100–0.312500]; 0.66% | 0.307250 [0.305800–0.823300]; 45.87% | 0 → 0 | 0 → 0 |
-| MatMul/Dot/Kernel | 0.247850 [0.246200–0.306400]; 7.62% | 0.255050 [0.245900–0.728300]; 49.79% | 0 → 0 | 0 → 0 |
-| MatMul/Batch/Complete | 2.796000 [2.784000–3.033000]; 2.79% | 2.804000 [2.789000–2.820000]; 0.35% | 1200 → 1200 | 7 → 7 |
-| MatMul/Batch/Plan | 0.086810 [0.086120–0.087960]; 0.67% | 0.085845 [0.084960–0.087220]; 0.90% | 128 → 128 | 3 → 3 |
-| MatMul/Batch/Staging | 2.653500 [2.642000–2.674000]; 0.46% | 2.654500 [2.649000–2.713000]; 0.75% | 1072 → 1072 | 4 → 4 |
+| Public broadcast Add/MNISTFirst/Forward | 1.955500 [1.928000–2.130000]; 3.09% | 1.936500 [1.912000–2.172000]; 4.03% | 0 → 0 | 0 → 0 |
+| Public broadcast Add/MNISTFirst/Reverse | 1.934500 [1.879000–1.955000]; 1.17% | 1.933500 [1.892000–1.968000]; 1.09% | 0 → 0 | 0 → 0 |
+| Public broadcast Add/MNISTSecond/Forward | 1.195000 [1.164000–1.383000]; 5.34% | 1.194500 [1.177000–1.224000]; 1.23% | 0 → 0 | 0 → 0 |
+| Public broadcast Add/MNISTSecond/Reverse | 1.201500 [1.184000–1.265000]; 1.94% | 1.194500 [1.185000–1.297000]; 2.90% | 0 → 0 | 0 → 0 |
+| Public broadcast Add/Batch/Forward | 0.821300 [0.794500–0.879900]; 3.20% | 0.821300 [0.806500–0.887400]; 2.83% | 0 → 0 | 0 → 0 |
+| Public broadcast Add/Batch/Reverse | 0.821400 [0.805900–0.831300]; 0.85% | 0.827400 [0.816200–0.864800]; 1.72% | 0 → 0 | 0 → 0 |
+| Public Add/0 | 0.054165 [0.053420–0.054690]; 0.75% | 0.053955 [0.053540–0.054150]; 0.41% | 0 → 0 | 0 → 0 |
+| Public Add/1 | 0.163850 [0.162900–0.165600]; 0.53% | 0.161350 [0.159300–0.163500]; 0.71% | 160 → 156 | 7 → 6 |
+| Public Add/10 | 0.178350 [0.177600–0.179500]; 0.31% | 0.170650 [0.168100–0.203400]; 6.28% | 336 → 288 | 7 → 6 |
+| Public Add/15 | 0.183000 [0.181900–0.183900]; 0.36% | 0.173700 [0.171900–0.177300]; 0.94% | 400 → 336 | 7 → 6 |
+| Public Add/16 | 0.182650 [0.181900–0.186500]; 0.78% | 0.173850 [0.171400–0.176000]; 0.75% | 400 → 336 | 7 → 6 |
+| Public Add/17 | 0.189050 [0.188200–0.190600]; 0.35% | 0.178400 [0.177500–0.179500]; 0.35% | 464 → 384 | 7 → 6 |
+| Public Add/4096 | 5.773500 [5.679000–6.545000]; 4.50% | 4.671000 [4.632000–4.705000]; 0.57% | 65680 → 49296 | 7 → 6 |
+| Public Add/65536 | 81.980500 [80.674000–83.967000]; 1.37% | 69.470500 [68.760000–71.255000]; 1.14% | 1048720 → 786576 | 7 → 6 |
+| Public Sub/0 | 0.053790 [0.053540–0.054380]; 0.47% | 0.054050 [0.053660–0.056020]; 1.28% | 0 → 0 | 0 → 0 |
+| Public Sub/1 | 0.163400 [0.163100–0.165600]; 0.60% | 0.161400 [0.160000–0.175200]; 3.21% | 160 → 156 | 7 → 6 |
+| Public Sub/10 | 0.178450 [0.177800–0.181300]; 0.70% | 0.169750 [0.168700–0.173200]; 0.80% | 336 → 288 | 7 → 6 |
+| Public Sub/15 | 0.182850 [0.181400–0.185400]; 0.76% | 0.174300 [0.171900–0.177300]; 0.90% | 400 → 336 | 7 → 6 |
+| Public Sub/16 | 0.183000 [0.181800–0.185200]; 0.56% | 0.174550 [0.172000–0.188400]; 2.73% | 400 → 336 | 7 → 6 |
+| Public Sub/17 | 0.190300 [0.188600–0.191600]; 0.43% | 0.178250 [0.176900–0.180100]; 0.60% | 464 → 384 | 7 → 6 |
+| Public Sub/4096 | 5.808500 [5.775000–5.869000]; 0.56% | 4.673000 [4.631000–4.748000]; 0.83% | 65680 → 49296 | 7 → 6 |
+| Public Sub/65536 | 83.787000 [80.400000–84.509000]; 1.73% | 69.610000 [69.314000–69.736000]; 0.20% | 1048720 → 786576 | 7 → 6 |
+| Public Mul/0 | 0.054035 [0.053650–0.060000]; 3.68% | 0.053765 [0.053680–0.054400]; 0.48% | 0 → 0 | 0 → 0 |
+| Public Mul/1 | 0.163850 [0.163300–0.170300]; 1.37% | 0.161050 [0.160000–0.163800]; 0.72% | 160 → 156 | 7 → 6 |
+| Public Mul/10 | 0.178750 [0.178500–0.188800]; 1.83% | 0.169600 [0.168300–0.170600]; 0.40% | 336 → 288 | 7 → 6 |
+| Public Mul/15 | 0.182950 [0.181600–0.185300]; 0.65% | 0.173550 [0.172600–0.174800]; 0.45% | 400 → 336 | 7 → 6 |
+| Public Mul/16 | 0.183350 [0.182600–0.187500]; 0.80% | 0.174650 [0.172500–0.176400]; 0.86% | 400 → 336 | 7 → 6 |
+| Public Mul/17 | 0.189450 [0.188700–0.193000]; 0.83% | 0.178700 [0.176800–0.180100]; 0.55% | 464 → 384 | 7 → 6 |
+| Public Mul/4096 | 5.819000 [5.792000–5.877000]; 0.48% | 4.697500 [4.626000–4.759000]; 0.97% | 65680 → 49296 | 7 → 6 |
+| Public Mul/65536 | 83.882500 [81.961000–84.824000]; 1.26% | 69.743500 [68.436000–70.688000]; 0.94% | 1048720 → 786576 | 7 → 6 |
+| Matrix scope/Adapter | 0.101700 [0.101300–0.104500]; 0.96% | 0.092365 [0.091980–0.092950]; 0.33% | 336 → 288 | 7 → 6 |
+| Matrix scope/FromSlice | 0.023860 [0.023780–0.025970]; 2.91% | 0.023860 [0.023770–0.023910]; 0.24% | 96 → 96 | 2 → 2 |
+| Matrix scope/New | 0.022490 [0.022360–0.022650]; 0.38% | 0.022480 [0.022400–0.022820]; 0.65% | 96 → 96 | 2 → 2 |
+| Matrix scope/MatrixAdd | 0.018430 [0.018400–0.018810]; 0.71% | 0.018515 [0.018370–0.021910]; 5.99% | 0 → 0 | 0 → 0 |
+| Matrix scope/Values | 0.016040 [0.015970–0.016230]; 0.50% | 0.016060 [0.015950–0.016580]; 1.31% | 48 → 48 | 1 → 1 |
+| Matrix scope/ValuesInto | 0.005050 [0.005037–0.005100]; 0.39% | 0.005047 [0.005034–0.005711]; 4.26% | 0 → 0 | 0 → 0 |
+| Matrix scope/Copy | 0.001868 [0.001857–0.001873]; 0.25% | 0.001867 [0.001854–0.001873]; 0.29% | 0 → 0 | 0 → 0 |
+| MatMul/MNIST/Complete | 1.695000 [1.678000–1.701000]; 0.44% | 1.684000 [1.678000–1.785000]; 2.00% | 144 → 144 | 3 → 3 |
+| MatMul/MNIST/Plan | 0.061185 [0.060850–0.067030]; 3.15% | 0.061265 [0.060890–0.065710]; 2.41% | 96 → 96 | 2 → 2 |
+| MatMul/MNIST/Staging | 1.573000 [1.570000–1.586000]; 0.31% | 1.572000 [1.568000–1.609000]; 0.82% | 48 → 48 | 1 → 1 |
+| MatMul/MNIST/Kernel | 1.563500 [1.555000–1.681000]; 2.51% | 1.556500 [1.550000–1.652000]; 2.01% | 0 → 0 | 0 → 0 |
+| MatMul/Dot/Complete | 0.409900 [0.403900–0.414200]; 0.76% | 0.409550 [0.403400–0.416500]; 0.92% | 96 → 96 | 2 → 2 |
+| MatMul/Dot/Plan | 0.051080 [0.050790–0.051580]; 0.49% | 0.051650 [0.050890–0.058880]; 4.81% | 96 → 96 | 2 → 2 |
+| MatMul/Dot/Staging | 0.307450 [0.306100–0.311900]; 0.63% | 0.310350 [0.307100–0.311100]; 0.40% | 0 → 0 | 0 → 0 |
+| MatMul/Dot/Kernel | 0.245350 [0.243600–0.280800]; 5.52% | 0.245000 [0.242700–0.285600]; 5.45% | 0 → 0 | 0 → 0 |
+| MatMul/Batch/Complete | 2.778000 [2.757000–2.798000]; 0.51% | 2.774500 [2.762000–2.798000]; 0.44% | 1200 → 1200 | 7 → 7 |
+| MatMul/Batch/Plan | 0.085980 [0.085530–0.087170]; 0.68% | 0.086530 [0.085420–0.087460]; 0.73% | 128 → 128 | 3 → 3 |
+| MatMul/Batch/Staging | 2.628500 [2.613000–2.649000]; 0.42% | 2.635500 [2.617000–2.658000]; 0.48% | 1072 → 1072 | 4 → 4 |
 
-Public Add/10 improves in 8/8 paired rounds; median paired saving 0.010150 µs (not an ONNX saving).
+Public Add/10 improves in 7/8 paired rounds; median paired saving 0.007200 µs (not an ONNX saving).
 
-Add/10 before samples (µs, round order): 0.183700, 0.179100, 0.179500, 0.179400, 0.183400, 0.177800, 0.179300, 0.177400.
-Add/10 after samples (µs, round order): 0.182600, 0.171200, 0.169400, 0.169100, 0.168400, 0.168300, 0.168200, 0.167200.
+Add/10 before samples (µs, round order): 0.177900, 0.178500, 0.178600, 0.179500, 0.178400, 0.178300, 0.177600, 0.177800.
+Add/10 after samples (µs, round order): 0.170900, 0.168100, 0.173300, 0.169300, 0.174400, 0.168900, 0.203400, 0.170400.
 
+### Regression results and remaining limits
 
-### Regression results and limitation
+Public Add/10 improves in 7/8 paired rounds in each mode. Its median falls
+4.87% in default and 4.32% in purego. Every nonempty equal-shape Add/Sub/Mul
+fixture removes exactly one payload allocation; empty results remain
+allocation-free. Both channel Adds remain at zero B/op and zero allocations.
+MatMul planning/staging allocations are unchanged. Its MNIST complete median
+is 1.676000 → 1.677000 µs in default and 1.695000 → 1.684000 µs in purego.
 
-Public Add/10 improves in every paired round in both modes; the default median falls
-5.09% and purego 5.91%. All nonempty equal-shape Add/Sub/Mul sizes remove exactly one
-payload allocation. Empty results remain allocation-free. MatMul allocations and medians
-remain essentially unchanged (MNIST complete +0.21% default / +0.21% purego). Both
-channel Adds retain zero B/op and zero allocations; their ranges overlap before/after.
+No material supported-path regression was observed in the final fixtures.
+The largest complete-public-call median increase is 1.39% (default dot
+product); the largest increase among all diagnostic scopes is 3.41% (default
+dot staging), with overlapping ranges. These are observations for this host,
+toolchain, fixtures and binaries, not a guarantee about all downstream layouts.
 
-**An extra purego broadcast Batch/Forward probe is slower in these test binaries.** The
-broad series rises from 0.829700 to 0.893850 µs (+7.73%). Two additional isolated,
-balanced eight-round comparisons reproduce the difference:
+All samples are retained. Purego Add/10 has one high after sample of 0.203400
+µs (CV 6.28%). Dot-product scopes have much wider variation, up to 44.42% CV;
+their small median differences do not establish a kernel change. Scheduling,
+CPU frequency and core placement were not pinned. The complete MNIST MatMul
+and private adapter scopes have their own ranges/CVs in the tables above.
 
-| Purego Batch/Forward series | Before median [range] µs/op; CV | After median [range] µs/op; CV | B/op; allocs/op |
-| --- | ---: | ---: | ---: |
-| Isolated repeat | 0.820950 [0.782000–0.853800]; 2.28% | 0.883650 [0.879900–0.897600]; 0.72% | 0; 0 |
-| Identical correctness-test sources | 0.785900 [0.774800–0.845400]; 2.64% | 0.839800 [0.827000–0.862000]; 1.24% | 0; 0 |
-
-The matched baseline uses the original arithmetic source through a Go overlay while
-compiling the exact same correctness tests as the candidate. `nm` confirms the same
-production addresses as the original baseline. Generated purego
-`broadcastAddFloat32Into` has 252 instructions in both versions, with only four
-data-relocation operand differences; its function entry shifts from `0x100180440` to
-`0x100180420` because the adapter shrinks by 32 text bytes. Its arithmetic and branches
-are unchanged. This is consistent with a code-layout effect, but causation is not
-established. The repeatable ~0.054–0.063 µs increase is retained as a review limitation,
-not discarded as random noise. There is no blanket claim that every supported path
-avoids regression. No extra production changes were added to tune this unrelated
-broadcast loop or its alignment.
-
-The purego adapter scope also has one high baseline sample (0.125300 µs, CV 7.58%).
-Purego dot-product diagnostic scopes include high samples with CV up to 49.79%, so their
-latency differences do not establish a kernel change. All samples remain in the table.
-CPU scheduling/frequency and binary layout are not controlled by affinity. Initial
-probes, follow-ups, and the main balanced series are kept separate. These backend
-results establish neither ONNX whole-Run speedup nor retained-memory reduction.
+Exploratory equivalent adapter forms shifted subsequent function addresses and
+produced repeatable 7–11% increases in an untouched broadcast probe; those
+forms were rejected. Capturing the three call-local slice headers keeps the
+adapter's generated size at 816 text bytes, equal to baseline, and preserves
+the broadcast function's entry in both final native test binaries: default
+`0x100182eb0`, purego `0x100180440`. No padding, new public API or broadcast
+kernel change was added. Layout is consistent with the earlier differences,
+but its causal role was not proved. The parent directory preserves every
+exploratory sample and overlay, separate from the final series. Downstream
+ONNX timings must still be measured independently.
 
 ### Allocation and copying ledger
 
@@ -300,6 +309,11 @@ staging objects / 480,000 B through the complete-call stack.
 Adapter disassembly switches the `Values` call and extra `runtime.memmove` to
 `ValuesInto`; constructor and operation calls remain. Runtime-sized output
 staging still allocates even if compiler escape output calls it non-escaping.
+In these Go 1.27.2 binaries, the retained MatMul staging uses a 32-byte stack
+buffer for at most eight floats; larger outputs call `runtime.makeslice`.
+This explains zero heap allocations in the scalar dot-product staging scope,
+while the ten-float fixture still allocates 48 B. Zero B/op does not mean that
+staging or its final copy was removed.
 
 For ten floats, source-derived copying falls from 160 to 120 logical bytes
 (320 → 240 B copy read/write traffic): two 40-B input copies and one 40-B
@@ -328,6 +342,8 @@ Matrix tests retain their public copy, row-view, allocation and device contracts
 No numerical tolerance was changed.
 
 All **29 correctness/build checks passed** (fresh test execution with `-count=1`).
+The checks were repeated on the final slice-header implementation on 2026-11-13;
+all final logs and exit statuses are in `20261113-final/validation.json`.
 
 - `gofmt` on changed Go files; repository `go fmt ./...` (no formatting changes); `git diff --check`.
 - `go vet ./...`, `go mod tidy -diff` (no diff), `go mod verify`, `go build ./...`.
@@ -364,9 +380,17 @@ No added or removed persistent state: **0 retained bytes, 0 retained objects,
 0 retained payload bytes** by design. Inputs, destination and constructor
 behavior are unchanged; the eliminated allocation was invocation-lived. This
 does not establish a reduction in retained heap, RSS or model/session memory.
-Added constructor/initialization work and allocations: **zero**; there is no
-new constructor, cache, setup step, warmup or amortization requirement. No new
+Added constructor/model/session initialization work and allocations: **zero**;
+there is no new constructor, cache, setup step or explicit warmup/amortization
+phase. Existing matrix constructor costs are measured separately above. No new
 device resources, asynchronous work, lifetime obligations or ownership rules.
+
+The invocation-local slice headers increase the compiled ARM64 adapter frame
+from **160 to 208 bytes (+48 stack bytes)** in both CGO-disabled ARM64 latency
+builds, measured from the prologues. This is distinct from the removed 48-B heap
+allocation and does not add a heap object. Stack size depends on compiler/build/architecture;
+automatic runtime stack growth was not separately measured. No reduction in
+total peak memory or RSS is claimed.
 
 Equal-shape nonempty Add/Sub/Mul logically need three output-sized scratch
 payload buffers rather than four (two copied inputs, one matrix output): 120 B
@@ -393,7 +417,9 @@ argument and does not poll or own cancellation.
 The existing four-output-buffer equal-shape Add workspace charge is still sound
 and may remain conservative. A separately validated integration could reduce
 that charge to three payload buffers for builds using this adapter, preserving
-all empty-result and high-rank accounting. Do not relax quotas before checking
+all empty-result and high-rank accounting. This would describe numeric payload
+only: account for the additional native stack frame separately wherever the
+quota definition includes stack metadata. Do not relax quotas before checking
 the released source/build path. **Do not reduce host MatMul staging charges in
 `numerical_product_host.go` or Metal product workspace accounting** on this
 change; neither product implementation was optimized. There is no persistent
