@@ -69,10 +69,7 @@ func binaryFloat32Into(left, right, destination *Tensor, operation func(float32,
 }
 
 func matrixBinaryInto(left, right, destination *Tensor, operation func(*matrix.Matrix, *matrix.Matrix, *matrix.Matrix) error) (err error) {
-	var (
-		leftMatrix, rightMatrix, output *matrix.Matrix
-		values                          []float32
-	)
+	var leftMatrix, rightMatrix, output *matrix.Matrix
 
 	if leftMatrix, err = matrix.FromSlice(1, len(left.floats), left.floats); err != nil {
 		return fmt.Errorf("tensor: left matrix adapter: %w", err)
@@ -86,10 +83,9 @@ func matrixBinaryInto(left, right, destination *Tensor, operation func(*matrix.M
 	if err = operation(leftMatrix, rightMatrix, output); err != nil {
 		return fmt.Errorf("tensor: matrix arithmetic: %w", err)
 	}
-	if values, err = output.Values(); err != nil {
+	if err = output.ValuesInto(destination.floats); err != nil {
 		return fmt.Errorf("tensor: matrix arithmetic values: %w", err)
 	}
-	copy(destination.floats, values)
 	return nil
 }
 
