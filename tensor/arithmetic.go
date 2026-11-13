@@ -71,25 +71,25 @@ func binaryFloat32Into(left, right, destination *Tensor, operation func(float32,
 func matrixBinaryInto(left, right, destination *Tensor, operation func(*matrix.Matrix, *matrix.Matrix, *matrix.Matrix) error) (err error) {
 	var (
 		leftMatrix, rightMatrix, output *matrix.Matrix
-		values                          []float32
+		leftValues, rightValues, values []float32
 	)
 
-	if leftMatrix, err = matrix.FromSlice(1, len(left.floats), left.floats); err != nil {
+	leftValues, rightValues, values = left.floats, right.floats, destination.floats
+	if leftMatrix, err = matrix.FromSlice(1, len(leftValues), leftValues); err != nil {
 		return fmt.Errorf("tensor: left matrix adapter: %w", err)
 	}
-	if rightMatrix, err = matrix.FromSlice(1, len(right.floats), right.floats); err != nil {
+	if rightMatrix, err = matrix.FromSlice(1, len(rightValues), rightValues); err != nil {
 		return fmt.Errorf("tensor: right matrix adapter: %w", err)
 	}
-	if output, err = matrix.New(1, len(destination.floats)); err != nil {
+	if output, err = matrix.New(1, len(values)); err != nil {
 		return fmt.Errorf("tensor: destination matrix adapter: %w", err)
 	}
 	if err = operation(leftMatrix, rightMatrix, output); err != nil {
 		return fmt.Errorf("tensor: matrix arithmetic: %w", err)
 	}
-	if values, err = output.Values(); err != nil {
+	if err = output.ValuesInto(values); err != nil {
 		return fmt.Errorf("tensor: matrix arithmetic values: %w", err)
 	}
-	copy(destination.floats, values)
 	return nil
 }
 
