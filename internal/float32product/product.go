@@ -42,14 +42,17 @@ func RightTranspose(left, right, output []float32, rows, inner, cols int) {
 	if len(output) == 0 {
 		return
 	}
+
 	if inner == 0 {
 		clear(output)
 		return
 	}
+
 	var row int
 	for ; row+3 <= rows; row += 3 {
 		rightTransposeThreeRows(left[row*inner:], right, output[row*cols:], inner, cols)
 	}
+
 	for ; row < rows; row++ {
 		leftRow := left[row*inner:][:inner]
 		outputRow := output[row*cols:][:cols]
