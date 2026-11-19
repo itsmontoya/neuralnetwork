@@ -78,6 +78,7 @@ func rightTransposeThreeRows(left, right, output []float32, inner, cols int) {
 		out1  = output[cols:][:cols]
 		out2  = output[2*cols:][:cols]
 	)
+
 	for column := range out0 {
 		rightRow := right[column*inner:][:inner]
 		var sum0, sum1, sum2 float32
@@ -86,6 +87,7 @@ func rightTransposeThreeRows(left, right, output []float32, inner, cols int) {
 			sum1 += left1[contraction] * rightValue
 			sum2 += left2[contraction] * rightValue
 		}
+
 		out0[column] = sum0
 		out1[column] = sum1
 		out2[column] = sum2
