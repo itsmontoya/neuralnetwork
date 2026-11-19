@@ -48,8 +48,13 @@ func RightTranspose(left, right, output []float32, rows, inner, cols int) {
 		return
 	}
 
-	if rows == 1 && cols >= 4 {
-		rightTransposeOneRow(left[:inner], right, output[:cols])
+	if rows == 1 && cols >= rightTransposeColumnTile {
+		var workers = rightTransposeOneRowWorkerCount(inner, cols)
+		if workers > 1 {
+			rightTransposeOneRowParallel(left[:inner], right, output[:cols], workers)
+		} else {
+			rightTransposeOneRow(left[:inner], right, output[:cols])
+		}
 		return
 	}
 
@@ -80,7 +85,7 @@ func rightTransposeOneRow(left, right, output []float32) {
 		inner  = len(left)
 		column int
 	)
-	for ; column+4 <= len(output); column += 4 {
+	for ; column+rightTransposeColumnTile <= len(output); column += rightTransposeColumnTile {
 		var (
 			offset                 = column * inner
 			weight0                = right[offset:][:inner]
