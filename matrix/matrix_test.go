@@ -1195,6 +1195,56 @@ func Test_MatMulRightTransposeInto(t *testing.T) {
 	requireMatrixValues(t, destination, []float32{50, 68, 122, 167})
 }
 
+func Test_MatMulRightTransposeInto_AscendingOrder(t *testing.T) {
+	var tests = []struct {
+		name              string
+		rows, inner, cols int
+	}{
+		{name: "single row", rows: 1, inner: 5, cols: 4},
+		{name: "six rows", rows: 6, inner: 16, cols: 9},
+		{name: "irregular", rows: 7, inner: 31, cols: 17},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				leftValues  = make([]float32, tt.rows*tt.inner)
+				rightValues = make([]float32, tt.cols*tt.inner)
+				initial     = make([]float32, tt.rows*tt.cols)
+				want        = make([]float32, len(initial))
+			)
+			for index := range leftValues {
+				leftValues[index] = float32(index%7-3) / 8
+			}
+			for index := range rightValues {
+				rightValues[index] = float32(index%13-6) / 16
+			}
+			for index := range initial {
+				initial[index] = 100
+			}
+			for row := range tt.rows {
+				for col := range tt.cols {
+					var sum float32
+					for contraction := range tt.inner {
+						sum += leftValues[row*tt.inner+contraction] * rightValues[col*tt.inner+contraction]
+					}
+					want[row*tt.cols+col] = sum
+				}
+			}
+			left := mustMatrix(t, tt.rows, tt.inner, leftValues)
+			right := mustMatrix(t, tt.cols, tt.inner, rightValues)
+			destination := mustMatrix(t, tt.rows, tt.cols, initial)
+			for range 2 {
+				if err := left.MatMulRightTransposeInto(right, destination); err != nil {
+					t.Fatal(err)
+				}
+				requireMatrixValues(t, destination, want)
+			}
+			requireMatrixValues(t, left, leftValues)
+			requireMatrixValues(t, right, rightValues)
+		})
+	}
+}
+
 func Test_MatMul_ValidatesShape(t *testing.T) {
 	var (
 		left   *matrix.Matrix
