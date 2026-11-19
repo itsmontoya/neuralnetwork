@@ -2,6 +2,7 @@ package float32product
 
 import (
 	"math"
+	"runtime"
 	"slices"
 	"testing"
 )
@@ -136,11 +137,12 @@ func TestRightTranspose(t *testing.T) {
 }
 
 func TestRightTransposeConcurrent(t *testing.T) {
-	const inner, cols, maxRows = 8192, 9, 5
+	const inner, cols, maxRows = 8192, 129, 5
 	var (
-		left  = make([]float32, maxRows*inner)
-		right = make([]float32, cols*inner)
-		tests = []struct {
+		previous = runtime.GOMAXPROCS(4)
+		left     = make([]float32, maxRows*inner)
+		right    = make([]float32, cols*inner)
+		tests    = []struct {
 			name string
 			rows int
 		}{
@@ -150,6 +152,7 @@ func TestRightTransposeConcurrent(t *testing.T) {
 			{name: "five rows/second", rows: 5},
 		}
 	)
+	t.Cleanup(func() { runtime.GOMAXPROCS(previous) })
 	for row := range maxRows {
 		for contraction := range inner {
 			left[row*inner+contraction] = float32(row + 1)
