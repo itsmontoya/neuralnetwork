@@ -83,6 +83,8 @@ func TestRightTranspose(t *testing.T) {
 		{name: "single row projection with tail", rows: 1, inner: 2048, cols: 17},
 		{name: "single row with zero contraction", rows: 1, cols: 5},
 		{name: "two rows", rows: 2, inner: 31, cols: 3},
+		{name: "three rows below the column tile width", rows: 3, inner: 31, cols: 1},
+		{name: "three rows with a two-column tail", rows: 3, inner: 63, cols: 6},
 		{name: "five rows", rows: 5, inner: 63, cols: 9},
 		{name: "six rows", rows: 6, inner: 64, cols: 19},
 		{name: "irregular", rows: 7, inner: 257, cols: 17},
@@ -134,30 +136,44 @@ func TestRightTranspose(t *testing.T) {
 }
 
 func TestRightTransposeConcurrent(t *testing.T) {
-	const inner, cols = 8192, 9
+	const inner, cols, maxRows = 8192, 9, 5
 	var (
-		left  = make([]float32, inner)
+		left  = make([]float32, maxRows*inner)
 		right = make([]float32, cols*inner)
+		tests = []struct {
+			name string
+			rows int
+		}{
+			{name: "single row/first", rows: 1},
+			{name: "single row/second", rows: 1},
+			{name: "five rows/first", rows: 5},
+			{name: "five rows/second", rows: 5},
+		}
 	)
-	for index := range left {
-		left[index] = 1
+	for row := range maxRows {
+		for contraction := range inner {
+			left[row*inner+contraction] = float32(row + 1)
+		}
 	}
 	for col := range cols {
 		weight := right[col*inner:][:inner]
-		// The unit term is lost before the large terms cancel.
+		// Ascending accumulation loses the unit term before the large terms cancel.
 		weight[0], weight[1], weight[2] = 1<<25, 1, -(1 << 25)
 		weight[inner-1] = -float32(col + 1)
 	}
-	for _, caller := range []string{"first", "second", "third", "fourth"} {
-		t.Run(caller, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			var output [cols]float32
+			var output [maxRows * cols]float32
 			for range 3 {
-				RightTranspose(left, right, output[:], 1, inner, cols)
-				for col, got := range output {
-					want := -float32(col + 1)
-					if math.Float32bits(got) != math.Float32bits(want) {
-						t.Fatalf("column %d: got %g, want %g", col, got, want)
+				RightTranspose(left[:tt.rows*inner], right, output[:tt.rows*cols], tt.rows, inner, cols)
+				for row := range tt.rows {
+					for col := range cols {
+						got := output[row*cols+col]
+						want := -float32((row + 1) * (col + 1))
+						if math.Float32bits(got) != math.Float32bits(want) {
+							t.Fatalf("element [%d,%d]: got %g, want %g", row, col, got, want)
+						}
 					}
 				}
 			}
