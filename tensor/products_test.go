@@ -355,6 +355,78 @@ func Test_Products_AliasesAndEmptyContractions(t *testing.T) {
 	}
 }
 
+func Test_Gemm_RightTranspose(t *testing.T) {
+	var tests = []struct {
+		name              string
+		rows, inner, cols int64
+	}{
+		{name: "single row", rows: 1, inner: 5, cols: 3},
+		{name: "six rows", rows: 6, inner: 16, cols: 8},
+		{name: "irregular", rows: 7, inner: 33, cols: 19},
+		{name: "no input rows", rows: 0, inner: 3, cols: 5},
+		{name: "no weight rows", rows: 3, inner: 5, cols: 0},
+		{name: "zero contraction", rows: 3, cols: 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				left, right, bias, output *tensor.Tensor
+				leftValues                = make([]float32, tt.rows*tt.inner)
+				rightValues               = make([]float32, tt.cols*tt.inner)
+				want                      = make([]float32, tt.rows*tt.cols)
+				wantBits                  = make([]uint32, len(want))
+				got                       []float32
+				err                       error
+			)
+			for index := range leftValues {
+				leftValues[index] = float32(index%11-5) / 8
+			}
+			for index := range rightValues {
+				rightValues[index] = float32(index%17-8) / 16
+			}
+			if left, err = tensor.FromFloat32([]int64{tt.rows, tt.inner}, leftValues); err != nil {
+				t.Fatal(err)
+			}
+			if right, err = tensor.FromFloat32([]int64{tt.cols, tt.inner}, rightValues); err != nil {
+				t.Fatal(err)
+			}
+			if bias, err = tensor.FromFloat32(nil, []float32{float32(math.NaN())}); err != nil {
+				t.Fatal(err)
+			}
+			if output, err = tensor.New(tensor.Float32, []int64{tt.rows, tt.cols}); err != nil {
+				t.Fatal(err)
+			}
+			for row := range tt.rows {
+				for col := range tt.cols {
+					var sum float32
+					for contraction := range tt.inner {
+						sum += leftValues[row*tt.inner+contraction] * rightValues[col*tt.inner+contraction]
+					}
+					want[row*tt.cols+col] = sum
+				}
+			}
+			if err = tensor.GemmInto(left, right, nil, output, tensor.GemmConfig{Alpha: 1, TransposeB: true}); err != nil {
+				t.Fatal(err)
+			}
+			if got, err = output.Float32Values(); err != nil {
+				t.Fatal(err)
+			}
+			checkProductValues(t, got, want)
+			const alpha = -0.5
+			for index, value := range want {
+				wantBits[index] = math.Float32bits(alpha * value)
+			}
+			if err = tensor.GemmInto(left, right, bias, output, tensor.GemmConfig{Alpha: alpha, TransposeB: true}); err != nil {
+				t.Fatal(err)
+			}
+			if got, err = output.Float32Values(); err != nil {
+				t.Fatal(err)
+			}
+			checkFloat32Bits(t, got, wantBits)
+		})
+	}
+}
+
 func Test_Gemm_BiasValidation(t *testing.T) {
 	var tests = []string{"uninitialized", "integer", "incompatible", "extra rank", "enlarges output", "aliases output", "shallow output alias"}
 	for _, name := range tests {
@@ -403,14 +475,16 @@ func Test_Gemm_BiasValidation(t *testing.T) {
 				t.Fatal(err)
 			}
 			// Zero Beta cannot bypass validation of a supplied bias.
-			if err = tensor.GemmInto(left, right, bias, output, tensor.GemmConfig{Alpha: 1}); err == nil {
-				t.Fatal("invalid bias accepted with zero Beta")
-			}
-			if values, err = output.Float32Values(); err != nil {
-				t.Fatal(err)
-			}
-			if !slices.Equal(values, before) {
-				t.Fatalf("destination changed on bias error: %v", values)
+			for _, transpose := range []bool{false, true} {
+				if err = tensor.GemmInto(left, right, bias, output, tensor.GemmConfig{Alpha: 1, TransposeB: transpose}); err == nil {
+					t.Fatalf("invalid bias accepted with zero Beta and TransposeB=%t", transpose)
+				}
+				if values, err = output.Float32Values(); err != nil {
+					t.Fatal(err)
+				}
+				if !slices.Equal(values, before) {
+					t.Fatalf("destination changed on bias error: %v", values)
+				}
 			}
 		})
 	}
@@ -495,23 +569,28 @@ func Test_Products_ExistingMatrixKernels(t *testing.T) {
 
 func Test_Products_DynamicWeightsAndConcurrency(t *testing.T) {
 	var (
-		left, weights, changed, first, second *tensor.Tensor
-		before                                []float32
-		values                                []float32
-		workers                               sync.WaitGroup
-		results                               = make(chan error, 4)
-		err                                   error
+		left, weights, transposed, changed, first, second *tensor.Tensor
+		config                                            = tensor.GemmConfig{Alpha: 1, TransposeB: true}
+		outputShape                                       = []int64{6, 2}
+		want                                              = []float32{58, 64, 139, 154, 220, 244, 301, 334, 382, 424, 463, 514}
+		before, values                                    []float32
+		workers                                           sync.WaitGroup
+		results                                           = make(chan error, 4)
+		err                                               error
 	)
-	if left, err = tensor.FromFloat32([]int64{2, 3}, []float32{1, 2, 3, 4, 5, 6}); err != nil {
+	if left, err = tensor.FromFloat32([]int64{6, 3}, []float32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18}); err != nil {
 		t.Fatal(err)
 	}
 	if weights, err = tensor.FromFloat32([]int64{3, 2}, []float32{7, 8, 9, 10, 11, 12}); err != nil {
 		t.Fatal(err)
 	}
-	if changed, err = tensor.FromFloat32([]int64{3, 2}, []float32{1, 1, 1, 1, 1, 1}); err != nil {
+	if transposed, err = tensor.FromFloat32([]int64{2, 3}, []float32{7, 9, 11, 8, 10, 12}); err != nil {
 		t.Fatal(err)
 	}
-	if first, err = tensor.New(tensor.Float32, []int64{2, 2}); err != nil {
+	if changed, err = tensor.FromFloat32([]int64{2, 3}, []float32{1, 1, 1, 1, 1, 1}); err != nil {
+		t.Fatal(err)
+	}
+	if first, err = tensor.New(tensor.Float32, outputShape); err != nil {
 		t.Fatal(err)
 	}
 	if second, err = first.Clone(); err != nil {
@@ -520,17 +599,24 @@ func Test_Products_DynamicWeightsAndConcurrency(t *testing.T) {
 	if err = tensor.MatMulInto(left, weights, first); err != nil {
 		t.Fatal(err)
 	}
+	if values, err = first.Float32Values(); err != nil {
+		t.Fatal(err)
+	}
+	checkProductValues(t, values, want)
+	if err = tensor.GemmInto(left, transposed, nil, first, config); err != nil {
+		t.Fatal(err)
+	}
 	if before, err = first.Float32Values(); err != nil {
 		t.Fatal(err)
 	}
-	checkProductValues(t, before, []float32{58, 64, 139, 154})
-	if err = tensor.GemmInto(left, changed, nil, second, tensor.GemmConfig{Alpha: 1}); err != nil {
+	checkProductValues(t, before, want)
+	if err = tensor.GemmInto(left, changed, nil, second, config); err != nil {
 		t.Fatal(err)
 	}
 	if values, err = second.Float32Values(); err != nil {
 		t.Fatal(err)
 	}
-	checkProductValues(t, values, []float32{6, 6, 15, 15})
+	checkProductValues(t, values, []float32{6, 6, 15, 15, 24, 24, 33, 33, 42, 42, 51, 51})
 	if values, err = first.Float32Values(); err != nil {
 		t.Fatal(err)
 	}
@@ -546,16 +632,16 @@ func Test_Products_DynamicWeightsAndConcurrency(t *testing.T) {
 				workerErr error
 			)
 			defer workers.Done()
-			if output, workerErr = tensor.New(tensor.Float32, []int64{2, 2}); workerErr == nil {
+			if output, workerErr = tensor.New(tensor.Float32, outputShape); workerErr == nil {
 				workerErr = tensor.MatMulInto(left, weights, output)
 			}
 			if workerErr == nil {
-				workerErr = tensor.GemmInto(left, weights, nil, output, tensor.GemmConfig{Alpha: 1})
+				workerErr = tensor.GemmInto(left, transposed, nil, output, config)
 			}
 			if workerErr == nil {
 				got, workerErr = output.Float32Values()
 			}
-			if workerErr == nil && !slices.Equal(got, []float32{58, 64, 139, 154}) {
+			if workerErr == nil && !slices.Equal(got, want) {
 				workerErr = fmt.Errorf("concurrent product=%v", got)
 			}
 			results <- workerErr
