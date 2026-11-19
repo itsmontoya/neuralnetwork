@@ -361,6 +361,7 @@ func Test_Gemm_RightTranspose(t *testing.T) {
 		rows, inner, cols int64
 	}{
 		{name: "single row", rows: 1, inner: 5, cols: 3},
+		{name: "single row projection with tail", rows: 1, inner: 2048, cols: 17},
 		{name: "six rows", rows: 6, inner: 16, cols: 8},
 		{name: "irregular", rows: 7, inner: 33, cols: 19},
 		{name: "no input rows", rows: 0, inner: 3, cols: 5},

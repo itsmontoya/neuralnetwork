@@ -15,6 +15,7 @@ func BenchmarkRightTranspose(b *testing.B) {
 	}{
 		{name: "Small", rows: 2, inner: 2, cols: 2},
 		{name: "Irregular", rows: 17, inner: 33, cols: 19},
+		{name: "SingleRowTail", rows: 1, inner: 2048, cols: 513},
 		{name: "QAndOutput", rows: 1, inner: 2048, cols: 2048},
 		{name: "QAndOutput", rows: 6, inner: 2048, cols: 2048},
 		{name: "KAndV", rows: 1, inner: 2048, cols: 512},

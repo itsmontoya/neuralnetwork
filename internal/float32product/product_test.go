@@ -79,12 +79,15 @@ func TestRightTranspose(t *testing.T) {
 		rows, inner, cols int
 	}{
 		{name: "single row", rows: 1, inner: 33, cols: 5},
+		{name: "single row and column", rows: 1, inner: 33, cols: 1},
+		{name: "single row projection with tail", rows: 1, inner: 2048, cols: 17},
+		{name: "single row with zero contraction", rows: 1, cols: 5},
 		{name: "two rows", rows: 2, inner: 31, cols: 3},
 		{name: "five rows", rows: 5, inner: 63, cols: 9},
 		{name: "six rows", rows: 6, inner: 64, cols: 19},
 		{name: "irregular", rows: 7, inner: 257, cols: 17},
 		{name: "no input rows", rows: 0, inner: 3, cols: 5},
-		{name: "no weight rows", rows: 3, inner: 5, cols: 0},
+		{name: "no weight rows", rows: 1, inner: 5, cols: 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -130,24 +133,70 @@ func TestRightTranspose(t *testing.T) {
 	}
 }
 
+func TestRightTransposeConcurrent(t *testing.T) {
+	const inner, cols = 8192, 9
+	var (
+		left  = make([]float32, inner)
+		right = make([]float32, cols*inner)
+	)
+	for index := range left {
+		left[index] = 1
+	}
+	for col := range cols {
+		weight := right[col*inner:][:inner]
+		// The unit term is lost before the large terms cancel.
+		weight[0], weight[1], weight[2] = 1<<25, 1, -(1 << 25)
+		weight[inner-1] = -float32(col + 1)
+	}
+	for _, caller := range []string{"first", "second", "third", "fourth"} {
+		t.Run(caller, func(t *testing.T) {
+			t.Parallel()
+			var output [cols]float32
+			for range 3 {
+				RightTranspose(left, right, output[:], 1, inner, cols)
+				for col, got := range output {
+					want := -float32(col + 1)
+					if math.Float32bits(got) != math.Float32bits(want) {
+						t.Fatalf("column %d: got %g, want %g", col, got, want)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestRightTransposeNonfiniteAndSignedZero(t *testing.T) {
 	var (
 		negativeZero = math.Float32frombits(0x80000000)
 		inf          = float32(math.Inf(1))
 		nan          = float32(math.NaN())
 		left         = []float32{1, 1, 1, 1, 1, 1}
-		right        = []float32{negativeZero, negativeZero, inf, 1, -inf, 1, inf, -inf, nan, 1}
-		want         = []float32{0, inf, -inf, nan, nan}
-		output       = make([]float32, 3*len(want))
+		right        = []float32{negativeZero, negativeZero, inf, 1, -inf, 1, inf, -inf, nan, 1, inf, 1, negativeZero, negativeZero}
+		want         = []float32{0, inf, -inf, nan, nan, inf, 0}
+		tests        = []struct {
+			name string
+			rows int
+		}{
+			{name: "single row", rows: 1},
+			{name: "three rows", rows: 3},
+		}
 	)
-	RightTranspose(left, right, output, 3, 2, len(want))
-	for index, got := range output {
-		expected := want[index%len(want)]
-		if math.IsNaN(float64(expected)) && math.IsNaN(float64(got)) {
-			continue
-		}
-		if math.Float32bits(got) != math.Float32bits(expected) {
-			t.Fatalf("element %d: got %g, want %g", index, got, expected)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := make([]float32, tt.rows*len(want))
+			for index := range output {
+				output[index] = -1
+			}
+			RightTranspose(left[:tt.rows*2], right, output, tt.rows, 2, len(want))
+			for index, got := range output {
+				expected := want[index%len(want)]
+				if math.IsNaN(float64(expected)) && math.IsNaN(float64(got)) {
+					continue
+				}
+				if math.Float32bits(got) != math.Float32bits(expected) {
+					t.Fatalf("element %d: got %g, want %g", index, got, expected)
+				}
+			}
+		})
 	}
 }

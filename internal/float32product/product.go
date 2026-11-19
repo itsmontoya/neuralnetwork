@@ -48,6 +48,11 @@ func RightTranspose(left, right, output []float32, rows, inner, cols int) {
 		return
 	}
 
+	if rows == 1 && cols >= 4 {
+		rightTransposeOneRow(left[:inner], right, output[:cols])
+		return
+	}
+
 	var row int
 	for ; row+3 <= rows; row += 3 {
 		rightTransposeThreeRows(left[row*inner:], right, output[row*cols:], inner, cols)
@@ -65,6 +70,46 @@ func RightTranspose(left, right, output []float32, rows, inner, cols int) {
 
 			outputRow[column] = sum
 		}
+	}
+}
+
+// Reuse each input load across adjacent weight rows while preserving
+// the ascending contraction order of each output.
+func rightTransposeOneRow(left, right, output []float32) {
+	var (
+		inner  = len(left)
+		column int
+	)
+	for ; column+4 <= len(output); column += 4 {
+		var (
+			offset                 = column * inner
+			weight0                = right[offset:][:inner]
+			weight1                = right[offset+inner:][:inner]
+			weight2                = right[offset+2*inner:][:inner]
+			weight3                = right[offset+3*inner:][:inner]
+			sum0, sum1, sum2, sum3 float32
+		)
+		for contraction, input := range left {
+			sum0 += input * weight0[contraction]
+			sum1 += input * weight1[contraction]
+			sum2 += input * weight2[contraction]
+			sum3 += input * weight3[contraction]
+		}
+
+		output[column] = sum0
+		output[column+1] = sum1
+		output[column+2] = sum2
+		output[column+3] = sum3
+	}
+
+	for ; column < len(output); column++ {
+		var sum float32
+		weight := right[column*inner:][:inner]
+		for contraction, rightValue := range weight {
+			sum += left[contraction] * rightValue
+		}
+
+		output[column] = sum
 	}
 }
 
