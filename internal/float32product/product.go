@@ -57,11 +57,12 @@ func RightTranspose(left, right, output []float32, rows, inner, cols int) {
 		leftRow := left[row*inner:][:inner]
 		outputRow := output[row*cols:][:cols]
 		for column := range outputRow {
-			rightRow := right[column*inner:][:inner]
 			var sum float32
+			rightRow := right[column*inner:][:inner]
 			for contraction, rightValue := range rightRow {
 				sum += leftRow[contraction] * rightValue
 			}
+
 			outputRow[column] = sum
 		}
 	}
