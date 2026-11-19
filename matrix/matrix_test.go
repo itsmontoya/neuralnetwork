@@ -1201,6 +1201,7 @@ func Test_MatMulRightTransposeInto_AscendingOrder(t *testing.T) {
 		rows, inner, cols int
 	}{
 		{name: "single row", rows: 1, inner: 5, cols: 4},
+		{name: "single row projection with tail", rows: 1, inner: 2048, cols: 17},
 		{name: "six rows", rows: 6, inner: 16, cols: 9},
 		{name: "irregular", rows: 7, inner: 31, cols: 17},
 	}
