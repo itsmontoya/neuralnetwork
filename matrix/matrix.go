@@ -10,6 +10,7 @@ import (
 
 	"github.com/itsmontoya/neuralnetwork/internal/device"
 	"github.com/itsmontoya/neuralnetwork/internal/f32"
+	"github.com/itsmontoya/neuralnetwork/internal/float32elementwise"
 )
 
 const columnReductionAddMinCols = 16
@@ -547,7 +548,7 @@ func (m *Matrix) AddInto(other, result *Matrix) (err error) {
 		return err
 	}
 
-	addInto(m.data, other.data, result.data)
+	float32elementwise.Add(m.data, other.data, result.data)
 	return nil
 }
 
@@ -748,7 +749,7 @@ func (m *Matrix) Subtract(other *Matrix) (result *Matrix, err error) {
 		return nil, err
 	}
 
-	subtractInto(m.data, other.data, result.data)
+	float32elementwise.Subtract(m.data, other.data, result.data)
 	return result, nil
 }
 
@@ -777,7 +778,7 @@ func (m *Matrix) SubtractInto(other, result *Matrix) (err error) {
 		return err
 	}
 
-	subtractInto(m.data, other.data, result.data)
+	float32elementwise.Subtract(m.data, other.data, result.data)
 	return nil
 }
 
@@ -798,7 +799,7 @@ func (m *Matrix) MultiplyElements(other *Matrix) (result *Matrix, err error) {
 		return nil, err
 	}
 
-	multiplyElementsInto(m.data, other.data, result.data)
+	float32elementwise.Multiply(m.data, other.data, result.data)
 	return result, nil
 }
 
@@ -827,7 +828,7 @@ func (m *Matrix) MultiplyElementsInto(other, result *Matrix) (err error) {
 		return err
 	}
 
-	multiplyElementsInto(m.data, other.data, result.data)
+	float32elementwise.Multiply(m.data, other.data, result.data)
 	return nil
 }
 
@@ -1575,7 +1576,7 @@ func (m *Matrix) ColumnSumsInto(result *Matrix) (err error) {
 	if m.cols >= columnReductionAddMinCols {
 		for row = 0; row < m.rows; row++ {
 			rowStart = row * m.cols
-			addInto(result.data, m.data[rowStart:rowStart+m.cols], result.data)
+			float32elementwise.Add(result.data, m.data[rowStart:rowStart+m.cols], result.data)
 		}
 
 		return nil
@@ -1636,7 +1637,7 @@ func (m *Matrix) AccumulateColumnSumsInto(result *Matrix) (err error) {
 	if m.cols >= columnReductionAddMinCols {
 		for row = 0; row < m.rows; row++ {
 			rowStart = row * m.cols
-			addInto(result.data, m.data[rowStart:rowStart+m.cols], result.data)
+			float32elementwise.Add(result.data, m.data[rowStart:rowStart+m.cols], result.data)
 		}
 
 		return nil

@@ -3,6 +3,8 @@ package matrix
 import (
 	"math"
 	"testing"
+
+	"github.com/itsmontoya/neuralnetwork/internal/float32elementwise"
 )
 
 const elementwiseEpsilon = 1e-5
@@ -39,16 +41,16 @@ func Test_ElementwiseKernels(t *testing.T) {
 			got = make([]float32, tt.length)
 			want = make([]float32, tt.length)
 
-			addInto(left, right, got)
-			addIntoPure(left, right, want)
+			float32elementwise.Add(left, right, got)
+			float32elementwise.AddPure(left, right, want)
 			requireElementwiseValues(t, got, want)
 
-			subtractInto(left, right, got)
-			subtractIntoPure(left, right, want)
+			float32elementwise.Subtract(left, right, got)
+			float32elementwise.SubtractPure(left, right, want)
 			requireElementwiseValues(t, got, want)
 
-			multiplyElementsInto(left, right, got)
-			multiplyElementsIntoPure(left, right, want)
+			float32elementwise.Multiply(left, right, got)
+			float32elementwise.MultiplyPure(left, right, want)
 			requireElementwiseValues(t, got, want)
 
 			addScalarInto(left, -0.375, got)

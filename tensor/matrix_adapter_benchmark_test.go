@@ -8,8 +8,8 @@ import (
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
-// BenchmarkMatrixAdapterArithmetic includes public validation and matrix dispatch.
-func BenchmarkMatrixAdapterArithmetic(b *testing.B) {
+// BenchmarkEqualShapeArithmetic includes tensor validation and host dispatch.
+func BenchmarkEqualShapeArithmetic(b *testing.B) {
 	var operations = []struct {
 		name string
 		run  func(*Tensor, *Tensor, *Tensor) error
@@ -41,8 +41,8 @@ func BenchmarkMatrixAdapterArithmetic(b *testing.B) {
 	}
 }
 
-// BenchmarkMatrixAdapterScopes separates the adapter from allocation/copy costs.
-func BenchmarkMatrixAdapterScopes(b *testing.B) {
+// BenchmarkMatrixArithmeticComponents measures matrix allocation, copies, and addition.
+func BenchmarkMatrixArithmeticComponents(b *testing.B) {
 	var (
 		left, right, output             *Tensor
 		leftMatrix, rightMatrix, result *matrix.Matrix
@@ -61,14 +61,6 @@ func BenchmarkMatrixAdapterScopes(b *testing.B) {
 	if result, err = matrix.New(1, 10); err != nil {
 		b.Fatal(err)
 	}
-	b.Run("Adapter", func(b *testing.B) {
-		b.ReportAllocs()
-		for b.Loop() {
-			if err = matrixBinaryInto(left, right, output, (*matrix.Matrix).AddInto); err != nil {
-				b.Fatal(err)
-			}
-		}
-	})
 	b.Run("FromSlice", func(b *testing.B) {
 		var created *matrix.Matrix
 		b.ReportAllocs()

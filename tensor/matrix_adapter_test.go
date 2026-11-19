@@ -1,7 +1,6 @@
 package tensor
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"runtime"
@@ -24,7 +23,7 @@ func Test_Arithmetic_EqualShapeMatrixBits(t *testing.T) {
 			{name: "Mul", run: MulInto, matrix: (*matrix.Matrix).MultiplyElementsInto},
 		}
 		shapes = [][]int64{
-			nil, {0}, {2, 0, 3}, {1}, {1, 10}, {15}, {16}, {17}, {4096},
+			nil, {0}, {2, 0, 3}, {1}, {1, 10}, {15}, {16}, {17}, {18}, {19}, {31}, {32}, {33}, {4096},
 			{1, 1, 1, 1, 1, 1, 1, 1, 17},
 		}
 		bits = []uint32{
@@ -32,6 +31,7 @@ func Test_Arithmetic_EqualShapeMatrixBits(t *testing.T) {
 			0xff800000, 0x7fc12345, 0x00000001, 0x7f7fffff,
 		}
 	)
+	shapes = append(shapes, llamaArithmeticShapes()...)
 	for _, operation := range operations {
 		for _, shape := range shapes {
 			t.Run(fmt.Sprint(operation.name, shape), func(t *testing.T) {
@@ -40,6 +40,7 @@ func Test_Arithmetic_EqualShapeMatrixBits(t *testing.T) {
 					leftMatrix, rightMatrix, result *matrix.Matrix
 					first, second                   *Tensor
 					leftBefore, rightBefore, want   []float32
+					savedBefore                     []float32
 					outputStorage                   *float32
 					shapeStorage                    *int64
 					identity                        *byte
@@ -51,19 +52,21 @@ func Test_Arithmetic_EqualShapeMatrixBits(t *testing.T) {
 				if right, err = New(Float32, shape); err != nil {
 					t.Fatal(err)
 				}
-				if output, err = New(Float32, shape); err != nil {
-					t.Fatal(err)
-				}
 				for index := range left.floats {
 					left.floats[index] = math.Float32frombits(bits[index%len(bits)])
 					right.floats[index] = math.Float32frombits(bits[(index+3)%len(bits)])
 				}
-				outputStorage = slicesElement(output.floats)
-				if len(output.shape) > 0 {
-					shapeStorage = &output.shape[0]
-				}
-				identity = output.identity
 				for call := range 3 {
+					if call < 2 {
+						if output, err = New(Float32, shape); err != nil {
+							t.Fatal(err)
+						}
+						outputStorage = slicesElement(output.floats)
+						if len(output.shape) > 0 {
+							shapeStorage = &output.shape[0]
+						}
+						identity = output.identity
+					}
 					first, second = left, right
 					if call == 1 {
 						for index := range right.floats {
@@ -108,50 +111,59 @@ func Test_Arithmetic_EqualShapeMatrixBits(t *testing.T) {
 						t.Fatal("operation replaced destination shape storage")
 					}
 					if call == 0 {
-						if saved, err = output.Clone(); err != nil {
-							t.Fatal(err)
-						}
+						saved = output
+						savedBefore = slices.Clone(want)
 					}
 				}
 				left, right, first, second = nil, nil, nil, nil
 				runtime.GC()
 				requireAdapterBits(t, output.floats, want)
 				if len(output.floats) > 0 {
-					var savedBefore = slices.Clone(saved.floats)
 					output.floats[0] = 123
-					requireAdapterBits(t, saved.floats, savedBefore)
 				}
+				requireAdapterBits(t, saved.floats, savedBefore)
 			})
 		}
 	}
 }
 
-func Test_MatrixBinaryInto_OperationError(t *testing.T) {
-	var (
-		left, right, output *Tensor
-		before              = []float32{99, math.Float32frombits(0x80000000)}
-		failure             = errors.New("arithmetic failed after writing private output")
-		err                 error
-	)
-	if left, err = FromFloat32([]int64{2}, []float32{1, 2}); err != nil {
-		t.Fatal(err)
+func Test_Arithmetic_EqualShapeAllocations(t *testing.T) {
+	var operations = []struct {
+		name string
+		run  func(*Tensor, *Tensor, *Tensor) error
+	}{
+		{name: "Add", run: AddInto},
+		{name: "Sub", run: SubInto},
+		{name: "Mul", run: MulInto},
 	}
-	if right, err = left.Clone(); err != nil {
-		t.Fatal(err)
-	}
-	if output, err = FromFloat32([]int64{2}, before); err != nil {
-		t.Fatal(err)
-	}
-	err = matrixBinaryInto(left, right, output, func(a, b, destination *matrix.Matrix) (operationErr error) {
-		if operationErr = a.AddInto(b, destination); operationErr != nil {
-			return operationErr
+	for _, operation := range operations {
+		for _, shape := range llamaArithmeticShapes() {
+			t.Run(fmt.Sprint(operation.name, shape), func(t *testing.T) {
+				var (
+					left, right, output *Tensor
+					allocations         float64
+					err                 error
+				)
+				if left, err = New(Float32, shape); err != nil {
+					t.Fatal(err)
+				}
+				if right, err = New(Float32, shape); err != nil {
+					t.Fatal(err)
+				}
+				if output, err = New(Float32, shape); err != nil {
+					t.Fatal(err)
+				}
+				allocations = testing.AllocsPerRun(10, func() {
+					if err = operation.run(left, right, output); err != nil {
+						t.Fatal(err)
+					}
+				})
+				if allocations != 0 {
+					t.Fatalf("allocations per operation = %g, want 0", allocations)
+				}
+			})
 		}
-		return failure
-	})
-	if !errors.Is(err, failure) {
-		t.Fatalf("error=%v, want wrapped operation failure", err)
 	}
-	requireAdapterBits(t, output.floats, before)
 }
 
 func Test_Arithmetic_EqualShapeConcurrentReaders(t *testing.T) {
@@ -233,4 +245,11 @@ func slicesElement(values []float32) (element *float32) {
 		return nil
 	}
 	return &values[0]
+}
+
+func llamaArithmeticShapes() (shapes [][]int64) {
+	for _, rows := range []int64{1, 6, 29} {
+		shapes = append(shapes, []int64{rows, 2048}, []int64{rows, 8192}, []int64{rows, 32, 64}, []int64{rows, 8, 64})
+	}
+	return shapes
 }
