@@ -1,6 +1,10 @@
 package matrix
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/itsmontoya/neuralnetwork/internal/float32elementwise"
+)
 
 var benchmarkElementwiseValuesSink []float32
 
@@ -29,13 +33,13 @@ func Benchmark_ElementwiseCandidates(b *testing.B) {
 
 			length = tt.rows * tt.cols
 			b.Run("AddInto", func(b *testing.B) {
-				benchmarkElementwiseBinaryInto(b, length, addIntoPure, addInto)
+				benchmarkElementwiseBinaryInto(b, length, float32elementwise.AddPure, float32elementwise.Add)
 			})
 			b.Run("SubtractInto", func(b *testing.B) {
-				benchmarkElementwiseBinaryInto(b, length, subtractIntoPure, subtractInto)
+				benchmarkElementwiseBinaryInto(b, length, float32elementwise.SubtractPure, float32elementwise.Subtract)
 			})
 			b.Run("MultiplyElementsInto", func(b *testing.B) {
-				benchmarkElementwiseBinaryInto(b, length, multiplyElementsIntoPure, multiplyElementsInto)
+				benchmarkElementwiseBinaryInto(b, length, float32elementwise.MultiplyPure, float32elementwise.Multiply)
 			})
 			b.Run("AddScaledInPlace", func(b *testing.B) {
 				benchmarkElementwiseAddScaledInPlace(b, length)

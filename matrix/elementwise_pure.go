@@ -1,34 +1,10 @@
 package matrix
 
-func addIntoPure(left, right, result []float32) {
-	var index int
-
-	for index = range result {
-		result[index] = left[index] + right[index]
-	}
-}
-
 func addScaledInPlacePure(left, right []float32, scale float32) {
 	var index int
 
 	for index = range left {
 		left[index] += scale * right[index]
-	}
-}
-
-func subtractIntoPure(left, right, result []float32) {
-	var index int
-
-	for index = range result {
-		result[index] = left[index] - right[index]
-	}
-}
-
-func multiplyElementsIntoPure(left, right, result []float32) {
-	var index int
-
-	for index = range result {
-		result[index] = left[index] * right[index]
 	}
 }
 
