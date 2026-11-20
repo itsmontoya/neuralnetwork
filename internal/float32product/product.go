@@ -53,6 +53,10 @@ func RightTranspose(left, right, output []float32, rows, inner, cols int) {
 		return
 	}
 
+	dispatchRightTransposeRows(left, right, output, rows, inner, cols)
+}
+
+func dispatchRightTransposeRows(left, right, output []float32, rows, inner, cols int) {
 	var (
 		groups      = rows / 3
 		groupedRows = groups * 3
