@@ -54,20 +54,30 @@ func RightTranspose(left, right, output []float32, rows, inner, cols int) {
 	}
 
 	var (
-		groups = rows / 3
-		row    = groups * 3
+		groups      = rows / 3
+		groupedRows = groups * 3
 	)
 
 	if groups > 0 {
 		dispatchRightTransposeGroups(left, right, output, groups, inner, cols)
 	}
 
-	for ; row < rows; row++ {
-		leftRow := left[row*inner:][:inner]
-		outputRow := output[row*cols:][:cols]
+	if groupedRows < rows {
+		rightTransposeScalarRows(left[groupedRows*inner:], right, output[groupedRows*cols:], rows-groupedRows, inner, cols)
+	}
+}
+
+func rightTransposeScalarRows(left, right, output []float32, rows, inner, cols int) {
+	for row := range rows {
+		var (
+			leftRow   = left[row*inner:][:inner]
+			outputRow = output[row*cols:][:cols]
+		)
 		for column := range outputRow {
-			var sum float32
-			rightRow := right[column*inner:][:inner]
+			var (
+				rightRow = right[column*inner:][:inner]
+				sum      float32
+			)
 			for contraction, rightValue := range rightRow {
 				sum += leftRow[contraction] * rightValue
 			}
