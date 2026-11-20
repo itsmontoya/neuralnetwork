@@ -58,9 +58,17 @@ func RightTranspose(left, right, output []float32, rows, inner, cols int) {
 		return
 	}
 
-	var row int
-	for ; row+3 <= rows; row += 3 {
-		rightTransposeThreeRows(left[row*inner:], right, output[row*cols:], inner, cols)
+	var (
+		groups = rows / 3
+		row    = groups * 3
+	)
+	if groups > 0 {
+		var workers = rightTransposeGroupWorkerCount(groups, inner, cols)
+		if workers > 1 {
+			rightTransposeGroupsParallel(left, right, output, groups, inner, cols, workers)
+		} else {
+			rightTransposeGroups(left, right, output, groups, inner, cols, cols)
+		}
 	}
 
 	for ; row < rows; row++ {
@@ -118,20 +126,27 @@ func rightTransposeOneRow(left, right, output []float32) {
 	}
 }
 
+func rightTransposeGroups(left, right, output []float32, groups, inner, stride, cols int) {
+	for group := range groups {
+		var row = group * 3
+		rightTransposeThreeRows(left[row*inner:], right, output[row*stride:], inner, stride, cols)
+	}
+}
+
 // Reuse weight loads across input rows and input loads across output columns.
 // Each dot product accumulates in ascending contraction order.
-func rightTransposeThreeRows(left, right, output []float32, inner, cols int) {
+func rightTransposeThreeRows(left, right, output []float32, inner, stride, cols int) {
 	var (
 		left0  = left[:inner]
 		left1  = left[inner:][:inner]
 		left2  = left[2*inner:][:inner]
 		out0   = output[:cols]
-		out1   = output[cols:][:cols]
-		out2   = output[2*cols:][:cols]
+		out1   = output[stride:][:cols]
+		out2   = output[2*stride:][:cols]
 		column int
 	)
 
-	for ; column+4 <= cols; column += 4 {
+	for ; column+rightTransposeColumnTile <= cols; column += rightTransposeColumnTile {
 		var (
 			offset                     = column * inner
 			weights0                   = right[offset:][:inner]
