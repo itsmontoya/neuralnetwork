@@ -13,6 +13,15 @@ const (
 	rightTransposeGroupMaxWorkers       = 8
 )
 
+func dispatchRightTransposeGroups(left, right, output []float32, groups, inner, cols int) {
+	var workers = rightTransposeGroupWorkerCount(groups, inner, cols)
+	if workers > 1 {
+		rightTransposeGroupsParallel(left, right, output, groups, inner, cols, workers)
+		return
+	}
+	rightTransposeGroups(left, right, output, groups, inner, cols, cols)
+}
+
 func rightTransposeGroupWorkerCount(groups, inner, cols int) (workers int) {
 	var (
 		tiles = cols / rightTransposeColumnTile

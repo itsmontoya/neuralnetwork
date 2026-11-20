@@ -58,12 +58,7 @@ func RightTranspose(left, right, output []float32, rows, inner, cols int) {
 		row    = groups * 3
 	)
 	if groups > 0 {
-		var workers = rightTransposeGroupWorkerCount(groups, inner, cols)
-		if workers > 1 {
-			rightTransposeGroupsParallel(left, right, output, groups, inner, cols, workers)
-		} else {
-			rightTransposeGroups(left, right, output, groups, inner, cols, cols)
-		}
+		dispatchRightTransposeGroups(left, right, output, groups, inner, cols)
 	}
 
 	for ; row < rows; row++ {
