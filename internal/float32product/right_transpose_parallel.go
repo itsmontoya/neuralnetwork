@@ -14,11 +14,12 @@ const (
 )
 
 func dispatchRightTransposeRows(left, right, output []float32, rows, inner, cols int) {
-	var workers = rightTransposeRowsWorkerCount(rows, inner, cols)
+	workers := rightTransposeRowsWorkerCount(rows, inner, cols)
 	if workers > 1 {
 		rightTransposeRowsParallel(left, right, output, rows, inner, cols, workers)
 		return
 	}
+
 	rightTransposeRows(left, right, output, rows, inner, cols, cols)
 }
 
@@ -73,11 +74,12 @@ func rightTransposeRowsParallel(left, right, output []float32, rows, inner, cols
 }
 
 func dispatchRightTransposeOneRow(left, right, output []float32) {
-	var workers = rightTransposeOneRowWorkerCount(len(left), len(output))
+	workers := rightTransposeOneRowWorkerCount(len(left), len(output))
 	if workers > 1 {
 		rightTransposeOneRowParallel(left, right, output, workers)
 		return
 	}
+
 	rightTransposeOneRow(left, right, output)
 }
 
