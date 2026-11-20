@@ -57,6 +57,7 @@ func RightTranspose(left, right, output []float32, rows, inner, cols int) {
 		groups = rows / 3
 		row    = groups * 3
 	)
+
 	if groups > 0 {
 		dispatchRightTransposeGroups(left, right, output, groups, inner, cols)
 	}
@@ -83,6 +84,7 @@ func rightTransposeOneRow(left, right, output []float32) {
 		inner  = len(left)
 		column int
 	)
+
 	for ; column+rightTransposeColumnTile <= len(output); column += rightTransposeColumnTile {
 		var (
 			offset                 = column * inner
@@ -147,6 +149,7 @@ func rightTransposeThreeRows(left, right, output []float32, inner, stride, cols 
 			sum10, sum11, sum12, sum13 float32
 			sum20, sum21, sum22, sum23 float32
 		)
+
 		for contraction, input0 := range left0 {
 			var (
 				input1  = left1[contraction]
