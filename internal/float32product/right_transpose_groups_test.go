@@ -65,13 +65,16 @@ func TestRightTransposeGroupsAgainstOrderedReference(t *testing.T) {
 				nan     = float32(math.NaN())
 				negZero = math.Float32frombits(0x80000000)
 			)
+
 			for row := range tt.rows {
-				var input = left[row*tt.inner:][:tt.inner]
+				input := left[row*tt.inner:][:tt.inner]
 				for index := range input {
 					input[index] = float32((row+index)%31-15) / 17
 				}
+
 				input[0], input[1], input[2], input[tt.inner-1] = 1, 1, 1, math.SmallestNonzeroFloat32
 			}
+
 			for column := range tt.cols {
 				var weight = right[column*tt.inner:][:tt.inner]
 				switch column % 19 {
@@ -93,28 +96,36 @@ func TestRightTransposeGroupsAgainstOrderedReference(t *testing.T) {
 						weight[index] = float32((column+index)%53-26) / 29
 					}
 				}
+
 				for row := range tt.rows {
-					var input = left[row*tt.inner:][:tt.inner]
+					input := left[row*tt.inner:][:tt.inner]
 					want[row*tt.cols+column] = scalarDotProduct(input, weight)
 				}
 			}
+
 			var (
 				leftBefore  = slices.Clone(left)
 				rightBefore = slices.Clone(right)
 			)
+
 			for index := range want {
 				serial[index], output[index] = 99, 99
 			}
+
 			runtime.GOMAXPROCS(1)
 			if workers := rightTransposeRowsWorkerCount(tt.rows, tt.inner, tt.cols); workers != 1 {
 				t.Fatalf("one-thread dispatch selected %d workers", workers)
 			}
+
 			RightTranspose(left, right, serial, tt.rows, tt.inner, tt.cols)
 			runtime.GOMAXPROCS(8)
+
 			if workers := rightTransposeRowsWorkerCount(tt.rows, tt.inner, tt.cols); workers != tt.workers {
 				t.Fatalf("dispatch selected %d workers, want %d", workers, tt.workers)
 			}
+
 			RightTranspose(left, right, output, tt.rows, tt.inner, tt.cols)
+
 			for index, expected := range want {
 				for _, got := range []float32{serial[index], output[index]} {
 					if math.IsNaN(float64(expected)) && math.IsNaN(float64(got)) {
@@ -125,9 +136,11 @@ func TestRightTransposeGroupsAgainstOrderedReference(t *testing.T) {
 					}
 				}
 			}
+
 			var equalBits = func(a, b float32) (equal bool) {
 				return math.Float32bits(a) == math.Float32bits(b)
 			}
+
 			if !slices.EqualFunc(left, leftBefore, equalBits) || !slices.EqualFunc(right, rightBefore, equalBits) {
 				t.Fatal("projection modified read-only inputs")
 			}
