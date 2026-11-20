@@ -58,6 +58,15 @@ func rightTransposeGroupsParallel(left, right, output []float32, groups, inner, 
 	group.Wait()
 }
 
+func dispatchRightTransposeOneRow(left, right, output []float32) {
+	var workers = rightTransposeOneRowWorkerCount(len(left), len(output))
+	if workers > 1 {
+		rightTransposeOneRowParallel(left, right, output, workers)
+		return
+	}
+	rightTransposeOneRow(left, right, output)
+}
+
 func rightTransposeOneRowWorkerCount(inner, cols int) (workers int) {
 	var tiles = cols / rightTransposeColumnTile
 	// Count only complete tiles toward the weight budget. Small calls avoid
