@@ -11,8 +11,7 @@ import (
 )
 
 // BenchmarkRightTransposeGroups measures repeated and disjoint weight operands.
-// Throughput counts one visit to the weight matrix per three-row group and
-// per scalar remainder row.
+// Throughput uses the weight operand size so it can be compared across dispatchers.
 func BenchmarkRightTransposeGroups(b *testing.B) {
 	var shapes = []struct {
 		name                   string
@@ -27,7 +26,7 @@ func BenchmarkRightTransposeGroups(b *testing.B) {
 	for _, shape := range shapes {
 		var rowCounts = []int{1, 2, 3, 4, 5, 6, 27, 28, 29, 30}
 		if shape.rotations == 0 {
-			rowCounts = []int{1, 3, 6}
+			rowCounts = []int{1, 3, 4, 6}
 		}
 		for _, rows := range rowCounts {
 			var name = fmt.Sprintf("%s/M%d", shape.name, rows)
@@ -42,8 +41,10 @@ func BenchmarkRightTransposeGroups(b *testing.B) {
 		if cols <= 5 {
 			inner = 31
 		}
-		var name = fmt.Sprintf("Boundary/K%d/N%d/M3", inner, cols)
-		benchmarkRightTransposeGroupShape(b, name, 3, inner, cols, 1)
+		for _, rows := range []int{2, 3, 4, 5} {
+			var name = fmt.Sprintf("Boundary/K%d/N%d/M%d", inner, cols, rows)
+			benchmarkRightTransposeGroupShape(b, name, rows, inner, cols, 1)
+		}
 	}
 	benchmarkRightTransposeGroupShape(b, "Boundary/K2049/N513/M7", 7, 2049, 513, 1)
 }
@@ -60,7 +61,7 @@ func benchmarkRightTransposeGroupShape(b *testing.B, name string, rows, inner, c
 			weights[index] = rightTransposeBenchmarkValues(inner * cols)
 		}
 		b.ReportAllocs()
-		b.SetBytes(int64(rows/3+rows%3) * int64(inner) * int64(cols) * 4)
+		b.SetBytes(int64(inner) * int64(cols) * 4)
 		for b.Loop() {
 			float32product.RightTranspose(left, weights[next], output, rows, inner, cols)
 			next++
@@ -89,7 +90,7 @@ func benchmarkRightTransposeGroupShape(b *testing.B, name string, rows, inner, c
 			b.Fatal(err)
 		}
 		b.ReportAllocs()
-		b.SetBytes(int64(rows/3+rows%3) * int64(inner) * int64(cols) * 4)
+		b.SetBytes(int64(inner) * int64(cols) * 4)
 		for b.Loop() {
 			if err = tensor.GemmInto(left, weights[next], nil, output, config); err != nil {
 				b.Fatal(err)
@@ -105,8 +106,22 @@ func benchmarkRightTransposeGroupShape(b *testing.B, name string, rows, inner, c
 // BenchmarkRightTransposeGroupsConcurrent measures six-row FFN calls with
 // shared immutable operands and one disjoint destination per caller.
 func BenchmarkRightTransposeGroupsConcurrent(b *testing.B) {
-	const rows, inner, cols = 6, 2048, 8192
-	var callers = runtime.GOMAXPROCS(0)
+	benchmarkRightTransposeGroupsConcurrent(b, 6)
+}
+
+// BenchmarkRightTransposeRemainderConcurrent measures shared weights and
+// disjoint destinations when each caller has a two-row remainder.
+func BenchmarkRightTransposeRemainderConcurrent(b *testing.B) {
+	benchmarkRightTransposeGroupsConcurrent(b, 5)
+}
+
+func benchmarkRightTransposeGroupsConcurrent(b *testing.B, rows int) {
+	const inner, cols = 2048, 8192
+	var (
+		callers = runtime.GOMAXPROCS(0)
+		shape   = []int64{int64(rows), int64(inner)}
+		result  = []int64{int64(rows), int64(cols)}
+	)
 	b.Run("Kernel", func(b *testing.B) {
 		var (
 			left    = rightTransposeBenchmarkValues(rows * inner)
@@ -115,7 +130,7 @@ func BenchmarkRightTransposeGroupsConcurrent(b *testing.B) {
 			next    atomic.Int64
 		)
 		b.ReportAllocs()
-		b.SetBytes(rows / 3 * inner * cols * 4)
+		b.SetBytes(inner * cols * 4)
 		b.ResetTimer()
 		b.RunParallel(func(work *testing.PB) {
 			var offset = int(next.Add(1)-1) * rows * cols
@@ -133,19 +148,19 @@ func BenchmarkRightTransposeGroupsConcurrent(b *testing.B) {
 			next        atomic.Int64
 			err         error
 		)
-		if left, err = tensor.FromFloat32([]int64{rows, inner}, rightTransposeBenchmarkValues(rows*inner)); err != nil {
+		if left, err = tensor.FromFloat32(shape, rightTransposeBenchmarkValues(rows*inner)); err != nil {
 			b.Fatal(err)
 		}
 		if right, err = tensor.FromFloat32([]int64{cols, inner}, rightTransposeBenchmarkValues(cols*inner)); err != nil {
 			b.Fatal(err)
 		}
 		for index := range outputs {
-			if outputs[index], err = tensor.New(tensor.Float32, []int64{rows, cols}); err != nil {
+			if outputs[index], err = tensor.New(tensor.Float32, result); err != nil {
 				b.Fatal(err)
 			}
 		}
 		b.ReportAllocs()
-		b.SetBytes(rows / 3 * inner * cols * 4)
+		b.SetBytes(inner * cols * 4)
 		b.ResetTimer()
 		b.RunParallel(func(work *testing.PB) {
 			var (

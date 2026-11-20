@@ -39,12 +39,17 @@ func TestRightTransposeGroupsAgainstOrderedReference(t *testing.T) {
 	var (
 		previous = runtime.GOMAXPROCS(8)
 		tests    = []struct {
-			name              string
-			rows, inner, cols int
+			name                       string
+			rows, inner, cols, workers int
 		}{
-			{name: "irregular split and scalar column tail", rows: 3, inner: 2048, cols: 519},
-			{name: "odd contraction and one scalar row", rows: 7, inner: 2049, cols: 519},
-			{name: "wide contraction and two scalar rows", rows: 8, inner: 8192, cols: 139},
+			{name: "standalone pair below threshold", rows: 2, inner: 2048, cols: 255, workers: 1},
+			{name: "standalone pair with column tail", rows: 2, inner: 2049, cols: 513, workers: 4},
+			{name: "irregular split and column tail", rows: 3, inner: 2048, cols: 519, workers: 4},
+			{name: "one remainder row", rows: 4, inner: 2049, cols: 513, workers: 8},
+			{name: "two remainder rows", rows: 5, inner: 8192, cols: 139, workers: 8},
+			{name: "nine complete groups", rows: 27, inner: 2048, cols: 513, workers: 8},
+			{name: "nine groups and one remainder row", rows: 28, inner: 2049, cols: 513, workers: 8},
+			{name: "nine groups and two remainder rows", rows: 29, inner: 2049, cols: 513, workers: 8},
 		}
 	)
 	t.Cleanup(func() { runtime.GOMAXPROCS(previous) })
@@ -60,13 +65,16 @@ func TestRightTransposeGroupsAgainstOrderedReference(t *testing.T) {
 				nan     = float32(math.NaN())
 				negZero = math.Float32frombits(0x80000000)
 			)
+
 			for row := range tt.rows {
-				var input = left[row*tt.inner:][:tt.inner]
+				input := left[row*tt.inner:][:tt.inner]
 				for index := range input {
 					input[index] = float32((row+index)%31-15) / 17
 				}
+
 				input[0], input[1], input[2], input[tt.inner-1] = 1, 1, 1, math.SmallestNonzeroFloat32
 			}
+
 			for column := range tt.cols {
 				var weight = right[column*tt.inner:][:tt.inner]
 				switch column % 19 {
@@ -88,34 +96,36 @@ func TestRightTransposeGroupsAgainstOrderedReference(t *testing.T) {
 						weight[index] = float32((column+index)%53-26) / 29
 					}
 				}
+
 				for row := range tt.rows {
-					var (
-						input = left[row*tt.inner:][:tt.inner]
-						sum   float32
-					)
-					for index, value := range input {
-						sum += value * weight[index]
-					}
-					want[row*tt.cols+column] = sum
+					input := left[row*tt.inner:][:tt.inner]
+					want[row*tt.cols+column] = scalarDotProduct(input, weight)
 				}
 			}
+
 			var (
 				leftBefore  = slices.Clone(left)
 				rightBefore = slices.Clone(right)
 			)
+
 			for index := range want {
 				serial[index], output[index] = 99, 99
 			}
+
 			runtime.GOMAXPROCS(1)
-			if workers := rightTransposeGroupWorkerCount(tt.rows/3, tt.inner, tt.cols); workers != 1 {
+			if workers := rightTransposeRowsWorkerCount(tt.rows, tt.inner, tt.cols); workers != 1 {
 				t.Fatalf("one-thread dispatch selected %d workers", workers)
 			}
+
 			RightTranspose(left, right, serial, tt.rows, tt.inner, tt.cols)
 			runtime.GOMAXPROCS(8)
-			if workers := rightTransposeGroupWorkerCount(tt.rows/3, tt.inner, tt.cols); workers < 2 {
-				t.Fatalf("parallel dispatch selected %d workers", workers)
+
+			if workers := rightTransposeRowsWorkerCount(tt.rows, tt.inner, tt.cols); workers != tt.workers {
+				t.Fatalf("dispatch selected %d workers, want %d", workers, tt.workers)
 			}
+
 			RightTranspose(left, right, output, tt.rows, tt.inner, tt.cols)
+
 			for index, expected := range want {
 				for _, got := range []float32{serial[index], output[index]} {
 					if math.IsNaN(float64(expected)) && math.IsNaN(float64(got)) {
@@ -126,9 +136,11 @@ func TestRightTransposeGroupsAgainstOrderedReference(t *testing.T) {
 					}
 				}
 			}
+
 			var equalBits = func(a, b float32) (equal bool) {
 				return math.Float32bits(a) == math.Float32bits(b)
 			}
+
 			if !slices.EqualFunc(left, leftBefore, equalBits) || !slices.EqualFunc(right, rightBefore, equalBits) {
 				t.Fatal("projection modified read-only inputs")
 			}
