@@ -68,21 +68,22 @@ func dispatchRightTransposeRows(left, right, output []float32, rows, inner, cols
 
 func rightTransposeScalarRows(left, right, output []float32, rows, inner, cols int) {
 	for row := range rows {
-		var (
-			leftRow   = left[row*inner:][:inner]
-			outputRow = output[row*cols:][:cols]
-		)
-		for column := range outputRow {
-			var (
-				rightRow = right[column*inner:][:inner]
-				sum      float32
-			)
-			for contraction, rightValue := range rightRow {
-				sum += leftRow[contraction] * rightValue
-			}
+		rightTransposeScalarRow(left[row*inner:][:inner], right, output[row*cols:][:cols])
+	}
+}
 
-			outputRow[column] = sum
+func rightTransposeScalarRow(leftRow, right, outputRow []float32) {
+	var inner = len(leftRow)
+	for column := range outputRow {
+		var (
+			rightRow = right[column*inner:][:inner]
+			sum      float32
+		)
+		for contraction, rightValue := range rightRow {
+			sum += leftRow[contraction] * rightValue
 		}
+
+		outputRow[column] = sum
 	}
 }
 
