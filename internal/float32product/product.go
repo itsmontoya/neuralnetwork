@@ -73,7 +73,7 @@ func rightTransposeScalarRows(left, right, output []float32, rows, inner, cols i
 }
 
 func rightTransposeScalarRow(leftRow, right, outputRow []float32) {
-	var inner = len(leftRow)
+	inner := len(leftRow)
 	for column := range outputRow {
 		rightRow := right[column*inner:][:inner]
 		outputRow[column] = scalarDotProduct(leftRow, rightRow)
@@ -84,6 +84,7 @@ func scalarDotProduct(left, right []float32) (sum float32) {
 	for contraction, rightValue := range right {
 		sum += left[contraction] * rightValue
 	}
+
 	return sum
 }
 
@@ -104,6 +105,7 @@ func rightTransposeOneRow(left, right, output []float32) {
 			weight3                = right[offset+3*inner:][:inner]
 			sum0, sum1, sum2, sum3 float32
 		)
+
 		for contraction, input := range left {
 			sum0 += input * weight0[contraction]
 			sum1 += input * weight1[contraction]
