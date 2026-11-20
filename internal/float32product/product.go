@@ -39,43 +39,53 @@ func LeftTranspose(left, right, output []float32, rows, inner, cols int) {
 
 // RightTranspose multiplies [rows, inner] by transposed [cols, inner].
 func RightTranspose(left, right, output []float32, rows, inner, cols int) {
-	if len(output) == 0 {
+	switch {
+	case len(output) == 0:
 		return
-	}
-
-	if inner == 0 {
+	case inner == 0:
 		clear(output)
-		return
+	case rows == 1 && cols >= rightTransposeColumnTile:
+		dispatchRightTransposeOneRow(left[:inner], right, output[:cols])
+	default:
+		dispatchRightTransposeRows(left, right, output, rows, inner, cols)
+	}
+}
+
+func dispatchRightTransposeRows(left, right, output []float32, rows, inner, cols int) {
+	var (
+		groups      = rows / 3
+		groupedRows = groups * 3
+	)
+
+	if groups > 0 {
+		dispatchRightTransposeGroups(left, right, output, groups, inner, cols)
 	}
 
-	if rows == 1 && cols >= rightTransposeColumnTile {
-		var workers = rightTransposeOneRowWorkerCount(inner, cols)
-		if workers > 1 {
-			rightTransposeOneRowParallel(left[:inner], right, output[:cols], workers)
-		} else {
-			rightTransposeOneRow(left[:inner], right, output[:cols])
-		}
-		return
+	if groupedRows < rows {
+		rightTransposeScalarRows(left[groupedRows*inner:], right, output[groupedRows*cols:], rows-groupedRows, inner, cols)
+	}
+}
+
+func rightTransposeScalarRows(left, right, output []float32, rows, inner, cols int) {
+	for row := range rows {
+		rightTransposeScalarRow(left[row*inner:][:inner], right, output[row*cols:][:cols])
+	}
+}
+
+func rightTransposeScalarRow(leftRow, right, outputRow []float32) {
+	inner := len(leftRow)
+	for column := range outputRow {
+		rightRow := right[column*inner:][:inner]
+		outputRow[column] = scalarDotProduct(leftRow, rightRow)
+	}
+}
+
+func scalarDotProduct(left, right []float32) (sum float32) {
+	for contraction, rightValue := range right {
+		sum += left[contraction] * rightValue
 	}
 
-	var row int
-	for ; row+3 <= rows; row += 3 {
-		rightTransposeThreeRows(left[row*inner:], right, output[row*cols:], inner, cols)
-	}
-
-	for ; row < rows; row++ {
-		leftRow := left[row*inner:][:inner]
-		outputRow := output[row*cols:][:cols]
-		for column := range outputRow {
-			var sum float32
-			rightRow := right[column*inner:][:inner]
-			for contraction, rightValue := range rightRow {
-				sum += leftRow[contraction] * rightValue
-			}
-
-			outputRow[column] = sum
-		}
-	}
+	return sum
 }
 
 // Reuse each input load across adjacent weight rows while preserving
@@ -85,6 +95,7 @@ func rightTransposeOneRow(left, right, output []float32) {
 		inner  = len(left)
 		column int
 	)
+
 	for ; column+rightTransposeColumnTile <= len(output); column += rightTransposeColumnTile {
 		var (
 			offset                 = column * inner
@@ -94,6 +105,7 @@ func rightTransposeOneRow(left, right, output []float32) {
 			weight3                = right[offset+3*inner:][:inner]
 			sum0, sum1, sum2, sum3 float32
 		)
+
 		for contraction, input := range left {
 			sum0 += input * weight0[contraction]
 			sum1 += input * weight1[contraction]
@@ -118,20 +130,27 @@ func rightTransposeOneRow(left, right, output []float32) {
 	}
 }
 
+func rightTransposeGroups(left, right, output []float32, groups, inner, stride, cols int) {
+	for group := range groups {
+		var row = group * 3
+		rightTransposeThreeRows(left[row*inner:], right, output[row*stride:], inner, stride, cols)
+	}
+}
+
 // Reuse weight loads across input rows and input loads across output columns.
 // Each dot product accumulates in ascending contraction order.
-func rightTransposeThreeRows(left, right, output []float32, inner, cols int) {
+func rightTransposeThreeRows(left, right, output []float32, inner, stride, cols int) {
 	var (
 		left0  = left[:inner]
 		left1  = left[inner:][:inner]
 		left2  = left[2*inner:][:inner]
 		out0   = output[:cols]
-		out1   = output[cols:][:cols]
-		out2   = output[2*cols:][:cols]
+		out1   = output[stride:][:cols]
+		out2   = output[2*stride:][:cols]
 		column int
 	)
 
-	for ; column+4 <= cols; column += 4 {
+	for ; column+rightTransposeColumnTile <= cols; column += rightTransposeColumnTile {
 		var (
 			offset                     = column * inner
 			weights0                   = right[offset:][:inner]
@@ -142,6 +161,7 @@ func rightTransposeThreeRows(left, right, output []float32, inner, cols int) {
 			sum10, sum11, sum12, sum13 float32
 			sum20, sum21, sum22, sum23 float32
 		)
+
 		for contraction, input0 := range left0 {
 			var (
 				input1  = left1[contraction]
