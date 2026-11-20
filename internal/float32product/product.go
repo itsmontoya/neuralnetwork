@@ -71,7 +71,7 @@ func scalarDotProduct(left, right []float32) (sum float32) {
 
 // Reuse each input load across adjacent weight rows while preserving
 // the ascending contraction order of each output.
-func rightTransposeOneRow(left, right, output []float32) {
+func rightTransposeOneRowGo(left, right, output []float32) {
 	var (
 		inner  = len(left)
 		column int
