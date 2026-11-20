@@ -11,10 +11,27 @@ import (
 )
 
 func Test_Gemm_RightTransposeGroupsConcurrentRetry(t *testing.T) {
-	const rows, width = 8, 1031
+	var tests = []struct {
+		name string
+		rows int
+	}{
+		{name: "standalone pair", rows: 2},
+		{name: "one remainder row", rows: 4},
+		{name: "two remainder rows", rows: 8},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testGemmRightTransposeConcurrentRetry(t, tt.rows)
+		})
+	}
+}
+
+func testGemmRightTransposeConcurrentRetry(t *testing.T, rows int) {
+	t.Helper()
+	const width = 1031
 	var (
 		previous                   = runtime.GOMAXPROCS(1)
-		shape                      = []int64{rows, width}
+		shape                      = []int64{int64(rows), width}
 		config                     = tensor.GemmConfig{TransposeB: true, Alpha: 0.5, Beta: -2}
 		inputValues                = rightTransposeBenchmarkValues(rows * width)
 		left, right, bias, badBias *tensor.Tensor

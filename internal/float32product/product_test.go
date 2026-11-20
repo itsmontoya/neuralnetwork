@@ -84,8 +84,13 @@ func TestRightTranspose(t *testing.T) {
 		{name: "single row projection with tail", rows: 1, inner: 2048, cols: 17},
 		{name: "single row with zero contraction", rows: 1, cols: 5},
 		{name: "two rows", rows: 2, inner: 31, cols: 3},
+		{name: "two rows without columns", rows: 2, inner: 31},
+		{name: "two rows with one column", rows: 2, inner: 1, cols: 1},
+		{name: "two rows with two columns", rows: 2, inner: 3, cols: 2},
+		{name: "two rows with one full tile", rows: 2, inner: 7, cols: 4},
 		{name: "three rows below the column tile width", rows: 3, inner: 31, cols: 1},
 		{name: "three rows with a two-column tail", rows: 3, inner: 63, cols: 6},
+		{name: "four rows with a column tail", rows: 4, inner: 31, cols: 5},
 		{name: "five rows", rows: 5, inner: 63, cols: 9},
 		{name: "six rows", rows: 6, inner: 64, cols: 19},
 		{name: "irregular", rows: 7, inner: 257, cols: 17},
@@ -148,6 +153,8 @@ func TestRightTransposeConcurrent(t *testing.T) {
 		}{
 			{name: "single row/first", rows: 1},
 			{name: "single row/second", rows: 1},
+			{name: "two rows", rows: 2},
+			{name: "four rows", rows: 4},
 			{name: "five rows/first", rows: 5},
 			{name: "five rows/second", rows: 5},
 		}
@@ -189,7 +196,7 @@ func TestRightTransposeNonfiniteAndSignedZero(t *testing.T) {
 		negativeZero = math.Float32frombits(0x80000000)
 		inf          = float32(math.Inf(1))
 		nan          = float32(math.NaN())
-		left         = []float32{1, 1, 1, 1, 1, 1}
+		left         = []float32{1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 		right        = []float32{negativeZero, negativeZero, inf, 1, -inf, 1, inf, -inf, nan, 1, inf, 1, negativeZero, negativeZero}
 		want         = []float32{0, inf, -inf, nan, nan, inf, 0}
 		tests        = []struct {
@@ -197,7 +204,10 @@ func TestRightTransposeNonfiniteAndSignedZero(t *testing.T) {
 			rows int
 		}{
 			{name: "single row", rows: 1},
+			{name: "two rows", rows: 2},
 			{name: "three rows", rows: 3},
+			{name: "four rows", rows: 4},
+			{name: "five rows", rows: 5},
 		}
 	)
 	for _, tt := range tests {

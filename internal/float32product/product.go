@@ -46,29 +46,10 @@ func RightTranspose(left, right, output []float32, rows, inner, cols int) {
 		clear(output)
 	case rows == 1 && cols >= rightTransposeColumnTile:
 		dispatchRightTransposeOneRow(left[:inner], right, output[:cols])
+	case rows == 1:
+		rightTransposeScalarRow(left[:inner], right, output[:cols])
 	default:
 		dispatchRightTransposeRows(left, right, output, rows, inner, cols)
-	}
-}
-
-func dispatchRightTransposeRows(left, right, output []float32, rows, inner, cols int) {
-	var (
-		groups      = rows / 3
-		groupedRows = groups * 3
-	)
-
-	if groups > 0 {
-		dispatchRightTransposeGroups(left, right, output, groups, inner, cols)
-	}
-
-	if groupedRows < rows {
-		rightTransposeScalarRows(left[groupedRows*inner:], right, output[groupedRows*cols:], rows-groupedRows, inner, cols)
-	}
-}
-
-func rightTransposeScalarRows(left, right, output []float32, rows, inner, cols int) {
-	for row := range rows {
-		rightTransposeScalarRow(left[row*inner:][:inner], right, output[row*cols:][:cols])
 	}
 }
 
@@ -130,10 +111,17 @@ func rightTransposeOneRow(left, right, output []float32) {
 	}
 }
 
-func rightTransposeGroups(left, right, output []float32, groups, inner, stride, cols int) {
-	for group := range groups {
-		var row = group * 3
+func rightTransposeRows(left, right, output []float32, rows, inner, stride, cols int) {
+	var row int
+	for ; row+3 <= rows; row += 3 {
 		rightTransposeThreeRows(left[row*inner:], right, output[row*stride:], inner, stride, cols)
+	}
+
+	switch rows - row {
+	case 1:
+		rightTransposeOneRow(left[row*inner:][:inner], right, output[row*stride:][:cols])
+	case 2:
+		rightTransposeTwoRows(left[row*inner:], right, output[row*stride:], inner, stride, cols)
 	}
 }
 

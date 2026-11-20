@@ -13,13 +13,18 @@ const (
 	rightTransposeGroupMaxWorkers       = 8
 )
 
-func dispatchRightTransposeGroups(left, right, output []float32, groups, inner, cols int) {
-	var workers = rightTransposeGroupWorkerCount(groups, inner, cols)
+func dispatchRightTransposeRows(left, right, output []float32, rows, inner, cols int) {
+	var workers = rightTransposeRowsWorkerCount(rows, inner, cols)
 	if workers > 1 {
-		rightTransposeGroupsParallel(left, right, output, groups, inner, cols, workers)
+		rightTransposeRowsParallel(left, right, output, rows, inner, cols, workers)
 		return
 	}
-	rightTransposeGroups(left, right, output, groups, inner, cols, cols)
+	rightTransposeRows(left, right, output, rows, inner, cols, cols)
+}
+
+func rightTransposeRowsWorkerCount(rows, inner, cols int) (workers int) {
+	// Each complete group and the optional tiled remainder visit the weights once.
+	return rightTransposeGroupWorkerCount(1+(rows-1)/3, inner, cols)
 }
 
 func rightTransposeGroupWorkerCount(groups, inner, cols int) (workers int) {
@@ -36,7 +41,7 @@ func rightTransposeGroupWorkerCount(groups, inner, cols int) (workers int) {
 	return min(workers, runtime.GOMAXPROCS(0))
 }
 
-func rightTransposeGroupsParallel(left, right, output []float32, groups, inner, cols, workers int) {
+func rightTransposeRowsParallel(left, right, output []float32, rows, inner, cols, workers int) {
 	var (
 		tiles          = cols / rightTransposeColumnTile
 		tilesPerWorker = tiles / workers
@@ -56,14 +61,14 @@ func rightTransposeGroupsParallel(left, right, output []float32, groups, inner, 
 			width   = end - start
 		)
 		go func() {
-			rightTransposeGroups(left, weights, result, groups, inner, cols, width)
+			rightTransposeRows(left, weights, result, rows, inner, cols, width)
 			group.Done()
 		}()
 		start = end
 	}
 
 	// The caller owns the final tile range and the scalar column tail.
-	rightTransposeGroups(left, right[start*inner:], output[start:], groups, inner, cols, cols-start)
+	rightTransposeRows(left, right[start*inner:], output[start:], rows, inner, cols, cols-start)
 	group.Wait()
 }
 
