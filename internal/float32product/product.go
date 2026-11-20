@@ -39,21 +39,16 @@ func LeftTranspose(left, right, output []float32, rows, inner, cols int) {
 
 // RightTranspose multiplies [rows, inner] by transposed [cols, inner].
 func RightTranspose(left, right, output []float32, rows, inner, cols int) {
-	if len(output) == 0 {
+	switch {
+	case len(output) == 0:
 		return
-	}
-
-	if inner == 0 {
+	case inner == 0:
 		clear(output)
-		return
-	}
-
-	if rows == 1 && cols >= rightTransposeColumnTile {
+	case rows == 1 && cols >= rightTransposeColumnTile:
 		dispatchRightTransposeOneRow(left[:inner], right, output[:cols])
-		return
+	default:
+		dispatchRightTransposeRows(left, right, output, rows, inner, cols)
 	}
-
-	dispatchRightTransposeRows(left, right, output, rows, inner, cols)
 }
 
 func dispatchRightTransposeRows(left, right, output []float32, rows, inner, cols int) {
