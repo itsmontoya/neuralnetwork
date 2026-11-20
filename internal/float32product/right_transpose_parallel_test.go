@@ -40,6 +40,12 @@ func TestRightTransposeOneRowAgainstOrderedReference(t *testing.T) {
 			name                 string
 			inner, cols, workers int
 		}{
+			{name: "contraction below ARM64 threshold", inner: 60, cols: 8, workers: 1},
+			{name: "short of an ARM64 tile", inner: 64, cols: 7, workers: 1},
+			{name: "exact ARM64 tile and contraction threshold", inner: 64, cols: 8, workers: 1},
+			{name: "ARM64 tile and four column fallback", inner: 68, cols: 12, workers: 1},
+			{name: "ARM64 tile and scalar column tail", inner: 64, cols: 9, workers: 1},
+			{name: "contraction not divisible by four", inner: 66, cols: 8, workers: 1},
 			{name: "below threshold", inner: 2048, cols: 511, workers: 1},
 			{name: "exact threshold", inner: 2048, cols: 512, workers: 2},
 			{name: "odd contraction and partition tail", inner: 2049, cols: 775, workers: 3},
@@ -101,6 +107,10 @@ func TestRightTransposeOneRowAgainstOrderedReference(t *testing.T) {
 			}
 			RightTranspose(left, right, dispatched, 1, tt.inner, tt.cols)
 			for column, expected := range want {
+				if math.Float32bits(serial[column]) != math.Float32bits(dispatched[column]) {
+					t.Fatalf("column %d: serial bits %08x differ from parallel bits %08x",
+						column, math.Float32bits(serial[column]), math.Float32bits(dispatched[column]))
+				}
 				for _, got := range []float32{serial[column], dispatched[column]} {
 					if math.IsNaN(float64(expected)) && math.IsNaN(float64(got)) {
 						continue
@@ -117,5 +127,40 @@ func TestRightTransposeOneRowAgainstOrderedReference(t *testing.T) {
 				t.Fatal("projection modified read-only inputs")
 			}
 		})
+	}
+}
+
+func TestRightTransposeOneRowNaNOperands(t *testing.T) {
+	const inner, cols = 64, 17
+	var (
+		left      [inner]float32
+		weights   [inner * cols]float32
+		output    [cols]float32
+		reference [cols]float32
+		quiet     = math.Float32frombits(0x7fc12345)
+		signaling = math.Float32frombits(0x7fa32123)
+	)
+	left[1], left[3] = quiet, signaling
+	for column := range output {
+		switch column % 4 {
+		case 0:
+			weights[column*inner+1] = math.Float32frombits(0xffc54321)
+		case 1:
+			weights[column*inner+1] = math.Float32frombits(0x7f854321)
+		case 2:
+			weights[column*inner+3] = math.Float32frombits(0x7fc54321)
+		case 3:
+			weights[column*inner+3] = float32(math.Inf(1))
+		}
+		output[column] = 99
+	}
+
+	rightTransposeOneRowGo(left[:], weights[:], reference[:])
+	RightTranspose(left[:], weights[:], output[:], 1, inner, cols)
+	for column, want := range reference {
+		if got := output[column]; math.Float32bits(got) != math.Float32bits(want) {
+			t.Fatalf("column %d: NaN bits %08x, want %08x",
+				column, math.Float32bits(got), math.Float32bits(want))
+		}
 	}
 }
