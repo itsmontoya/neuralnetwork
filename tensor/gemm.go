@@ -1,6 +1,10 @@
 package tensor
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/itsmontoya/neuralnetwork/internal/float32product"
+)
 
 // GemmShape returns the checked rank-two float32 product shape after explicit
 // transposition. Bias broadcasting is checked separately by ValidateBroadcastTo.
@@ -30,9 +34,13 @@ func GemmShape(left, right []int64, config GemmConfig) (shape []int64, err error
 // supplied bias. Coefficients have no defaults; nonfinite values follow float32
 // arithmetic. All returned errors leave the disjoint destination unchanged.
 func GemmInto(left, right, bias, destination *Tensor, config GemmConfig) (err error) {
+	return gemmInto(left, right, bias, destination, config, false)
+}
+
+func gemmInto(left, right, bias, destination *Tensor, config GemmConfig, packedRight bool) (err error) {
 	var (
 		shape, biasStrides []int64
-		values             []float32
+		values, weights    []float32
 		inner, biasOffset  int64
 		index              int
 	)
@@ -71,8 +79,18 @@ func GemmInto(left, right, bias, destination *Tensor, config GemmConfig) (err er
 	}
 	if inner == 0 {
 		values = make([]float32, len(destination.floats))
-	} else if values, err = matrixProductValues(left.floats, right.floats, left.shape, right.shape, config.TransposeA, config.TransposeB); err != nil {
-		return err
+	} else if packedRight && config.TransposeB && !config.TransposeA {
+		values = make([]float32, len(destination.floats))
+		float32product.RightTransposePacked(left.floats, right.floats, values, int(shape[0]), int(inner), int(shape[1]))
+	} else {
+		weights = right.floats
+		if packedRight {
+			weights = make([]float32, len(right.floats))
+			float32product.UnpackRightTranspose(right.floats, weights, int(right.shape[1]), 0)
+		}
+		if values, err = matrixProductValues(left.floats, weights, left.shape, right.shape, config.TransposeA, config.TransposeB); err != nil {
+			return err
+		}
 	}
 	for index = range values {
 		values[index] *= config.Alpha
