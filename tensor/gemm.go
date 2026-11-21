@@ -77,11 +77,14 @@ func gemmInto(left, right, bias, destination *Tensor, config GemmConfig, packedR
 	if config.TransposeA {
 		inner = left.shape[0]
 	}
-	if inner == 0 {
-		values = make([]float32, len(destination.floats))
-	} else if packedRight && config.TransposeB && !config.TransposeA {
-		values = make([]float32, len(destination.floats))
+	var packedProduct = packedRight && config.TransposeB && !config.TransposeA
+	if packedProduct {
+		// Validation is complete. The host packed kernel overwrites the
+		// disjoint destination synchronously and cannot return an error.
+		values = destination.floats
 		float32product.RightTransposePacked(left.floats, right.floats, values, int(shape[0]), int(inner), int(shape[1]))
+	} else if inner == 0 {
+		values = make([]float32, len(destination.floats))
 	} else {
 		weights = right.floats
 		if packedRight {
@@ -101,6 +104,8 @@ func gemmInto(left, right, bias, destination *Tensor, config GemmConfig, packedR
 			values[index] += config.Beta * bias.floats[int(biasOffset)]
 		}
 	}
-	copy(destination.floats, values)
+	if !packedProduct {
+		copy(destination.floats, values)
+	}
 	return nil
 }
