@@ -4,6 +4,16 @@ package float32product
 
 const packedRightARM64 = true
 
+func packRightTransposeTile(dense, packed []float32, inner int) {
+	packRightTransposeTileARM64(&dense[0], &packed[0], inner)
+}
+
+// packRightTransposeTileARM64 transposes eight weight rows into one tile.
+// The positive contraction length must be divisible by four.
+//
+//go:noescape
+func packRightTransposeTileARM64(dense, packed *float32, inner int)
+
 func rightTransposePackedRange(left, packed, output []float32, rows, inner, stride, start, end int) {
 	if start%packedRightColumns != 0 {
 		// An eight-column dense kernel tile can cross two prepared tiles.

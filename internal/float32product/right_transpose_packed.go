@@ -10,17 +10,13 @@ func CanPackRightTranspose(inner, cols int) (ok bool) {
 }
 
 // PackRightTranspose copies complete output tiles in contraction-major order.
-// The final partial tile stays row-major and needs no padding.
+// The final partial tile stays row-major and needs no padding. The contraction
+// length must meet the packed kernel's requirements.
 func PackRightTranspose(dense, packed []float32, inner, cols int) {
-	var column, contraction, lane int
+	var column int
 	for ; column+packedRightColumns <= cols; column += packedRightColumns {
-		source := dense[column*inner:][:packedRightColumns*inner]
-		tile := packed[column*inner:][:packedRightColumns*inner]
-		for contraction = range inner {
-			for lane = range packedRightColumns {
-				tile[contraction*packedRightColumns+lane] = source[lane*inner+contraction]
-			}
-		}
+		var offset = column * inner
+		packRightTransposeTile(dense[offset:], packed[offset:], inner)
 	}
 	copy(packed[column*inner:], dense[column*inner:])
 }
