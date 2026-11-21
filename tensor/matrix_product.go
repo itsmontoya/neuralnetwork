@@ -8,6 +8,8 @@ import (
 	"github.com/itsmontoya/neuralnetwork/matrix"
 )
 
+const hostMatrixProduct = false
+
 // matrixProductValues copies validated nonempty blocks through existing matrix
 // kernels. No tensor destination is changed if an adapter operation fails.
 func matrixProductValues(left, right []float32, leftShape, rightShape []int64, transposeA, transposeB bool) (values []float32, err error) {

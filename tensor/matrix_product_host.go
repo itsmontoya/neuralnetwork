@@ -4,6 +4,8 @@ package tensor
 
 import "github.com/itsmontoya/neuralnetwork/internal/float32product"
 
+const hostMatrixProduct = true
+
 // matrixProductValues stages the product so a failed call cannot partially
 // change its destination. The validated inputs remain private and read-only.
 func matrixProductValues(left, right []float32, leftShape, rightShape []int64, transposeA, transposeB bool) (values []float32, err error) {
