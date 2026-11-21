@@ -194,7 +194,7 @@ func Test_Gemm_PreparedRightTransposeOwnership(t *testing.T) {
 }
 
 func Test_Gemm_PreparedRightTransposeConcurrentRetry(t *testing.T) {
-	const inner, cols = 2048, 512
+	const inner, cols = 2048, 1559
 	var (
 		source  = make([]float32, inner*cols)
 		config  = GemmConfig{TransposeB: true, Alpha: 1}
@@ -204,6 +204,8 @@ func Test_Gemm_PreparedRightTransposeConcurrentRetry(t *testing.T) {
 		results [2]error
 		group   sync.WaitGroup
 	)
+	var previous = runtime.GOMAXPROCS(6)
+	t.Cleanup(func() { runtime.GOMAXPROCS(previous) })
 	for index := range source {
 		source[index] = float32(index%47-23) / 17
 	}
