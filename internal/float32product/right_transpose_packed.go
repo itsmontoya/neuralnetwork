@@ -47,7 +47,7 @@ func UnpackRightTranspose(packed, dense []float32, inner, first int) {
 }
 
 // RightTransposePacked multiplies a dense left block by a packed right operand.
-// Its worker count and four-column shard boundaries match RightTranspose.
+// It uses the dense worker budget, with shards aligned to complete packed tiles.
 func RightTransposePacked(left, packed, output []float32, rows, inner, cols int) {
 	var workers int
 	if rows == 1 {
@@ -55,13 +55,14 @@ func RightTransposePacked(left, packed, output []float32, rows, inner, cols int)
 	} else {
 		workers = rightTransposeRowsWorkerCount(rows, inner, cols)
 	}
-	if workers == 1 {
+	var tiles = cols / packedRightColumns
+	workers = min(workers, tiles)
+	if workers <= 1 {
 		rightTransposePackedRange(left, packed, output, rows, inner, cols, 0, cols)
 		return
 	}
 
 	var (
-		tiles          = cols / rightTransposeColumnTile
 		tilesPerWorker = tiles / workers
 		extraTiles     = tiles % workers
 		start          int
@@ -69,9 +70,9 @@ func RightTransposePacked(left, packed, output []float32, rows, inner, cols int)
 	)
 	group.Add(workers - 1)
 	for worker := 0; worker < workers-1; worker++ {
-		end := start + tilesPerWorker*rightTransposeColumnTile
+		end := start + tilesPerWorker*packedRightColumns
 		if worker < extraTiles {
-			end += rightTransposeColumnTile
+			end += packedRightColumns
 		}
 		first := start
 		go func() {
@@ -82,4 +83,48 @@ func RightTransposePacked(left, packed, output []float32, rows, inner, cols int)
 	}
 	rightTransposePackedRange(left, packed, output, rows, inner, cols, start, cols)
 	group.Wait()
+}
+
+// rightTransposePackedRange overwrites the requested columns of each output
+// row. The dense tail begins after the last complete packed tile.
+func rightTransposePackedRange(left, packed, output []float32, rows, inner, stride, start, end int) {
+	var (
+		packedEnd = min(end, stride/packedRightColumns*packedRightColumns)
+		tileStart = start / packedRightColumns * packedRightColumns
+	)
+	if start < packedEnd && start != tileStart {
+		var tileEnd = min(tileStart+packedRightColumns, packedEnd)
+		rightTransposePackedPartialTile(left, packed[tileStart*inner:], output[start:], rows, inner, stride, start-tileStart, tileEnd-tileStart)
+		start = tileEnd
+	}
+	for ; start+packedRightColumns <= packedEnd; start += packedRightColumns {
+		var row int
+		for ; row+3 <= rows; row += 3 {
+			rightTransposePackedTile(left[row*inner:], packed[start*inner:], output[row*stride+start:], inner, stride, 3)
+		}
+		if row < rows {
+			rightTransposePackedTile(left[row*inner:], packed[start*inner:], output[row*stride+start:], inner, stride, rows-row)
+		}
+	}
+	if start < packedEnd {
+		rightTransposePackedPartialTile(left, packed[start*inner:], output[start:], rows, inner, stride, 0, packedEnd-start)
+		start = packedEnd
+	}
+	if start < end {
+		rightTransposeRows(left, packed[start*inner:], output[start:], rows, inner, stride, end-start)
+	}
+}
+
+func rightTransposePackedPartialTile(left, packed, output []float32, rows, inner, stride, first, end int) {
+	// Use the same arithmetic as a complete tile and write only the lanes
+	// owned by this worker. Scratch holds at most one group's outputs (96 bytes).
+	var scratch [3 * packedRightColumns]float32
+	for row := 0; row < rows; row += 3 {
+		var groupRows = min(3, rows-row)
+		rightTransposePackedTile(left[row*inner:], packed, scratch[:], inner, packedRightColumns, groupRows)
+		for groupRow := range groupRows {
+			var offset = groupRow * packedRightColumns
+			copy(output[(row+groupRow)*stride:][:end-first], scratch[offset+first:offset+end])
+		}
+	}
 }

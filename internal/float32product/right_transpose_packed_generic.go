@@ -12,8 +12,15 @@ func packRightTransposeTile(dense, packed []float32, inner int) {
 	}
 }
 
-func rightTransposePackedRange(left, packed, output []float32, rows, inner, stride, start, end int) {
-	weights := make([]float32, (end-start)*inner)
-	UnpackRightTranspose(packed, weights, inner, start)
-	rightTransposeRows(left, weights, output[start:], rows, inner, stride, end-start)
+func rightTransposePackedTile(left, packed, output []float32, inner, stride, rows int) {
+	for row := range rows {
+		var input = left[row*inner:][:inner]
+		for lane := range packedRightColumns {
+			var sum float32
+			for contraction, value := range input {
+				sum += value * packed[contraction*packedRightColumns+lane]
+			}
+			output[row*stride+lane] = sum
+		}
+	}
 }
