@@ -8,7 +8,7 @@ import (
 )
 
 func TestRightTransposePackedRange(t *testing.T) {
-	const inner, cols = 68, 21
+	const inner, cols = 68, 29
 	var (
 		dense  = make([]float32, inner*cols)
 		packed = make([]float32, len(dense))
@@ -20,6 +20,10 @@ func TestRightTransposePackedRange(t *testing.T) {
 	dense[inner+3] = float32(math.Inf(-1))
 	clear(dense[7*inner : 8*inner])
 	dense[7*inner+3] = math.Float32frombits(0x80000000)
+	dense[8*inner+1] = math.Float32frombits(0x7fa54321)
+	dense[9*inner+3] = float32(math.Inf(1))
+	clear(dense[10*inner : 11*inner])
+	dense[10*inner+3] = math.SmallestNonzeroFloat32
 	PackRightTranspose(dense, packed, inner, cols)
 
 	for rows := 1; rows <= 5; rows++ {
@@ -31,6 +35,7 @@ func TestRightTransposePackedRange(t *testing.T) {
 		for index := range left {
 			left[index] = float32(index%39-19) / 39
 		}
+		left[3] = 1
 		RightTranspose(left, dense, want, rows, inner, cols)
 		for start := 0; start <= cols; start++ {
 			for end := start; end <= cols; end++ {
@@ -50,9 +55,9 @@ func TestRightTransposePackedRange(t *testing.T) {
 			}
 		}
 		if allocs := testing.AllocsPerRun(3, func() {
-			rightTransposePackedRange(left, packed, got, rows, inner, cols, 3, 15)
+			rightTransposePackedRange(left, packed, got, rows, inner, cols, 3, 27)
 		}); allocs != 0 {
-			t.Fatalf("rows=%d: partial packed range allocated %v times", rows, allocs)
+			t.Fatalf("rows=%d: clipped range with two full tiles allocated %v times", rows, allocs)
 		}
 	}
 }
