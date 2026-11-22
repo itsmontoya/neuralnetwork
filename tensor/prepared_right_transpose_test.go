@@ -20,13 +20,14 @@ func Test_Gemm_PreparedRightTranspose(t *testing.T) {
 			nonfinite         bool
 		}{
 			{name: "one row", rows: 1, inner: 64, cols: 8, nonfinite: true},
+			{name: "one row with two tiles", rows: 1, inner: 64, cols: 16, nonfinite: true},
 			{name: "two rows", rows: 2, inner: 64, cols: 17, nonfinite: true},
 			{name: "three rows", rows: 3, inner: 64, cols: 17, nonfinite: true},
 			{name: "group and one row", rows: 4, inner: 68, cols: 20, nonfinite: true},
 			{name: "group and two rows", rows: 5, inner: 68, cols: 13, nonfinite: true},
 			{name: "multiple groups", rows: 8, inner: 68, cols: 25},
-			{name: "short contraction", rows: 1, inner: 60, cols: 12},
-			{name: "uneven contraction", rows: 1, inner: 66, cols: 12},
+			{name: "short contraction", rows: 1, inner: 60, cols: 19},
+			{name: "uneven contraction", rows: 1, inner: 66, cols: 19},
 			{name: "short output tile", rows: 1, inner: 64, cols: 7},
 			{name: "uneven one row shard", rows: 1, inner: 2048, cols: 1047, nonfinite: true},
 			{name: "uneven group shard", rows: 5, inner: 2048, cols: 775, nonfinite: true},
