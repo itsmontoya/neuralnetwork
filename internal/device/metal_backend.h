@@ -56,6 +56,14 @@ int nn_metal_scope_encode_fill(
 	float value,
 	uint64_t count
 );
+int nn_metal_scope_encode_tensor_elementwise(
+	NNMetalScope scope,
+	NNMetalBuffer left,
+	NNMetalBuffer right,
+	NNMetalBuffer result,
+	uint32_t count,
+	uint32_t operation
+);
 int nn_metal_scope_encode_add_row_vector(
 	NNMetalScope scope,
 	NNMetalBuffer values,

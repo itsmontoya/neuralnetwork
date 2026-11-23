@@ -27,6 +27,52 @@ static const char *nnMetalShaderHeader =
 	"#include <metal_stdlib>\n"
 	"using namespace metal;\n";
 
+typedef enum {
+	NNMetalTensorAdd,
+	NNMetalTensorMul,
+	NNMetalTensorSiLU,
+	NNMetalTensorSwiGLU,
+	NNMetalTensorElementwiseCount,
+} NNMetalTensorElementwiseOperation;
+
+static const char *nnMetalTensorElementwiseSource =
+	"static float nn_silu(float x) {\n"
+	"    float exponent = exp(-fabs(x));\n"
+	"    float sigmoid = (x < 0.0f ? exponent : 1.0f) / (1.0f + exponent);\n"
+	"    return x * sigmoid;\n"
+	"}\n"
+	"kernel void nn_tensor_add(\n"
+	"    const device float *left [[buffer(0)]],\n"
+	"    const device float *right [[buffer(1)]],\n"
+	"    device float *result [[buffer(2)]],\n"
+	"    uint index [[thread_position_in_grid]]\n"
+	") {\n"
+	"    result[index] = left[index] + right[index];\n"
+	"}\n"
+	"kernel void nn_tensor_mul(\n"
+	"    const device float *left [[buffer(0)]],\n"
+	"    const device float *right [[buffer(1)]],\n"
+	"    device float *result [[buffer(2)]],\n"
+	"    uint index [[thread_position_in_grid]]\n"
+	") {\n"
+	"    result[index] = left[index] * right[index];\n"
+	"}\n"
+	"kernel void nn_tensor_silu(\n"
+	"    const device float *input [[buffer(0)]],\n"
+	"    device float *result [[buffer(2)]],\n"
+	"    uint index [[thread_position_in_grid]]\n"
+	") {\n"
+	"    result[index] = nn_silu(input[index]);\n"
+	"}\n"
+	"kernel void nn_tensor_swiglu(\n"
+	"    const device float *gate [[buffer(0)]],\n"
+	"    const device float *up [[buffer(1)]],\n"
+	"    device float *result [[buffer(2)]],\n"
+	"    uint index [[thread_position_in_grid]]\n"
+	") {\n"
+	"    result[index] = nn_silu(gate[index]) * up[index];\n"
+	"}\n";
+
 static const char *nnMetalMatMulDimensionsSource =
 	"struct NNMetalMatMulDimensions {\n"
 	"    uint leftRows;\n"
@@ -309,6 +355,9 @@ static id<MTLComputePipelineState> nnMetalMatMulPipeline = nil;
 static pthread_once_t nnMetalTensorMatMulOnce = PTHREAD_ONCE_INIT;
 static id<MTLComputePipelineState> nnMetalTensorMatMulPipeline = nil;
 static char nnMetalTensorMatMulError[1024];
+static pthread_once_t nnMetalTensorElementwiseOnce = PTHREAD_ONCE_INIT;
+static id<MTLComputePipelineState> nnMetalTensorElementwisePipelines[NNMetalTensorElementwiseCount];
+static char nnMetalTensorElementwiseError[1024];
 static NNMetalResourceSnapshot nnMetalResources;
 
 static void nn_metal_set_error(const char *message) {
@@ -406,6 +455,42 @@ static void nn_metal_initialize_tensor_matmul(void) {
 		if (nnMetalTensorMatMulPipeline == nil) {
 			strlcpy(nnMetalTensorMatMulError, nnMetalLastError, sizeof(nnMetalTensorMatMulError));
 		}
+	}
+}
+
+// Tensor elementwise pipelines share the device and compile only on first use.
+static void nn_metal_initialize_tensor_elementwise(void) {
+	@autoreleasepool {
+		NSError *error = nil;
+		NSString *source = [NSString stringWithFormat:@"%s%s", nnMetalShaderHeader, nnMetalTensorElementwiseSource];
+		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		[options setFastMathEnabled:NO];
+		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
+		[options release];
+		if (library == nil) {
+			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile tensor elementwise library: %@", [error localizedDescription]]);
+			strlcpy(nnMetalTensorElementwiseError, nnMetalLastError, sizeof(nnMetalTensorElementwiseError));
+			return;
+		}
+
+		NSString *names[NNMetalTensorElementwiseCount] = {
+			[NNMetalTensorAdd] = @"nn_tensor_add",
+			[NNMetalTensorMul] = @"nn_tensor_mul",
+			[NNMetalTensorSiLU] = @"nn_tensor_silu",
+			[NNMetalTensorSwiGLU] = @"nn_tensor_swiglu",
+		};
+		for (NSUInteger i = 0; i < NNMetalTensorElementwiseCount; i++) {
+			nnMetalTensorElementwisePipelines[i] = nn_metal_new_pipeline(library, names[i]);
+			if (nnMetalTensorElementwisePipelines[i] == nil) {
+				strlcpy(nnMetalTensorElementwiseError, nnMetalLastError, sizeof(nnMetalTensorElementwiseError));
+				for (NSUInteger j = 0; j < i; j++) {
+					[nnMetalTensorElementwisePipelines[j] release];
+					nnMetalTensorElementwisePipelines[j] = nil;
+				}
+				break;
+			}
+		}
+		[library release];
 	}
 }
 
@@ -838,6 +923,64 @@ int nn_metal_scope_encode_fill(
 		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
 		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:bufferRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_tensor_elementwise(
+	NNMetalScope scope,
+	NNMetalBuffer left,
+	NNMetalBuffer right,
+	NNMetalBuffer result,
+	uint32_t count,
+	uint32_t operation
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *leftRecord = nn_metal_buffer_record(left);
+	NNMetalBufferRecord *rightRecord = nn_metal_buffer_record(right);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+	uint64_t bytes = (uint64_t)count * sizeof(float);
+
+	if (scopeRecord == NULL || leftRecord == NULL || resultRecord == NULL ||
+		(rightRecord == NULL) != (operation == NNMetalTensorSiLU)) {
+		nn_metal_set_error("metal: encode tensor elementwise operation: invalid handles");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || operation >= NNMetalTensorElementwiseCount ||
+		count == 0 || bytes != leftRecord->bytes || bytes != resultRecord->bytes ||
+		(rightRecord != NULL && bytes != rightRecord->bytes) ||
+		leftRecord == resultRecord || rightRecord == resultRecord) {
+		nn_metal_set_error("metal: encode tensor elementwise operation: invalid state, operation or buffer length");
+		return NNMetalStatusError;
+	}
+
+	pthread_once(&nnMetalTensorElementwiseOnce, nn_metal_initialize_tensor_elementwise);
+	id<MTLComputePipelineState> pipeline = nnMetalTensorElementwisePipelines[operation];
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalTensorElementwiseError);
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode tensor elementwise operation: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
+		if (rightRecord != NULL) {
+			[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
+		}
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+		NSUInteger threadWidth = MIN((NSUInteger)256, [pipeline maxTotalThreadsPerThreadgroup]);
+		[encoder dispatchThreads:MTLSizeMake(count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:leftRecord->value];
+		if (rightRecord != NULL) {
+			[scopeRecord->retainedResources addObject:rightRecord->value];
+		}
+		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
 	return NNMetalStatusSuccess;
 }
