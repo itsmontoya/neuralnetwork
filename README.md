@@ -377,8 +377,11 @@ caller-allocated destination. A later operation in the scope can read these
 results before a single explicit submit and wait. The
 [gate/up example](gpu/gate_up_example_metal_test.go) starts with normalized
 input and reads back only the result of `SiLU(gate) * up`. `Scope.SwiGLU` can
-perform those last two operations in one dispatch without an activation
-scratch tensor.
+perform those last two operations in one dispatch with a single destination.
+The [full FFN example](gpu/ffn_scratch_test.go) feeds that destination into
+the down projection in the same scope. The [Metal tests](gpu/ffn_metal_test.go)
+show how to reuse uploaded weights, give each session its own input, output,
+and scratch tensors, and read back only the completed down projection.
 
 ## Development
 
