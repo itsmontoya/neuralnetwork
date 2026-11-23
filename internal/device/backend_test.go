@@ -46,6 +46,10 @@ func (b *testBackend) available() (available bool, err error) {
 	return b.availableFlag, b.availableErr
 }
 
+func (b *testBackend) maxBufferLength() (bytes uint64) {
+	return ^uint64(0)
+}
+
 func (b *testBackend) newBuffer(bytes uint64) (handle any, err error) {
 	var value testBuffer
 

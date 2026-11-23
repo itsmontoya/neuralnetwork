@@ -593,6 +593,13 @@ int nn_metal_runtime_available(void) {
 	return nn_metal_initialize();
 }
 
+uint64_t nn_metal_max_buffer_length(void) {
+	if (nn_metal_initialize() != NNMetalStatusSuccess) {
+		return 0;
+	}
+	return (uint64_t)[nnMetalDevice maxBufferLength];
+}
+
 NNMetalBuffer nn_metal_buffer_new(uint64_t bytes) {
 	NNMetalBufferRecord *record = NULL;
 	id<MTLBuffer> buffer = nil;
@@ -602,6 +609,10 @@ NNMetalBuffer nn_metal_buffer_new(uint64_t bytes) {
 		return NULL;
 	}
 	if (nn_metal_initialize() != NNMetalStatusSuccess) {
+		return NULL;
+	}
+	if (bytes > (uint64_t)[nnMetalDevice maxBufferLength]) {
+		nn_metal_set_error("metal: allocate buffer: byte length exceeds device limit");
 		return NULL;
 	}
 

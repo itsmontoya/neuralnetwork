@@ -38,6 +38,7 @@ typedef struct {
 } NNMetalResourceSnapshot;
 
 int nn_metal_runtime_available(void);
+uint64_t nn_metal_max_buffer_length(void);
 NNMetalBuffer nn_metal_buffer_new(uint64_t bytes);
 int nn_metal_buffer_upload(NNMetalBuffer buffer, const float *values, uint64_t count);
 int nn_metal_buffer_download(NNMetalBuffer buffer, float *values, uint64_t count);

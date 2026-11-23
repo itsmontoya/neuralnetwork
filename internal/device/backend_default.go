@@ -13,6 +13,10 @@ func (unavailableBackend) available() (available bool, err error) {
 	return false, nil
 }
 
+func (unavailableBackend) maxBufferLength() (bytes uint64) {
+	return 0
+}
+
 func (unavailableBackend) newBuffer(uint64) (handle any, err error) {
 	return nil, ErrUnavailable
 }
