@@ -10,4 +10,8 @@ const (
 	OperationMatMulLeftTranspose
 	// OperationMatMulRightTranspose computes a multiplication with a transposed right operand.
 	OperationMatMulRightTranspose
+	// OperationTensorMatMul uses the experimental FP32 tensor pipeline.
+	OperationTensorMatMul
+	// OperationTensorMatMulRightTranspose uses the tensor pipeline with a transposed right operand.
+	OperationTensorMatMulRightTranspose
 )
