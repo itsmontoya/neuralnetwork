@@ -209,6 +209,39 @@ func (m *metalBackend) encodeFill(scope, buffer any, value float32, count uint64
 	return nil
 }
 
+func (m *metalBackend) encodeElementwise(scope, left, right, result any, count uint32, operation ElementwiseOperation) (err error) {
+	var (
+		scopeHandle  C.NNMetalScope
+		leftHandle   C.NNMetalBuffer
+		rightHandle  C.NNMetalBuffer
+		resultHandle C.NNMetalBuffer
+		status       C.int
+	)
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if leftHandle, err = m.bufferHandle(left); err != nil {
+		return err
+	}
+	if right != nil {
+		if rightHandle, err = m.bufferHandle(right); err != nil {
+			return err
+		}
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_scope_encode_tensor_elementwise(scopeHandle, leftHandle, rightHandle, resultHandle,
+		C.uint32_t(count), C.uint32_t(operation))
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal tensor elementwise operation")
+	}
+	return nil
+}
+
 func (m *metalBackend) encodeAddRowVector(
 	scope,
 	values,

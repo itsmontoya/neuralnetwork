@@ -371,6 +371,15 @@ to a caller-allocated `[M,N]` tensor, with `M=1` for a single-row projection.
 See the [fill example](gpu/example_test.go) for device selection, submission,
 and readback.
 
+`Scope.Add`, `Scope.Mul`, `Scope.SiLU`, and `Scope.SwiGLU` operate on tensors
+with identical shapes on one logical device. Each fully writes a distinct,
+caller-allocated destination. A later operation in the scope can read these
+results before a single explicit submit and wait. The
+[gate/up example](gpu/gate_up_example_metal_test.go) starts with normalized
+input and reads back only the result of `SiLU(gate) * up`. `Scope.SwiGLU` can
+perform those last two operations in one dispatch without an activation
+scratch tensor.
+
 ## Development
 
 The baseline verification command is:

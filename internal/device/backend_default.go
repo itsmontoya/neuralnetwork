@@ -43,6 +43,10 @@ func (unavailableBackend) encodeFill(any, any, float32, uint64) (err error) {
 	return ErrUnavailable
 }
 
+func (unavailableBackend) encodeElementwise(any, any, any, any, uint32, ElementwiseOperation) (err error) {
+	return ErrUnavailable
+}
+
 func (unavailableBackend) encodeAddRowVector(any, any, any, uint32, uint32) (err error) {
 	return ErrUnavailable
 }

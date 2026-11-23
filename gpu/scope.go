@@ -7,6 +7,8 @@ import (
 	"math"
 	"slices"
 	"sync"
+
+	"github.com/itsmontoya/neuralnetwork/internal/device"
 )
 
 func newScope(device *deviceState, commands commandBuffer) (out *Scope) {
@@ -101,6 +103,72 @@ func (s *Scope) Copy(source, destination *Tensor) (err error) {
 	if err = state.commands.encodeCopy(source.state.buffer, destination.state.buffer); err != nil {
 		state.status = scopePoisoned
 		return fmt.Errorf("gpu: encode copy: %w", err)
+	}
+	return nil
+}
+
+// Add records an elementwise FP32 sum. Operands must have identical shapes,
+// contain at most 2³²−1 elements each, and belong to the scope's device. Inputs
+// may share an allocation and must be initialized or written earlier in this
+// scope. Destination must be distinct from the inputs and is fully overwritten.
+// Addition follows FP32 arithmetic, including NaN for opposing infinities.
+// NaN payloads, signed zero and subnormal preservation are unspecified.
+func (s *Scope) Add(left, right, destination *Tensor) (err error) {
+	return s.elementwise("add", device.ElementwiseAdd, destination, left, right)
+}
+
+// Mul records an elementwise FP32 product with the shape and ownership rules
+// of Add. NaNs propagate, and zero times infinity produces NaN.
+func (s *Scope) Mul(left, right, destination *Tensor) (err error) {
+	return s.elementwise("mul", device.ElementwiseMul, destination, left, right)
+}
+
+// SiLU records input times its logistic sigmoid, evaluated in FP32 with a
+// stable sigmoid for negative inputs. It uses the shape and ownership rules
+// of Add. NaN propagates, positive infinity yields positive infinity, and
+// negative infinity times its zero sigmoid yields NaN.
+func (s *Scope) SiLU(input, destination *Tensor) (err error) {
+	return s.elementwise("silu", device.ElementwiseSiLU, destination, input)
+}
+
+// SwiGLU records SiLU(gate) times up in one elementwise FP32 dispatch. It uses
+// the shape, ownership and arithmetic rules of SiLU and Mul.
+func (s *Scope) SwiGLU(gate, up, destination *Tensor) (err error) {
+	return s.elementwise("swiglu", device.ElementwiseSwiGLU, destination, gate, up)
+}
+
+func (s *Scope) elementwise(name string, operation device.ElementwiseOperation, destination *Tensor, inputs ...*Tensor) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	if destination == nil || destination.state == nil {
+		return state.reject(name, fmt.Errorf("%w: missing destination", ErrInvalid))
+	}
+	if destination.state.count > math.MaxUint32 {
+		return state.reject(name, fmt.Errorf("%w: tensor element count exceeds the Metal elementwise index range", ErrInvalid))
+	}
+	for _, input := range inputs {
+		if input == nil || input.state == nil {
+			return state.reject(name, fmt.Errorf("%w: missing input", ErrInvalid))
+		}
+		if !slices.Equal(input.state.shape, destination.state.shape) {
+			return state.reject(name, fmt.Errorf("%w: tensor shapes differ", ErrInvalid))
+		}
+	}
+	if err = state.acquire(destination, inputs...); err != nil {
+		return state.reject(name, err)
+	}
+
+	var second allocation
+	if len(inputs) == 2 {
+		second = inputs[1].state.buffer
+	}
+	if err = state.commands.encodeElementwise(inputs[0].state.buffer, second, destination.state.buffer, operation); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode %s: %w", name, err)
 	}
 	return nil
 }

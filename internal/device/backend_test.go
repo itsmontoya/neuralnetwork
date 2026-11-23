@@ -606,6 +606,10 @@ func (b *testBackend) encodeCategoricalCrossEntropyGradient(
 	return nil
 }
 
+func (b *testBackend) encodeElementwise(_, _, _, _ any, _ uint32, _ ElementwiseOperation) (err error) {
+	return b.encodeErr
+}
+
 func (b *testBackend) encodeMatMul(
 	any,
 	any,

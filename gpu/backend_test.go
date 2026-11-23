@@ -1,6 +1,10 @@
 package gpu
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+
+	"github.com/itsmontoya/neuralnetwork/internal/device"
+)
 
 type fakeBackend struct {
 	bufferErr   error
@@ -12,6 +16,7 @@ type fakeBackend struct {
 	uploads     atomic.Int32
 	downloads   atomic.Int32
 	matmuls     atomic.Int32
+	elementwise atomic.Int32
 }
 
 func (b *fakeBackend) newBuffer(count uint64) (buffer allocation, err error) {
@@ -101,6 +106,11 @@ func (c *fakeCommandBuffer) encodeCopy(source, destination allocation) (err erro
 
 func (c *fakeCommandBuffer) encodeMatMul(_, _, _ allocation, _, _, _ uint32, _ bool) (err error) {
 	c.backend.matmuls.Add(1)
+	return c.encodeErr
+}
+
+func (c *fakeCommandBuffer) encodeElementwise(_, _, _ allocation, _ device.ElementwiseOperation) (err error) {
+	c.backend.elementwise.Add(1)
 	return c.encodeErr
 }
 

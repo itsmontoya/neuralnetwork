@@ -84,6 +84,47 @@ func (s *Scope) EncodeFill(buffer *Buffer, value float32) (err error) {
 	return nil
 }
 
+// EncodeElementwise appends a full tensor operation. SiLU takes one input, and
+// the other operations take two. The destination must be disjoint from inputs.
+func (s *Scope) EncodeElementwise(left, right, result *Buffer, operation ElementwiseOperation) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if operation > ElementwiseSwiGLU || (operation == ElementwiseSiLU && right != nil) {
+		return errors.New("device: unsupported elementwise operation or input count")
+	}
+	if err = s.validateBuffer(left, "elementwise input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "elementwise destination"); err != nil {
+		return err
+	}
+	if left == result || right == result || left.count != result.count ||
+		result.count == 0 || result.count > math.MaxUint32 {
+		return errors.New("device: invalid elementwise destination, buffer length or index range")
+	}
+
+	var rightHandle any
+	if operation != ElementwiseSiLU {
+		if err = s.validateBuffer(right, "elementwise second input"); err != nil {
+			return err
+		}
+		if right.count != result.count {
+			return errors.New("device: elementwise second input length differs")
+		}
+		rightHandle = right.handle
+	}
+
+	err = s.runtime.backend.encodeElementwise(s.handle, left.handle, rightHandle, result.handle, uint32(result.count), operation)
+	if err != nil {
+		err = fmt.Errorf("device: encode elementwise operation: %w", err)
+		s.fail(err)
+	}
+	return err
+}
+
 // EncodeAddRowVector appends an in-place row-vector addition to the scope.
 func (s *Scope) EncodeAddRowVector(
 	values,
