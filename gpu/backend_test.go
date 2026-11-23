@@ -11,6 +11,7 @@ type fakeBackend struct {
 	waits       atomic.Int32
 	uploads     atomic.Int32
 	downloads   atomic.Int32
+	matmuls     atomic.Int32
 }
 
 func (b *fakeBackend) newBuffer(count uint64) (buffer allocation, err error) {
@@ -95,6 +96,11 @@ func (c *fakeCommandBuffer) encodeCopy(source, destination allocation) (err erro
 	c.commands = append(c.commands, func() {
 		copy(output.values, input.values)
 	})
+	return c.encodeErr
+}
+
+func (c *fakeCommandBuffer) encodeMatMul(_, _, _ allocation, _, _, _ uint32, _ bool) (err error) {
+	c.backend.matmuls.Add(1)
 	return c.encodeErr
 }
 
