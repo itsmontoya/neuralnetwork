@@ -242,6 +242,56 @@ func (m *metalBackend) encodeElementwise(scope, left, right, result any, count u
 	return nil
 }
 
+func (m *metalBackend) encodeKVAppend(scope, history, keys, values, target any, plane, prefix uint32) (err error) {
+	var scopeHandle C.NNMetalScope
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	var handles [4]C.NNMetalBuffer
+	for index, buffer := range [4]any{history, keys, values, target} {
+		if index == 0 && history == nil {
+			continue
+		}
+		if handles[index], err = m.bufferHandle(buffer); err != nil {
+			return err
+		}
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	var status = C.nn_metal_scope_encode_kv_append(scopeHandle, handles[0], handles[1], handles[2], handles[3],
+		C.uint32_t(plane), C.uint32_t(prefix))
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal KV append")
+	}
+	return nil
+}
+
+func (m *metalBackend) encodeAttentionMath(scope any, operation AttentionMathOperation, buffers [4]any, params [6]uint32, threads uint32) (err error) {
+	var scopeHandle C.NNMetalScope
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	var handles [4]C.NNMetalBuffer
+	for index, buffer := range buffers {
+		if index == 3 && buffer == nil {
+			break
+		}
+		if handles[index], err = m.bufferHandle(buffer); err != nil {
+			return err
+		}
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	var status = C.nn_metal_scope_encode_attention_math(scopeHandle, C.uint32_t(operation), handles[0], handles[1], handles[2], handles[3],
+		(*C.uint32_t)(unsafe.Pointer(&params[0])), C.uint32_t(threads))
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal attention math")
+	}
+	return nil
+}
+
 func (m *metalBackend) encodeAddRowVector(
 	scope,
 	values,

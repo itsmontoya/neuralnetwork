@@ -18,6 +18,8 @@ type commandBuffer interface {
 	encodeCopy(source, destination allocation) (err error)
 	encodeMatMul(left, right, destination allocation, m, n, k uint32, rightTransposed bool) (err error)
 	encodeElementwise(left, right, destination allocation, operation device.ElementwiseOperation) (err error)
+	encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32) (err error)
+	encodeAttentionMath(operation device.AttentionMathOperation, first, second, target, extra allocation, params [6]uint32, threads uint32) (err error)
 	Commit() (err error)
 	Wait() (err error)
 	Release() (err error)
@@ -75,4 +77,20 @@ func (m metalCommandBuffer) encodeMatMul(left, right, destination allocation, ro
 	}
 	return m.EncodeMatMul(left.(*device.Buffer), right.(*device.Buffer), destination.(*device.Buffer),
 		rows, inner, rightRows, rightCols, rows, cols, operation)
+}
+
+func (m metalCommandBuffer) encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32) (err error) {
+	var previous *device.Buffer
+	if history != nil {
+		previous = history.(*device.Buffer)
+	}
+	return m.EncodeKVAppend(previous, keys.(*device.Buffer), values.(*device.Buffer), target.(*device.Buffer), plane, prefix)
+}
+
+func (m metalCommandBuffer) encodeAttentionMath(operation device.AttentionMathOperation, first, second, target, extra allocation, params [6]uint32, threads uint32) (err error) {
+	var additional *device.Buffer
+	if extra != nil {
+		additional = extra.(*device.Buffer)
+	}
+	return m.EncodeAttentionMath(operation, first.(*device.Buffer), second.(*device.Buffer), target.(*device.Buffer), additional, params, threads)
 }

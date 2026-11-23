@@ -125,6 +125,76 @@ func (s *Scope) EncodeElementwise(left, right, result *Buffer, operation Element
 	return err
 }
 
+// EncodeKVAppend stages two equal-shaped planes in a disjoint storage slot.
+func (s *Scope) EncodeKVAppend(history, keys, values, target *Buffer, plane, prefix uint32) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+	var (
+		backend, available = s.runtime.backend.(attentionBackend)
+		historyHandle      any
+	)
+	if !available {
+		return ErrUnavailable
+	}
+	for _, buffer := range [3]*Buffer{keys, values, target} {
+		if err = s.validateBuffer(buffer, "KV append"); err != nil {
+			return err
+		}
+	}
+	if prefix > 0 {
+		if err = s.validateBuffer(history, "KV history"); err != nil {
+			return err
+		}
+		if history == target || history.count != target.count {
+			return errors.New("device: invalid KV history")
+		}
+		historyHandle = history.handle
+	}
+	if target == keys || target == values || keys.count == 0 || keys.count != values.count ||
+		target.count != 2*uint64(plane) || uint64(prefix)+keys.count > uint64(plane) {
+		return errors.New("device: invalid KV append buffers or range")
+	}
+	if err = backend.encodeKVAppend(s.handle, historyHandle, keys.handle, values.handle, target.handle, plane, prefix); err != nil {
+		s.fail(err)
+	}
+	return err
+}
+
+// EncodeAttentionMath binds disjoint FP32 input and output buffers to a
+// tensor-only attention kernel. The caller validates the operation's shape.
+func (s *Scope) EncodeAttentionMath(operation AttentionMathOperation, first, second, target, extra *Buffer, params [6]uint32, threads uint32) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+	var (
+		backend, available = s.runtime.backend.(attentionBackend)
+		buffers            [4]any
+	)
+	if !available {
+		return ErrUnavailable
+	}
+	if operation > TensorCausalAttention || threads == 0 || (extra != nil) != (operation == TensorRotatePairs) ||
+		first == target || second == target || extra == target {
+		return errors.New("device: invalid attention math operation or buffer alias")
+	}
+	for index, buffer := range [4]*Buffer{first, second, target, extra} {
+		if index == 3 && extra == nil {
+			break
+		}
+		if err = s.validateBuffer(buffer, "attention math"); err != nil {
+			return err
+		}
+		buffers[index] = buffer.handle
+	}
+	if err = backend.encodeAttentionMath(s.handle, operation, buffers, params, threads); err != nil {
+		s.fail(err)
+	}
+	return err
+}
+
 // EncodeAddRowVector appends an in-place row-vector addition to the scope.
 func (s *Scope) EncodeAddRowVector(
 	values,

@@ -53,6 +53,7 @@ type scopeState struct {
 	device     *deviceState
 	commands   commandBuffer
 	leases     map[*tensorState]tensorAccess
+	kvAppends  []*kvAppendState
 	status     scopeStatus
 	completion *scopeCompletion
 	result     error
@@ -235,6 +236,232 @@ func (s *Scope) matMul(left, right, destination *Tensor, rightTransposed bool) (
 	return nil
 }
 
+// RMSNorm records input / sqrt(mean(input²) + epsilon) times weight for
+// each row of the last axis. Weight is a rank-one vector matching that axis.
+// Epsilon must be finite and positive. Input and destination shapes must
+// match. Destination is fully written and must be distinct from both inputs.
+func (s *Scope) RMSNorm(input, weight, destination *Tensor, epsilon float32) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	if input == nil || input.state == nil || input.state.count > math.MaxUint32 ||
+		!hasShape(destination, input.state.shape...) {
+		return state.reject("RMSNorm", fmt.Errorf("%w: invalid input or destination shape or index range", ErrInvalid))
+	}
+	var width = input.state.shape[len(input.state.shape)-1]
+	if !hasShape(weight, width) || !(epsilon > 0 && epsilon <= math.MaxFloat32) {
+		return state.reject("RMSNorm", fmt.Errorf("%w: expected a matching last-axis weight and finite positive epsilon", ErrInvalid))
+	}
+	if err = state.acquire(destination, input, weight); err != nil {
+		return state.reject("RMSNorm", err)
+	}
+	var rootEpsilon = float32(math.Sqrt(float64(epsilon)))
+	var params = [6]uint32{uint32(width), math.Float32bits(rootEpsilon)}
+	return state.encodeAttentionMath("RMSNorm", device.TensorRMSNorm, input, weight, destination, nil, params, uint32(input.state.count/uint64(width)))
+}
+
+// RotatePairs applies (x0*cos - x1*sin, x1*cos + x0*sin) to adjacent FP32
+// feature pairs within each head. Input and destination are token-major
+// [rows, heads*headWidth] or [rows, heads, headWidth] with an even head width.
+// The matching coefficient tables [positions, headWidth/2] start at absolute
+// tableStart and broadcast over heads. The first input row is at position.
+func (s *Scope) RotatePairs(input, cosine, sine, destination *Tensor, headWidth, position, tableStart int64) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	var rows, heads = headRows(input, headWidth)
+	if rows == 0 || headWidth%2 != 0 || !hasShape(destination, input.state.shape...) {
+		return state.reject("rotate pairs", fmt.Errorf("%w: invalid packed head shape, width or destination", ErrInvalid))
+	}
+	if cosine == nil || cosine.state == nil || len(cosine.state.shape) != 2 ||
+		cosine.state.count > math.MaxUint32 || cosine.state.shape[1] != headWidth/2 ||
+		!hasShape(sine, cosine.state.shape...) {
+		return state.reject("rotate pairs", fmt.Errorf("%w: invalid cosine or sine table shape", ErrInvalid))
+	}
+	var tableRows = cosine.state.shape[0]
+	if tableStart < 0 || position < tableStart || tableStart > math.MaxInt64-(tableRows-1) {
+		return state.reject("rotate pairs", fmt.Errorf("%w: invalid absolute coefficient positions", ErrInvalid))
+	}
+	var offset = position - tableStart
+	if offset > tableRows || rows > tableRows-offset {
+		return state.reject("rotate pairs", fmt.Errorf("%w: input positions are outside the coefficient table", ErrInvalid))
+	}
+	if err = state.acquire(destination, input, cosine, sine); err != nil {
+		return state.reject("rotate pairs", err)
+	}
+	var params = [6]uint32{uint32(headWidth / 2), uint32(heads), uint32(offset)}
+	return state.encodeAttentionMath("rotate pairs", device.TensorRotatePairs, input, cosine, destination, sine, params, uint32(input.state.count/2))
+}
+
+// AppendKV stages positive consecutive rows at the cache's committed position.
+// Key and value inputs are token-major [rows, heads*width] or [rows, heads, width].
+// The cache owns a disjoint staging slot for the existing prefix and new rows.
+// CausalAttention in this scope can use those rows in encode order. Other
+// scopes see the committed prefix until the returned update is published.
+func (s *Scope) AppendKV(cache *KVCache, keys, values *Tensor, position int64) (update *KVAppend, err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return nil, err
+	}
+	defer state.mutex.Unlock()
+
+	var (
+		appendState *kvAppendState
+		history     *Tensor
+		destination *Tensor
+	)
+	if appendState, history, destination, err = state.reserveAppend(cache, keys, values, position); err != nil {
+		return nil, state.reject("append KV", err)
+	}
+	var (
+		rowWidth = appendState.cache.heads * appendState.cache.width
+		active   allocation
+	)
+	if history != nil {
+		active = history.state.buffer
+	}
+	if err = state.commands.encodeKVAppend(active, keys.state.buffer, values.state.buffer, destination.state.buffer,
+		uint32(appendState.cache.capacity*rowWidth), uint32(position*rowWidth)); err != nil {
+		state.status = scopePoisoned
+		return nil, fmt.Errorf("gpu: encode append KV: %w", err)
+	}
+	return &KVAppend{state: appendState}, nil
+}
+
+func (s *scopeState) reserveAppend(cache *KVCache, keys, values *Tensor, position int64) (update *kvAppendState, history, dest *Tensor, err error) {
+	var state *kvCacheState
+	if state, err = s.cacheState(cache); err != nil {
+		return nil, nil, nil, err
+	}
+	var (
+		rows, keyHeads        = headRows(keys, state.width)
+		valueRows, valueHeads = headRows(values, state.width)
+	)
+	if rows == 0 || keyHeads != state.heads || valueRows != rows || valueHeads != state.heads ||
+		position < 0 || position > state.capacity || rows > state.capacity-position {
+		return nil, nil, nil, fmt.Errorf("%w: invalid append shape or cache bounds", ErrInvalid)
+	}
+
+	s.device.mutex.Lock()
+	defer s.device.mutex.Unlock()
+	if state.closed {
+		return nil, nil, nil, ErrClosed
+	}
+	if state.pending != nil {
+		return nil, nil, nil, ErrBusy
+	}
+	if position != state.length {
+		return nil, nil, nil, fmt.Errorf("%w: append position must equal committed KV length", ErrInvalid)
+	}
+	dest = state.slots[1-state.active]
+	var sources = []*Tensor{keys, values}
+	if position > 0 {
+		history = state.slots[state.active]
+		sources = append(sources, history)
+	}
+	if err = s.acquireLocked(dest, sources...); err != nil {
+		return nil, nil, nil, err
+	}
+	update = &kvAppendState{cache: state, scope: s, length: position + rows}
+	state.pending = update
+	s.kvAppends = append(s.kvAppends, update)
+	return update, history, dest, nil
+}
+
+// CausalAttention records scaled dot-product attention on absolute query
+// positions starting at position. Queries and destination use matching
+// token-major head shapes as in RotatePairs, with any positive head width.
+// The number of query heads must be a multiple of the number of cache heads.
+// Each consecutive group of query heads shares one KV head. Only populated
+// cache rows at or before the query position contribute. An empty cache
+// yields zeros. Use finite inputs with representable FP32 products and dot sums.
+func (s *Scope) CausalAttention(queries *Tensor, cache *KVCache, destination *Tensor, position int64) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+	var cacheState *kvCacheState
+	if cacheState, err = state.cacheState(cache); err != nil {
+		return state.reject("causal attention", err)
+	}
+	var rows, heads = headRows(queries, cacheState.width)
+	if rows == 0 || heads%cacheState.heads != 0 || !hasShape(destination, queries.state.shape...) ||
+		position < 0 || position > math.MaxInt64-(rows-1) {
+		return state.reject("causal attention", fmt.Errorf("%w: invalid query shape, groups, destination or positions", ErrInvalid))
+	}
+	var (
+		history *Tensor
+		length  int64
+	)
+	if history, length, err = state.acquireAttention(cacheState, queries, destination); err != nil {
+		return state.reject("causal attention", err)
+	}
+	if length == 0 {
+		if err = state.commands.encodeFill(destination.state.buffer, 0); err != nil {
+			state.status = scopePoisoned
+			return fmt.Errorf("gpu: encode empty causal attention: %w", err)
+		}
+		return nil
+	}
+	var plane = cacheState.capacity * cacheState.heads * cacheState.width
+	var params = [6]uint32{uint32(cacheState.width), uint32(heads), uint32(cacheState.heads),
+		uint32(plane), uint32(length), uint32(min(position, length))}
+	return state.encodeAttentionMath("causal attention", device.TensorCausalAttention, queries, history, destination, nil, params, uint32(rows*heads))
+}
+
+func (s *scopeState) cacheState(cache *KVCache) (state *kvCacheState, err error) {
+	if cache == nil || cache.state == nil {
+		return nil, ErrClosed
+	}
+	if cache.state.device != s.device {
+		return nil, fmt.Errorf("%w: KV cache belongs to another device", ErrInvalid)
+	}
+	return cache.state, nil
+}
+
+func (s *scopeState) acquireAttention(cache *kvCacheState, queries, destination *Tensor) (history *Tensor, length int64, err error) {
+	s.device.mutex.Lock()
+	defer s.device.mutex.Unlock()
+	if cache.closed {
+		return nil, 0, ErrClosed
+	}
+	var slot = cache.active
+	length = cache.length
+	if cache.pending != nil && cache.pending.scope == s && !cache.pending.discarded {
+		slot = 1 - slot
+		length = cache.pending.length
+	}
+
+	var sources = []*Tensor{queries}
+	if length > 0 {
+		history = cache.slots[slot]
+		sources = append(sources, history)
+	}
+	if err = s.acquireLocked(destination, sources...); err != nil {
+		return nil, 0, err
+	}
+	return history, length, nil
+}
+
+func (s *scopeState) encodeAttentionMath(name string, operation device.AttentionMathOperation, first, second, target, extra *Tensor, params [6]uint32, threads uint32) (err error) {
+	var additional allocation
+	if extra != nil {
+		additional = extra.state.buffer
+	}
+	if err = s.commands.encodeAttentionMath(operation, first.state.buffer, second.state.buffer, target.state.buffer, additional, params, threads); err != nil {
+		s.status = scopePoisoned
+		return fmt.Errorf("gpu: encode %s: %w", name, err)
+	}
+	return nil
+}
+
 // Submit commits a nonempty recording once and returns without waiting.
 // If ctx is already canceled at the commit boundary, Submit discards the recording.
 func (s *Scope) Submit(ctx context.Context) (err error) {
@@ -248,21 +475,22 @@ func (s *Scope) Submit(ctx context.Context) (err error) {
 		return ErrInvalid
 	}
 	if err = ctx.Err(); err != nil {
-		return state.finish(scopeDiscarded, err)
+		return state.finish(scopeDiscarded, err, false)
 	}
 	if len(state.leases) == 0 {
 		return fmt.Errorf("%w: scope has no operations", ErrInvalid)
 	}
 	if err = state.commands.Commit(); err != nil {
-		return state.finish(scopeDiscarded, fmt.Errorf("gpu: submit scope: %w", err))
+		return state.finish(scopeDiscarded, fmt.Errorf("gpu: submit scope: %w", err), false)
 	}
 
 	state.status = scopeSubmitted
 	return nil
 }
 
-// Wait observes a submitted scope's terminal result. Cancellation while work
-// is outstanding leaves tensor leases held for a later Wait or Close.
+// Wait observes a submitted scope's terminal result. A successful observation
+// makes staged KV appends eligible for explicit publication. Cancellation
+// while work is outstanding leaves leases held for a later Wait or Close.
 func (s *Scope) Wait(ctx context.Context) (err error) {
 	if s == nil || s.state == nil {
 		return ErrClosed
@@ -305,13 +533,14 @@ func (s *Scope) Wait(ctx context.Context) (err error) {
 	state.mutex.Lock()
 	defer state.mutex.Unlock()
 	if state.status == scopeSubmitted {
-		state.finish(scopeFinished, completion.err)
+		state.finish(scopeFinished, completion.err, true)
 	}
 	return state.result
 }
 
 // Close discards unsubmitted work or drains a submission. If Close observes
-// the command result first, it returns any execution error. Close is idempotent.
+// the command result first, it returns any execution error and discards
+// staged KV appends. Close is idempotent.
 func (s *Scope) Close() (err error) {
 	if s == nil || s.state == nil {
 		return nil
@@ -325,7 +554,7 @@ func (s *Scope) Close() (err error) {
 		<-completion.done
 		state.mutex.Lock()
 		if state.status == scopeSubmitted {
-			err = state.finish(scopeFinished, completion.err)
+			err = state.finish(scopeFinished, completion.err, false)
 		}
 	}
 
@@ -334,7 +563,7 @@ func (s *Scope) Close() (err error) {
 	case scopeClosed:
 		return nil
 	case scopeRecording, scopePoisoned:
-		err = state.finish(scopeDiscarded, nil)
+		err = state.finish(scopeDiscarded, nil, false)
 	}
 
 	state.device.mutex.Lock()
@@ -373,7 +602,10 @@ func (s *scopeState) reject(operation string, cause error) (err error) {
 func (s *scopeState) acquire(destination *Tensor, sources ...*Tensor) (err error) {
 	s.device.mutex.Lock()
 	defer s.device.mutex.Unlock()
+	return s.acquireLocked(destination, sources...)
+}
 
+func (s *scopeState) acquireLocked(destination *Tensor, sources ...*Tensor) (err error) {
 	var target = destination.state
 	if err = s.validateAccess(target, writeAccess); err != nil {
 		return err
@@ -438,7 +670,7 @@ func (c *scopeCompletion) wait(commands commandBuffer) {
 
 // finish releases native scope references before dropping tensor leases. A
 // discarded recording leaves previous contents intact.
-func (s *scopeState) finish(status scopeStatus, commandErr error) (err error) {
+func (s *scopeState) finish(status scopeStatus, commandErr error, observed bool) (err error) {
 	err = commandErr
 	var releaseErr = s.commands.Release()
 	if releaseErr != nil {
@@ -461,6 +693,10 @@ func (s *scopeState) finish(status scopeStatus, commandErr error) (err error) {
 		}
 		tensor.releaseIfIdle()
 	}
+	for _, update := range s.kvAppends {
+		update.finish(observed && err == nil)
+	}
+	s.kvAppends = nil
 	s.leases = nil
 	return err
 }
