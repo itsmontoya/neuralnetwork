@@ -39,6 +39,10 @@ func (unavailableBackend) encodeCopy(any, any, any, uint64) (err error) {
 	return ErrUnavailable
 }
 
+func (unavailableBackend) encodeGatherRows(any, any, any, uint64, []int64) (err error) {
+	return ErrUnavailable
+}
+
 func (unavailableBackend) encodeFill(any, any, float32, uint64) (err error) {
 	return ErrUnavailable
 }

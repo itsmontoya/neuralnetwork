@@ -64,6 +64,35 @@ func (s *Scope) EncodeCopy(source, destination *Buffer) (err error) {
 	return nil
 }
 
+// EncodeGatherRows copies each indexed FP32 row into a disjoint destination.
+func (s *Scope) EncodeGatherRows(source, destination *Buffer, columns uint64, rows []int64) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(source, "gather source"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(destination, "gather destination"); err != nil {
+		return err
+	}
+	if source == destination || columns == 0 || columns > source.count || source.count%columns != 0 ||
+		len(rows) == 0 || destination.count%columns != 0 || destination.count/columns != uint64(len(rows)) {
+		return errors.New("device: invalid gather buffers or row size")
+	}
+	var rowCount = source.count / columns
+	for _, row := range rows {
+		if row < 0 || uint64(row) >= rowCount {
+			return errors.New("device: gather row index outside source")
+		}
+	}
+	if err = s.runtime.backend.encodeGatherRows(s.handle, source.handle, destination.handle, 4*columns, rows); err != nil {
+		s.fail(err)
+	}
+	return err
+}
+
 // EncodeFill appends a complete float32 buffer fill to the scope.
 func (s *Scope) EncodeFill(buffer *Buffer, value float32) (err error) {
 	if err = s.lockForEncoding(); err != nil {

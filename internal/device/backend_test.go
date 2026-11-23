@@ -151,6 +151,10 @@ func (b *testBackend) encodeCopy(scope, source, destination any, _ uint64) (err 
 	return nil
 }
 
+func (b *testBackend) encodeGatherRows(any, any, any, uint64, []int64) (err error) {
+	return ErrUnavailable
+}
+
 func (b *testBackend) encodeFill(scope, handle any, value float32, _ uint64) (err error) {
 	var (
 		commandScope *testScope
