@@ -4,7 +4,6 @@ package gpu
 
 import (
 	"context"
-	"errors"
 	"math"
 	"math/rand/v2"
 	"slices"
@@ -13,7 +12,7 @@ import (
 
 func Test_MetalTensorMatMul(t *testing.T) {
 	var (
-		gpu     = requireMetalDeviceForMatMul(t)
+		gpu     = requireMetalDevice(t)
 		native  = gpu.state.backend.(metalBackend).runtime
 		initial = native.ResourceSnapshot()
 	)
@@ -61,7 +60,7 @@ func Test_MetalTensorMatMul(t *testing.T) {
 
 func Test_MetalTensorMatMulSpecialValues(t *testing.T) {
 	var (
-		gpu   = requireMetalDeviceForMatMul(t)
+		gpu   = requireMetalDevice(t)
 		inf   = float32(math.Inf(1))
 		nan   = float32(math.NaN())
 		large = float32(math.MaxFloat32 / 4)
@@ -95,7 +94,7 @@ func Test_MetalTensorMatMulSpecialValues(t *testing.T) {
 
 func Test_MetalTensorMatMulSharedWeightsAndOrdering(t *testing.T) {
 	var (
-		gpu          = requireMetalDeviceForMatMul(t)
+		gpu          = requireMetalDevice(t)
 		ctx          = context.Background()
 		weight       = requireTensor(t, gpu, 2, 2)
 		firstOutput  = requireTensor(t, gpu, 1, 2)
@@ -136,18 +135,6 @@ func Test_MetalTensorMatMulSharedWeightsAndOrdering(t *testing.T) {
 			t.Fatalf("iteration %d: results = %v and %v", i, firstResult, secondResult)
 		}
 	}
-}
-
-func requireMetalDeviceForMatMul(t *testing.T) (gpu *Device) {
-	t.Helper()
-	var err error
-	gpu, err = OpenDefault()
-	if errors.Is(err, ErrUnavailable) {
-		t.Skip("default Metal device unavailable")
-	}
-	requireError(t, err, nil)
-	t.Cleanup(func() { requireError(t, gpu.Close(), nil) })
-	return gpu
 }
 
 // weight is supplied in one logical [N,K] order for the reference. Standard

@@ -17,6 +17,7 @@ type commandBuffer interface {
 	encodeFill(destination allocation, value float32) (err error)
 	encodeCopy(source, destination allocation) (err error)
 	encodeMatMul(left, right, destination allocation, m, n, k uint32, rightTransposed bool) (err error)
+	encodeElementwise(left, right, destination allocation, operation device.ElementwiseOperation) (err error)
 	Commit() (err error)
 	Wait() (err error)
 	Release() (err error)
@@ -52,6 +53,14 @@ func (m metalCommandBuffer) encodeFill(destination allocation, value float32) (e
 
 func (m metalCommandBuffer) encodeCopy(source, destination allocation) (err error) {
 	return m.EncodeCopy(source.(*device.Buffer), destination.(*device.Buffer))
+}
+
+func (m metalCommandBuffer) encodeElementwise(left, right, destination allocation, operation device.ElementwiseOperation) (err error) {
+	var second *device.Buffer
+	if right != nil {
+		second = right.(*device.Buffer)
+	}
+	return m.EncodeElementwise(left.(*device.Buffer), second, destination.(*device.Buffer), operation)
 }
 
 func (m metalCommandBuffer) encodeMatMul(left, right, destination allocation, rows, cols, inner uint32, rightTransposed bool) (err error) {

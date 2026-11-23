@@ -85,6 +85,17 @@ func requireTensor(t *testing.T, d *Device, shape ...int64) (out *Tensor) {
 	return tensor
 }
 
+func requireMetalDevice(t *testing.T) (out *Device) {
+	t.Helper()
+	var d, err = OpenDefault()
+	if errors.Is(err, ErrUnavailable) {
+		t.Skip("default Metal device unavailable")
+	}
+	requireError(t, err, nil)
+	t.Cleanup(func() { requireError(t, d.Close(), nil) })
+	return d
+}
+
 func requireScope(t *testing.T, d *Device) (out *Scope) {
 	t.Helper()
 	var scope, err = d.NewScope()
