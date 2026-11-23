@@ -70,14 +70,14 @@ func Test_DeviceHostByteOverflow(t *testing.T) {
 	requireError(t, d.Close(), nil)
 }
 
-func requireError(t *testing.T, err, want error) {
+func requireError(t testing.TB, err, want error) {
 	t.Helper()
 	if !errors.Is(err, want) {
 		t.Fatalf("error = %v, want %v", err, want)
 	}
 }
 
-func requireTensor(t *testing.T, d *Device, shape ...int64) (out *Tensor) {
+func requireTensor(t testing.TB, d *Device, shape ...int64) (out *Tensor) {
 	t.Helper()
 	var tensor, err = d.NewFloat32(shape)
 	requireError(t, err, nil)
@@ -85,7 +85,7 @@ func requireTensor(t *testing.T, d *Device, shape ...int64) (out *Tensor) {
 	return tensor
 }
 
-func requireMetalDevice(t *testing.T) (out *Device) {
+func requireMetalDevice(t testing.TB) (out *Device) {
 	t.Helper()
 	var d, err = OpenDefault()
 	if errors.Is(err, ErrUnavailable) {
