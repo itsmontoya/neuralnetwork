@@ -12,6 +12,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"unsafe"
 )
 
@@ -25,6 +26,8 @@ func newPlatformBackend() (runtimeBackend backend) {
 func (m *metalBackend) available() (available bool, err error) {
 	var status C.int
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_runtime_available()
 	switch status {
 	case C.NNMetalStatusSuccess:
@@ -37,9 +40,15 @@ func (m *metalBackend) available() (available bool, err error) {
 	}
 }
 
+func (m *metalBackend) maxBufferLength() (bytes uint64) {
+	return uint64(C.nn_metal_max_buffer_length())
+}
+
 func (m *metalBackend) newBuffer(bytes uint64) (handle any, err error) {
 	var buffer C.NNMetalBuffer
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	buffer = C.nn_metal_buffer_new(C.uint64_t(bytes))
 	if buffer == nil {
 		err = m.lastError("allocate Metal buffer")
@@ -64,6 +73,8 @@ func (m *metalBackend) upload(handle any, values []float32) (err error) {
 		return err
 	}
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_buffer_upload(
 		buffer,
 		(*C.float)(unsafe.Pointer(&values[0])),
@@ -91,6 +102,8 @@ func (m *metalBackend) download(handle any, values []float32) (err error) {
 		return err
 	}
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_buffer_download(
 		buffer,
 		(*C.float)(unsafe.Pointer(&values[0])),
@@ -120,6 +133,8 @@ func (m *metalBackend) releaseBuffer(handle any) {
 func (m *metalBackend) newScope() (handle any, err error) {
 	var scope C.NNMetalScope
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	scope = C.nn_metal_scope_new()
 	if scope == nil {
 		err = m.lastError("create Metal command scope")
@@ -148,6 +163,8 @@ func (m *metalBackend) encodeCopy(scope, source, destination any, bytes uint64) 
 		return err
 	}
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_encode_copy(
 		scopeHandle,
 		sourceHandle,
@@ -176,6 +193,8 @@ func (m *metalBackend) encodeFill(scope, buffer any, value float32, count uint64
 		return err
 	}
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_encode_fill(
 		scopeHandle,
 		bufferHandle,
@@ -214,6 +233,8 @@ func (m *metalBackend) encodeAddRowVector(
 		return err
 	}
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_encode_add_row_vector(
 		scopeHandle,
 		valuesHandle,
@@ -258,6 +279,8 @@ func (m *metalBackend) encodeAddScaled(
 		return err
 	}
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_encode_add_scaled(
 		scopeHandle,
 		leftHandle,
@@ -292,6 +315,8 @@ func (m *metalBackend) encodeReLU(scope, input, result any, count uint32) (err e
 		return err
 	}
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_encode_relu(
 		scopeHandle,
 		inputHandle,
@@ -334,6 +359,8 @@ func (m *metalBackend) encodeReLUBackward(
 		return err
 	}
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_encode_relu_backward(
 		scopeHandle,
 		inputHandle,
@@ -373,6 +400,8 @@ func (m *metalBackend) encodeSoftmaxRows(
 		return err
 	}
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_encode_softmax_rows(
 		scopeHandle,
 		inputHandle,
@@ -417,6 +446,8 @@ func (m *metalBackend) encodeSoftmaxRowsBackward(
 		return err
 	}
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_encode_softmax_rows_backward(
 		scopeHandle,
 		inputHandle,
@@ -462,6 +493,8 @@ func (m *metalBackend) encodeColumnSums(
 		accumulateValue = 1
 	}
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_encode_column_sums(
 		scopeHandle,
 		inputHandle,
@@ -508,6 +541,8 @@ func (m *metalBackend) encodeCategoricalCrossEntropy(
 		return err
 	}
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_encode_categorical_cross_entropy(
 		scopeHandle,
 		predictionHandle,
@@ -555,6 +590,8 @@ func (m *metalBackend) encodeCategoricalCrossEntropyGradient(
 		return err
 	}
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_encode_categorical_cross_entropy_gradient(
 		scopeHandle,
 		predictionHandle,
@@ -609,6 +646,8 @@ func (m *metalBackend) encodeMatMul(
 	metalDimensions.resultRows = C.uint32_t(dimensions.resultRows)
 	metalDimensions.resultCols = C.uint32_t(dimensions.resultCols)
 	metalDimensions.variant = C.uint32_t(operation)
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_encode_matmul(
 		scopeHandle,
 		leftHandle,
@@ -633,6 +672,8 @@ func (m *metalBackend) commit(scope any) (err error) {
 	if handle, err = m.scopeHandle(scope); err != nil {
 		return err
 	}
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_commit(handle)
 	if status != C.NNMetalStatusSuccess {
 		err = m.lastError("commit Metal command scope")
@@ -651,6 +692,8 @@ func (m *metalBackend) completed(scope any) (complete bool, err error) {
 	if handle, err = m.scopeHandle(scope); err != nil {
 		return false, err
 	}
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_completed(handle)
 	switch status {
 	case C.NNMetalStatusSuccess:
@@ -672,6 +715,8 @@ func (m *metalBackend) wait(scope any) (err error) {
 	if handle, err = m.scopeHandle(scope); err != nil {
 		return err
 	}
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_wait(handle)
 	if status != C.NNMetalStatusSuccess {
 		err = m.lastError("wait for Metal command scope")
@@ -713,6 +758,8 @@ func (m *metalBackend) resourceSnapshot() (snapshot ResourceSnapshot) {
 }
 
 func (m *metalBackend) resetResourcePeaks() (err error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	if C.nn_metal_resource_reset() != C.NNMetalStatusSuccess {
 		err = m.lastError("reset Metal resource counters")
 		return err
@@ -729,6 +776,8 @@ func (m *metalBackend) testMissingKernel(name string) (err error) {
 
 	nameValue = C.CString(name)
 	defer C.free(unsafe.Pointer(nameValue))
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_test_missing_kernel(nameValue)
 	if status != C.NNMetalStatusSuccess {
 		err = m.lastError("create Metal test pipeline")
@@ -746,6 +795,8 @@ func (m *metalBackend) testCompileSource(source string) (err error) {
 
 	sourceValue = C.CString(source)
 	defer C.free(unsafe.Pointer(sourceValue))
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_test_compile_source(sourceValue)
 	if status != C.NNMetalStatusSuccess {
 		err = m.lastError("compile Metal test shader")
@@ -764,6 +815,8 @@ func (m *metalBackend) testFailScope(scope any) (err error) {
 	if handle, err = m.scopeHandle(scope); err != nil {
 		return err
 	}
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	status = C.nn_metal_test_scope_fail(handle)
 	if status != C.NNMetalStatusSuccess {
 		err = m.lastError("inject Metal command failure")
@@ -803,6 +856,7 @@ func (m *metalBackend) scopeHandle(handle any) (scope C.NNMetalScope, err error)
 	return scope, nil
 }
 
+// lastError must run on the same OS thread as the failed native call.
 func (m *metalBackend) lastError(operation string) (err error) {
 	var message string
 

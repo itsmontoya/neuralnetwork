@@ -16,6 +16,15 @@ var (
 
 // SharedRuntime returns the process-wide private device runtime when available.
 func SharedRuntime() (runtime *Runtime, available bool, err error) {
+	runtime, available, err = ExperimentalRuntime()
+	if available {
+		sharedRuntimeReady.Store(true)
+	}
+	return runtime, available, err
+}
+
+// ExperimentalRuntime acquires the shared runtime without changing ANN dispatch readiness.
+func ExperimentalRuntime() (runtime *Runtime, available bool, err error) {
 	sharedRuntimeOnce.Do(func() {
 		sharedRuntime = newRuntime(newPlatformBackend())
 	})
@@ -33,7 +42,6 @@ func SharedRuntime() (runtime *Runtime, available bool, err error) {
 		return nil, false, nil
 	}
 
-	sharedRuntimeReady.Store(true)
 	runtime = sharedRuntime
 	return runtime, true, nil
 }
@@ -47,6 +55,11 @@ func newRuntime(runtimeBackend backend) (runtime *Runtime) {
 // Runtime owns shared device resources and creates buffers and command scopes.
 type Runtime struct {
 	backend backend
+}
+
+// MaxBufferLength reports the native byte limit for a single device buffer.
+func (r *Runtime) MaxBufferLength() (bytes uint64) {
+	return r.backend.maxBufferLength()
 }
 
 // Available reports whether the runtime backend can execute device work.

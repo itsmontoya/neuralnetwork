@@ -2,6 +2,7 @@ package device
 
 type backend interface {
 	available() (available bool, err error)
+	maxBufferLength() (bytes uint64)
 	newBuffer(bytes uint64) (handle any, err error)
 	upload(handle any, values []float32) (err error)
 	download(handle any, values []float32) (err error)
