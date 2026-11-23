@@ -114,6 +114,28 @@ func (c *fakeCommandBuffer) encodeElementwise(_, _, _ allocation, _ device.Eleme
 	return c.encodeErr
 }
 
+func (c *fakeCommandBuffer) encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32) (err error) {
+	var (
+		output    = target.(*fakeAllocation)
+		keyRows   = keys.(*fakeAllocation)
+		valueRows = values.(*fakeAllocation)
+	)
+	c.commands = append(c.commands, func() {
+		if history != nil {
+			var active = history.(*fakeAllocation)
+			copy(output.values[:prefix], active.values[:prefix])
+			copy(output.values[plane:plane+prefix], active.values[plane:plane+prefix])
+		}
+		copy(output.values[prefix:plane], keyRows.values)
+		copy(output.values[plane+prefix:], valueRows.values)
+	})
+	return c.encodeErr
+}
+
+func (c *fakeCommandBuffer) encodeAttentionMath(_ device.AttentionMathOperation, _, _, _, _ allocation, _ [6]uint32, _ uint32) (err error) {
+	return c.encodeErr
+}
+
 func (c *fakeCommandBuffer) Commit() (err error) {
 	if c.commitErr != nil {
 		return c.commitErr

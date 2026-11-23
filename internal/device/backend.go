@@ -44,3 +44,8 @@ type backend interface {
 	resourceSnapshot() (snapshot ResourceSnapshot)
 	resetResourcePeaks() (err error)
 }
+
+type attentionBackend interface {
+	encodeKVAppend(scope, history, keys, values, target any, plane, prefix uint32) (err error)
+	encodeAttentionMath(scope any, operation AttentionMathOperation, buffers [4]any, params [6]uint32, threads uint32) (err error)
+}

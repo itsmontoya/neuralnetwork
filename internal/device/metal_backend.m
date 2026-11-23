@@ -1,6 +1,7 @@
 //go:build darwin && cgo && metal && !purego
 
 #include "metal_backend.h"
+#include "attention_metal_source.h"
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -358,6 +359,16 @@ static char nnMetalTensorMatMulError[1024];
 static pthread_once_t nnMetalTensorElementwiseOnce = PTHREAD_ONCE_INIT;
 static id<MTLComputePipelineState> nnMetalTensorElementwisePipelines[NNMetalTensorElementwiseCount];
 static char nnMetalTensorElementwiseError[1024];
+typedef enum {
+	NNMetalTensorRMSNorm,
+	NNMetalTensorRotatePairs,
+	NNMetalTensorCausalAttention,
+	NNMetalAttentionMathCount,
+} NNMetalAttentionMathOperation;
+
+static pthread_once_t nnMetalAttentionMathOnce = PTHREAD_ONCE_INIT;
+static id<MTLComputePipelineState> nnMetalAttentionMathPipelines[NNMetalAttentionMathCount];
+static char nnMetalAttentionMathError[1024];
 static NNMetalResourceSnapshot nnMetalResources;
 
 static void nn_metal_set_error(const char *message) {
@@ -486,6 +497,41 @@ static void nn_metal_initialize_tensor_elementwise(void) {
 				for (NSUInteger j = 0; j < i; j++) {
 					[nnMetalTensorElementwisePipelines[j] release];
 					nnMetalTensorElementwisePipelines[j] = nil;
+				}
+				break;
+			}
+		}
+		[library release];
+	}
+}
+
+// These kernels compile lazily on the existing device, outside ANN startup.
+static void nn_metal_initialize_attention_math(void) {
+	@autoreleasepool {
+		NSError *error = nil;
+		NSString *source = [NSString stringWithFormat:@"%s%s", nnMetalShaderHeader, nnMetalAttentionMathSource];
+		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		[options setFastMathEnabled:NO];
+		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
+		[options release];
+		if (library == nil) {
+			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile attention math library: %@", [error localizedDescription]]);
+			strlcpy(nnMetalAttentionMathError, nnMetalLastError, sizeof(nnMetalAttentionMathError));
+			return;
+		}
+
+		NSString *names[NNMetalAttentionMathCount] = {
+			[NNMetalTensorRMSNorm] = @"nn_tensor_rms_norm",
+			[NNMetalTensorRotatePairs] = @"nn_tensor_rotate_pairs",
+			[NNMetalTensorCausalAttention] = @"nn_tensor_causal_attention",
+		};
+		for (NSUInteger i = 0; i < NNMetalAttentionMathCount; i++) {
+			nnMetalAttentionMathPipelines[i] = nn_metal_new_pipeline(library, names[i]);
+			if (nnMetalAttentionMathPipelines[i] == nil) {
+				strlcpy(nnMetalAttentionMathError, nnMetalLastError, sizeof(nnMetalAttentionMathError));
+				for (NSUInteger j = 0; j < i; j++) {
+					[nnMetalAttentionMathPipelines[j] release];
+					nnMetalAttentionMathPipelines[j] = nil;
 				}
 				break;
 			}
@@ -981,6 +1027,122 @@ int nn_metal_scope_encode_tensor_elementwise(
 			[scopeRecord->retainedResources addObject:rightRecord->value];
 		}
 		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_kv_append(
+	NNMetalScope scope, NNMetalBuffer history, NNMetalBuffer keys, NNMetalBuffer values,
+	NNMetalBuffer target, uint32_t plane, uint32_t prefix
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *previous = nn_metal_buffer_record(history);
+	NNMetalBufferRecord *keyRows = nn_metal_buffer_record(keys);
+	NNMetalBufferRecord *valueRows = nn_metal_buffer_record(values);
+	NNMetalBufferRecord *result = nn_metal_buffer_record(target);
+	uint64_t planeBytes = (uint64_t)plane * sizeof(float);
+	uint64_t prefixBytes = (uint64_t)prefix * sizeof(float);
+
+	if (scopeRecord == NULL || keyRows == NULL || valueRows == NULL || result == NULL ||
+		scopeRecord->committed || keyRows == result || valueRows == result ||
+		keyRows->bytes != valueRows->bytes || prefixBytes > planeBytes ||
+		keyRows->bytes > planeBytes - prefixBytes || result->bytes != 2 * planeBytes ||
+		(prefix != 0 && (previous == NULL || previous == result || previous->bytes != result->bytes))) {
+		nn_metal_set_error("metal: encode KV append: invalid state, buffers or range");
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		id<MTLBlitCommandEncoder> encoder = [scopeRecord->commandBuffer blitCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode KV append: create blit encoder returned nil");
+			return NNMetalStatusError;
+		}
+		if (prefix != 0) {
+			[encoder copyFromBuffer:previous->value sourceOffset:0 toBuffer:result->value destinationOffset:0 size:(NSUInteger)prefixBytes];
+			[encoder copyFromBuffer:previous->value sourceOffset:(NSUInteger)planeBytes toBuffer:result->value destinationOffset:(NSUInteger)planeBytes size:(NSUInteger)prefixBytes];
+			[scopeRecord->retainedResources addObject:previous->value];
+		}
+		[encoder copyFromBuffer:keyRows->value sourceOffset:0 toBuffer:result->value destinationOffset:(NSUInteger)prefixBytes size:(NSUInteger)keyRows->bytes];
+		[encoder copyFromBuffer:valueRows->value sourceOffset:0 toBuffer:result->value destinationOffset:(NSUInteger)(planeBytes + prefixBytes) size:(NSUInteger)valueRows->bytes];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:keyRows->value];
+		[scopeRecord->retainedResources addObject:valueRows->value];
+		[scopeRecord->retainedResources addObject:result->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+static int nn_metal_attention_math_valid(
+	uint32_t operation, NNMetalBufferRecord *first, NNMetalBufferRecord *second,
+	NNMetalBufferRecord *target, NNMetalBufferRecord *extra, const uint32_t params[6], uint32_t threads
+) {
+	if (params[0] == 0 || threads == 0 || first->bytes != target->bytes ||
+		target->bytes / sizeof(float) > UINT32_MAX) {
+		return 0;
+	}
+	uint64_t firstCount = first->bytes / sizeof(float);
+	uint64_t secondCount = second->bytes / sizeof(float);
+	switch (operation) {
+	case NNMetalTensorRMSNorm:
+		return (uint64_t)threads * params[0] == firstCount && params[0] == secondCount;
+	case NNMetalTensorRotatePairs: {
+		uint64_t rowPairs = (uint64_t)params[0] * params[1];
+		return rowPairs > 0 && threads % rowPairs == 0 && threads * (uint64_t)2 == firstCount &&
+			second->bytes == extra->bytes && secondCount <= UINT32_MAX &&
+			secondCount % params[0] == 0 && (uint64_t)params[2] + threads / rowPairs <= secondCount / params[0];
+	}
+	case NNMetalTensorCausalAttention: {
+		uint64_t kvRow = (uint64_t)params[0] * params[2];
+		return kvRow > 0 && params[1] > 0 && params[1] % params[2] == 0 &&
+			threads % params[1] == 0 && (uint64_t)threads * params[0] == firstCount &&
+			params[3] <= UINT32_MAX / 2 && secondCount == 2 * (uint64_t)params[3] &&
+			params[3] % kvRow == 0 && params[4] > 0 && params[4] <= params[3] / kvRow && params[5] <= params[4];
+	}
+	default:
+		return 0;
+	}
+}
+
+int nn_metal_scope_encode_attention_math(
+	NNMetalScope scope, uint32_t operation, NNMetalBuffer first, NNMetalBuffer second,
+	NNMetalBuffer target, NNMetalBuffer extra, const uint32_t params[6], uint32_t threads
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *buffers[4] = {
+		nn_metal_buffer_record(first), nn_metal_buffer_record(second),
+		nn_metal_buffer_record(target), nn_metal_buffer_record(extra),
+	};
+	if (scopeRecord == NULL || scopeRecord->committed || buffers[0] == NULL ||
+		buffers[1] == NULL || buffers[2] == NULL || (buffers[3] != NULL) != (operation == NNMetalTensorRotatePairs) ||
+		buffers[0] == buffers[2] || buffers[1] == buffers[2] || buffers[3] == buffers[2] ||
+		params == NULL || !nn_metal_attention_math_valid(operation, buffers[0], buffers[1], buffers[2], buffers[3], params, threads)) {
+		nn_metal_set_error("metal: encode attention math: invalid state, buffers or range");
+		return NNMetalStatusError;
+	}
+
+	pthread_once(&nnMetalAttentionMathOnce, nn_metal_initialize_attention_math);
+	id<MTLComputePipelineState> pipeline = nnMetalAttentionMathPipelines[operation];
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalAttentionMathError);
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode attention math: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		[encoder setComputePipelineState:pipeline];
+		for (NSUInteger index = 0; index < 4 && buffers[index] != NULL; index++) {
+			[encoder setBuffer:buffers[index]->value offset:0 atIndex:index];
+			[scopeRecord->retainedResources addObject:buffers[index]->value];
+		}
+		[encoder setBytes:params length:6 * sizeof(uint32_t) atIndex:4];
+		NSUInteger threadWidth = MIN([pipeline threadExecutionWidth], [pipeline maxTotalThreadsPerThreadgroup]);
+		[encoder dispatchThreads:MTLSizeMake(threads, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
+		[encoder endEncoding];
 	}
 	return NNMetalStatusSuccess;
 }

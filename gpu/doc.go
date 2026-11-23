@@ -21,6 +21,10 @@
 // or an error from the native encoder, requires closing and discarding the
 // scope. Discarding preserves the previous tensor values.
 //
+// A KVCache owns private, fixed-capacity key and value history. AppendKV
+// stages consecutive rows in a disjoint slot. After a successful Wait the
+// caller can publish or discard the staged rows as part of a larger step.
+//
 // If a context is canceled at the submission boundary, Submit discards the
 // recording. Canceling Wait leaves submitted work and its leases outstanding.
 // Wait again or close the scope to drain it. Close every scope and tensor.

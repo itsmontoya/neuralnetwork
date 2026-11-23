@@ -383,6 +383,11 @@ the down projection in the same scope. The [Metal tests](gpu/ffn_metal_test.go)
 show how to reuse uploaded weights, give each session its own input, output,
 and scratch tensors, and read back only the completed down projection.
 
+The [causal attention guide](docs/gpu-attention.md) composes RMSNorm, Q/K/V
+projection, adjacent-pair rotation, grouped-query attention and the output
+projection in one scope. Each caller-managed sequence can keep its KV cache
+resident and publish staged rows only after a successful step.
+
 ## Development
 
 The baseline verification command is:
