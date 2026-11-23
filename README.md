@@ -363,6 +363,11 @@ troubleshooting details; the [SIMD design](docs/simd.md) for hybrid CPU
 selection; and [GPU benchmark evidence](Benchmarks_gpu.md) for reproducible
 end-to-end measurements.
 
+The experimental [`gpu`](gpu) package offers explicit FP32 tensor allocation,
+transfers, and command scopes on macOS ARM64 with cgo and `-tags=metal`.
+See the [fill example](gpu/example_test.go) for device selection, submission,
+and readback.
+
 ## Development
 
 The baseline verification command is:
