@@ -16,6 +16,7 @@ type allocation interface {
 type commandBuffer interface {
 	encodeFill(destination allocation, value float32) (err error)
 	encodeCopy(source, destination allocation) (err error)
+	encodeMatMul(left, right, destination allocation, m, n, k uint32, rightTransposed bool) (err error)
 	Commit() (err error)
 	Wait() (err error)
 	Release() (err error)
@@ -51,4 +52,18 @@ func (m metalCommandBuffer) encodeFill(destination allocation, value float32) (e
 
 func (m metalCommandBuffer) encodeCopy(source, destination allocation) (err error) {
 	return m.EncodeCopy(source.(*device.Buffer), destination.(*device.Buffer))
+}
+
+func (m metalCommandBuffer) encodeMatMul(left, right, destination allocation, rows, cols, inner uint32, rightTransposed bool) (err error) {
+	var (
+		operation = device.OperationTensorMatMul
+		rightRows = inner
+		rightCols = cols
+	)
+	if rightTransposed {
+		operation = device.OperationTensorMatMulRightTranspose
+		rightRows, rightCols = rightCols, rightRows
+	}
+	return m.EncodeMatMul(left.(*device.Buffer), right.(*device.Buffer), destination.(*device.Buffer),
+		rows, inner, rightRows, rightCols, rows, cols, operation)
 }

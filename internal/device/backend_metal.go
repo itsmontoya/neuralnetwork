@@ -623,6 +623,7 @@ func (m *metalBackend) encodeMatMul(
 		rightHandle     C.NNMetalBuffer
 		resultHandle    C.NNMetalBuffer
 		metalDimensions C.NNMetalMatMulDimensions
+		tensorPipeline  C.int
 		status          C.int
 	)
 
@@ -645,7 +646,16 @@ func (m *metalBackend) encodeMatMul(
 	metalDimensions.rightCols = C.uint32_t(dimensions.rightCols)
 	metalDimensions.resultRows = C.uint32_t(dimensions.resultRows)
 	metalDimensions.resultCols = C.uint32_t(dimensions.resultCols)
-	metalDimensions.variant = C.uint32_t(operation)
+	switch operation {
+	case OperationTensorMatMul:
+		tensorPipeline = 1
+		metalDimensions.variant = C.uint32_t(OperationMatMul)
+	case OperationTensorMatMulRightTranspose:
+		tensorPipeline = 1
+		metalDimensions.variant = C.uint32_t(OperationMatMulRightTranspose)
+	default:
+		metalDimensions.variant = C.uint32_t(operation)
+	}
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	status = C.nn_metal_scope_encode_matmul(
@@ -654,6 +664,7 @@ func (m *metalBackend) encodeMatMul(
 		rightHandle,
 		resultHandle,
 		metalDimensions,
+		tensorPipeline,
 	)
 	if status != C.NNMetalStatusSuccess {
 		err = m.lastError("encode Metal matrix multiplication")

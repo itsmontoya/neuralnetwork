@@ -23,9 +23,11 @@ typedef struct {
 	int forcedFailure;
 } NNMetalScopeRecord;
 
-static const char *nnMetalShaderSource =
+static const char *nnMetalShaderHeader =
 	"#include <metal_stdlib>\n"
-	"using namespace metal;\n"
+	"using namespace metal;\n";
+
+static const char *nnMetalMatMulDimensionsSource =
 	"struct NNMetalMatMulDimensions {\n"
 	"    uint leftRows;\n"
 	"    uint leftCols;\n"
@@ -34,7 +36,9 @@ static const char *nnMetalShaderSource =
 	"    uint resultRows;\n"
 	"    uint resultCols;\n"
 	"    uint variant;\n"
-	"};\n"
+	"};\n";
+
+static const char *nnMetalShaderSource =
 	"kernel void nn_fill(\n"
 	"    device float *values [[buffer(0)]],\n"
 	"    constant float &value [[buffer(1)]],\n"
@@ -244,7 +248,9 @@ static const char *nnMetalShaderSource =
 	"        prediction = 1.0f - epsilon;\n"
 	"    }\n"
 	"    result[index] = -target / prediction / float(rows);\n"
-	"}\n"
+	"}\n";
+
+static const char *nnMetalMatMulSource =
 	"kernel void nn_matmul(\n"
 	"    const device float *left [[buffer(0)]],\n"
 	"    const device float *right [[buffer(1)]],\n"
@@ -300,6 +306,9 @@ static id<MTLComputePipelineState> nnMetalColumnSumsPipeline = nil;
 static id<MTLComputePipelineState> nnMetalCategoricalCrossEntropyPipeline = nil;
 static id<MTLComputePipelineState> nnMetalCategoricalCrossEntropyGradientPipeline = nil;
 static id<MTLComputePipelineState> nnMetalMatMulPipeline = nil;
+static pthread_once_t nnMetalTensorMatMulOnce = PTHREAD_ONCE_INIT;
+static id<MTLComputePipelineState> nnMetalTensorMatMulPipeline = nil;
+static char nnMetalTensorMatMulError[1024];
 static NNMetalResourceSnapshot nnMetalResources;
 
 static void nn_metal_set_error(const char *message) {
@@ -357,12 +366,12 @@ static void nn_metal_release_runtime_resources(void) {
 	nnMetalDevice = nil;
 }
 
-static id<MTLComputePipelineState> nn_metal_new_pipeline(NSString *name) {
+static id<MTLComputePipelineState> nn_metal_new_pipeline(id<MTLLibrary> library, NSString *name) {
 	NSError *error = nil;
 	id<MTLFunction> function = nil;
 	id<MTLComputePipelineState> pipeline = nil;
 
-	function = [nnMetalLibrary newFunctionWithName:name];
+	function = [library newFunctionWithName:name];
 	if (function == nil) {
 		nn_metal_set_error_ns([NSString stringWithFormat:@"metal: kernel %@ not found", name]);
 		return nil;
@@ -376,6 +385,28 @@ static id<MTLComputePipelineState> nn_metal_new_pipeline(NSString *name) {
 	}
 
 	return pipeline;
+}
+
+// This pipeline shares the runtime owner and is compiled only on first tensor matmul.
+static void nn_metal_initialize_tensor_matmul(void) {
+	@autoreleasepool {
+		NSError *error = nil;
+		NSString *source = [NSString stringWithFormat:@"%s%s%s",
+			nnMetalShaderHeader, nnMetalMatMulDimensionsSource, nnMetalMatMulSource];
+		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		[options setFastMathEnabled:NO];
+		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
+		[options release];
+		if (library == nil) {
+			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile tensor matmul library: %@", [error localizedDescription]]);
+		} else {
+			nnMetalTensorMatMulPipeline = nn_metal_new_pipeline(library, @"nn_matmul");
+			[library release];
+		}
+		if (nnMetalTensorMatMulPipeline == nil) {
+			strlcpy(nnMetalTensorMatMulError, nnMetalLastError, sizeof(nnMetalTensorMatMulError));
+		}
+	}
 }
 
 static int nn_metal_initialize(void) {
@@ -413,7 +444,8 @@ static int nn_metal_initialize(void) {
 			}
 
 			if (nnMetalCommandQueue != nil) {
-				source = [NSString stringWithUTF8String:nnMetalShaderSource];
+				source = [NSString stringWithFormat:@"%s%s%s%s",
+					nnMetalShaderHeader, nnMetalMatMulDimensionsSource, nnMetalShaderSource, nnMetalMatMulSource];
 				nnMetalLibrary = [nnMetalDevice newLibraryWithSource:source options:nil error:&error];
 				if (nnMetalLibrary == nil) {
 					nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile shader library: %@", [error localizedDescription]]);
@@ -421,38 +453,38 @@ static int nn_metal_initialize(void) {
 			}
 
 			if (nnMetalLibrary != nil) {
-				nnMetalFillPipeline = nn_metal_new_pipeline(@"nn_fill");
+				nnMetalFillPipeline = nn_metal_new_pipeline(nnMetalLibrary, @"nn_fill");
 			}
 			if (nnMetalFillPipeline != nil) {
-				nnMetalAddRowVectorPipeline = nn_metal_new_pipeline(@"nn_add_row_vector");
+				nnMetalAddRowVectorPipeline = nn_metal_new_pipeline(nnMetalLibrary, @"nn_add_row_vector");
 			}
 			if (nnMetalAddRowVectorPipeline != nil) {
-				nnMetalAddScaledPipeline = nn_metal_new_pipeline(@"nn_add_scaled");
+				nnMetalAddScaledPipeline = nn_metal_new_pipeline(nnMetalLibrary, @"nn_add_scaled");
 			}
 			if (nnMetalAddScaledPipeline != nil) {
-				nnMetalReLUPipeline = nn_metal_new_pipeline(@"nn_relu");
+				nnMetalReLUPipeline = nn_metal_new_pipeline(nnMetalLibrary, @"nn_relu");
 			}
 			if (nnMetalReLUPipeline != nil) {
-				nnMetalReLUBackwardPipeline = nn_metal_new_pipeline(@"nn_relu_backward");
+				nnMetalReLUBackwardPipeline = nn_metal_new_pipeline(nnMetalLibrary, @"nn_relu_backward");
 			}
 			if (nnMetalReLUBackwardPipeline != nil) {
-				nnMetalSoftmaxRowsPipeline = nn_metal_new_pipeline(@"nn_softmax_rows");
+				nnMetalSoftmaxRowsPipeline = nn_metal_new_pipeline(nnMetalLibrary, @"nn_softmax_rows");
 			}
 			if (nnMetalSoftmaxRowsPipeline != nil) {
-				nnMetalSoftmaxRowsBackwardPipeline = nn_metal_new_pipeline(@"nn_softmax_rows_backward");
+				nnMetalSoftmaxRowsBackwardPipeline = nn_metal_new_pipeline(nnMetalLibrary, @"nn_softmax_rows_backward");
 			}
 			if (nnMetalSoftmaxRowsBackwardPipeline != nil) {
-				nnMetalColumnSumsPipeline = nn_metal_new_pipeline(@"nn_column_sums");
+				nnMetalColumnSumsPipeline = nn_metal_new_pipeline(nnMetalLibrary, @"nn_column_sums");
 			}
 			if (nnMetalColumnSumsPipeline != nil) {
-				nnMetalCategoricalCrossEntropyPipeline = nn_metal_new_pipeline(@"nn_categorical_cross_entropy");
+				nnMetalCategoricalCrossEntropyPipeline = nn_metal_new_pipeline(nnMetalLibrary, @"nn_categorical_cross_entropy");
 			}
 			if (nnMetalCategoricalCrossEntropyPipeline != nil) {
 				nnMetalCategoricalCrossEntropyGradientPipeline =
-					nn_metal_new_pipeline(@"nn_categorical_cross_entropy_gradient");
+					nn_metal_new_pipeline(nnMetalLibrary, @"nn_categorical_cross_entropy_gradient");
 			}
 			if (nnMetalCategoricalCrossEntropyGradientPipeline != nil) {
-				nnMetalMatMulPipeline = nn_metal_new_pipeline(@"nn_matmul");
+				nnMetalMatMulPipeline = nn_metal_new_pipeline(nnMetalLibrary, @"nn_matmul");
 			}
 
 			if (nnMetalCommandQueue != nil && nnMetalLibrary != nil &&
@@ -1268,12 +1300,14 @@ int nn_metal_scope_encode_matmul(
 	NNMetalBuffer left,
 	NNMetalBuffer right,
 	NNMetalBuffer result,
-	NNMetalMatMulDimensions dimensions
+	NNMetalMatMulDimensions dimensions,
+	int tensorPipeline
 ) {
 	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
 	NNMetalBufferRecord *leftRecord = nn_metal_buffer_record(left);
 	NNMetalBufferRecord *rightRecord = nn_metal_buffer_record(right);
 	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+	id<MTLComputePipelineState> pipeline = nnMetalMatMulPipeline;
 	id<MTLComputeCommandEncoder> encoder = nil;
 	NSUInteger threadWidth = 16;
 	NSUInteger threadHeight = 16;
@@ -1295,6 +1329,20 @@ int nn_metal_scope_encode_matmul(
 		nn_metal_set_error("metal: encode matrix multiplication: invalid state, dimensions, or buffer length");
 		return NNMetalStatusError;
 	}
+	if (tensorPipeline) {
+		pthread_once(&nnMetalTensorMatMulOnce, nn_metal_initialize_tensor_matmul);
+		pipeline = nnMetalTensorMatMulPipeline;
+		if (pipeline == nil) {
+			nn_metal_set_error(nnMetalTensorMatMulError);
+			return NNMetalStatusError;
+		}
+		MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
+		if (threadWidth > limits.width || threadHeight > limits.height ||
+			threadWidth * threadHeight > [pipeline maxTotalThreadsPerThreadgroup]) {
+			nn_metal_set_error("metal: encode tensor matmul: threadgroup size exceeds Metal limits");
+			return NNMetalStatusError;
+		}
+	}
 
 	@autoreleasepool {
 		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
@@ -1304,7 +1352,7 @@ int nn_metal_scope_encode_matmul(
 		}
 		groupWidth = ((NSUInteger)dimensions.resultCols + threadWidth - 1) / threadWidth;
 		groupHeight = ((NSUInteger)dimensions.resultRows + threadHeight - 1) / threadHeight;
-		[encoder setComputePipelineState:nnMetalMatMulPipeline];
+		[encoder setComputePipelineState:pipeline];
 		[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
 		[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
 		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];

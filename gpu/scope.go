@@ -105,6 +105,68 @@ func (s *Scope) Copy(source, destination *Tensor) (err error) {
 	return nil
 }
 
+// MatMul records destination[M,N] = left[M,K] × right[K,N]. All tensors must
+// be contiguous row-major FP32 matrices with positive dimensions and at most
+// 2³²−1 elements each. Use M=1 for a single-row projection. Operands must be
+// on this device. The inputs may share an allocation. They must already be
+// initialized or written by an earlier operation in the same scope. Destination
+// is fully overwritten and must be distinct from both inputs.
+//
+// Each dot product accumulates in FP32 in contraction order and may use fused
+// multiply-add. NaNs propagate, and infinite operands follow IEEE arithmetic,
+// including NaN for zero times infinity or addition of opposite infinities.
+// NaN payloads, signed zero and subnormal preservation are unspecified.
+func (s *Scope) MatMul(left, right, destination *Tensor) (err error) {
+	return s.matMul(left, right, destination, false)
+}
+
+// MatMulRightTranspose records destination[M,N] = left[M,K] × right[N,K]ᵀ
+// without moving or transposing the stored right operand. It uses the same
+// row-major output, ownership, shape limits and FP32 arithmetic as MatMul.
+func (s *Scope) MatMulRightTranspose(left, right, destination *Tensor) (err error) {
+	return s.matMul(left, right, destination, true)
+}
+
+func (s *Scope) matMul(left, right, destination *Tensor, rightTransposed bool) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	for _, operand := range [3]*Tensor{left, right, destination} {
+		if operand == nil || operand.state == nil || len(operand.state.shape) != 2 {
+			return state.reject("matmul", fmt.Errorf("%w: operands must be rank-two tensors", ErrInvalid))
+		}
+		if operand.state.count > math.MaxUint32 {
+			return state.reject("matmul", fmt.Errorf("%w: tensor element count exceeds the Metal matmul index range", ErrInvalid))
+		}
+	}
+
+	var (
+		m      = left.state.shape[0]
+		k      = left.state.shape[1]
+		rightK = right.state.shape[0]
+		n      = right.state.shape[1]
+	)
+	if rightTransposed {
+		rightK, n = n, rightK
+	}
+	if k != rightK || destination.state.shape[0] != m || destination.state.shape[1] != n {
+		return state.reject("matmul", fmt.Errorf("%w: incompatible left %v, right %v and destination %v shapes (right transposed: %t)",
+			ErrInvalid, left.state.shape, right.state.shape, destination.state.shape, rightTransposed))
+	}
+	if err = state.acquire(destination, left, right); err != nil {
+		return state.reject("matmul", err)
+	}
+	if err = state.commands.encodeMatMul(left.state.buffer, right.state.buffer, destination.state.buffer,
+		uint32(m), uint32(n), uint32(k), rightTransposed); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode matmul: %w", err)
+	}
+	return nil
+}
+
 // Submit commits a nonempty recording once and returns without waiting.
 // If ctx is already canceled at the commit boundary, Submit discards the recording.
 func (s *Scope) Submit(ctx context.Context) (err error) {

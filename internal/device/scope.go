@@ -613,7 +613,7 @@ func (s *Scope) EncodeMatMul(
 		err = errors.New("device: matrix multiplication destination must not alias an input")
 		return err
 	}
-	if operation > OperationMatMulRightTranspose {
+	if operation > OperationTensorMatMulRightTranspose {
 		err = fmt.Errorf("device: unsupported matrix multiplication operation: %d", operation)
 		return err
 	}
@@ -626,6 +626,17 @@ func (s *Scope) EncodeMatMul(
 	dimensions.resultCols = resultCols
 	if err = s.validateMatMulCounts(left, right, result, dimensions); err != nil {
 		return err
+	}
+	if operation >= OperationTensorMatMul {
+		var inner, cols = rightRows, rightCols
+		if operation == OperationTensorMatMulRightTranspose {
+			inner, cols = cols, inner
+		}
+		if leftRows != resultRows || leftCols != inner || cols != resultCols ||
+			left.count == 0 || right.count == 0 || result.count == 0 ||
+			left.count > math.MaxUint32 || right.count > math.MaxUint32 || result.count > math.MaxUint32 {
+			return errors.New("device: invalid tensor matmul dimensions or index range")
+		}
 	}
 
 	if err = s.runtime.backend.encodeMatMul(

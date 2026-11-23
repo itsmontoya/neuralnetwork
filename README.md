@@ -365,6 +365,9 @@ end-to-end measurements.
 
 The experimental [`gpu`](gpu) package offers explicit FP32 tensor allocation,
 transfers, and command scopes on macOS ARM64 with cgo and `-tags=metal`.
+`Scope.MatMul` multiplies row-major `[M,K]` and `[K,N]` tensors, and
+`Scope.MatMulRightTranspose` consumes weights stored as `[N,K]`. Both write
+to a caller-allocated `[M,N]` tensor, with `M=1` for a single-row projection.
 See the [fill example](gpu/example_test.go) for device selection, submission,
 and readback.
 

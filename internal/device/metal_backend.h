@@ -130,7 +130,8 @@ int nn_metal_scope_encode_matmul(
 	NNMetalBuffer left,
 	NNMetalBuffer right,
 	NNMetalBuffer result,
-	NNMetalMatMulDimensions dimensions
+	NNMetalMatMulDimensions dimensions,
+	int tensorPipeline
 );
 int nn_metal_scope_commit(NNMetalScope scope);
 int nn_metal_scope_completed(NNMetalScope scope);
