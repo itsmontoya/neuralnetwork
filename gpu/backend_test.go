@@ -1,6 +1,7 @@
 package gpu
 
 import (
+	"slices"
 	"sync/atomic"
 
 	"github.com/itsmontoya/neuralnetwork/internal/device"
@@ -100,6 +101,22 @@ func (c *fakeCommandBuffer) encodeCopy(source, destination allocation) (err erro
 	)
 	c.commands = append(c.commands, func() {
 		copy(output.values, input.values)
+	})
+	return c.encodeErr
+}
+
+func (c *fakeCommandBuffer) encodeGatherRows(source, destination allocation, columns uint64, rows []int64) (err error) {
+	var (
+		input   = source.(*fakeAllocation)
+		output  = destination.(*fakeAllocation)
+		width   = int(columns)
+		indices = slices.Clone(rows)
+	)
+	c.commands = append(c.commands, func() {
+		for i, row := range indices {
+			var start = int(row) * width
+			copy(output.values[i*width:(i+1)*width], input.values[start:start+width])
+		}
 	})
 	return c.encodeErr
 }

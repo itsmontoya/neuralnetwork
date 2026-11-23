@@ -388,6 +388,11 @@ projection, adjacent-pair rotation, grouped-query attention and the output
 projection in one scope. Each caller-managed sequence can keep its KV cache
 resident and publish staged rows only after a successful step.
 
+`Scope.GatherRows` copies selected rows into a distinct device tensor. The
+[output projection guide](docs/gpu-output-projection.md) shows how embedding
+lookup and the final projection can share one resident weight and how to
+download completed logits explicitly.
+
 ## Development
 
 The baseline verification command is:

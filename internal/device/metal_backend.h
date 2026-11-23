@@ -50,6 +50,14 @@ int nn_metal_scope_encode_copy(
 	NNMetalBuffer destination,
 	uint64_t bytes
 );
+int nn_metal_scope_encode_gather_rows(
+	NNMetalScope scope,
+	NNMetalBuffer source,
+	NNMetalBuffer destination,
+	uint64_t rowBytes,
+	const int64_t *rows,
+	uint64_t count
+);
 int nn_metal_scope_encode_fill(
 	NNMetalScope scope,
 	NNMetalBuffer buffer,

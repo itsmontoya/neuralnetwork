@@ -108,6 +108,43 @@ func (s *Scope) Copy(source, destination *Tensor) (err error) {
 	return nil
 }
 
+// GatherRows records a full copy from source[R,C] into destination[len(rows),C].
+// Each row index is zero-based, and repeated indices are allowed. The indices
+// are consumed during recording. Source must be initialized or written earlier
+// in this scope. Destination must be distinct and on the same device.
+func (s *Scope) GatherRows(source *Tensor, rows []int64, destination *Tensor) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	if source == nil || source.state == nil || len(source.state.shape) != 2 ||
+		destination == nil || destination.state == nil || len(destination.state.shape) != 2 {
+		return state.reject("gather rows", fmt.Errorf("%w: operands must be rank-two tensors", ErrInvalid))
+	}
+	var (
+		sourceRows = source.state.shape[0]
+		columns    = source.state.shape[1]
+	)
+	if len(rows) == 0 || destination.state.shape[0] != int64(len(rows)) || destination.state.shape[1] != columns {
+		return state.reject("gather rows", fmt.Errorf("%w: destination must match the index count and source width", ErrInvalid))
+	}
+	for i, row := range rows {
+		if row < 0 || row >= sourceRows {
+			return state.reject("gather rows", fmt.Errorf("%w: row index %d at offset %d is outside [0,%d)", ErrInvalid, row, i, sourceRows))
+		}
+	}
+	if err = state.acquire(destination, source); err != nil {
+		return state.reject("gather rows", err)
+	}
+	if err = state.commands.encodeGatherRows(source.state.buffer, destination.state.buffer, uint64(columns), rows); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode gather rows: %w", err)
+	}
+	return nil
+}
+
 // Add records an elementwise FP32 sum. Operands must have identical shapes,
 // contain at most 2³²−1 elements each, and belong to the scope's device. Inputs
 // may share an allocation and must be initialized or written earlier in this

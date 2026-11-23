@@ -179,6 +179,32 @@ func (m *metalBackend) encodeCopy(scope, source, destination any, bytes uint64) 
 	return nil
 }
 
+func (m *metalBackend) encodeGatherRows(scope, source, destination any, rowBytes uint64, rows []int64) (err error) {
+	var (
+		scopeHandle       C.NNMetalScope
+		sourceHandle      C.NNMetalBuffer
+		destinationHandle C.NNMetalBuffer
+	)
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if sourceHandle, err = m.bufferHandle(source); err != nil {
+		return err
+	}
+	if destinationHandle, err = m.bufferHandle(destination); err != nil {
+		return err
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	var status = C.nn_metal_scope_encode_gather_rows(scopeHandle, sourceHandle, destinationHandle,
+		C.uint64_t(rowBytes), (*C.int64_t)(unsafe.Pointer(unsafe.SliceData(rows))), C.uint64_t(len(rows)))
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal row gather")
+	}
+	return nil
+}
+
 func (m *metalBackend) encodeFill(scope, buffer any, value float32, count uint64) (err error) {
 	var (
 		scopeHandle  C.NNMetalScope

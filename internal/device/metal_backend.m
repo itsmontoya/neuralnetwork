@@ -931,6 +931,53 @@ int nn_metal_scope_encode_copy(
 	return NNMetalStatusSuccess;
 }
 
+int nn_metal_scope_encode_gather_rows(
+	NNMetalScope scope,
+	NNMetalBuffer source,
+	NNMetalBuffer destination,
+	uint64_t rowBytes,
+	const int64_t *rows,
+	uint64_t count
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *sourceRecord = nn_metal_buffer_record(source);
+	NNMetalBufferRecord *destinationRecord = nn_metal_buffer_record(destination);
+
+	if (scopeRecord == NULL || sourceRecord == NULL || destinationRecord == NULL || rows == NULL) {
+		nn_metal_set_error("metal: encode gather rows: nil handle or indices");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || sourceRecord == destinationRecord || rowBytes == 0 ||
+		rowBytes % sizeof(float) != 0 || sourceRecord->bytes % rowBytes != 0 ||
+		count == 0 || destinationRecord->bytes % rowBytes != 0 || destinationRecord->bytes / rowBytes != count) {
+		nn_metal_set_error("metal: encode gather rows: invalid state or row size");
+		return NNMetalStatusError;
+	}
+	uint64_t sourceRows = sourceRecord->bytes / rowBytes;
+	for (uint64_t i = 0; i < count; i++) {
+		if (rows[i] < 0 || (uint64_t)rows[i] >= sourceRows) {
+			nn_metal_set_error("metal: encode gather rows: row index outside source");
+			return NNMetalStatusError;
+		}
+	}
+
+	@autoreleasepool {
+		id<MTLBlitCommandEncoder> encoder = [scopeRecord->commandBuffer blitCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode gather rows: create blit encoder returned nil");
+			return NNMetalStatusError;
+		}
+		for (uint64_t i = 0; i < count; i++) {
+			[encoder copyFromBuffer:sourceRecord->value sourceOffset:(NSUInteger)((uint64_t)rows[i] * rowBytes)
+				toBuffer:destinationRecord->value destinationOffset:(NSUInteger)(i * rowBytes) size:(NSUInteger)rowBytes];
+		}
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:sourceRecord->value];
+		[scopeRecord->retainedResources addObject:destinationRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
 int nn_metal_scope_encode_fill(
 	NNMetalScope scope,
 	NNMetalBuffer buffer,

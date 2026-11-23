@@ -9,6 +9,7 @@ type backend interface {
 	releaseBuffer(handle any)
 	newScope() (handle any, err error)
 	encodeCopy(scope, source, destination any, bytes uint64) (err error)
+	encodeGatherRows(scope, source, destination any, rowBytes uint64, rows []int64) (err error)
 	encodeFill(scope, buffer any, value float32, count uint64) (err error)
 	encodeElementwise(scope, left, right, result any, count uint32, operation ElementwiseOperation) (err error)
 	encodeAddRowVector(scope, values, rowVector any, rows, cols uint32) (err error)

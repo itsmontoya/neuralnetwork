@@ -16,6 +16,7 @@ type allocation interface {
 type commandBuffer interface {
 	encodeFill(destination allocation, value float32) (err error)
 	encodeCopy(source, destination allocation) (err error)
+	encodeGatherRows(source, destination allocation, columns uint64, rows []int64) (err error)
 	encodeMatMul(left, right, destination allocation, m, n, k uint32, rightTransposed bool) (err error)
 	encodeElementwise(left, right, destination allocation, operation device.ElementwiseOperation) (err error)
 	encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32) (err error)
@@ -55,6 +56,10 @@ func (m metalCommandBuffer) encodeFill(destination allocation, value float32) (e
 
 func (m metalCommandBuffer) encodeCopy(source, destination allocation) (err error) {
 	return m.EncodeCopy(source.(*device.Buffer), destination.(*device.Buffer))
+}
+
+func (m metalCommandBuffer) encodeGatherRows(source, destination allocation, columns uint64, rows []int64) (err error) {
+	return m.EncodeGatherRows(source.(*device.Buffer), destination.(*device.Buffer), columns, rows)
 }
 
 func (m metalCommandBuffer) encodeElementwise(left, right, destination allocation, operation device.ElementwiseOperation) (err error) {
