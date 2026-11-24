@@ -27,7 +27,21 @@ func Test_MetalTensorMatMul(t *testing.T) {
 		{name: "standard_tails", rows: 17, inner: 35, cols: 19},
 		{name: "transposed_tails", rows: 31, inner: 257, cols: 33, transposed: true},
 		{name: "long_contraction", rows: 2, inner: 8193, cols: 5},
+		{name: "row_rt_k1_n1", rows: 1, inner: 1, cols: 1, transposed: true},
+		{name: "row_rt_k3_n1", rows: 1, inner: 3, cols: 1, transposed: true},
+		{name: "row_rt_k4_n1", rows: 1, inner: 4, cols: 1, transposed: true},
+		{name: "row_rt_k4_n3", rows: 1, inner: 4, cols: 3, transposed: true},
+		{name: "row_rt_k4_n9", rows: 1, inner: 4, cols: 9, transposed: true},
+		{name: "row_rt_k31_n17", rows: 1, inner: 31, cols: 17, transposed: true},
+		{name: "row_rt_k32_n33", rows: 1, inner: 32, cols: 33, transposed: true},
+		{name: "row_rt_k128_n15", rows: 1, inner: 128, cols: 15, transposed: true},
+		{name: "row_rt_k132_n18", rows: 1, inner: 132, cols: 18, transposed: true},
+		{name: "row_rt_k257_n33", rows: 1, inner: 257, cols: 33, transposed: true},
+		{name: "projection_attn_kv_decode", rows: 1, inner: 2048, cols: 512, transposed: true},
+		{name: "projection_attn_qo_decode", rows: 1, inner: 2048, cols: 2048, transposed: true},
 		{name: "projection_decode", rows: 1, inner: 2048, cols: 8192, transposed: true},
+		{name: "projection_down_decode", rows: 1, inner: 8192, cols: 2048, transposed: true},
+		{name: "projection_prefill_6", rows: 6, inner: 2048, cols: 8192, transposed: true},
 		{name: "projection_prefill_27", rows: 27, inner: 2048, cols: 8192, transposed: true},
 		{name: "projection_prefill_28", rows: 28, inner: 2048, cols: 8192, transposed: true},
 		{name: "projection_prefill_29", rows: 29, inner: 2048, cols: 8192, transposed: true},
@@ -86,6 +100,20 @@ func Test_MetalTensorMatMulSpecialValues(t *testing.T) {
 				var got = runMetalMatMul(t, gpu, 1, int64(len(tc.left)), 1, tc.left, tc.right, transposed)[0]
 				if got != tc.want && !(math.IsNaN(float64(got)) && math.IsNaN(float64(tc.want))) {
 					t.Fatalf("right transposed %t: got %g, want %g", transposed, got, tc.want)
+				}
+			}
+			// Pad to K=4, N=2 to also exercise the vectorized M=1 right-transposed fast path.
+			var (
+				paddedLeft  = make([]float32, 4)
+				paddedRight = make([]float32, 8)
+			)
+			copy(paddedLeft, tc.left)
+			copy(paddedRight[:4], tc.right)
+			copy(paddedRight[4:], tc.right)
+			var gotPair = runMetalMatMul(t, gpu, 1, 4, 2, paddedLeft, paddedRight, true)
+			for col, got := range gotPair {
+				if got != tc.want && !(math.IsNaN(float64(got)) && math.IsNaN(float64(tc.want))) {
+					t.Fatalf("vectorized M=1 right transposed col %d: got %g, want %g", col, got, tc.want)
 				}
 			}
 		})
