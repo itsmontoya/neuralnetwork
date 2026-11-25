@@ -64,8 +64,9 @@ func (s *Scope) EncodeCopy(source, destination *Buffer) (err error) {
 	return nil
 }
 
-// EncodeGatherRows copies each indexed FP32 row into a disjoint destination.
-func (s *Scope) EncodeGatherRows(source, destination *Buffer, columns uint64, rows []int64) (err error) {
+// EncodeGatherRows copies each indexed row of elemBytes-wide elements into a
+// disjoint destination.
+func (s *Scope) EncodeGatherRows(source, destination *Buffer, columns, elemBytes uint64, rows []int64) (err error) {
 	if err = s.lockForEncoding(); err != nil {
 		return err
 	}
@@ -77,17 +78,66 @@ func (s *Scope) EncodeGatherRows(source, destination *Buffer, columns uint64, ro
 	if err = s.validateBuffer(destination, "gather destination"); err != nil {
 		return err
 	}
-	if source == destination || columns == 0 || columns > source.count || source.count%columns != 0 ||
-		len(rows) == 0 || destination.count%columns != 0 || destination.count/columns != uint64(len(rows)) {
+	if elemBytes != 2 && elemBytes != 4 {
+		return errors.New("device: invalid gather element width")
+	}
+	if source == destination || columns == 0 || len(rows) == 0 || columns > math.MaxUint64/elemBytes {
 		return errors.New("device: invalid gather buffers or row size")
 	}
-	var rowCount = source.count / columns
+	var rowBytes = columns * elemBytes
+	if rowBytes > source.bytes || source.bytes%rowBytes != 0 ||
+		destination.bytes%rowBytes != 0 || destination.bytes/rowBytes != uint64(len(rows)) {
+		return errors.New("device: invalid gather buffers or row size")
+	}
+	var rowCount = source.bytes / rowBytes
 	for _, row := range rows {
 		if row < 0 || uint64(row) >= rowCount {
 			return errors.New("device: gather row index outside source")
 		}
 	}
-	if err = s.runtime.backend.encodeGatherRows(s.handle, source.handle, destination.handle, 4*columns, rows); err != nil {
+	if err = s.runtime.backend.encodeGatherRows(s.handle, source.handle, destination.handle, rowBytes, rows); err != nil {
+		s.fail(err)
+	}
+	return err
+}
+
+// EncodeGatherRowsMixed gathers indexed 16-bit rows (sourceDType: 1=Float16,
+// 2=BFloat16) and converts them into a disjoint FP32 destination.
+func (s *Scope) EncodeGatherRowsMixed(source, destination *Buffer, columns uint64, rows []int64, sourceDType uint32) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	var backend, available = s.runtime.backend.(attentionBackend)
+	if !available {
+		return ErrUnavailable
+	}
+	if err = s.validateBuffer(source, "mixed gather source"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(destination, "mixed gather destination"); err != nil {
+		return err
+	}
+	if source == destination || columns == 0 || columns > math.MaxUint32 || len(rows) == 0 ||
+		(sourceDType != 1 && sourceDType != 2) || source.count != 0 || destination.count == 0 {
+		return errors.New("device: invalid mixed gather buffers, dtype, or row size")
+	}
+	var (
+		srcRowBytes = columns * 2
+		dstRowCount = destination.count / columns
+	)
+	if srcRowBytes > source.bytes || source.bytes%srcRowBytes != 0 ||
+		destination.count%columns != 0 || dstRowCount != uint64(len(rows)) {
+		return errors.New("device: invalid mixed gather buffers or row size")
+	}
+	var rowCount = source.bytes / srcRowBytes
+	for _, row := range rows {
+		if row < 0 || uint64(row) >= rowCount {
+			return errors.New("device: gather row index outside source")
+		}
+	}
+	if err = backend.encodeGatherRowsMixed(s.handle, source.handle, destination.handle, columns, rows, sourceDType); err != nil {
 		s.fail(err)
 	}
 	return err
@@ -191,8 +241,46 @@ func (s *Scope) EncodeKVAppend(history, keys, values, target *Buffer, plane, pre
 	return err
 }
 
-// EncodeAttentionMath binds disjoint FP32 input and output buffers to a
-// tensor-only attention kernel. The caller validates the operation's shape.
+// EncodeKVAppendFloat16 copies the Float16 prefix and converts FP32 keys and
+// values into a disjoint Float16 KV storage slot.
+func (s *Scope) EncodeKVAppendFloat16(history, keys, values, target *Buffer, plane, prefix uint32) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+	var (
+		backend, available = s.runtime.backend.(attentionBackend)
+		historyHandle      any
+	)
+	if !available {
+		return ErrUnavailable
+	}
+	for _, buffer := range [3]*Buffer{keys, values, target} {
+		if err = s.validateBuffer(buffer, "FP16 KV append"); err != nil {
+			return err
+		}
+	}
+	if prefix > 0 {
+		if err = s.validateBuffer(history, "FP16 KV history"); err != nil {
+			return err
+		}
+		if history == target || history.count != 0 || history.bytes != target.bytes {
+			return errors.New("device: invalid FP16 KV history")
+		}
+		historyHandle = history.handle
+	}
+	if target == keys || target == values || keys.count == 0 || keys.count != values.count ||
+		target.count != 0 || target.bytes != 2*uint64(plane)*2 || uint64(prefix)+keys.count > uint64(plane) {
+		return errors.New("device: invalid FP16 KV append buffers or range")
+	}
+	if err = backend.encodeKVAppendFloat16(s.handle, historyHandle, keys.handle, values.handle, target.handle, plane, prefix); err != nil {
+		s.fail(err)
+	}
+	return err
+}
+
+// EncodeAttentionMath binds disjoint input and output buffers to a
+// tensor-only attention or normalization kernel. The caller validates the operation's shape.
 func (s *Scope) EncodeAttentionMath(operation AttentionMathOperation, first, second, target, extra *Buffer, params [6]uint32, threads uint32) (err error) {
 	if err = s.lockForEncoding(); err != nil {
 		return err
@@ -205,7 +293,7 @@ func (s *Scope) EncodeAttentionMath(operation AttentionMathOperation, first, sec
 	if !available {
 		return ErrUnavailable
 	}
-	if operation > TensorCausalAttention || threads == 0 || (extra != nil) != (operation == TensorRotatePairs) ||
+	if operation > TensorCausalAttentionFloat16 || threads == 0 || (extra != nil) != (operation == TensorRotatePairs) ||
 		first == target || second == target || extra == target {
 		return errors.New("device: invalid attention math operation or buffer alias")
 	}

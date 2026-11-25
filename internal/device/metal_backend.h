@@ -60,6 +60,15 @@ int nn_metal_scope_encode_gather_rows(
 	const int64_t *rows,
 	uint64_t count
 );
+int nn_metal_scope_encode_gather_rows_mixed(
+	NNMetalScope scope,
+	NNMetalBuffer source,
+	NNMetalBuffer destination,
+	uint64_t columns,
+	const int64_t *rows,
+	uint64_t count,
+	uint32_t sourceDType
+);
 int nn_metal_scope_encode_fill(
 	NNMetalScope scope,
 	NNMetalBuffer buffer,
@@ -75,6 +84,10 @@ int nn_metal_scope_encode_tensor_elementwise(
 	uint32_t operation
 );
 int nn_metal_scope_encode_kv_append(
+	NNMetalScope scope, NNMetalBuffer history, NNMetalBuffer keys, NNMetalBuffer values,
+	NNMetalBuffer target, uint32_t plane, uint32_t prefix
+);
+int nn_metal_scope_encode_kv_append_f16(
 	NNMetalScope scope, NNMetalBuffer history, NNMetalBuffer keys, NNMetalBuffer values,
 	NNMetalBuffer target, uint32_t plane, uint32_t prefix
 );
