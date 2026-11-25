@@ -145,3 +145,70 @@ func Test_ScopeMatMulFailures(t *testing.T) {
 	requireError(t, retry.Close(), nil)
 	requireError(t, output.DownloadInto(value[:]), nil)
 }
+
+func Test_ScopeMatMulMixedDTypeValidation(t *testing.T) {
+	var (
+		backend    fakeBackend
+		device     = newDevice(&backend, 4096)
+		leftF32    = requireTensorWithDType(t, device, Float32, 2, 3)
+		leftF16    = requireTensorWithDType(t, device, Float16, 2, 3)
+		leftBF16   = requireTensorWithDType(t, device, BFloat16, 2, 3)
+		rightF16   = requireTensorWithDType(t, device, Float16, 3, 4)
+		rightF16T  = requireTensorWithDType(t, device, Float16, 4, 3)
+		rightBF16  = requireTensorWithDType(t, device, BFloat16, 3, 4)
+		rightBF16T = requireTensorWithDType(t, device, BFloat16, 4, 3)
+		uninitF16  = requireTensorWithDType(t, device, Float16, 4, 3)
+		outF32     = requireTensorWithDType(t, device, Float32, 2, 4)
+		outF16     = requireTensorWithDType(t, device, Float16, 2, 4)
+		outBF16    = requireTensorWithDType(t, device, BFloat16, 2, 4)
+		scope      = requireScope(t, device)
+	)
+	requireError(t, leftF32.Upload(make([]float32, 6)), nil)
+	requireError(t, leftF16.UploadBits(make([]uint16, 6)), nil)
+	requireError(t, leftBF16.UploadBits(make([]uint16, 6)), nil)
+	requireError(t, rightF16.UploadBits(make([]uint16, 12)), nil)
+	requireError(t, rightF16T.UploadBits(make([]uint16, 12)), nil)
+	requireError(t, rightBF16.UploadBits(make([]uint16, 12)), nil)
+	requireError(t, rightBF16T.UploadBits(make([]uint16, 12)), nil)
+
+	type testcase struct {
+		name                string
+		left, right, output *Tensor
+		rightTransposed     bool
+		want                error
+	}
+	var tests = []testcase{
+		{name: "f16 left standard", left: leftF16, right: rightF16, output: outF32, want: ErrInvalid},
+		{name: "bf16 left transposed", left: leftBF16, right: rightBF16T, output: outF32, rightTransposed: true, want: ErrInvalid},
+		{name: "f16 dst standard", left: leftF32, right: rightF16, output: outF16, want: ErrInvalid},
+		{name: "bf16 dst transposed", left: leftF32, right: rightBF16T, output: outBF16, rightTransposed: true, want: ErrInvalid},
+		{name: "f16 shape mismatch", left: leftF32, right: rightF16, output: outF32, rightTransposed: true, want: ErrInvalid},
+		{name: "bf16 shape mismatch", left: leftF32, right: rightBF16T, output: outF32, want: ErrInvalid},
+		{name: "uninitialized f16 right", left: leftF32, right: uninitF16, output: outF32, rightTransposed: true, want: ErrUninitialized},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var err error
+			if tt.rightTransposed {
+				err = scope.MatMulRightTranspose(tt.left, tt.right, tt.output)
+			} else {
+				err = scope.MatMul(tt.left, tt.right, tt.output)
+			}
+			requireError(t, err, tt.want)
+		})
+	}
+	if backend.matmuls.Load() != 0 {
+		t.Fatal("invalid mixed matmul reached the backend")
+	}
+
+	requireError(t, scope.MatMul(leftF32, rightF16, outF32), nil)
+	requireError(t, scope.MatMulRightTranspose(leftF32, rightF16T, outF32), nil)
+	requireError(t, scope.MatMul(leftF32, rightBF16, outF32), nil)
+	requireError(t, scope.MatMulRightTranspose(leftF32, rightBF16T, outF32), nil)
+	requireError(t, scope.Submit(context.Background()), nil)
+	requireError(t, scope.Wait(context.Background()), nil)
+	requireError(t, scope.Close(), nil)
+	if backend.matmuls.Load() != 4 {
+		t.Fatalf("matmuls encoded = %d, want 4", backend.matmuls.Load())
+	}
+}

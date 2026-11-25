@@ -19,7 +19,7 @@ type commandBuffer interface {
 	encodeFill(destination allocation, value float32) (err error)
 	encodeCopy(source, destination allocation) (err error)
 	encodeGatherRows(source, destination allocation, columns uint64, rows []int64) (err error)
-	encodeMatMul(left, right, destination allocation, m, n, k uint32, rightTransposed bool) (err error)
+	encodeMatMul(left, right, destination allocation, m, n, k uint32, rightTransposed bool, rightDType DType) (err error)
 	encodeElementwise(left, right, destination allocation, operation device.ElementwiseOperation) (err error)
 	encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32) (err error)
 	encodeAttentionMath(operation device.AttentionMathOperation, first, second, target, extra allocation, params [6]uint32, threads uint32) (err error)
@@ -78,15 +78,31 @@ func (m metalCommandBuffer) encodeElementwise(left, right, destination allocatio
 	return m.EncodeElementwise(left.(*device.Buffer), second, destination.(*device.Buffer), operation)
 }
 
-func (m metalCommandBuffer) encodeMatMul(left, right, destination allocation, rows, cols, inner uint32, rightTransposed bool) (err error) {
+func (m metalCommandBuffer) encodeMatMul(left, right, destination allocation, rows, cols, inner uint32, rightTransposed bool, rightDType DType) (err error) {
 	var (
-		operation = device.OperationTensorMatMul
+		operation device.Operation
 		rightRows = inner
 		rightCols = cols
 	)
 	if rightTransposed {
-		operation = device.OperationTensorMatMulRightTranspose
 		rightRows, rightCols = rightCols, rightRows
+		switch rightDType {
+		case Float16:
+			operation = device.OperationTensorMatMulRightTransposeFloat16
+		case BFloat16:
+			operation = device.OperationTensorMatMulRightTransposeBFloat16
+		default:
+			operation = device.OperationTensorMatMulRightTranspose
+		}
+	} else {
+		switch rightDType {
+		case Float16:
+			operation = device.OperationTensorMatMulFloat16
+		case BFloat16:
+			operation = device.OperationTensorMatMulBFloat16
+		default:
+			operation = device.OperationTensorMatMul
+		}
 	}
 	return m.EncodeMatMul(left.(*device.Buffer), right.(*device.Buffer), destination.(*device.Buffer),
 		rows, inner, rightRows, rightCols, rows, cols, operation)

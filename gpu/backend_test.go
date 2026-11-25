@@ -144,7 +144,7 @@ func (c *fakeCommandBuffer) encodeGatherRows(source, destination allocation, col
 	return c.encodeErr
 }
 
-func (c *fakeCommandBuffer) encodeMatMul(_, _, _ allocation, _, _, _ uint32, _ bool) (err error) {
+func (c *fakeCommandBuffer) encodeMatMul(_, _, _ allocation, _, _, _ uint32, _ bool, _ DType) (err error) {
 	c.backend.matmuls.Add(1)
 	return c.encodeErr
 }
