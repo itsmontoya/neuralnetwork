@@ -849,6 +849,7 @@ func (m *metalBackend) encodeMatMul(
 		resultHandle    C.NNMetalBuffer
 		metalDimensions C.NNMetalMatMulDimensions
 		tensorPipeline  C.int
+		weightDType     C.uint32_t
 		status          C.int
 	)
 
@@ -878,19 +879,42 @@ func (m *metalBackend) encodeMatMul(
 	case OperationTensorMatMulRightTranspose:
 		tensorPipeline = 1
 		metalDimensions.variant = C.uint32_t(OperationMatMulRightTranspose)
+	case OperationTensorMatMulFloat16:
+		weightDType = C.NNMetalWeightFloat16
+		metalDimensions.variant = C.uint32_t(OperationMatMul)
+	case OperationTensorMatMulRightTransposeFloat16:
+		weightDType = C.NNMetalWeightFloat16
+		metalDimensions.variant = C.uint32_t(OperationMatMulRightTranspose)
+	case OperationTensorMatMulBFloat16:
+		weightDType = C.NNMetalWeightBFloat16
+		metalDimensions.variant = C.uint32_t(OperationMatMul)
+	case OperationTensorMatMulRightTransposeBFloat16:
+		weightDType = C.NNMetalWeightBFloat16
+		metalDimensions.variant = C.uint32_t(OperationMatMulRightTranspose)
 	default:
 		metalDimensions.variant = C.uint32_t(operation)
 	}
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	status = C.nn_metal_scope_encode_matmul(
-		scopeHandle,
-		leftHandle,
-		rightHandle,
-		resultHandle,
-		metalDimensions,
-		tensorPipeline,
-	)
+	if weightDType != 0 {
+		status = C.nn_metal_scope_encode_matmul_mixed(
+			scopeHandle,
+			leftHandle,
+			rightHandle,
+			resultHandle,
+			metalDimensions,
+			weightDType,
+		)
+	} else {
+		status = C.nn_metal_scope_encode_matmul(
+			scopeHandle,
+			leftHandle,
+			rightHandle,
+			resultHandle,
+			metalDimensions,
+			tensorPipeline,
+		)
+	}
 	if status != C.NNMetalStatusSuccess {
 		err = m.lastError("encode Metal matrix multiplication")
 		return err

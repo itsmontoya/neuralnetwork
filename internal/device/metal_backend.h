@@ -151,6 +151,11 @@ int nn_metal_scope_encode_categorical_cross_entropy_gradient(
 	uint32_t cols,
 	float epsilon
 );
+enum {
+	NNMetalWeightFloat16 = 1,
+	NNMetalWeightBFloat16 = 2,
+};
+
 int nn_metal_scope_encode_matmul(
 	NNMetalScope scope,
 	NNMetalBuffer left,
@@ -158,6 +163,14 @@ int nn_metal_scope_encode_matmul(
 	NNMetalBuffer result,
 	NNMetalMatMulDimensions dimensions,
 	int tensorPipeline
+);
+int nn_metal_scope_encode_matmul_mixed(
+	NNMetalScope scope,
+	NNMetalBuffer left,
+	NNMetalBuffer right,
+	NNMetalBuffer result,
+	NNMetalMatMulDimensions dimensions,
+	uint32_t weightDType
 );
 int nn_metal_scope_commit(NNMetalScope scope);
 int nn_metal_scope_completed(NNMetalScope scope);
