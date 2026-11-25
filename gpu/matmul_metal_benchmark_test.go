@@ -85,7 +85,7 @@ func benchmarkMetalRightTranspose(b *testing.B, rows, inner, cols int64) {
 }
 
 // Benchmark_MatMulRightTransposeMixedMetal compares isolated resident
-// right-transposed projections across Float32, Float16, and BFloat16 weights.
+// right-transposed projections across Float32, Float16, BFloat16, Q8_0, and Q4_0 weights.
 func Benchmark_MatMulRightTransposeMixedMetal(b *testing.B) {
 	var cases = []struct {
 		name              string
@@ -104,7 +104,11 @@ func Benchmark_MatMulRightTransposeMixedMetal(b *testing.B) {
 	}
 	for _, tc := range cases {
 		b.Run(tc.name, func(b *testing.B) {
-			for _, dtype := range []DType{Float32, Float16, BFloat16} {
+			var dtypes = []DType{Float32, Float16, BFloat16}
+			if tc.inner%QuantBlockSize == 0 {
+				dtypes = append(dtypes, Q8_0, Q4_0)
+			}
+			for _, dtype := range dtypes {
 				b.Run(dtype.String(), func(b *testing.B) {
 					benchmarkMetalRightTransposeDType(b, dtype, tc.rows, tc.inner, tc.cols)
 				})
