@@ -28,6 +28,18 @@ func (b *Buffer) Count() (count uint64) {
 	return count
 }
 
+// Bytes returns the buffer's allocated byte length.
+func (b *Buffer) Bytes() (bytes uint64) {
+	if b == nil {
+		return 0
+	}
+
+	b.mutex.Lock()
+	bytes = b.bytes
+	b.mutex.Unlock()
+	return bytes
+}
+
 // Upload copies a complete float32 value set into the buffer.
 func (b *Buffer) Upload(values []float32) (err error) {
 	var handle any
@@ -65,6 +77,90 @@ func (b *Buffer) Download(destination []float32) (err error) {
 
 	if err = b.runtime.backend.download(handle, destination); err != nil {
 		return fmt.Errorf("device: download buffer: %w", err)
+	}
+
+	return nil
+}
+
+// UploadBytes copies a complete byte slice into the buffer.
+func (b *Buffer) UploadBytes(values []byte) (err error) {
+	var handle any
+
+	if handle, err = b.lockedHandle("upload bytes"); err != nil {
+		return err
+	}
+	defer b.mutex.Unlock()
+
+	if uint64(len(values)) != b.bytes {
+		err = fmt.Errorf("device: upload bytes length mismatch: got %d, want %d", len(values), b.bytes)
+		return err
+	}
+
+	if err = b.runtime.backend.uploadBytes(handle, values); err != nil {
+		return fmt.Errorf("device: upload buffer bytes: %w", err)
+	}
+
+	return nil
+}
+
+// DownloadBytes copies the complete buffer bytes into destination.
+func (b *Buffer) DownloadBytes(destination []byte) (err error) {
+	var handle any
+
+	if handle, err = b.lockedHandle("download bytes"); err != nil {
+		return err
+	}
+	defer b.mutex.Unlock()
+
+	if uint64(len(destination)) != b.bytes {
+		err = fmt.Errorf("device: download bytes length mismatch: got %d, want %d", len(destination), b.bytes)
+		return err
+	}
+
+	if err = b.runtime.backend.downloadBytes(handle, destination); err != nil {
+		return fmt.Errorf("device: download buffer bytes: %w", err)
+	}
+
+	return nil
+}
+
+// UploadUint16 copies a complete uint16 slice into the buffer.
+func (b *Buffer) UploadUint16(values []uint16) (err error) {
+	var handle any
+
+	if handle, err = b.lockedHandle("upload uint16"); err != nil {
+		return err
+	}
+	defer b.mutex.Unlock()
+
+	if uint64(len(values))*2 != b.bytes {
+		err = fmt.Errorf("device: upload uint16 length mismatch: got %d bytes, want %d", uint64(len(values))*2, b.bytes)
+		return err
+	}
+
+	if err = b.runtime.backend.uploadUint16(handle, values); err != nil {
+		return fmt.Errorf("device: upload uint16 buffer: %w", err)
+	}
+
+	return nil
+}
+
+// DownloadUint16 copies the complete buffer contents into a uint16 slice.
+func (b *Buffer) DownloadUint16(destination []uint16) (err error) {
+	var handle any
+
+	if handle, err = b.lockedHandle("download uint16"); err != nil {
+		return err
+	}
+	defer b.mutex.Unlock()
+
+	if uint64(len(destination))*2 != b.bytes {
+		err = fmt.Errorf("device: download uint16 length mismatch: got %d bytes, want %d", uint64(len(destination))*2, b.bytes)
+		return err
+	}
+
+	if err = b.runtime.backend.downloadUint16(handle, destination); err != nil {
+		return fmt.Errorf("device: download uint16 buffer: %w", err)
 	}
 
 	return nil
