@@ -23,6 +23,7 @@ type commandBuffer interface {
 	encodeGatherRows(source, destination allocation, columns uint64, rows []int64, sourceDType, destinationDType DType) (err error)
 	encodeMatMul(left, right, destination allocation, m, n, k uint32, rightTransposed bool, rightDType DType) (err error)
 	encodeElementwise(left, right, destination allocation, operation device.ElementwiseOperation) (err error)
+	encodeSoftmax(input, destination allocation, outer, axisSize, inner uint32) (err error)
 	encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32, cacheDType DType) (err error)
 	encodeAttentionMath(operation device.AttentionMathOperation, first, second, target, extra allocation, params [6]uint32, threads uint32) (err error)
 	Commit() (err error)
@@ -85,6 +86,10 @@ func (m metalCommandBuffer) encodeElementwise(left, right, destination allocatio
 		second = right.(*device.Buffer)
 	}
 	return m.EncodeElementwise(left.(*device.Buffer), second, destination.(*device.Buffer), operation)
+}
+
+func (m metalCommandBuffer) encodeSoftmax(input, destination allocation, outer, axisSize, inner uint32) (err error) {
+	return m.EncodeTensorSoftmax(input.(*device.Buffer), destination.(*device.Buffer), outer, axisSize, inner)
 }
 
 func (m metalCommandBuffer) encodeMatMul(left, right, destination allocation, rows, cols, inner uint32, rightTransposed bool, rightDType DType) (err error) {

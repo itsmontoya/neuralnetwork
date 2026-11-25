@@ -16,6 +16,7 @@ type backend interface {
 	encodeGatherRows(scope, source, destination any, rowBytes uint64, rows []int64) (err error)
 	encodeFill(scope, buffer any, value float32, count uint64) (err error)
 	encodeElementwise(scope, left, right, result any, count uint32, operation ElementwiseOperation) (err error)
+	encodeTensorSoftmax(scope, input, result any, outer, axisSize, inner uint32) (err error)
 	encodeAddRowVector(scope, values, rowVector any, rows, cols uint32) (err error)
 	encodeAddScaled(scope, left, right, result any, scale float32, count uint32) (err error)
 	encodeReLU(scope, input, result any, count uint32) (err error)

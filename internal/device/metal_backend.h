@@ -83,6 +83,14 @@ int nn_metal_scope_encode_tensor_elementwise(
 	uint32_t count,
 	uint32_t operation
 );
+int nn_metal_scope_encode_tensor_softmax(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer result,
+	uint32_t outer,
+	uint32_t axisSize,
+	uint32_t inner
+);
 int nn_metal_scope_encode_kv_append(
 	NNMetalScope scope, NNMetalBuffer history, NNMetalBuffer keys, NNMetalBuffer values,
 	NNMetalBuffer target, uint32_t plane, uint32_t prefix

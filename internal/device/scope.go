@@ -163,15 +163,16 @@ func (s *Scope) EncodeFill(buffer *Buffer, value float32) (err error) {
 	return nil
 }
 
-// EncodeElementwise appends a full tensor operation. SiLU takes one input, and
-// the other operations take two. The destination must be disjoint from inputs.
+// EncodeElementwise appends a full tensor operation. Unary activations take one
+// input, and binary operations take two. The destination must be disjoint from inputs.
 func (s *Scope) EncodeElementwise(left, right, result *Buffer, operation ElementwiseOperation) (err error) {
 	if err = s.lockForEncoding(); err != nil {
 		return err
 	}
 	defer s.mutex.Unlock()
 
-	if operation > ElementwiseSwiGLU || (operation == ElementwiseSiLU && right != nil) {
+	var unary = operation.isUnary()
+	if operation > ElementwiseTanh || (unary && right != nil) {
 		return errors.New("device: unsupported elementwise operation or input count")
 	}
 	if err = s.validateBuffer(left, "elementwise input"); err != nil {
@@ -186,7 +187,7 @@ func (s *Scope) EncodeElementwise(left, right, result *Buffer, operation Element
 	}
 
 	var rightHandle any
-	if operation != ElementwiseSiLU {
+	if !unary {
 		if err = s.validateBuffer(right, "elementwise second input"); err != nil {
 			return err
 		}
@@ -199,6 +200,38 @@ func (s *Scope) EncodeElementwise(left, right, result *Buffer, operation Element
 	err = s.runtime.backend.encodeElementwise(s.handle, left.handle, rightHandle, result.handle, uint32(result.count), operation)
 	if err != nil {
 		err = fmt.Errorf("device: encode elementwise operation: %w", err)
+		s.fail(err)
+	}
+	return err
+}
+
+// EncodeTensorSoftmax appends a numerically stable FP32 softmax over the middle
+// dimension of [outer, axisSize, inner] into a disjoint destination buffer.
+func (s *Scope) EncodeTensorSoftmax(input, result *Buffer, outer, axisSize, inner uint32) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(input, "softmax input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "softmax destination"); err != nil {
+		return err
+	}
+	if input == result || outer == 0 || axisSize == 0 || inner == 0 {
+		return errors.New("device: invalid softmax destination or dimensions")
+	}
+	var total = uint64(outer) * uint64(axisSize)
+	if total > math.MaxUint32 {
+		return errors.New("device: softmax element count exceeds uint32")
+	}
+	total *= uint64(inner)
+	if total > math.MaxUint32 || input.count != total || result.count != total {
+		return errors.New("device: softmax buffer length mismatch or index overflow")
+	}
+	if err = s.runtime.backend.encodeTensorSoftmax(s.handle, input.handle, result.handle, outer, axisSize, inner); err != nil {
+		err = fmt.Errorf("device: encode tensor softmax: %w", err)
 		s.fail(err)
 	}
 	return err

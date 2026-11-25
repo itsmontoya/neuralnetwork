@@ -18,6 +18,7 @@ type fakeBackend struct {
 	downloads   atomic.Int32
 	matmuls     atomic.Int32
 	elementwise atomic.Int32
+	softmaxes   atomic.Int32
 }
 
 func (b *fakeBackend) newBuffer(count, bytes uint64, dtype DType) (buffer allocation, err error) {
@@ -189,6 +190,11 @@ func (c *fakeCommandBuffer) encodeMatMul(_, _, _ allocation, _, _, _ uint32, _ b
 
 func (c *fakeCommandBuffer) encodeElementwise(_, _, _ allocation, _ device.ElementwiseOperation) (err error) {
 	c.backend.elementwise.Add(1)
+	return c.encodeErr
+}
+
+func (c *fakeCommandBuffer) encodeSoftmax(_, _ allocation, _, _, _ uint32) (err error) {
+	c.backend.softmaxes.Add(1)
 	return c.encodeErr
 }
 
