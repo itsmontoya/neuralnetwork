@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"sync"
 	"testing"
 )
 
@@ -581,6 +582,112 @@ func Test_MetalTransformerBlockMixedPrecision(t *testing.T) {
 				t.Fatalf("%s leaked resources: before %+v after %+v", m.name, baseline, after)
 			}
 		})
+	}
+}
+
+func Test_MetalRMSNormConcurrentStress(t *testing.T) {
+	var (
+		device   = requireMetalDevice(t)
+		native   = device.state.backend.(metalBackend).runtime
+		baseline = native.ResourceSnapshot()
+		width    = int64(2048)
+		rows     = int64(6)
+		dtypes   = []DType{Float32, Float16, BFloat16}
+	)
+	for _, dtype := range dtypes {
+		t.Run(dtype.String(), func(t *testing.T) {
+			var (
+				weight = requireTensorWithDType(t, device, dtype, width)
+				wVals  = attentionValues(width, 0x1357+uint64(dtype), 1)
+				wRef   = dequantizeForRef(wVals, dtype)
+			)
+			requireError(t, weight.UploadFloat32As(wVals), nil)
+
+			const (
+				workers    = 6
+				iterations = 12
+				dispatches = 33
+			)
+			var (
+				wg   sync.WaitGroup
+				errs = make(chan error, workers)
+			)
+			for worker := range workers {
+				wg.Add(1)
+				go func(id int) {
+					defer wg.Done()
+					var (
+						inVals = attentionValues(rows*width, uint64(id+1)*97+uint64(dtype), 1)
+						want   = referenceNorm(inVals, wRef)
+						got    = make([]float32, len(inVals))
+						input  *Tensor
+						output *Tensor
+						err    error
+					)
+					if input, err = device.NewFloat32([]int64{rows, width}); err != nil {
+						errs <- fmt.Errorf("worker %d alloc input: %w", id, err)
+						return
+					}
+					defer func() { _ = input.Close() }()
+					if output, err = device.NewFloat32([]int64{rows, width}); err != nil {
+						errs <- fmt.Errorf("worker %d alloc output: %w", id, err)
+						return
+					}
+					defer func() { _ = output.Close() }()
+					if err = input.Upload(inVals); err != nil {
+						errs <- fmt.Errorf("worker %d upload: %w", id, err)
+						return
+					}
+					for iter := range iterations {
+						var scope *Scope
+						if scope, err = device.NewScope(); err != nil {
+							errs <- fmt.Errorf("worker %d iter %d scope: %w", id, iter, err)
+							return
+						}
+						for range dispatches {
+							if err = scope.RMSNorm(input, weight, output, attentionEpsilon); err != nil {
+								_ = scope.Close()
+								errs <- fmt.Errorf("worker %d iter %d encode: %w", id, iter, err)
+								return
+							}
+						}
+						if err = scope.Submit(context.Background()); err != nil {
+							_ = scope.Close()
+							errs <- fmt.Errorf("worker %d iter %d submit: %w", id, iter, err)
+							return
+						}
+						if err = scope.Wait(context.Background()); err != nil {
+							_ = scope.Close()
+							errs <- fmt.Errorf("worker %d iter %d wait: %w", id, iter, err)
+							return
+						}
+						if err = scope.Close(); err != nil {
+							errs <- fmt.Errorf("worker %d iter %d close: %w", id, iter, err)
+							return
+						}
+						if err = output.DownloadInto(got); err != nil {
+							errs <- fmt.Errorf("worker %d iter %d download: %w", id, iter, err)
+							return
+						}
+						var _, _, _, maxErr = fp64ErrorStats(got, want)
+						if maxErr > 1e-5 {
+							errs <- fmt.Errorf("worker %d iter %d max FP64 error %g exceeds 1e-5", id, iter, maxErr)
+							return
+						}
+					}
+				}(worker)
+			}
+			wg.Wait()
+			close(errs)
+			for err := range errs {
+				t.Fatal(err)
+			}
+			requireError(t, weight.Close(), nil)
+		})
+	}
+	var after = native.ResourceSnapshot()
+	if after.LiveBuffers != baseline.LiveBuffers || after.LiveBufferBytes != baseline.LiveBufferBytes || after.LiveScopes != baseline.LiveScopes {
+		t.Fatalf("concurrent RMSNorm stress leaked resources: before %+v after %+v", baseline, after)
 	}
 }
 
