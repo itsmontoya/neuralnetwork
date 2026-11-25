@@ -841,7 +841,7 @@ func (s *Scope) EncodeMatMul(
 		err = errors.New("device: matrix multiplication destination must not alias an input")
 		return err
 	}
-	if operation > OperationTensorMatMulRightTransposeBFloat16 {
+	if operation > OperationTensorMatMulRightTransposeQ4_0 {
 		err = fmt.Errorf("device: unsupported matrix multiplication operation: %d", operation)
 		return err
 	}
@@ -1089,7 +1089,9 @@ func (s *Scope) validateMixedMatMulBuffers(
 		cols        = dimensions.rightCols
 	)
 	if operation == OperationTensorMatMulRightTransposeFloat16 ||
-		operation == OperationTensorMatMulRightTransposeBFloat16 {
+		operation == OperationTensorMatMulRightTransposeBFloat16 ||
+		operation == OperationTensorMatMulRightTransposeQ8_0 ||
+		operation == OperationTensorMatMulRightTransposeQ4_0 {
 		inner, cols = cols, inner
 	}
 	if dimensions.leftRows != dimensions.resultRows || dimensions.leftCols != inner || cols != dimensions.resultCols ||
@@ -1097,13 +1099,28 @@ func (s *Scope) validateMixedMatMulBuffers(
 		leftCount > math.MaxUint32 || rightCount > math.MaxUint32 || resultCount > math.MaxUint32 {
 		return errors.New("device: invalid mixed-precision tensor matmul dimensions or index range")
 	}
-	if left.count != leftCount || right.count != 0 || right.bytes != rightCount*2 || result.count != resultCount {
+	var expectedRightBytes uint64
+	switch operation {
+	case OperationTensorMatMulRightTransposeQ8_0:
+		if inner%32 != 0 {
+			return errors.New("device: Q8_0 tensor matmul inner dimension must be a multiple of 32")
+		}
+		expectedRightBytes = (rightCount / 32) * 34
+	case OperationTensorMatMulRightTransposeQ4_0:
+		if inner%32 != 0 {
+			return errors.New("device: Q4_0 tensor matmul inner dimension must be a multiple of 32")
+		}
+		expectedRightBytes = (rightCount / 32) * 18
+	default:
+		expectedRightBytes = rightCount * 2
+	}
+	if left.count != leftCount || right.count != 0 || right.bytes != expectedRightBytes || result.count != resultCount {
 		return fmt.Errorf(
 			"device: mixed-precision matrix multiplication buffer length mismatch: left=%d/%d rightBytes=%d/%d result=%d/%d",
 			left.count,
 			leftCount,
 			right.bytes,
-			rightCount*2,
+			expectedRightBytes,
 			result.count,
 			resultCount,
 		)

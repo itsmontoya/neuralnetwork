@@ -3,6 +3,7 @@
 #include "metal_backend.h"
 #include "attention_metal_source.h"
 #include "matmul_mixed_metal_source.h"
+#include "matmul_quant_metal_source.h"
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -367,6 +368,16 @@ typedef enum {
 static pthread_once_t nnMetalTensorMatMulMixedOnce = PTHREAD_ONCE_INIT;
 static id<MTLComputePipelineState> nnMetalTensorMatMulMixedPipelines[NNMetalMatMulMixedCount];
 static char nnMetalTensorMatMulMixedError[1024];
+typedef enum {
+	NNMetalMatMulQuantQ8_0,
+	NNMetalMatMulQuantQ8_0RowRT,
+	NNMetalMatMulQuantQ4_0,
+	NNMetalMatMulQuantQ4_0RowRT,
+	NNMetalMatMulQuantCount,
+} NNMetalMatMulQuantPipeline;
+static pthread_once_t nnMetalTensorMatMulQuantOnce = PTHREAD_ONCE_INIT;
+static id<MTLComputePipelineState> nnMetalTensorMatMulQuantPipelines[NNMetalMatMulQuantCount];
+static char nnMetalTensorMatMulQuantError[1024];
 static pthread_once_t nnMetalTensorElementwiseOnce = PTHREAD_ONCE_INIT;
 static id<MTLComputePipelineState> nnMetalTensorElementwisePipelines[NNMetalTensorElementwiseCount];
 static char nnMetalTensorElementwiseError[1024];
@@ -515,6 +526,43 @@ static void nn_metal_initialize_tensor_matmul_mixed(void) {
 				for (NSUInteger j = 0; j < i; j++) {
 					[nnMetalTensorMatMulMixedPipelines[j] release];
 					nnMetalTensorMatMulMixedPipelines[j] = nil;
+				}
+				break;
+			}
+		}
+		[library release];
+	}
+}
+
+// Block-quantized Q8_0/Q4_0 matmul pipelines compile lazily with fastMathEnabled = NO.
+static void nn_metal_initialize_tensor_matmul_quant(void) {
+	@autoreleasepool {
+		NSError *error = nil;
+		NSString *source = [NSString stringWithFormat:@"%s%s%s",
+			nnMetalShaderHeader, nnMetalMatMulDimensionsSource, nnMetalMatMulQuantSource];
+		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		[options setFastMathEnabled:NO];
+		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
+		[options release];
+		if (library == nil) {
+			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile quantized matmul library: %@", [error localizedDescription]]);
+			strlcpy(nnMetalTensorMatMulQuantError, nnMetalLastError, sizeof(nnMetalTensorMatMulQuantError));
+			return;
+		}
+
+		NSString *names[NNMetalMatMulQuantCount] = {
+			[NNMetalMatMulQuantQ8_0] = @"nn_matmul_q8_0",
+			[NNMetalMatMulQuantQ8_0RowRT] = @"nn_matmul_q8_0_row_right_transpose",
+			[NNMetalMatMulQuantQ4_0] = @"nn_matmul_q4_0",
+			[NNMetalMatMulQuantQ4_0RowRT] = @"nn_matmul_q4_0_row_right_transpose",
+		};
+		for (NSUInteger i = 0; i < NNMetalMatMulQuantCount; i++) {
+			nnMetalTensorMatMulQuantPipelines[i] = nn_metal_new_pipeline(library, names[i]);
+			if (nnMetalTensorMatMulQuantPipelines[i] == nil) {
+				strlcpy(nnMetalTensorMatMulQuantError, nnMetalLastError, sizeof(nnMetalTensorMatMulQuantError));
+				for (NSUInteger j = 0; j < i; j++) {
+					[nnMetalTensorMatMulQuantPipelines[j] release];
+					nnMetalTensorMatMulQuantPipelines[j] = nil;
 				}
 				break;
 			}
@@ -2069,6 +2117,124 @@ int nn_metal_scope_encode_matmul_mixed(
 		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
 		if (encoder == nil) {
 			nn_metal_set_error("metal: encode mixed matmul: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		NSUInteger groupWidth = ((NSUInteger)dimensions.resultCols + threadWidth - 1) / threadWidth;
+		NSUInteger groupHeight = ((NSUInteger)dimensions.resultRows + threadHeight - 1) / threadHeight;
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+		[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
+		[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, threadHeight, 1)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:leftRecord->value];
+		[scopeRecord->retainedResources addObject:rightRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_matmul_quant(
+	NNMetalScope scope,
+	NNMetalBuffer left,
+	NNMetalBuffer right,
+	NNMetalBuffer result,
+	NNMetalMatMulDimensions dimensions,
+	uint32_t weightDType
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *leftRecord = nn_metal_buffer_record(left);
+	NNMetalBufferRecord *rightRecord = nn_metal_buffer_record(right);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+	id<MTLComputePipelineState> pipeline = nil;
+	id<MTLComputeCommandEncoder> encoder = nil;
+	uint64_t leftBytes = 0;
+	uint64_t rightBytes = 0;
+	uint64_t resultBytes = 0;
+	uint64_t blockBytes = 0;
+	int useRowRT = 0;
+	NSUInteger pipelineIndex = 0;
+
+	if (scopeRecord == NULL || leftRecord == NULL || rightRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode quantized matrix multiplication: nil handle");
+		return NNMetalStatusError;
+	}
+	if (weightDType == NNMetalWeightQ8_0) {
+		blockBytes = 34;
+	} else if (weightDType == NNMetalWeightQ4_0) {
+		blockBytes = 18;
+	} else {
+		nn_metal_set_error("metal: encode quantized matrix multiplication: unsupported weight dtype");
+		return NNMetalStatusError;
+	}
+	if (dimensions.leftCols == 0 || (dimensions.leftCols % 32) != 0 || dimensions.rightCols != dimensions.leftCols) {
+		nn_metal_set_error("metal: encode quantized matrix multiplication: inner dimension must be a positive multiple of 32");
+		return NNMetalStatusError;
+	}
+	leftBytes = (uint64_t)dimensions.leftRows * dimensions.leftCols * sizeof(float);
+	rightBytes = (uint64_t)dimensions.rightRows * ((uint64_t)dimensions.rightCols / 32) * blockBytes;
+	resultBytes = (uint64_t)dimensions.resultRows * dimensions.resultCols * sizeof(float);
+	if (scopeRecord->committed ||
+		dimensions.variant != 2 ||
+		leftBytes == 0 || rightBytes == 0 || resultBytes == 0 ||
+		leftBytes != leftRecord->bytes || rightBytes != rightRecord->bytes || resultBytes != resultRecord->bytes) {
+		nn_metal_set_error("metal: encode quantized matrix multiplication: invalid state, dimensions, or buffer length");
+		return NNMetalStatusError;
+	}
+
+	pthread_once(&nnMetalTensorMatMulQuantOnce, nn_metal_initialize_tensor_matmul_quant);
+	useRowRT = (dimensions.resultRows == 1);
+	if (weightDType == NNMetalWeightQ8_0) {
+		pipelineIndex = useRowRT ? NNMetalMatMulQuantQ8_0RowRT : NNMetalMatMulQuantQ8_0;
+	} else {
+		pipelineIndex = useRowRT ? NNMetalMatMulQuantQ4_0RowRT : NNMetalMatMulQuantQ4_0;
+	}
+	pipeline = nnMetalTensorMatMulQuantPipelines[pipelineIndex];
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalTensorMatMulQuantError);
+		return NNMetalStatusError;
+	}
+
+	MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
+	if (useRowRT) {
+		NSUInteger threads = 128;
+		if (threads > limits.width || threads > [pipeline maxTotalThreadsPerThreadgroup]) {
+			nn_metal_set_error("metal: encode quantized row matmul: threadgroup size exceeds Metal limits");
+			return NNMetalStatusError;
+		}
+		@autoreleasepool {
+			encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+			if (encoder == nil) {
+				nn_metal_set_error("metal: encode quantized row matmul: create compute encoder returned nil");
+				return NNMetalStatusError;
+			}
+			NSUInteger groups = ((NSUInteger)dimensions.resultCols + 7) / 8;
+			[encoder setComputePipelineState:pipeline];
+			[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
+			[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
+			[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+			[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
+			[encoder dispatchThreadgroups:MTLSizeMake(groups, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
+			[encoder endEncoding];
+			[scopeRecord->retainedResources addObject:leftRecord->value];
+			[scopeRecord->retainedResources addObject:rightRecord->value];
+			[scopeRecord->retainedResources addObject:resultRecord->value];
+		}
+		return NNMetalStatusSuccess;
+	}
+
+	NSUInteger threadWidth = 16;
+	NSUInteger threadHeight = 16;
+	if (threadWidth > limits.width || threadHeight > limits.height ||
+		threadWidth * threadHeight > [pipeline maxTotalThreadsPerThreadgroup]) {
+		nn_metal_set_error("metal: encode quantized matmul: threadgroup size exceeds Metal limits");
+		return NNMetalStatusError;
+	}
+	@autoreleasepool {
+		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode quantized matmul: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		NSUInteger groupWidth = ((NSUInteger)dimensions.resultCols + threadWidth - 1) / threadWidth;
