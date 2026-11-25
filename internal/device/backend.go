@@ -19,6 +19,7 @@ type backend interface {
 	encodeTensorScale(scope, input, result any, scale float32, count uint32) (err error)
 	encodeTensorBroadcast(scope, left, right, result any, operation BroadcastOperation, spec BroadcastSpec) (err error)
 	encodeTensorSoftmax(scope, input, result any, outer, axisSize, inner uint32) (err error)
+	encodeTensorLayerNorm(scope, input, weight, bias, result any, rows, width uint32, epsilon float32, weightDType, biasDType uint32) (err error)
 	encodeAddRowVector(scope, values, rowVector any, rows, cols uint32) (err error)
 	encodeAddScaled(scope, left, right, result any, scale float32, count uint32) (err error)
 	encodeReLU(scope, input, result any, count uint32) (err error)

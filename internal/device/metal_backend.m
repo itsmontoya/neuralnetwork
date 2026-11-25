@@ -4,6 +4,7 @@
 #include "attention_metal_source.h"
 #include "broadcast_metal_source.h"
 #include "elementwise_metal_source.h"
+#include "layernorm_metal_source.h"
 #include "matmul_mixed_metal_source.h"
 #include "matmul_quant_metal_source.h"
 #include "softmax_metal_source.h"
@@ -11,6 +12,7 @@
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 
+#include <float.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -366,6 +368,9 @@ typedef enum {
 static pthread_once_t nnMetalTensorSoftmaxOnce = PTHREAD_ONCE_INIT;
 static id<MTLComputePipelineState> nnMetalTensorSoftmaxPipelines[NNMetalTensorSoftmaxCount];
 static char nnMetalTensorSoftmaxError[1024];
+static pthread_once_t nnMetalTensorLayerNormOnce = PTHREAD_ONCE_INIT;
+static id<MTLComputePipelineState> nnMetalTensorLayerNormPipeline = nil;
+static char nnMetalTensorLayerNormError[1024];
 typedef enum {
 	NNMetalTensorScale,
 	NNMetalTensorBroadcastScalar,
@@ -672,6 +677,28 @@ static void nn_metal_initialize_tensor_softmax(void) {
 				}
 				break;
 			}
+		}
+		[library release];
+	}
+}
+
+// Tensor LayerNorm pipeline compiles lazily with fastMathEnabled = NO.
+static void nn_metal_initialize_tensor_layernorm(void) {
+	@autoreleasepool {
+		NSError *error = nil;
+		NSString *source = [NSString stringWithFormat:@"%s%s", nnMetalShaderHeader, nnMetalTensorLayerNormSource];
+		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		[options setFastMathEnabled:NO];
+		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
+		[options release];
+		if (library == nil) {
+			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile tensor LayerNorm library: %@", [error localizedDescription]]);
+			strlcpy(nnMetalTensorLayerNormError, nnMetalLastError, sizeof(nnMetalTensorLayerNormError));
+			return;
+		}
+		nnMetalTensorLayerNormPipeline = nn_metal_new_pipeline(library, @"nn_tensor_layer_norm");
+		if (nnMetalTensorLayerNormPipeline == nil) {
+			strlcpy(nnMetalTensorLayerNormError, nnMetalLastError, sizeof(nnMetalTensorLayerNormError));
 		}
 		[library release];
 	}
@@ -1609,6 +1636,107 @@ int nn_metal_scope_encode_tensor_softmax(
 		}
 		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_tensor_layernorm(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer weight,
+	NNMetalBuffer bias,
+	NNMetalBuffer result,
+	uint32_t rows,
+	uint32_t width,
+	float epsilon,
+	uint32_t weightDType,
+	uint32_t biasDType
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *inputRecord = nn_metal_buffer_record(input);
+	NNMetalBufferRecord *weightRecord = nn_metal_buffer_record(weight);
+	NNMetalBufferRecord *biasRecord = nn_metal_buffer_record(bias);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+
+	if (scopeRecord == NULL || inputRecord == NULL || weightRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode tensor LayerNorm: invalid handles");
+		return NNMetalStatusError;
+	}
+	if (bias != NULL && biasRecord == NULL) {
+		nn_metal_set_error("metal: encode tensor LayerNorm: invalid bias handle");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || rows == 0 || width == 0 ||
+		!(epsilon > 0.0f && epsilon <= FLT_MAX) ||
+		weightDType > 2 || (biasRecord != NULL && biasDType > 2) ||
+		inputRecord == resultRecord || weightRecord == resultRecord ||
+		(biasRecord != NULL && biasRecord == resultRecord)) {
+		nn_metal_set_error("metal: encode tensor LayerNorm: invalid state, alias, dimensions, epsilon or dtype");
+		return NNMetalStatusError;
+	}
+	uint64_t total = (uint64_t)rows * (uint64_t)width;
+	if (total > UINT32_MAX) {
+		nn_metal_set_error("metal: encode tensor LayerNorm: element count exceeds uint32");
+		return NNMetalStatusError;
+	}
+	uint64_t bytes = total * sizeof(float);
+	if (bytes != inputRecord->bytes || bytes != resultRecord->bytes) {
+		nn_metal_set_error("metal: encode tensor LayerNorm: input or destination buffer length mismatch");
+		return NNMetalStatusError;
+	}
+	uint64_t weightElemBytes = (weightDType == 0) ? sizeof(float) : sizeof(uint16_t);
+	if ((uint64_t)width * weightElemBytes != weightRecord->bytes) {
+		nn_metal_set_error("metal: encode tensor LayerNorm: weight buffer length mismatch");
+		return NNMetalStatusError;
+	}
+	if (biasRecord != NULL) {
+		uint64_t biasElemBytes = (biasDType == 0) ? sizeof(float) : sizeof(uint16_t);
+		if ((uint64_t)width * biasElemBytes != biasRecord->bytes) {
+			nn_metal_set_error("metal: encode tensor LayerNorm: bias buffer length mismatch");
+			return NNMetalStatusError;
+		}
+	}
+
+	pthread_once(&nnMetalTensorLayerNormOnce, nn_metal_initialize_tensor_layernorm);
+	id<MTLComputePipelineState> pipeline = nnMetalTensorLayerNormPipeline;
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalTensorLayerNormError);
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode tensor LayerNorm: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		uint32_t epsilonBits = 0;
+		memcpy(&epsilonBits, &epsilon, sizeof(epsilonBits));
+		uint32_t hasBias = (biasRecord != NULL) ? 1u : 0u;
+		uint32_t params[5] = { width, epsilonBits, weightDType, biasDType, hasBias };
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:inputRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:weightRecord->value offset:0 atIndex:1];
+		[encoder setBuffer:(biasRecord != NULL ? biasRecord->value : weightRecord->value) offset:0 atIndex:2];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:3];
+		[encoder setBytes:params length:sizeof(params) atIndex:4];
+		NSUInteger tgSize = 256;
+		if (width <= 32) {
+			tgSize = 32;
+		} else if (width <= 64) {
+			tgSize = 64;
+		} else if (width <= 128) {
+			tgSize = 128;
+		}
+		tgSize = MIN(tgSize, [pipeline maxTotalThreadsPerThreadgroup]);
+		[encoder dispatchThreadgroups:MTLSizeMake(rows, 1, 1) threadsPerThreadgroup:MTLSizeMake(tgSize, 1, 1)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:inputRecord->value];
+		[scopeRecord->retainedResources addObject:weightRecord->value];
+		if (biasRecord != NULL) {
+			[scopeRecord->retainedResources addObject:biasRecord->value];
+		}
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
 	return NNMetalStatusSuccess;

@@ -686,6 +686,10 @@ func (b *testBackend) encodeTensorSoftmax(_, _, _ any, _, _, _ uint32) (err erro
 	return b.encodeErr
 }
 
+func (b *testBackend) encodeTensorLayerNorm(_, _, _, _, _ any, _, _ uint32, _ float32, _, _ uint32) (err error) {
+	return b.encodeErr
+}
+
 func (b *testBackend) encodeMatMul(
 	any,
 	any,

@@ -516,6 +516,53 @@ func (m *metalBackend) encodeTensorSoftmax(scope, input, result any, outer, axis
 	return nil
 }
 
+func (m *metalBackend) encodeTensorLayerNorm(scope, input, weight, bias, result any, rows, width uint32, epsilon float32, weightDType, biasDType uint32) (err error) {
+	var (
+		scopeHandle  C.NNMetalScope
+		inputHandle  C.NNMetalBuffer
+		weightHandle C.NNMetalBuffer
+		biasHandle   C.NNMetalBuffer
+		resultHandle C.NNMetalBuffer
+		status       C.int
+	)
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if inputHandle, err = m.bufferHandle(input); err != nil {
+		return err
+	}
+	if weightHandle, err = m.bufferHandle(weight); err != nil {
+		return err
+	}
+	if bias != nil {
+		if biasHandle, err = m.bufferHandle(bias); err != nil {
+			return err
+		}
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_scope_encode_tensor_layernorm(
+		scopeHandle,
+		inputHandle,
+		weightHandle,
+		biasHandle,
+		resultHandle,
+		C.uint32_t(rows),
+		C.uint32_t(width),
+		C.float(epsilon),
+		C.uint32_t(weightDType),
+		C.uint32_t(biasDType),
+	)
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal tensor LayerNorm")
+	}
+	return nil
+}
+
 func (m *metalBackend) encodeKVAppend(scope, history, keys, values, target any, plane, prefix uint32) (err error) {
 	var scopeHandle C.NNMetalScope
 	if scopeHandle, err = m.scopeHandle(scope); err != nil {
