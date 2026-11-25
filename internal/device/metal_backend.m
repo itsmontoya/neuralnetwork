@@ -2,12 +2,14 @@
 
 #include "metal_backend.h"
 #include "attention_metal_source.h"
+#include "batched_matmul_metal_source.h"
 #include "broadcast_metal_source.h"
 #include "elementwise_metal_source.h"
 #include "layernorm_metal_source.h"
 #include "matmul_mixed_metal_source.h"
 #include "matmul_quant_metal_source.h"
 #include "softmax_metal_source.h"
+#include "transpose_metal_source.h"
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -372,6 +374,28 @@ static pthread_once_t nnMetalTensorLayerNormOnce = PTHREAD_ONCE_INIT;
 static id<MTLComputePipelineState> nnMetalTensorLayerNormPipeline = nil;
 static char nnMetalTensorLayerNormError[1024];
 typedef enum {
+	NNMetalTensorTranspose2DU32,
+	NNMetalTensorTranspose2DU16,
+	NNMetalTensorTransposeGeneralU32,
+	NNMetalTensorTransposeGeneralU16,
+	NNMetalTensorTransposeCount,
+} NNMetalTensorTransposePipeline;
+static pthread_once_t nnMetalTensorTransposeOnce = PTHREAD_ONCE_INIT;
+static id<MTLComputePipelineState> nnMetalTensorTransposePipelines[NNMetalTensorTransposeCount];
+static char nnMetalTensorTransposeError[1024];
+typedef enum {
+	NNMetalMatMulLeftTransposeF32,
+	NNMetalMatMulLeftTransposeF16,
+	NNMetalMatMulLeftTransposeBF16,
+	NNMetalBatchedMatMulF32,
+	NNMetalBatchedMatMulF16,
+	NNMetalBatchedMatMulBF16,
+	NNMetalBatchedMatMulCount,
+} NNMetalBatchedMatMulPipeline;
+static pthread_once_t nnMetalBatchedMatMulOnce = PTHREAD_ONCE_INIT;
+static id<MTLComputePipelineState> nnMetalBatchedMatMulPipelines[NNMetalBatchedMatMulCount];
+static char nnMetalBatchedMatMulError[1024];
+typedef enum {
 	NNMetalTensorScale,
 	NNMetalTensorBroadcastScalar,
 	NNMetalTensorBroadcastLastAxis,
@@ -699,6 +723,80 @@ static void nn_metal_initialize_tensor_layernorm(void) {
 		nnMetalTensorLayerNormPipeline = nn_metal_new_pipeline(library, @"nn_tensor_layer_norm");
 		if (nnMetalTensorLayerNormPipeline == nil) {
 			strlcpy(nnMetalTensorLayerNormError, nnMetalLastError, sizeof(nnMetalTensorLayerNormError));
+		}
+		[library release];
+	}
+}
+
+// Tensor transpose pipelines compile lazily with fastMathEnabled = NO.
+static void nn_metal_initialize_tensor_transpose(void) {
+	@autoreleasepool {
+		NSError *error = nil;
+		NSString *source = [NSString stringWithFormat:@"%s%s", nnMetalShaderHeader, nnMetalTensorTransposeSource];
+		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		[options setFastMathEnabled:NO];
+		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
+		[options release];
+		if (library == nil) {
+			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile tensor transpose library: %@", [error localizedDescription]]);
+			strlcpy(nnMetalTensorTransposeError, nnMetalLastError, sizeof(nnMetalTensorTransposeError));
+			return;
+		}
+
+		NSString *names[NNMetalTensorTransposeCount] = {
+			[NNMetalTensorTranspose2DU32] = @"nn_tensor_transpose_2d_u32",
+			[NNMetalTensorTranspose2DU16] = @"nn_tensor_transpose_2d_u16",
+			[NNMetalTensorTransposeGeneralU32] = @"nn_tensor_transpose_general_u32",
+			[NNMetalTensorTransposeGeneralU16] = @"nn_tensor_transpose_general_u16",
+		};
+		for (NSUInteger i = 0; i < NNMetalTensorTransposeCount; i++) {
+			nnMetalTensorTransposePipelines[i] = nn_metal_new_pipeline(library, names[i]);
+			if (nnMetalTensorTransposePipelines[i] == nil) {
+				strlcpy(nnMetalTensorTransposeError, nnMetalLastError, sizeof(nnMetalTensorTransposeError));
+				for (NSUInteger j = 0; j < i; j++) {
+					[nnMetalTensorTransposePipelines[j] release];
+					nnMetalTensorTransposePipelines[j] = nil;
+				}
+				break;
+			}
+		}
+		[library release];
+	}
+}
+
+// MatMulLeftTranspose and batched MatMul pipelines compile lazily with fastMathEnabled = NO.
+static void nn_metal_initialize_batched_matmul(void) {
+	@autoreleasepool {
+		NSError *error = nil;
+		NSString *source = [NSString stringWithFormat:@"%s%s", nnMetalShaderHeader, nnMetalBatchedMatMulSource];
+		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		[options setFastMathEnabled:NO];
+		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
+		[options release];
+		if (library == nil) {
+			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile batched matmul library: %@", [error localizedDescription]]);
+			strlcpy(nnMetalBatchedMatMulError, nnMetalLastError, sizeof(nnMetalBatchedMatMulError));
+			return;
+		}
+
+		NSString *names[NNMetalBatchedMatMulCount] = {
+			[NNMetalMatMulLeftTransposeF32] = @"nn_matmul_left_transpose_f32",
+			[NNMetalMatMulLeftTransposeF16] = @"nn_matmul_left_transpose_f16",
+			[NNMetalMatMulLeftTransposeBF16] = @"nn_matmul_left_transpose_bf16",
+			[NNMetalBatchedMatMulF32] = @"nn_batched_matmul_f32",
+			[NNMetalBatchedMatMulF16] = @"nn_batched_matmul_f16",
+			[NNMetalBatchedMatMulBF16] = @"nn_batched_matmul_bf16",
+		};
+		for (NSUInteger i = 0; i < NNMetalBatchedMatMulCount; i++) {
+			nnMetalBatchedMatMulPipelines[i] = nn_metal_new_pipeline(library, names[i]);
+			if (nnMetalBatchedMatMulPipelines[i] == nil) {
+				strlcpy(nnMetalBatchedMatMulError, nnMetalLastError, sizeof(nnMetalBatchedMatMulError));
+				for (NSUInteger j = 0; j < i; j++) {
+					[nnMetalBatchedMatMulPipelines[j] release];
+					nnMetalBatchedMatMulPipelines[j] = nil;
+				}
+				break;
+			}
 		}
 		[library release];
 	}
@@ -1737,6 +1835,233 @@ int nn_metal_scope_encode_tensor_layernorm(
 		if (biasRecord != NULL) {
 			[scopeRecord->retainedResources addObject:biasRecord->value];
 		}
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_tensor_transpose(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer result,
+	NNMetalTransposeParams params,
+	uint32_t elemBytes
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *inputRecord = nn_metal_buffer_record(input);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+
+	if (scopeRecord == NULL || inputRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode tensor transpose: invalid handles");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || inputRecord == resultRecord ||
+		params.rank == 0 || params.rank > 6 || params.count == 0 ||
+		(elemBytes != 2 && elemBytes != 4)) {
+		nn_metal_set_error("metal: encode tensor transpose: invalid state, alias, rank, count or element width");
+		return NNMetalStatusError;
+	}
+	uint64_t expectedBytes = (uint64_t)params.count * (uint64_t)elemBytes;
+	if (inputRecord->bytes != expectedBytes || resultRecord->bytes != expectedBytes) {
+		nn_metal_set_error("metal: encode tensor transpose: buffer length mismatch");
+		return NNMetalStatusError;
+	}
+
+	pthread_once(&nnMetalTensorTransposeOnce, nn_metal_initialize_tensor_transpose);
+	int is2D = (params.rank == 2 && params.inStrides[0] == 1 && params.inStrides[1] == params.dims[0]);
+	NSUInteger pipelineIndex = 0;
+	if (is2D) {
+		pipelineIndex = (elemBytes == 4) ? NNMetalTensorTranspose2DU32 : NNMetalTensorTranspose2DU16;
+	} else {
+		pipelineIndex = (elemBytes == 4) ? NNMetalTensorTransposeGeneralU32 : NNMetalTensorTransposeGeneralU16;
+	}
+	id<MTLComputePipelineState> pipeline = nnMetalTensorTransposePipelines[pipelineIndex];
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalTensorTransposeError);
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode tensor transpose: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:inputRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:1];
+		[encoder setBytes:&params length:sizeof(params) atIndex:2];
+		if (is2D) {
+			NSUInteger tile = 16;
+			MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
+			if (tile > limits.width || tile > limits.height ||
+				tile * tile > [pipeline maxTotalThreadsPerThreadgroup]) {
+				[encoder endEncoding];
+				nn_metal_set_error("metal: encode tensor transpose: threadgroup size exceeds Metal limits");
+				return NNMetalStatusError;
+			}
+			NSUInteger groupWidth = ((NSUInteger)params.dims[0] + tile - 1) / tile;
+			NSUInteger groupHeight = ((NSUInteger)params.dims[1] + tile - 1) / tile;
+			[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(tile, tile, 1)];
+		} else {
+			NSUInteger threadWidth = MIN((NSUInteger)256, [pipeline maxTotalThreadsPerThreadgroup]);
+			[encoder dispatchThreads:MTLSizeMake(params.count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
+		}
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:inputRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_matmul_left_transpose(
+	NNMetalScope scope,
+	NNMetalBuffer left,
+	NNMetalBuffer right,
+	NNMetalBuffer result,
+	uint32_t m,
+	uint32_t n,
+	uint32_t k,
+	uint32_t rightDType
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *leftRecord = nn_metal_buffer_record(left);
+	NNMetalBufferRecord *rightRecord = nn_metal_buffer_record(right);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+
+	if (scopeRecord == NULL || leftRecord == NULL || rightRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode left-transposed matmul: nil handle");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || leftRecord == resultRecord || rightRecord == resultRecord ||
+		m == 0 || n == 0 || k == 0 || rightDType > 2) {
+		nn_metal_set_error("metal: encode left-transposed matmul: invalid state, alias, dimensions or dtype");
+		return NNMetalStatusError;
+	}
+	uint64_t leftBytes = (uint64_t)k * (uint64_t)m * sizeof(float);
+	uint64_t rightElemBytes = (rightDType == 0) ? sizeof(float) : sizeof(uint16_t);
+	uint64_t rightBytes = (uint64_t)k * (uint64_t)n * rightElemBytes;
+	uint64_t resultBytes = (uint64_t)m * (uint64_t)n * sizeof(float);
+	if (leftBytes != leftRecord->bytes || rightBytes != rightRecord->bytes || resultBytes != resultRecord->bytes) {
+		nn_metal_set_error("metal: encode left-transposed matmul: buffer length mismatch");
+		return NNMetalStatusError;
+	}
+
+	pthread_once(&nnMetalBatchedMatMulOnce, nn_metal_initialize_batched_matmul);
+	NSUInteger pipelineIndex = NNMetalMatMulLeftTransposeF32 + rightDType;
+	id<MTLComputePipelineState> pipeline = nnMetalBatchedMatMulPipelines[pipelineIndex];
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalBatchedMatMulError);
+		return NNMetalStatusError;
+	}
+
+	NSUInteger threadWidth = 16;
+	NSUInteger threadHeight = 16;
+	MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
+	if (threadWidth > limits.width || threadHeight > limits.height ||
+		threadWidth * threadHeight > [pipeline maxTotalThreadsPerThreadgroup]) {
+		nn_metal_set_error("metal: encode left-transposed matmul: threadgroup size exceeds Metal limits");
+		return NNMetalStatusError;
+	}
+
+	NNMetalBatchedMatMulParams params;
+	memset(&params, 0, sizeof(params));
+	params.m = m;
+	params.n = n;
+	params.k = k;
+	params.totalBatches = 1;
+
+	@autoreleasepool {
+		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode left-transposed matmul: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		NSUInteger groupWidth = ((NSUInteger)n + threadWidth - 1) / threadWidth;
+		NSUInteger groupHeight = ((NSUInteger)m + threadHeight - 1) / threadHeight;
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+		[encoder setBytes:&params length:sizeof(params) atIndex:3];
+		[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, threadHeight, 1)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:leftRecord->value];
+		[scopeRecord->retainedResources addObject:rightRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_batched_matmul(
+	NNMetalScope scope,
+	NNMetalBuffer left,
+	NNMetalBuffer right,
+	NNMetalBuffer result,
+	NNMetalBatchedMatMulParams params,
+	uint32_t rightDType
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *leftRecord = nn_metal_buffer_record(left);
+	NNMetalBufferRecord *rightRecord = nn_metal_buffer_record(right);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+
+	if (scopeRecord == NULL || leftRecord == NULL || rightRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode batched matmul: nil handle");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || leftRecord == resultRecord || rightRecord == resultRecord ||
+		params.m == 0 || params.n == 0 || params.k == 0 ||
+		params.totalBatches == 0 || params.batchRank > 4 || rightDType > 2) {
+		nn_metal_set_error("metal: encode batched matmul: invalid state, alias, dimensions or dtype");
+		return NNMetalStatusError;
+	}
+	uint64_t leftMatBytes = (uint64_t)params.m * (uint64_t)params.k * sizeof(float);
+	uint64_t rightElemBytes = (rightDType == 0) ? sizeof(float) : sizeof(uint16_t);
+	uint64_t rightMatBytes = (uint64_t)params.k * (uint64_t)params.n * rightElemBytes;
+	uint64_t resultBytes = (uint64_t)params.totalBatches * (uint64_t)params.m * (uint64_t)params.n * sizeof(float);
+	if (leftMatBytes == 0 || rightMatBytes == 0 || resultBytes != resultRecord->bytes ||
+		leftRecord->bytes == 0 || leftRecord->bytes % leftMatBytes != 0 ||
+		rightRecord->bytes == 0 || rightRecord->bytes % rightMatBytes != 0) {
+		nn_metal_set_error("metal: encode batched matmul: buffer length mismatch");
+		return NNMetalStatusError;
+	}
+
+	pthread_once(&nnMetalBatchedMatMulOnce, nn_metal_initialize_batched_matmul);
+	NSUInteger pipelineIndex = NNMetalBatchedMatMulF32 + rightDType;
+	id<MTLComputePipelineState> pipeline = nnMetalBatchedMatMulPipelines[pipelineIndex];
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalBatchedMatMulError);
+		return NNMetalStatusError;
+	}
+
+	NSUInteger threadWidth = 16;
+	NSUInteger threadHeight = 16;
+	MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
+	if (threadWidth > limits.width || threadHeight > limits.height ||
+		threadWidth * threadHeight > [pipeline maxTotalThreadsPerThreadgroup]) {
+		nn_metal_set_error("metal: encode batched matmul: threadgroup size exceeds Metal limits");
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode batched matmul: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		NSUInteger groupWidth = ((NSUInteger)params.n + threadWidth - 1) / threadWidth;
+		NSUInteger groupHeight = ((NSUInteger)params.m + threadHeight - 1) / threadHeight;
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+		[encoder setBytes:&params length:sizeof(params) atIndex:3];
+		[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, params.totalBatches)
+			threadsPerThreadgroup:MTLSizeMake(threadWidth, threadHeight, 1)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:leftRecord->value];
+		[scopeRecord->retainedResources addObject:rightRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
 	return NNMetalStatusSuccess;

@@ -369,6 +369,145 @@ func (s *Scope) EncodeTensorLayerNorm(input, weight, bias, result *Buffer, rows,
 	return err
 }
 
+// EncodeTensorTranspose appends a contiguous 2-byte or 4-byte axis permutation
+// described by spec into a disjoint destination buffer.
+func (s *Scope) EncodeTensorTranspose(input, result *Buffer, spec TransposeSpec) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(input, "transpose input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "transpose destination"); err != nil {
+		return err
+	}
+	if input == result || spec.Rank == 0 || spec.Rank > 6 || spec.Count == 0 ||
+		(spec.ElemBytes != 2 && spec.ElemBytes != 4) {
+		return errors.New("device: invalid transpose destination, rank, count or element width")
+	}
+	var expectedBytes = uint64(spec.Count) * uint64(spec.ElemBytes)
+	if input.bytes != expectedBytes || result.bytes != expectedBytes {
+		return errors.New("device: transpose buffer length mismatch")
+	}
+	var (
+		product uint64 = 1
+		maxIn   uint64
+	)
+	for i := range int(spec.Rank) {
+		var dim = uint64(spec.Dims[i])
+		if dim == 0 {
+			return errors.New("device: transpose dimension must be positive")
+		}
+		product *= dim
+		if product > math.MaxUint32 {
+			return errors.New("device: transpose element count exceeds uint32")
+		}
+		maxIn += (dim - 1) * uint64(spec.InStrides[i])
+	}
+	if product != uint64(spec.Count) || maxIn >= uint64(spec.Count) {
+		return errors.New("device: transpose strides exceed buffer length")
+	}
+	if err = s.runtime.backend.encodeTensorTranspose(s.handle, input.handle, result.handle, spec); err != nil {
+		err = fmt.Errorf("device: encode tensor transpose: %w", err)
+		s.fail(err)
+	}
+	return err
+}
+
+// EncodeTensorMatMulLeftTranspose appends left[K,M]^T * right[K,N] into
+// result[M,N] with FP32 accumulation for Float32 (0), Float16 (1), or
+// BFloat16 (2) right operands.
+func (s *Scope) EncodeTensorMatMulLeftTranspose(left, right, result *Buffer, m, n, k, rightDType uint32) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(left, "left-transposed matmul left input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(right, "left-transposed matmul right input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "left-transposed matmul destination"); err != nil {
+		return err
+	}
+	if left == result || right == result || m == 0 || n == 0 || k == 0 || rightDType > 2 {
+		return errors.New("device: invalid left-transposed matmul destination, dimensions or dtype")
+	}
+	var (
+		leftCount   = uint64(k) * uint64(m)
+		rightCount  = uint64(k) * uint64(n)
+		resultCount = uint64(m) * uint64(n)
+	)
+	if leftCount > math.MaxUint32 || rightCount > math.MaxUint32 || resultCount > math.MaxUint32 {
+		return errors.New("device: left-transposed matmul element count exceeds uint32")
+	}
+	var rightElemBytes uint64 = 4
+	if rightDType != 0 {
+		rightElemBytes = 2
+	}
+	if left.count != leftCount || result.count != resultCount || right.bytes != rightCount*rightElemBytes {
+		return errors.New("device: left-transposed matmul buffer length mismatch")
+	}
+	if err = s.runtime.backend.encodeTensorMatMulLeftTranspose(s.handle, left.handle, right.handle, result.handle, m, n, k, rightDType); err != nil {
+		err = fmt.Errorf("device: encode left-transposed matmul: %w", err)
+		s.fail(err)
+	}
+	return err
+}
+
+// EncodeTensorBatchedMatMul appends a rank 2..6 broadcast-batched matrix
+// multiplication with FP32 accumulation for Float32 (0), Float16 (1), or
+// BFloat16 (2) right operands.
+func (s *Scope) EncodeTensorBatchedMatMul(left, right, result *Buffer, spec BatchedMatMulSpec) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(left, "batched matmul left input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(right, "batched matmul right input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "batched matmul destination"); err != nil {
+		return err
+	}
+	if left == result || right == result || spec.M == 0 || spec.N == 0 || spec.K == 0 ||
+		spec.TotalBatches == 0 || spec.BatchRank > 4 || spec.RightDType > 2 {
+		return errors.New("device: invalid batched matmul destination, dimensions or dtype")
+	}
+	var (
+		leftMatrixElems  = uint64(spec.M) * uint64(spec.K)
+		rightMatrixElems = uint64(spec.K) * uint64(spec.N)
+		outMatrixElems   = uint64(spec.M) * uint64(spec.N)
+	)
+	if leftMatrixElems > math.MaxUint32 || rightMatrixElems > math.MaxUint32 || outMatrixElems > math.MaxUint32 {
+		return errors.New("device: batched matmul matrix size exceeds uint32")
+	}
+	var totalOut = uint64(spec.TotalBatches) * outMatrixElems
+	if totalOut > math.MaxUint32 || result.count != totalOut {
+		return errors.New("device: batched matmul destination buffer length mismatch")
+	}
+	var rightElemBytes uint64 = 4
+	if spec.RightDType != 0 {
+		rightElemBytes = 2
+	}
+	if left.count == 0 || left.count%leftMatrixElems != 0 ||
+		right.bytes == 0 || right.bytes%(rightMatrixElems*rightElemBytes) != 0 {
+		return errors.New("device: batched matmul input buffer length mismatch")
+	}
+	if err = s.runtime.backend.encodeTensorBatchedMatMul(s.handle, left.handle, right.handle, result.handle, spec); err != nil {
+		err = fmt.Errorf("device: encode batched matmul: %w", err)
+		s.fail(err)
+	}
+	return err
+}
+
 // EncodeKVAppend stages two equal-shaped planes in a disjoint storage slot.
 func (s *Scope) EncodeKVAppend(history, keys, values, target *Buffer, plane, prefix uint32) (err error) {
 	if err = s.lockForEncoding(); err != nil {

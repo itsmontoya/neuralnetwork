@@ -104,6 +104,49 @@ int nn_metal_scope_encode_tensor_layernorm(
 	uint32_t biasDType
 );
 typedef struct {
+	uint32_t rank;
+	uint32_t count;
+	uint32_t dims[6];
+	uint32_t outStrides[6];
+	uint32_t inStrides[6];
+} NNMetalTransposeParams;
+int nn_metal_scope_encode_tensor_transpose(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer result,
+	NNMetalTransposeParams params,
+	uint32_t elemBytes
+);
+typedef struct {
+	uint32_t m;
+	uint32_t n;
+	uint32_t k;
+	uint32_t totalBatches;
+	uint32_t batchRank;
+	uint32_t rightTransposed;
+	uint32_t outBatchStrides[4];
+	uint32_t leftBatchStrides[4];
+	uint32_t rightBatchStrides[4];
+} NNMetalBatchedMatMulParams;
+int nn_metal_scope_encode_matmul_left_transpose(
+	NNMetalScope scope,
+	NNMetalBuffer left,
+	NNMetalBuffer right,
+	NNMetalBuffer result,
+	uint32_t m,
+	uint32_t n,
+	uint32_t k,
+	uint32_t rightDType
+);
+int nn_metal_scope_encode_batched_matmul(
+	NNMetalScope scope,
+	NNMetalBuffer left,
+	NNMetalBuffer right,
+	NNMetalBuffer result,
+	NNMetalBatchedMatMulParams params,
+	uint32_t rightDType
+);
+typedef struct {
 	uint32_t op;
 	uint32_t rank;
 	uint32_t count;

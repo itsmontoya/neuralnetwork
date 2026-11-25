@@ -563,6 +563,138 @@ func (m *metalBackend) encodeTensorLayerNorm(scope, input, weight, bias, result 
 	return nil
 }
 
+func (m *metalBackend) encodeTensorTranspose(scope, input, result any, spec TransposeSpec) (err error) {
+	var (
+		scopeHandle  C.NNMetalScope
+		inputHandle  C.NNMetalBuffer
+		resultHandle C.NNMetalBuffer
+		params       C.NNMetalTransposeParams
+		status       C.int
+	)
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if inputHandle, err = m.bufferHandle(input); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	params.rank = C.uint32_t(spec.Rank)
+	params.count = C.uint32_t(spec.Count)
+	for i := range 6 {
+		params.dims[i] = C.uint32_t(spec.Dims[i])
+		params.outStrides[i] = C.uint32_t(spec.OutStrides[i])
+		params.inStrides[i] = C.uint32_t(spec.InStrides[i])
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_scope_encode_tensor_transpose(
+		scopeHandle,
+		inputHandle,
+		resultHandle,
+		params,
+		C.uint32_t(spec.ElemBytes),
+	)
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal tensor transpose")
+	}
+	return nil
+}
+
+func (m *metalBackend) encodeTensorMatMulLeftTranspose(scope, left, right, result any, rows, cols, inner, rightDType uint32) (err error) {
+	var (
+		scopeHandle  C.NNMetalScope
+		leftHandle   C.NNMetalBuffer
+		rightHandle  C.NNMetalBuffer
+		resultHandle C.NNMetalBuffer
+		status       C.int
+	)
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if leftHandle, err = m.bufferHandle(left); err != nil {
+		return err
+	}
+	if rightHandle, err = m.bufferHandle(right); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_scope_encode_matmul_left_transpose(
+		scopeHandle,
+		leftHandle,
+		rightHandle,
+		resultHandle,
+		C.uint32_t(rows),
+		C.uint32_t(cols),
+		C.uint32_t(inner),
+		C.uint32_t(rightDType),
+	)
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal left-transposed matrix multiplication")
+	}
+	return nil
+}
+
+func (m *metalBackend) encodeTensorBatchedMatMul(scope, left, right, result any, spec BatchedMatMulSpec) (err error) {
+	var (
+		scopeHandle  C.NNMetalScope
+		leftHandle   C.NNMetalBuffer
+		rightHandle  C.NNMetalBuffer
+		resultHandle C.NNMetalBuffer
+		params       C.NNMetalBatchedMatMulParams
+		status       C.int
+	)
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if leftHandle, err = m.bufferHandle(left); err != nil {
+		return err
+	}
+	if rightHandle, err = m.bufferHandle(right); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	params.m = C.uint32_t(spec.M)
+	params.n = C.uint32_t(spec.N)
+	params.k = C.uint32_t(spec.K)
+	params.totalBatches = C.uint32_t(spec.TotalBatches)
+	params.batchRank = C.uint32_t(spec.BatchRank)
+	if spec.RightTransposed {
+		params.rightTransposed = 1
+	}
+	for i := range 4 {
+		params.outBatchStrides[i] = C.uint32_t(spec.OutBatchStrides[i])
+		params.leftBatchStrides[i] = C.uint32_t(spec.LeftBatchStrides[i])
+		params.rightBatchStrides[i] = C.uint32_t(spec.RightBatchStrides[i])
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_scope_encode_batched_matmul(
+		scopeHandle,
+		leftHandle,
+		rightHandle,
+		resultHandle,
+		params,
+		C.uint32_t(spec.RightDType),
+	)
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal batched matrix multiplication")
+	}
+	return nil
+}
+
 func (m *metalBackend) encodeKVAppend(scope, history, keys, values, target any, plane, prefix uint32) (err error) {
 	var scopeHandle C.NNMetalScope
 	if scopeHandle, err = m.scopeHandle(scope); err != nil {
