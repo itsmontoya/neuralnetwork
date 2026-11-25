@@ -136,7 +136,8 @@ func (s *Scope) GatherRows(source *Tensor, rows []int64, destination *Tensor) (e
 		srcDType = source.state.dtype
 		dstDType = destination.state.dtype
 	)
-	if !srcDType.Valid() || !dstDType.Valid() || (srcDType != dstDType && !(dstDType == Float32 && srcDType.is16Bit())) {
+	if !srcDType.Valid() || !dstDType.Valid() || srcDType.IsQuantized() || dstDType.IsQuantized() ||
+		(srcDType != dstDType && !(dstDType == Float32 && srcDType.is16Bit())) {
 		return state.reject("gather rows", fmt.Errorf("%w: unsupported gather dtype conversion %s to %s", ErrInvalid, srcDType, dstDType))
 	}
 	var (
@@ -255,8 +256,9 @@ func (s *Scope) MatMul(left, right, destination *Tensor) (err error) {
 
 // MatMulRightTranspose records destination[M,N] = left[M,K] × right[N,K]ᵀ
 // without moving or transposing the stored right operand. It uses the same
-// row-major output, ownership, shape limits, supported right dtypes (Float32,
-// Float16, or BFloat16), and FP32 accumulation semantics as MatMul.
+// row-major output, ownership, shape limits, and FP32 accumulation semantics as
+// MatMul, and supports Float32, Float16, BFloat16, Q8_0, and Q4_0 right weights
+// (with K % 32 == 0 required for Q8_0 and Q4_0).
 func (s *Scope) MatMulRightTranspose(left, right, destination *Tensor) (err error) {
 	return s.matMul(left, right, destination, true)
 }
@@ -282,6 +284,9 @@ func (s *Scope) matMul(left, right, destination *Tensor, rightTransposed bool) (
 	if !right.state.dtype.Valid() {
 		return state.reject("matmul", fmt.Errorf("%w: matmul right operand has unsupported dtype %s", ErrInvalid, right.state.dtype))
 	}
+	if right.state.dtype.IsQuantized() && !rightTransposed {
+		return state.reject("matmul", fmt.Errorf("%w: %s weights require MatMulRightTranspose", ErrInvalid, right.state.dtype))
+	}
 	if destination.state.dtype != Float32 {
 		return state.reject("matmul", fmt.Errorf("%w: matmul requires float32 destination, got %s", ErrInvalid, destination.state.dtype))
 	}
@@ -298,6 +303,9 @@ func (s *Scope) matMul(left, right, destination *Tensor, rightTransposed bool) (
 	if k != rightK || destination.state.shape[0] != m || destination.state.shape[1] != n {
 		return state.reject("matmul", fmt.Errorf("%w: incompatible left %v, right %v and destination %v shapes (right transposed: %t)",
 			ErrInvalid, left.state.shape, right.state.shape, destination.state.shape, rightTransposed))
+	}
+	if right.state.dtype.IsQuantized() && k%QuantBlockSize != 0 {
+		return state.reject("matmul", fmt.Errorf("%w: %s inner dimension %d must be a multiple of %d", ErrInvalid, right.state.dtype, k, QuantBlockSize))
 	}
 	if err = state.acquire(destination, left, right); err != nil {
 		return state.reject("matmul", err)

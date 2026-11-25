@@ -3,7 +3,7 @@ package gpu
 import "github.com/itsmontoya/neuralnetwork/internal/device"
 
 type backend interface {
-	newBuffer(count uint64, dtype DType) (buffer allocation, err error)
+	newBuffer(count, bytes uint64, dtype DType) (buffer allocation, err error)
 	newScope() (scope commandBuffer, err error)
 }
 
@@ -12,6 +12,8 @@ type allocation interface {
 	Download(destination []float32) (err error)
 	UploadUint16(values []uint16) (err error)
 	DownloadUint16(destination []uint16) (err error)
+	UploadBytes(values []byte) (err error)
+	DownloadBytes(destination []byte) (err error)
 	Release()
 }
 
@@ -32,7 +34,7 @@ type metalBackend struct {
 	runtime *device.Runtime
 }
 
-func (m metalBackend) newBuffer(count uint64, dtype DType) (buffer allocation, err error) {
+func (m metalBackend) newBuffer(count, bytes uint64, dtype DType) (buffer allocation, err error) {
 	var native *device.Buffer
 	if dtype == Float32 {
 		if native, err = m.runtime.NewBuffer(count); err != nil {
@@ -40,7 +42,7 @@ func (m metalBackend) newBuffer(count uint64, dtype DType) (buffer allocation, e
 		}
 		return native, nil
 	}
-	if native, err = m.runtime.NewByteBuffer(count * dtype.Bytes()); err != nil {
+	if native, err = m.runtime.NewByteBuffer(bytes); err != nil {
 		return nil, err
 	}
 	return native, nil
@@ -98,6 +100,10 @@ func (m metalCommandBuffer) encodeMatMul(left, right, destination allocation, ro
 			operation = device.OperationTensorMatMulRightTransposeFloat16
 		case BFloat16:
 			operation = device.OperationTensorMatMulRightTransposeBFloat16
+		case Q8_0:
+			operation = device.OperationTensorMatMulRightTransposeQ8_0
+		case Q4_0:
+			operation = device.OperationTensorMatMulRightTransposeQ4_0
 		default:
 			operation = device.OperationTensorMatMulRightTranspose
 		}

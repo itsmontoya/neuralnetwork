@@ -131,9 +131,43 @@ func (t *Tensor) DownloadBitsInto(destination []uint16) (err error) {
 	return nil
 }
 
-// UploadFloat32As converts FP32 values on the host to the tensor's DType using
-// IEEE-754 round-to-nearest-even and copies the full set into the tensor.
-// For Float32 tensors, values are uploaded directly without conversion.
+// UploadBytes copies a full raw byte buffer into the tensor without conversion.
+// The slice length must equal Tensor.Bytes(). This supports all valid DTypes,
+// including pre-packed Q8_0 and Q4_0 weight blocks.
+func (t *Tensor) UploadBytes(values []byte) (err error) {
+	var state *tensorState
+	if state, err = t.beginByteTransfer(len(values), true); err != nil {
+		return err
+	}
+
+	err = state.buffer.UploadBytes(values)
+	state.endTransfer(true, err == nil)
+	if err != nil {
+		return fmt.Errorf("gpu: upload tensor bytes: %w", err)
+	}
+	return nil
+}
+
+// DownloadBytesInto copies the full raw byte contents of the tensor into
+// destination without conversion. The slice length must equal Tensor.Bytes().
+func (t *Tensor) DownloadBytesInto(destination []byte) (err error) {
+	var state *tensorState
+	if state, err = t.beginByteTransfer(len(destination), false); err != nil {
+		return err
+	}
+
+	err = state.buffer.DownloadBytes(destination)
+	state.endTransfer(false, err == nil)
+	if err != nil {
+		return fmt.Errorf("gpu: download tensor bytes: %w", err)
+	}
+	return nil
+}
+
+// UploadFloat32As converts FP32 values on the host to the tensor's DType
+// (using IEEE-754 round-to-nearest-even for Float16/BFloat16 and block
+// quantization for Q8_0/Q4_0) and copies the full set into the tensor. For
+// Float32 tensors, values are uploaded directly without conversion.
 func (t *Tensor) UploadFloat32As(values []float32) (err error) {
 	var state *tensorState
 	if state, err = t.beginTransfer(len(values), true, DType.Valid); err != nil {
@@ -155,6 +189,16 @@ func (t *Tensor) UploadFloat32As(values []float32) (err error) {
 			encoded[index] = Float32ToBFloat16(value)
 		}
 		err = state.buffer.UploadUint16(encoded)
+	case Q8_0:
+		var encoded []byte
+		if encoded, err = QuantizeQ8_0(values); err == nil {
+			err = state.buffer.UploadBytes(encoded)
+		}
+	case Q4_0:
+		var encoded []byte
+		if encoded, err = QuantizeQ4_0(values); err == nil {
+			err = state.buffer.UploadBytes(encoded)
+		}
 	}
 	state.endTransfer(true, err == nil)
 	if err != nil {
@@ -163,8 +207,8 @@ func (t *Tensor) UploadFloat32As(values []float32) (err error) {
 	return nil
 }
 
-// DownloadFloat32Into downloads all tensor elements and converts them to FP32
-// into destination. For Float32 tensors, values are downloaded directly.
+// DownloadFloat32Into downloads all tensor elements and converts or dequantizes
+// them to FP32 into destination. For Float32 tensors, values are downloaded directly.
 func (t *Tensor) DownloadFloat32Into(destination []float32) (err error) {
 	var state *tensorState
 	if state, err = t.beginTransfer(len(destination), false, DType.Valid); err != nil {
@@ -188,6 +232,16 @@ func (t *Tensor) DownloadFloat32Into(destination []float32) (err error) {
 				destination[index] = BFloat16ToFloat32(bits)
 			}
 		}
+	case Q8_0:
+		var raw = make([]byte, state.bytes)
+		if err = state.buffer.DownloadBytes(raw); err == nil {
+			dequantizeQ8_0Into(raw, destination)
+		}
+	case Q4_0:
+		var raw = make([]byte, state.bytes)
+		if err = state.buffer.DownloadBytes(raw); err == nil {
+			dequantizeQ4_0Into(raw, destination)
+		}
 	}
 	state.endTransfer(false, err == nil)
 	if err != nil {
@@ -209,6 +263,34 @@ func (t *Tensor) Close() (err error) {
 	state.closed = true
 	state.releaseIfIdle()
 	return nil
+}
+
+func (t *Tensor) beginByteTransfer(length int, write bool) (state *tensorState, err error) {
+	if t == nil || t.state == nil {
+		return nil, ErrClosed
+	}
+
+	state = t.state
+	state.device.mutex.Lock()
+	defer state.device.mutex.Unlock()
+	if state.closed {
+		return nil, ErrClosed
+	}
+	if state.hostAccess || state.readers > 0 || state.writer != nil {
+		return nil, ErrBusy
+	}
+	if !state.dtype.Valid() {
+		return nil, fmt.Errorf("%w: transfer incompatible with %s tensor", ErrInvalid, state.dtype)
+	}
+	if uint64(length) != state.bytes {
+		return nil, fmt.Errorf("%w: byte transfer length is %d, want %d", ErrInvalid, length, state.bytes)
+	}
+	if !write && !state.initialized {
+		return nil, ErrUninitialized
+	}
+
+	state.hostAccess = true
+	return state, nil
 }
 
 func (t *Tensor) beginTransfer(length int, write bool, acceptDType func(DType) bool) (state *tensorState, err error) {

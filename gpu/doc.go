@@ -1,7 +1,6 @@
 // Package gpu provides experimental, explicit Metal execution for contiguous
-// row-major tensors. Supported storage types are Float32, Float16, and
-// BFloat16; compute operations currently require Float32 tensors, while Copy
-// supports any matching DType. On macOS arm64, build with cgo and the metal tag.
+// row-major tensors. Supported storage types are Float32, Float16, BFloat16,
+// Q8_0, and Q4_0. On macOS arm64, build with cgo and the metal tag.
 // Default builds, purego builds, unsupported hosts, and machines without a
 // default Metal device return ErrUnavailable from OpenDefault.
 //
