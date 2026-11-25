@@ -78,6 +78,22 @@ static const char *nnMetalTensorElementwiseSource =
 	"    uint index [[thread_position_in_grid]]\n"
 	") {\n"
 	"    result[index] = nn_tanh(input[index]);\n"
+	"}\n"
+	"kernel void nn_tensor_sub(\n"
+	"    const device float *left [[buffer(0)]],\n"
+	"    const device float *right [[buffer(1)]],\n"
+	"    device float *result [[buffer(2)]],\n"
+	"    uint index [[thread_position_in_grid]]\n"
+	") {\n"
+	"    result[index] = left[index] - right[index];\n"
+	"}\n"
+	"kernel void nn_tensor_div(\n"
+	"    const device float *left [[buffer(0)]],\n"
+	"    const device float *right [[buffer(1)]],\n"
+	"    device float *result [[buffer(2)]],\n"
+	"    uint index [[thread_position_in_grid]]\n"
+	") {\n"
+	"    result[index] = left[index] / right[index];\n"
 	"}\n";
 
 #endif

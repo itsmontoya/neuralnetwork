@@ -19,6 +19,10 @@ const (
 	ElementwiseSigmoid
 	// ElementwiseTanh applies the hyperbolic tangent.
 	ElementwiseTanh
+	// ElementwiseSub subtracts corresponding elements.
+	ElementwiseSub
+	// ElementwiseDiv divides corresponding elements.
+	ElementwiseDiv
 )
 
 func (o ElementwiseOperation) isUnary() (unary bool) {

@@ -67,6 +67,14 @@ func (unavailableBackend) encodeElementwise(any, any, any, any, uint32, Elementw
 	return ErrUnavailable
 }
 
+func (unavailableBackend) encodeTensorScale(any, any, any, float32, uint32) (err error) {
+	return ErrUnavailable
+}
+
+func (unavailableBackend) encodeTensorBroadcast(any, any, any, any, BroadcastOperation, BroadcastSpec) (err error) {
+	return ErrUnavailable
+}
+
 func (unavailableBackend) encodeTensorSoftmax(any, any, any, uint32, uint32, uint32) (err error) {
 	return ErrUnavailable
 }

@@ -91,6 +91,30 @@ int nn_metal_scope_encode_tensor_softmax(
 	uint32_t axisSize,
 	uint32_t inner
 );
+typedef struct {
+	uint32_t op;
+	uint32_t rank;
+	uint32_t count;
+	uint32_t mode;
+	uint32_t dims[6];
+	uint32_t outStrides[6];
+	uint32_t leftStrides[6];
+	uint32_t rightStrides[6];
+} NNMetalBroadcastParams;
+int nn_metal_scope_encode_tensor_scale(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer result,
+	float scale,
+	uint32_t count
+);
+int nn_metal_scope_encode_tensor_broadcast(
+	NNMetalScope scope,
+	NNMetalBuffer left,
+	NNMetalBuffer right,
+	NNMetalBuffer result,
+	NNMetalBroadcastParams params
+);
 int nn_metal_scope_encode_kv_append(
 	NNMetalScope scope, NNMetalBuffer history, NNMetalBuffer keys, NNMetalBuffer values,
 	NNMetalBuffer target, uint32_t plane, uint32_t prefix

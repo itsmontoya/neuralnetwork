@@ -172,7 +172,7 @@ func (s *Scope) EncodeElementwise(left, right, result *Buffer, operation Element
 	defer s.mutex.Unlock()
 
 	var unary = operation.isUnary()
-	if operation > ElementwiseTanh || (unary && right != nil) {
+	if operation > ElementwiseDiv || (unary && right != nil) {
 		return errors.New("device: unsupported elementwise operation or input count")
 	}
 	if err = s.validateBuffer(left, "elementwise input"); err != nil {
@@ -200,6 +200,81 @@ func (s *Scope) EncodeElementwise(left, right, result *Buffer, operation Element
 	err = s.runtime.backend.encodeElementwise(s.handle, left.handle, rightHandle, result.handle, uint32(result.count), operation)
 	if err != nil {
 		err = fmt.Errorf("device: encode elementwise operation: %w", err)
+		s.fail(err)
+	}
+	return err
+}
+
+// EncodeTensorScale multiplies each FP32 element of input by scale into a
+// disjoint destination buffer of matching length.
+func (s *Scope) EncodeTensorScale(input, result *Buffer, scale float32) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(input, "scale input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "scale destination"); err != nil {
+		return err
+	}
+	if input == result || input.count != result.count || result.count == 0 || result.count > math.MaxUint32 {
+		return errors.New("device: invalid scale destination, buffer length or index range")
+	}
+	if err = s.runtime.backend.encodeTensorScale(s.handle, input.handle, result.handle, scale, uint32(result.count)); err != nil {
+		err = fmt.Errorf("device: encode tensor scale: %w", err)
+		s.fail(err)
+	}
+	return err
+}
+
+// EncodeTensorBroadcast appends a multidirectional FP32 broadcast binary
+// operation into a disjoint destination buffer.
+func (s *Scope) EncodeTensorBroadcast(left, right, result *Buffer, operation BroadcastOperation, spec BroadcastSpec) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if operation > BroadcastDiv {
+		return errors.New("device: unsupported broadcast operation")
+	}
+	if err = s.validateBuffer(left, "broadcast left input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(right, "broadcast right input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "broadcast destination"); err != nil {
+		return err
+	}
+	if left == result || right == result || left.count == 0 || right.count == 0 ||
+		spec.Rank == 0 || spec.Rank > 6 || spec.Count == 0 || uint64(spec.Count) != result.count {
+		return errors.New("device: invalid broadcast destination, rank or buffer length")
+	}
+	var (
+		product  uint64 = 1
+		maxLeft  uint64
+		maxRight uint64
+	)
+	for i := range int(spec.Rank) {
+		var dim = uint64(spec.Dims[i])
+		if dim == 0 {
+			return errors.New("device: broadcast dimension must be positive")
+		}
+		product *= dim
+		if product > math.MaxUint32 {
+			return errors.New("device: broadcast element count exceeds uint32")
+		}
+		maxLeft += (dim - 1) * uint64(spec.LeftStrides[i])
+		maxRight += (dim - 1) * uint64(spec.RightStrides[i])
+	}
+	if product != uint64(spec.Count) || maxLeft >= left.count || maxRight >= right.count {
+		return errors.New("device: broadcast strides exceed input buffer length")
+	}
+	if err = s.runtime.backend.encodeTensorBroadcast(s.handle, left.handle, right.handle, result.handle, operation, spec); err != nil {
+		err = fmt.Errorf("device: encode tensor broadcast: %w", err)
 		s.fail(err)
 	}
 	return err

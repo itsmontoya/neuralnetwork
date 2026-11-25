@@ -674,6 +674,14 @@ func (b *testBackend) encodeElementwise(_, _, _, _ any, _ uint32, _ ElementwiseO
 	return b.encodeErr
 }
 
+func (b *testBackend) encodeTensorScale(_, _, _ any, _ float32, _ uint32) (err error) {
+	return b.encodeErr
+}
+
+func (b *testBackend) encodeTensorBroadcast(_, _, _, _ any, _ BroadcastOperation, _ BroadcastSpec) (err error) {
+	return b.encodeErr
+}
+
 func (b *testBackend) encodeTensorSoftmax(_, _, _ any, _, _, _ uint32) (err error) {
 	return b.encodeErr
 }
