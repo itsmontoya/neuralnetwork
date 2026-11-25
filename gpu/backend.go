@@ -3,13 +3,15 @@ package gpu
 import "github.com/itsmontoya/neuralnetwork/internal/device"
 
 type backend interface {
-	newBuffer(count uint64) (buffer allocation, err error)
+	newBuffer(count uint64, dtype DType) (buffer allocation, err error)
 	newScope() (scope commandBuffer, err error)
 }
 
 type allocation interface {
 	Upload(values []float32) (err error)
 	Download(destination []float32) (err error)
+	UploadUint16(values []uint16) (err error)
+	DownloadUint16(destination []uint16) (err error)
 	Release()
 }
 
@@ -30,9 +32,15 @@ type metalBackend struct {
 	runtime *device.Runtime
 }
 
-func (m metalBackend) newBuffer(count uint64) (buffer allocation, err error) {
+func (m metalBackend) newBuffer(count uint64, dtype DType) (buffer allocation, err error) {
 	var native *device.Buffer
-	if native, err = m.runtime.NewBuffer(count); err != nil {
+	if dtype == Float32 {
+		if native, err = m.runtime.NewBuffer(count); err != nil {
+			return nil, err
+		}
+		return native, nil
+	}
+	if native, err = m.runtime.NewByteBuffer(count * dtype.Bytes()); err != nil {
 		return nil, err
 	}
 	return native, nil

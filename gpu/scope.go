@@ -70,6 +70,9 @@ func (s *Scope) Fill(destination *Tensor, value float32) (err error) {
 	if destination == nil || destination.state == nil {
 		return state.reject("fill", fmt.Errorf("%w: missing destination", ErrInvalid))
 	}
+	if destination.state.dtype != Float32 {
+		return state.reject("fill", fmt.Errorf("%w: fill requires float32 tensor, got %s", ErrInvalid, destination.state.dtype))
+	}
 	if destination.state.count > math.MaxUint32 {
 		return state.reject("fill", fmt.Errorf("%w: element count exceeds the Metal fill index range", ErrInvalid))
 	}
@@ -83,8 +86,8 @@ func (s *Scope) Fill(destination *Tensor, value float32) (err error) {
 	return nil
 }
 
-// Copy records a full transfer between distinct tensors of identical shape
-// on this device. An earlier write in the same scope can initialize source.
+// Copy records a full transfer between distinct tensors of identical shape and
+// DType on this device. An earlier write in the same scope can initialize source.
 func (s *Scope) Copy(source, destination *Tensor) (err error) {
 	var state *scopeState
 	if state, err = s.beginEncoding(); err != nil {
@@ -94,6 +97,9 @@ func (s *Scope) Copy(source, destination *Tensor) (err error) {
 
 	if source == nil || source.state == nil || destination == nil || destination.state == nil {
 		return state.reject("copy", fmt.Errorf("%w: missing source or destination", ErrInvalid))
+	}
+	if source.state.dtype != destination.state.dtype {
+		return state.reject("copy", fmt.Errorf("%w: tensor dtypes differ (%s vs %s)", ErrInvalid, source.state.dtype, destination.state.dtype))
 	}
 	if !slices.Equal(source.state.shape, destination.state.shape) {
 		return state.reject("copy", fmt.Errorf("%w: tensor shapes differ", ErrInvalid))
@@ -122,6 +128,9 @@ func (s *Scope) GatherRows(source *Tensor, rows []int64, destination *Tensor) (e
 	if source == nil || source.state == nil || len(source.state.shape) != 2 ||
 		destination == nil || destination.state == nil || len(destination.state.shape) != 2 {
 		return state.reject("gather rows", fmt.Errorf("%w: operands must be rank-two tensors", ErrInvalid))
+	}
+	if err = requireFloat32("gather rows", source, destination); err != nil {
+		return state.reject("gather rows", err)
 	}
 	var (
 		sourceRows = source.state.shape[0]
@@ -185,12 +194,18 @@ func (s *Scope) elementwise(name string, operation device.ElementwiseOperation, 
 	if destination == nil || destination.state == nil {
 		return state.reject(name, fmt.Errorf("%w: missing destination", ErrInvalid))
 	}
+	if destination.state.dtype != Float32 {
+		return state.reject(name, fmt.Errorf("%w: %s requires float32 tensors, got %s", ErrInvalid, name, destination.state.dtype))
+	}
 	if destination.state.count > math.MaxUint32 {
 		return state.reject(name, fmt.Errorf("%w: tensor element count exceeds the Metal elementwise index range", ErrInvalid))
 	}
 	for _, input := range inputs {
 		if input == nil || input.state == nil {
 			return state.reject(name, fmt.Errorf("%w: missing input", ErrInvalid))
+		}
+		if input.state.dtype != Float32 {
+			return state.reject(name, fmt.Errorf("%w: %s requires float32 tensors, got %s", ErrInvalid, name, input.state.dtype))
 		}
 		if !slices.Equal(input.state.shape, destination.state.shape) {
 			return state.reject(name, fmt.Errorf("%w: tensor shapes differ", ErrInvalid))
@@ -244,6 +259,9 @@ func (s *Scope) matMul(left, right, destination *Tensor, rightTransposed bool) (
 		if operand == nil || operand.state == nil || len(operand.state.shape) != 2 {
 			return state.reject("matmul", fmt.Errorf("%w: operands must be rank-two tensors", ErrInvalid))
 		}
+		if operand.state.dtype != Float32 {
+			return state.reject("matmul", fmt.Errorf("%w: matmul requires float32 tensors, got %s", ErrInvalid, operand.state.dtype))
+		}
 		if operand.state.count > math.MaxUint32 {
 			return state.reject("matmul", fmt.Errorf("%w: tensor element count exceeds the Metal matmul index range", ErrInvalid))
 		}
@@ -292,6 +310,9 @@ func (s *Scope) RMSNorm(input, weight, destination *Tensor, epsilon float32) (er
 	if !hasShape(weight, width) || !(epsilon > 0 && epsilon <= math.MaxFloat32) {
 		return state.reject("RMSNorm", fmt.Errorf("%w: expected a matching last-axis weight and finite positive epsilon", ErrInvalid))
 	}
+	if err = requireFloat32("RMSNorm", input, weight, destination); err != nil {
+		return state.reject("RMSNorm", err)
+	}
 	if err = state.acquire(destination, input, weight); err != nil {
 		return state.reject("RMSNorm", err)
 	}
@@ -320,6 +341,9 @@ func (s *Scope) RotatePairs(input, cosine, sine, destination *Tensor, headWidth,
 		cosine.state.count > math.MaxUint32 || cosine.state.shape[1] != headWidth/2 ||
 		!hasShape(sine, cosine.state.shape...) {
 		return state.reject("rotate pairs", fmt.Errorf("%w: invalid cosine or sine table shape", ErrInvalid))
+	}
+	if err = requireFloat32("rotate pairs", input, cosine, sine, destination); err != nil {
+		return state.reject("rotate pairs", err)
 	}
 	var tableRows = cosine.state.shape[0]
 	if tableStart < 0 || position < tableStart || tableStart > math.MaxInt64-(tableRows-1) {
@@ -384,6 +408,9 @@ func (s *scopeState) reserveAppend(cache *KVCache, keys, values *Tensor, positio
 		position < 0 || position > state.capacity || rows > state.capacity-position {
 		return nil, nil, nil, fmt.Errorf("%w: invalid append shape or cache bounds", ErrInvalid)
 	}
+	if err = requireFloat32("append KV", keys, values); err != nil {
+		return nil, nil, nil, err
+	}
 
 	s.device.mutex.Lock()
 	defer s.device.mutex.Unlock()
@@ -432,6 +459,9 @@ func (s *Scope) CausalAttention(queries *Tensor, cache *KVCache, destination *Te
 	if rows == 0 || heads%cacheState.heads != 0 || !hasShape(destination, queries.state.shape...) ||
 		position < 0 || position > math.MaxInt64-(rows-1) {
 		return state.reject("causal attention", fmt.Errorf("%w: invalid query shape, groups, destination or positions", ErrInvalid))
+	}
+	if err = requireFloat32("causal attention", queries, destination); err != nil {
+		return state.reject("causal attention", err)
 	}
 	var (
 		history *Tensor
@@ -633,6 +663,18 @@ func (s *scopeState) reject(operation string, cause error) (err error) {
 		s.status = scopePoisoned
 	}
 	return fmt.Errorf("gpu: %s: %w", operation, cause)
+}
+
+func requireFloat32(operation string, tensors ...*Tensor) (err error) {
+	for _, tensor := range tensors {
+		if tensor == nil || tensor.state == nil {
+			continue
+		}
+		if tensor.state.dtype != Float32 {
+			return fmt.Errorf("%w: %s requires float32 tensors, got %s", ErrInvalid, operation, tensor.state.dtype)
+		}
+	}
+	return nil
 }
 
 // acquire validates every operand before installing any new leases.
