@@ -14,20 +14,62 @@ const (
 	// BFloat16 is contiguous 16-bit brain floating-point storage (top 16 bits of
 	// IEEE-754 binary32, 2 bytes per element).
 	BFloat16
+	// Q8_0 is block-quantized 8-bit storage (34 bytes per 32 elements: 2-byte
+	// IEEE-754 binary16 scale followed by 32 signed int8 values).
+	Q8_0
+	// Q4_0 is block-quantized 4-bit storage (18 bytes per 32 elements: 2-byte
+	// IEEE-754 binary16 scale followed by 16 packed uint8 nibble pairs in GGUF
+	// split-half order, offset by -8).
+	Q4_0
 )
 
 // Valid reports whether d is a supported tensor element type.
 func (d DType) Valid() (ok bool) {
-	return d == Float32 || d == Float16 || d == BFloat16
+	return d == Float32 || d == Float16 || d == BFloat16 || d == Q8_0 || d == Q4_0
 }
 
-// Bytes returns the storage width in bytes of one element of d, or zero if d is invalid.
+// IsQuantized reports whether d is a block-quantized storage format.
+func (d DType) IsQuantized() (ok bool) {
+	return d == Q8_0 || d == Q4_0
+}
+
+// Bytes returns the storage width in bytes of one element of d, or zero if d is
+// invalid or block-quantized (use BlockSize and BlockBytes for quantized types).
 func (d DType) Bytes() (size uint64) {
 	switch d {
 	case Float32:
 		return 4
 	case Float16, BFloat16:
 		return 2
+	default:
+		return 0
+	}
+}
+
+// BlockSize returns the number of logical elements per storage block (1 for
+// scalar floating-point dtypes, 32 for Q8_0 and Q4_0), or zero if d is invalid.
+func (d DType) BlockSize() (size uint64) {
+	switch d {
+	case Float32, Float16, BFloat16:
+		return 1
+	case Q8_0, Q4_0:
+		return QuantBlockSize
+	default:
+		return 0
+	}
+}
+
+// BlockBytes returns the byte size of one storage block of d, or zero if d is invalid.
+func (d DType) BlockBytes() (size uint64) {
+	switch d {
+	case Float32:
+		return 4
+	case Float16, BFloat16:
+		return 2
+	case Q8_0:
+		return QuantBlockBytesQ8_0
+	case Q4_0:
+		return QuantBlockBytesQ4_0
 	default:
 		return 0
 	}
@@ -42,6 +84,10 @@ func (d DType) String() (name string) {
 		return "float16"
 	case BFloat16:
 		return "bfloat16"
+	case Q8_0:
+		return "q8_0"
+	case Q4_0:
+		return "q4_0"
 	default:
 		return "invalid"
 	}

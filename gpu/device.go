@@ -81,7 +81,7 @@ func (d *Device) NewTensorWithDType(shape []int64, dtype DType) (out *Tensor, er
 	if count, bytes, err = tensorLayout(shape, dtype, state.maxBufferLength); err != nil {
 		return nil, err
 	}
-	if buffer, err = state.backend.newBuffer(count, dtype); err != nil {
+	if buffer, err = state.backend.newBuffer(count, bytes, dtype); err != nil {
 		return nil, fmt.Errorf("gpu: allocate %s tensor: %w", dtype, err)
 	}
 	state.children++
@@ -136,6 +136,35 @@ func tensorLayout(shape []int64, dtype DType, maxBufferLength uint64) (count, by
 	}
 	if len(shape) == 0 {
 		return 0, 0, fmt.Errorf("%w: tensor rank must be positive", ErrInvalid)
+	}
+
+	if dtype.IsQuantized() {
+		if len(shape) != 2 {
+			return 0, 0, fmt.Errorf("%w: %s tensor must be rank-two [N, K]", ErrInvalid, dtype)
+		}
+		if shape[0] <= 0 || shape[1] <= 0 {
+			return 0, 0, fmt.Errorf("%w: %s tensor dimensions must be positive", ErrInvalid, dtype)
+		}
+		if shape[1]%QuantBlockSize != 0 {
+			return 0, 0, fmt.Errorf("%w: %s inner dimension %d must be a multiple of %d", ErrInvalid, dtype, shape[1], QuantBlockSize)
+		}
+		var (
+			rows       = uint64(shape[0])
+			cols       = uint64(shape[1])
+			blockBytes = dtype.BlockBytes()
+			maxBytes   = min(uint64(math.MaxInt), maxBufferLength)
+			blockLimit = maxBytes / blockBytes
+		)
+		if rows > math.MaxUint64/cols {
+			return 0, 0, fmt.Errorf("%w: %s tensor element count overflows", ErrInvalid, dtype)
+		}
+		var blocksPerRow = cols / QuantBlockSize
+		if rows > blockLimit/blocksPerRow {
+			return 0, 0, fmt.Errorf("%w: %s tensor exceeds the host or device buffer length limit", ErrInvalid, dtype)
+		}
+		count = rows * cols
+		bytes = rows * blocksPerRow * blockBytes
+		return count, bytes, nil
 	}
 
 	var (

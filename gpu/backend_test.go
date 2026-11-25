@@ -20,7 +20,7 @@ type fakeBackend struct {
 	elementwise atomic.Int32
 }
 
-func (b *fakeBackend) newBuffer(count uint64, dtype DType) (buffer allocation, err error) {
+func (b *fakeBackend) newBuffer(count, bytes uint64, dtype DType) (buffer allocation, err error) {
 	if b.bufferErr != nil {
 		return nil, b.bufferErr
 	}
@@ -29,10 +29,13 @@ func (b *fakeBackend) newBuffer(count uint64, dtype DType) (buffer allocation, e
 	value.backend = b
 	// Large logical allocations let tests validate shader limits without reserving memory.
 	if count < 1024 {
-		if dtype == Float32 {
+		switch {
+		case dtype == Float32:
 			value.values = make([]float32, count)
-		} else {
+		case dtype.is16Bit():
 			value.bits16 = make([]uint16, count)
+		default:
+			value.raw = make([]byte, bytes)
 		}
 	}
 	b.liveBuffers.Add(1)
@@ -54,6 +57,7 @@ type fakeAllocation struct {
 	backend       *fakeBackend
 	values        []float32
 	bits16        []uint16
+	raw           []byte
 	uploadStarted chan struct{}
 	uploadGate    <-chan struct{}
 }
@@ -90,10 +94,30 @@ func (a *fakeAllocation) DownloadUint16(destination []uint16) (err error) {
 	return nil
 }
 
+func (a *fakeAllocation) UploadBytes(values []byte) (err error) {
+	a.backend.uploads.Add(1)
+	if a.uploadStarted != nil {
+		close(a.uploadStarted)
+		<-a.uploadGate
+	}
+	if a.raw == nil {
+		a.raw = make([]byte, len(values))
+	}
+	copy(a.raw, values)
+	return nil
+}
+
+func (a *fakeAllocation) DownloadBytes(destination []byte) (err error) {
+	a.backend.downloads.Add(1)
+	copy(destination, a.raw)
+	return nil
+}
+
 func (a *fakeAllocation) Release() {
 	a.backend.liveBuffers.Add(-1)
 	a.values = nil
 	a.bits16 = nil
+	a.raw = nil
 }
 
 type fakeCommandBuffer struct {
@@ -124,6 +148,7 @@ func (c *fakeCommandBuffer) encodeCopy(source, destination allocation) (err erro
 	c.commands = append(c.commands, func() {
 		copy(output.values, input.values)
 		copy(output.bits16, input.bits16)
+		copy(output.raw, input.raw)
 	})
 	return c.encodeErr
 }
