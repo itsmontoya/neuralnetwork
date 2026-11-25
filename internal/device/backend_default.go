@@ -29,6 +29,22 @@ func (unavailableBackend) download(any, []float32) (err error) {
 	return ErrUnavailable
 }
 
+func (unavailableBackend) uploadBytes(any, []byte) (err error) {
+	return ErrUnavailable
+}
+
+func (unavailableBackend) downloadBytes(any, []byte) (err error) {
+	return ErrUnavailable
+}
+
+func (unavailableBackend) uploadUint16(any, []uint16) (err error) {
+	return ErrUnavailable
+}
+
+func (unavailableBackend) downloadUint16(any, []uint16) (err error) {
+	return ErrUnavailable
+}
+
 func (unavailableBackend) releaseBuffer(any) {}
 
 func (unavailableBackend) newScope() (handle any, err error) {

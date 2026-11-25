@@ -848,6 +848,42 @@ int nn_metal_buffer_download(NNMetalBuffer buffer, float *values, uint64_t count
 	return NNMetalStatusSuccess;
 }
 
+int nn_metal_buffer_upload_bytes(NNMetalBuffer buffer, const void *values, uint64_t bytes) {
+	NNMetalBufferRecord *record = nn_metal_buffer_record(buffer);
+
+	if (record == NULL || record->value == nil || values == NULL) {
+		nn_metal_set_error("metal: upload buffer bytes: nil handle or values");
+		return NNMetalStatusError;
+	}
+	if (bytes == 0 || bytes != record->bytes) {
+		nn_metal_set_error("metal: upload buffer bytes: length mismatch");
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		memcpy([record->value contents], values, (size_t)bytes);
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_buffer_download_bytes(NNMetalBuffer buffer, void *values, uint64_t bytes) {
+	NNMetalBufferRecord *record = nn_metal_buffer_record(buffer);
+
+	if (record == NULL || record->value == nil || values == NULL) {
+		nn_metal_set_error("metal: download buffer bytes: nil handle or destination");
+		return NNMetalStatusError;
+	}
+	if (bytes == 0 || bytes != record->bytes) {
+		nn_metal_set_error("metal: download buffer bytes: length mismatch");
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		memcpy(values, [record->value contents], (size_t)bytes);
+	}
+	return NNMetalStatusSuccess;
+}
+
 void nn_metal_buffer_release(NNMetalBuffer buffer) {
 	NNMetalBufferRecord *record = nn_metal_buffer_record(buffer);
 

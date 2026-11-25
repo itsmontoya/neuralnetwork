@@ -109,6 +109,36 @@ func (r *Runtime) NewBuffer(count uint64) (buffer *Buffer, err error) {
 	return &value, nil
 }
 
+// NewByteBuffer allocates a private raw byte-sized device buffer.
+func (r *Runtime) NewByteBuffer(bytes uint64) (buffer *Buffer, err error) {
+	var (
+		handle any
+		value  Buffer
+	)
+
+	if r == nil || r.backend == nil {
+		err = errors.New("device: runtime is nil")
+		return nil, err
+	}
+	if bytes == 0 {
+		err = errors.New("device: buffer byte length must be positive")
+		return nil, err
+	}
+
+	if handle, err = r.backend.newBuffer(bytes); err != nil {
+		return nil, fmt.Errorf("device: allocate %d-byte buffer: %w", bytes, err)
+	}
+	if handle == nil {
+		err = errors.New("device: allocate buffer: backend returned nil handle")
+		return nil, err
+	}
+
+	value.runtime = r
+	value.handle = handle
+	value.bytes = bytes
+	return &value, nil
+}
+
 // NewScope creates an independent device command scope.
 func (r *Runtime) NewScope() (scope *Scope, err error) {
 	var (

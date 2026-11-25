@@ -1,6 +1,7 @@
 package device
 
 import (
+	"encoding/binary"
 	"errors"
 	"math"
 	"sync"
@@ -8,6 +9,7 @@ import (
 
 type testBuffer struct {
 	values   []float32
+	raw      []byte
 	released bool
 }
 
@@ -58,6 +60,7 @@ func (b *testBackend) newBuffer(bytes uint64) (handle any, err error) {
 	}
 
 	value.values = make([]float32, bytes/4)
+	value.raw = make([]byte, bytes)
 	b.mutex.Lock()
 	b.resources.LiveBuffers++
 	b.resources.LiveBufferBytes += bytes
@@ -98,6 +101,62 @@ func (b *testBackend) download(handle any, values []float32) (err error) {
 	return nil
 }
 
+func (b *testBackend) uploadBytes(handle any, values []byte) (err error) {
+	var buffer *testBuffer
+
+	if b.uploadErr != nil {
+		return b.uploadErr
+	}
+	if buffer = testBufferHandle(handle); buffer == nil || buffer.released {
+		return ErrReleased
+	}
+	copy(buffer.raw, values)
+	return nil
+}
+
+func (b *testBackend) downloadBytes(handle any, values []byte) (err error) {
+	var buffer *testBuffer
+
+	if b.downloadErr != nil {
+		return b.downloadErr
+	}
+	if buffer = testBufferHandle(handle); buffer == nil || buffer.released {
+		return ErrReleased
+	}
+	copy(values, buffer.raw)
+	return nil
+}
+
+func (b *testBackend) uploadUint16(handle any, values []uint16) (err error) {
+	var buffer *testBuffer
+
+	if b.uploadErr != nil {
+		return b.uploadErr
+	}
+	if buffer = testBufferHandle(handle); buffer == nil || buffer.released {
+		return ErrReleased
+	}
+	for index, value := range values {
+		binary.LittleEndian.PutUint16(buffer.raw[index*2:index*2+2], value)
+	}
+	return nil
+}
+
+func (b *testBackend) downloadUint16(handle any, values []uint16) (err error) {
+	var buffer *testBuffer
+
+	if b.downloadErr != nil {
+		return b.downloadErr
+	}
+	if buffer = testBufferHandle(handle); buffer == nil || buffer.released {
+		return ErrReleased
+	}
+	for index := range values {
+		values[index] = binary.LittleEndian.Uint16(buffer.raw[index*2 : index*2+2])
+	}
+	return nil
+}
+
 func (b *testBackend) releaseBuffer(handle any) {
 	var buffer *testBuffer
 
@@ -107,7 +166,7 @@ func (b *testBackend) releaseBuffer(handle any) {
 	buffer.released = true
 	b.mutex.Lock()
 	b.resources.LiveBuffers--
-	b.resources.LiveBufferBytes -= uint64(len(buffer.values) * 4)
+	b.resources.LiveBufferBytes -= uint64(len(buffer.raw))
 	b.resources.ReleasedBuffers++
 	b.mutex.Unlock()
 }
@@ -147,6 +206,7 @@ func (b *testBackend) encodeCopy(scope, source, destination any, _ uint64) (err 
 	}
 	commandScope.commands = append(commandScope.commands, func() {
 		copy(destinationBuffer.values, sourceBuffer.values)
+		copy(destinationBuffer.raw, sourceBuffer.raw)
 	})
 	return nil
 }

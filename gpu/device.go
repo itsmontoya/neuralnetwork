@@ -55,6 +55,13 @@ type deviceState struct {
 // NewFloat32 allocates an uninitialized contiguous row-major FP32 tensor.
 // Its shape is copied and must contain at least one positive dimension.
 func (d *Device) NewFloat32(shape []int64) (out *Tensor, err error) {
+	return d.NewTensorWithDType(shape, Float32)
+}
+
+// NewTensorWithDType allocates an uninitialized contiguous row-major tensor
+// with the requested element storage DType. Its shape is copied and must
+// contain at least one positive dimension.
+func (d *Device) NewTensorWithDType(shape []int64, dtype DType) (out *Tensor, err error) {
 	if d == nil || d.state == nil {
 		return nil, ErrClosed
 	}
@@ -68,16 +75,17 @@ func (d *Device) NewFloat32(shape []int64) (out *Tensor, err error) {
 
 	var (
 		count  uint64
+		bytes  uint64
 		buffer allocation
 	)
-	if count, err = float32Count(shape, state.maxBufferLength); err != nil {
+	if count, bytes, err = tensorLayout(shape, dtype, state.maxBufferLength); err != nil {
 		return nil, err
 	}
-	if buffer, err = state.backend.newBuffer(count); err != nil {
-		return nil, fmt.Errorf("gpu: allocate FP32 tensor: %w", err)
+	if buffer, err = state.backend.newBuffer(count, dtype); err != nil {
+		return nil, fmt.Errorf("gpu: allocate %s tensor: %w", dtype, err)
 	}
 	state.children++
-	return newTensor(state, shape, count, buffer), nil
+	return newTensor(state, dtype, shape, count, bytes, buffer), nil
 }
 
 // NewScope creates an independent command scope owned by the device.
@@ -118,21 +126,33 @@ func (d *Device) Close() (err error) {
 }
 
 func float32Count(shape []int64, maxBufferLength uint64) (count uint64, err error) {
+	count, _, err = tensorLayout(shape, Float32, maxBufferLength)
+	return count, err
+}
+
+func tensorLayout(shape []int64, dtype DType, maxBufferLength uint64) (count, bytes uint64, err error) {
+	if !dtype.Valid() {
+		return 0, 0, fmt.Errorf("%w: unsupported tensor dtype %d", ErrInvalid, dtype)
+	}
 	if len(shape) == 0 {
-		return 0, fmt.Errorf("%w: tensor rank must be positive", ErrInvalid)
+		return 0, 0, fmt.Errorf("%w: tensor rank must be positive", ErrInvalid)
 	}
 
-	var limit = min(uint64(math.MaxInt), maxBufferLength) / 4
+	var (
+		elemBytes = dtype.Bytes()
+		limit     = min(uint64(math.MaxInt), maxBufferLength) / elemBytes
+	)
 	count = 1
 	for axis, dimension := range shape {
 		if dimension <= 0 {
-			return 0, fmt.Errorf("%w: tensor dimension %d must be positive", ErrInvalid, axis)
+			return 0, 0, fmt.Errorf("%w: tensor dimension %d must be positive", ErrInvalid, axis)
 		}
 		if count > limit/uint64(dimension) {
-			return 0, fmt.Errorf("%w: FP32 tensor exceeds the host or device buffer length limit", ErrInvalid)
+			return 0, 0, fmt.Errorf("%w: %s tensor exceeds the host or device buffer length limit", ErrInvalid, dtype)
 		}
 		count *= uint64(dimension)
 	}
 
-	return count, nil
+	bytes = count * elemBytes
+	return count, bytes, nil
 }

@@ -48,8 +48,8 @@ func (s *Scope) EncodeCopy(source, destination *Buffer) (err error) {
 		err = errors.New("device: copy destination must not alias source")
 		return err
 	}
-	if source.count != destination.count {
-		err = fmt.Errorf("device: copy length mismatch: source=%d destination=%d", source.count, destination.count)
+	if source.bytes != destination.bytes {
+		err = fmt.Errorf("device: copy length mismatch: source=%d destination=%d", source.bytes, destination.bytes)
 		return err
 	}
 

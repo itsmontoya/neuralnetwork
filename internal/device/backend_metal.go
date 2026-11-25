@@ -117,6 +117,122 @@ func (m *metalBackend) download(handle any, values []float32) (err error) {
 	return nil
 }
 
+func (m *metalBackend) uploadBytes(handle any, values []byte) (err error) {
+	var (
+		buffer C.NNMetalBuffer
+		status C.int
+	)
+
+	if buffer, err = m.bufferHandle(handle); err != nil {
+		return err
+	}
+	if len(values) == 0 {
+		err = errors.New("metal: upload buffer bytes: values are empty")
+		return err
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_buffer_upload_bytes(
+		buffer,
+		unsafe.Pointer(&values[0]),
+		C.uint64_t(len(values)),
+	)
+	if status != C.NNMetalStatusSuccess {
+		err = m.lastError("upload Metal buffer bytes")
+		return err
+	}
+
+	return nil
+}
+
+func (m *metalBackend) downloadBytes(handle any, values []byte) (err error) {
+	var (
+		buffer C.NNMetalBuffer
+		status C.int
+	)
+
+	if buffer, err = m.bufferHandle(handle); err != nil {
+		return err
+	}
+	if len(values) == 0 {
+		err = errors.New("metal: download buffer bytes: destination is empty")
+		return err
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_buffer_download_bytes(
+		buffer,
+		unsafe.Pointer(&values[0]),
+		C.uint64_t(len(values)),
+	)
+	if status != C.NNMetalStatusSuccess {
+		err = m.lastError("download Metal buffer bytes")
+		return err
+	}
+
+	return nil
+}
+
+func (m *metalBackend) uploadUint16(handle any, values []uint16) (err error) {
+	var (
+		buffer C.NNMetalBuffer
+		status C.int
+	)
+
+	if buffer, err = m.bufferHandle(handle); err != nil {
+		return err
+	}
+	if len(values) == 0 {
+		err = errors.New("metal: upload uint16 buffer: values are empty")
+		return err
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_buffer_upload_bytes(
+		buffer,
+		unsafe.Pointer(&values[0]),
+		C.uint64_t(len(values))*2,
+	)
+	if status != C.NNMetalStatusSuccess {
+		err = m.lastError("upload Metal uint16 buffer")
+		return err
+	}
+
+	return nil
+}
+
+func (m *metalBackend) downloadUint16(handle any, values []uint16) (err error) {
+	var (
+		buffer C.NNMetalBuffer
+		status C.int
+	)
+
+	if buffer, err = m.bufferHandle(handle); err != nil {
+		return err
+	}
+	if len(values) == 0 {
+		err = errors.New("metal: download uint16 buffer: destination is empty")
+		return err
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_buffer_download_bytes(
+		buffer,
+		unsafe.Pointer(&values[0]),
+		C.uint64_t(len(values))*2,
+	)
+	if status != C.NNMetalStatusSuccess {
+		err = m.lastError("download Metal uint16 buffer")
+		return err
+	}
+
+	return nil
+}
+
 func (m *metalBackend) releaseBuffer(handle any) {
 	var (
 		buffer C.NNMetalBuffer
