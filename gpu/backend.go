@@ -26,6 +26,7 @@ type commandBuffer interface {
 	encodeScale(input, destination allocation, scale float32) (err error)
 	encodeBroadcast(left, right, destination allocation, operation device.BroadcastOperation, spec device.BroadcastSpec) (err error)
 	encodeSoftmax(input, destination allocation, outer, axisSize, inner uint32) (err error)
+	encodeLayerNorm(input, weight, bias, destination allocation, rows, width uint32, epsilon float32, weightDType, biasDType DType) (err error)
 	encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32, cacheDType DType) (err error)
 	encodeAttentionMath(operation device.AttentionMathOperation, first, second, target, extra allocation, params [6]uint32, threads uint32) (err error)
 	Commit() (err error)
@@ -100,6 +101,35 @@ func (m metalCommandBuffer) encodeBroadcast(left, right, destination allocation,
 
 func (m metalCommandBuffer) encodeSoftmax(input, destination allocation, outer, axisSize, inner uint32) (err error) {
 	return m.EncodeTensorSoftmax(input.(*device.Buffer), destination.(*device.Buffer), outer, axisSize, inner)
+}
+
+func (m metalCommandBuffer) encodeLayerNorm(input, weight, bias, destination allocation, rows, width uint32, epsilon float32, weightDType, biasDType DType) (err error) {
+	var biasBuffer *device.Buffer
+	if bias != nil {
+		biasBuffer = bias.(*device.Buffer)
+	}
+	return m.EncodeTensorLayerNorm(
+		input.(*device.Buffer),
+		weight.(*device.Buffer),
+		biasBuffer,
+		destination.(*device.Buffer),
+		rows,
+		width,
+		epsilon,
+		layerNormDTypeTag(weightDType),
+		layerNormDTypeTag(biasDType),
+	)
+}
+
+func layerNormDTypeTag(dtype DType) (tag uint32) {
+	switch dtype {
+	case Float16:
+		return 1
+	case BFloat16:
+		return 2
+	default:
+		return 0
+	}
 }
 
 func (m metalCommandBuffer) encodeMatMul(left, right, destination allocation, rows, cols, inner uint32, rightTransposed bool, rightDType DType) (err error) {

@@ -91,6 +91,18 @@ int nn_metal_scope_encode_tensor_softmax(
 	uint32_t axisSize,
 	uint32_t inner
 );
+int nn_metal_scope_encode_tensor_layernorm(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer weight,
+	NNMetalBuffer bias,
+	NNMetalBuffer result,
+	uint32_t rows,
+	uint32_t width,
+	float epsilon,
+	uint32_t weightDType,
+	uint32_t biasDType
+);
 typedef struct {
 	uint32_t op;
 	uint32_t rank;

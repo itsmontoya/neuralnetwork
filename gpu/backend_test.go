@@ -21,6 +21,7 @@ type fakeBackend struct {
 	scales      atomic.Int32
 	broadcasts  atomic.Int32
 	softmaxes   atomic.Int32
+	layerNorms  atomic.Int32
 }
 
 func (b *fakeBackend) newBuffer(count, bytes uint64, dtype DType) (buffer allocation, err error) {
@@ -207,6 +208,11 @@ func (c *fakeCommandBuffer) encodeBroadcast(_, _, _ allocation, _ device.Broadca
 
 func (c *fakeCommandBuffer) encodeSoftmax(_, _ allocation, _, _, _ uint32) (err error) {
 	c.backend.softmaxes.Add(1)
+	return c.encodeErr
+}
+
+func (c *fakeCommandBuffer) encodeLayerNorm(_, _, _, _ allocation, _, _ uint32, _ float32, _, _ DType) (err error) {
+	c.backend.layerNorms.Add(1)
 	return c.encodeErr
 }
 

@@ -312,6 +312,63 @@ func (s *Scope) EncodeTensorSoftmax(input, result *Buffer, outer, axisSize, inne
 	return err
 }
 
+// EncodeTensorLayerNorm appends a numerically stable two-pass FP32 LayerNorm
+// over rows of width elements with Float32 (0), Float16 (1), or BFloat16 (2)
+// weight and optional bias buffers into a disjoint destination buffer.
+func (s *Scope) EncodeTensorLayerNorm(input, weight, bias, result *Buffer, rows, width uint32, epsilon float32, weightDType, biasDType uint32) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(input, "LayerNorm input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(weight, "LayerNorm weight"); err != nil {
+		return err
+	}
+	var biasHandle any
+	if bias != nil {
+		if err = s.validateBuffer(bias, "LayerNorm bias"); err != nil {
+			return err
+		}
+		biasHandle = bias.handle
+	}
+	if err = s.validateBuffer(result, "LayerNorm destination"); err != nil {
+		return err
+	}
+	if input == result || weight == result || (bias != nil && bias == result) ||
+		rows == 0 || width == 0 || !(epsilon > 0 && epsilon <= math.MaxFloat32) ||
+		weightDType > 2 || (bias != nil && biasDType > 2) {
+		return errors.New("device: invalid LayerNorm destination, dimensions, epsilon or dtype")
+	}
+	var total = uint64(rows) * uint64(width)
+	if total > math.MaxUint32 || input.count != total || result.count != total {
+		return errors.New("device: LayerNorm input or destination buffer length mismatch")
+	}
+	var weightElemBytes uint64 = 4
+	if weightDType != 0 {
+		weightElemBytes = 2
+	}
+	if weight.bytes != uint64(width)*weightElemBytes {
+		return errors.New("device: LayerNorm weight buffer length mismatch")
+	}
+	if bias != nil {
+		var biasElemBytes uint64 = 4
+		if biasDType != 0 {
+			biasElemBytes = 2
+		}
+		if bias.bytes != uint64(width)*biasElemBytes {
+			return errors.New("device: LayerNorm bias buffer length mismatch")
+		}
+	}
+	if err = s.runtime.backend.encodeTensorLayerNorm(s.handle, input.handle, weight.handle, biasHandle, result.handle, rows, width, epsilon, weightDType, biasDType); err != nil {
+		err = fmt.Errorf("device: encode tensor LayerNorm: %w", err)
+		s.fail(err)
+	}
+	return err
+}
+
 // EncodeKVAppend stages two equal-shaped planes in a disjoint storage slot.
 func (s *Scope) EncodeKVAppend(history, keys, values, target *Buffer, plane, prefix uint32) (err error) {
 	if err = s.lockForEncoding(); err != nil {

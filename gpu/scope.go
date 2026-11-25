@@ -710,6 +710,77 @@ func (s *Scope) RMSNorm(input, weight, destination *Tensor, epsilon float32) (er
 	return state.encodeAttentionMath("RMSNorm", operation, input, weight, destination, nil, params, uint32(input.state.storage.count/uint64(width)))
 }
 
+// LayerNorm records ONNX opset-17 LayerNormalization along the last axis of
+// input: (x - mean(x)) / sqrt(var(x) + epsilon) * weight + bias. Input and
+// destination must be Float32 with matching shapes (rank >= 1) and at most
+// 2³²−1 elements. Weight is required and must be a rank-one Float32, Float16,
+// or BFloat16 vector matching the last axis. Bias is optional; when non-nil,
+// it must be a rank-one Float32, Float16, or BFloat16 vector matching the last
+// axis (independently of weight dtype). Mean and variance accumulate in FP32
+// using a numerically stable two-pass reduction. Epsilon must be finite and
+// positive. Destination is fully written and must not alias input, weight, or
+// bias (including via Tensor.View).
+func (s *Scope) LayerNorm(input, weight, bias, destination *Tensor, epsilon float32) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	if input == nil || input.state == nil || input.state.storage.count > math.MaxUint32 ||
+		!hasShape(destination, input.state.shape...) {
+		return state.reject("LayerNorm", fmt.Errorf("%w: invalid input or destination shape or index range", ErrInvalid))
+	}
+	var width = input.state.shape[len(input.state.shape)-1]
+	if !hasShape(weight, width) || !(epsilon > 0 && epsilon <= math.MaxFloat32) {
+		return state.reject("LayerNorm", fmt.Errorf("%w: expected a matching last-axis weight and finite positive epsilon", ErrInvalid))
+	}
+	if bias != nil && !hasShape(bias, width) {
+		return state.reject("LayerNorm", fmt.Errorf("%w: expected a matching last-axis bias", ErrInvalid))
+	}
+	if err = requireFloat32("LayerNorm", input, destination); err != nil {
+		return state.reject("LayerNorm", err)
+	}
+	var weightDType = weight.state.storage.dtype
+	if weightDType != Float32 && weightDType != Float16 && weightDType != BFloat16 {
+		return state.reject("LayerNorm", fmt.Errorf("%w: LayerNorm weight has unsupported dtype %s", ErrInvalid, weightDType))
+	}
+	var (
+		biasDType  DType
+		biasBuffer allocation
+	)
+	if bias != nil {
+		biasDType = bias.state.storage.dtype
+		if biasDType != Float32 && biasDType != Float16 && biasDType != BFloat16 {
+			return state.reject("LayerNorm", fmt.Errorf("%w: LayerNorm bias has unsupported dtype %s", ErrInvalid, biasDType))
+		}
+		if err = state.acquire(destination, input, weight, bias); err != nil {
+			return state.reject("LayerNorm", err)
+		}
+		biasBuffer = bias.state.storage.buffer
+	} else {
+		if err = state.acquire(destination, input, weight); err != nil {
+			return state.reject("LayerNorm", err)
+		}
+	}
+	var rows = uint32(input.state.storage.count / uint64(width))
+	if err = state.commands.encodeLayerNorm(
+		input.state.storage.buffer,
+		weight.state.storage.buffer,
+		biasBuffer,
+		destination.state.storage.buffer,
+		rows,
+		uint32(width),
+		epsilon,
+		weightDType,
+		biasDType,
+	); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode LayerNorm: %w", err)
+	}
+	return nil
+}
+
 // RotatePairs applies (x0*cos - x1*sin, x1*cos + x0*sin) to adjacent FP32
 // feature pairs within each head. Input and destination are token-major
 // [rows, heads*headWidth] or [rows, heads, headWidth] with an even head width.

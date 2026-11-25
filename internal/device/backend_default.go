@@ -79,6 +79,10 @@ func (unavailableBackend) encodeTensorSoftmax(any, any, any, uint32, uint32, uin
 	return ErrUnavailable
 }
 
+func (unavailableBackend) encodeTensorLayerNorm(any, any, any, any, any, uint32, uint32, float32, uint32, uint32) (err error) {
+	return ErrUnavailable
+}
+
 func (unavailableBackend) encodeAddRowVector(any, any, any, uint32, uint32) (err error) {
 	return ErrUnavailable
 }
