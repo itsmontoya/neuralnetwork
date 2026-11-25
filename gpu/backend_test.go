@@ -18,6 +18,8 @@ type fakeBackend struct {
 	downloads   atomic.Int32
 	matmuls     atomic.Int32
 	elementwise atomic.Int32
+	scales      atomic.Int32
+	broadcasts  atomic.Int32
 	softmaxes   atomic.Int32
 }
 
@@ -190,6 +192,16 @@ func (c *fakeCommandBuffer) encodeMatMul(_, _, _ allocation, _, _, _ uint32, _ b
 
 func (c *fakeCommandBuffer) encodeElementwise(_, _, _ allocation, _ device.ElementwiseOperation) (err error) {
 	c.backend.elementwise.Add(1)
+	return c.encodeErr
+}
+
+func (c *fakeCommandBuffer) encodeScale(_, _ allocation, _ float32) (err error) {
+	c.backend.scales.Add(1)
+	return c.encodeErr
+}
+
+func (c *fakeCommandBuffer) encodeBroadcast(_, _, _ allocation, _ device.BroadcastOperation, _ device.BroadcastSpec) (err error) {
+	c.backend.broadcasts.Add(1)
 	return c.encodeErr
 }
 

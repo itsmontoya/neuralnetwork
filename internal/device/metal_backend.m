@@ -2,6 +2,7 @@
 
 #include "metal_backend.h"
 #include "attention_metal_source.h"
+#include "broadcast_metal_source.h"
 #include "elementwise_metal_source.h"
 #include "matmul_mixed_metal_source.h"
 #include "matmul_quant_metal_source.h"
@@ -40,6 +41,8 @@ typedef enum {
 	NNMetalTensorReLU,
 	NNMetalTensorSigmoid,
 	NNMetalTensorTanh,
+	NNMetalTensorSub,
+	NNMetalTensorDiv,
 	NNMetalTensorElementwiseCount,
 } NNMetalTensorElementwiseOperation;
 
@@ -364,6 +367,16 @@ static pthread_once_t nnMetalTensorSoftmaxOnce = PTHREAD_ONCE_INIT;
 static id<MTLComputePipelineState> nnMetalTensorSoftmaxPipelines[NNMetalTensorSoftmaxCount];
 static char nnMetalTensorSoftmaxError[1024];
 typedef enum {
+	NNMetalTensorScale,
+	NNMetalTensorBroadcastScalar,
+	NNMetalTensorBroadcastLastAxis,
+	NNMetalTensorBroadcastGeneral,
+	NNMetalTensorBroadcastCount,
+} NNMetalTensorBroadcastPipeline;
+static pthread_once_t nnMetalTensorBroadcastOnce = PTHREAD_ONCE_INIT;
+static id<MTLComputePipelineState> nnMetalTensorBroadcastPipelines[NNMetalTensorBroadcastCount];
+static char nnMetalTensorBroadcastError[1024];
+typedef enum {
 	NNMetalTensorRMSNorm,
 	NNMetalTensorRMSNormFloat16,
 	NNMetalTensorRMSNormBFloat16,
@@ -576,6 +589,8 @@ static void nn_metal_initialize_tensor_elementwise(void) {
 			[NNMetalTensorReLU] = @"nn_tensor_relu",
 			[NNMetalTensorSigmoid] = @"nn_tensor_sigmoid",
 			[NNMetalTensorTanh] = @"nn_tensor_tanh",
+			[NNMetalTensorSub] = @"nn_tensor_sub",
+			[NNMetalTensorDiv] = @"nn_tensor_div",
 		};
 		for (NSUInteger i = 0; i < NNMetalTensorElementwiseCount; i++) {
 			nnMetalTensorElementwisePipelines[i] = nn_metal_new_pipeline(library, names[i]);
@@ -584,6 +599,42 @@ static void nn_metal_initialize_tensor_elementwise(void) {
 				for (NSUInteger j = 0; j < i; j++) {
 					[nnMetalTensorElementwisePipelines[j] release];
 					nnMetalTensorElementwisePipelines[j] = nil;
+				}
+				break;
+			}
+		}
+		[library release];
+	}
+}
+
+// Tensor scale and broadcast pipelines compile lazily with fastMathEnabled = NO.
+static void nn_metal_initialize_tensor_broadcast(void) {
+	@autoreleasepool {
+		NSError *error = nil;
+		NSString *source = [NSString stringWithFormat:@"%s%s", nnMetalShaderHeader, nnMetalTensorBroadcastSource];
+		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		[options setFastMathEnabled:NO];
+		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
+		[options release];
+		if (library == nil) {
+			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile tensor broadcast library: %@", [error localizedDescription]]);
+			strlcpy(nnMetalTensorBroadcastError, nnMetalLastError, sizeof(nnMetalTensorBroadcastError));
+			return;
+		}
+
+		NSString *names[NNMetalTensorBroadcastCount] = {
+			[NNMetalTensorScale] = @"nn_tensor_scale",
+			[NNMetalTensorBroadcastScalar] = @"nn_tensor_broadcast_scalar",
+			[NNMetalTensorBroadcastLastAxis] = @"nn_tensor_broadcast_last_axis",
+			[NNMetalTensorBroadcastGeneral] = @"nn_tensor_broadcast_general",
+		};
+		for (NSUInteger i = 0; i < NNMetalTensorBroadcastCount; i++) {
+			nnMetalTensorBroadcastPipelines[i] = nn_metal_new_pipeline(library, names[i]);
+			if (nnMetalTensorBroadcastPipelines[i] == nil) {
+				strlcpy(nnMetalTensorBroadcastError, nnMetalLastError, sizeof(nnMetalTensorBroadcastError));
+				for (NSUInteger j = 0; j < i; j++) {
+					[nnMetalTensorBroadcastPipelines[j] release];
+					nnMetalTensorBroadcastPipelines[j] = nil;
 				}
 				break;
 			}
@@ -1317,6 +1368,166 @@ int nn_metal_scope_encode_tensor_elementwise(
 		if (rightRecord != NULL) {
 			[scopeRecord->retainedResources addObject:rightRecord->value];
 		}
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_tensor_scale(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer result,
+	float scale,
+	uint32_t count
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *inputRecord = nn_metal_buffer_record(input);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+	uint64_t bytes = (uint64_t)count * sizeof(float);
+
+	if (scopeRecord == NULL || inputRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode tensor scale: invalid handles");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || count == 0 || inputRecord == resultRecord ||
+		bytes != inputRecord->bytes || bytes != resultRecord->bytes) {
+		nn_metal_set_error("metal: encode tensor scale: invalid state, alias or buffer length");
+		return NNMetalStatusError;
+	}
+
+	pthread_once(&nnMetalTensorBroadcastOnce, nn_metal_initialize_tensor_broadcast);
+	id<MTLComputePipelineState> pipeline = nnMetalTensorBroadcastPipelines[NNMetalTensorScale];
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalTensorBroadcastError);
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode tensor scale: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:inputRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:1];
+		[encoder setBytes:&scale length:sizeof(scale) atIndex:2];
+		NSUInteger threadWidth = MIN((NSUInteger)256, [pipeline maxTotalThreadsPerThreadgroup]);
+		[encoder dispatchThreads:MTLSizeMake(count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:inputRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_tensor_broadcast(
+	NNMetalScope scope,
+	NNMetalBuffer left,
+	NNMetalBuffer right,
+	NNMetalBuffer result,
+	NNMetalBroadcastParams params
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *leftRecord = nn_metal_buffer_record(left);
+	NNMetalBufferRecord *rightRecord = nn_metal_buffer_record(right);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+
+	if (scopeRecord == NULL || leftRecord == NULL || rightRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode tensor broadcast: invalid handles");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || leftRecord == resultRecord || rightRecord == resultRecord ||
+		params.op > 3u || params.rank == 0u || params.rank > 6u || params.count == 0u) {
+		nn_metal_set_error("metal: encode tensor broadcast: invalid state, operation, alias or rank");
+		return NNMetalStatusError;
+	}
+	uint64_t outBytes = (uint64_t)params.count * sizeof(float);
+	if (outBytes != resultRecord->bytes ||
+		leftRecord->bytes == 0 || (leftRecord->bytes % sizeof(float)) != 0 ||
+		rightRecord->bytes == 0 || (rightRecord->bytes % sizeof(float)) != 0) {
+		nn_metal_set_error("metal: encode tensor broadcast: buffer length mismatch");
+		return NNMetalStatusError;
+	}
+	uint64_t leftCount = leftRecord->bytes / sizeof(float);
+	uint64_t rightCount = rightRecord->bytes / sizeof(float);
+	uint64_t product = 1;
+	uint64_t maxLeft = 0;
+	uint64_t maxRight = 0;
+	for (uint32_t d = 0; d < params.rank; d++) {
+		if (params.dims[d] == 0u) {
+			nn_metal_set_error("metal: encode tensor broadcast: zero dimension");
+			return NNMetalStatusError;
+		}
+		product *= (uint64_t)params.dims[d];
+		if (product > UINT32_MAX) {
+			nn_metal_set_error("metal: encode tensor broadcast: element count exceeds uint32");
+			return NNMetalStatusError;
+		}
+		maxLeft += (uint64_t)(params.dims[d] - 1u) * (uint64_t)params.leftStrides[d];
+		maxRight += (uint64_t)(params.dims[d] - 1u) * (uint64_t)params.rightStrides[d];
+	}
+	if (product != (uint64_t)params.count || maxLeft >= leftCount || maxRight >= rightCount) {
+		nn_metal_set_error("metal: encode tensor broadcast: strides exceed input buffer length");
+		return NNMetalStatusError;
+	}
+
+	pthread_once(&nnMetalTensorBroadcastOnce, nn_metal_initialize_tensor_broadcast);
+	NSUInteger pipelineIndex = NNMetalTensorBroadcastGeneral;
+	if (params.rank == 1u && (params.leftStrides[0] == 0u || params.rightStrides[0] == 0u)) {
+		if (params.leftStrides[0] == 1u && params.rightStrides[0] == 0u) {
+			params.mode = 0u;
+			pipelineIndex = NNMetalTensorBroadcastScalar;
+		} else if (params.leftStrides[0] == 0u && params.rightStrides[0] == 1u) {
+			params.mode = 1u;
+			pipelineIndex = NNMetalTensorBroadcastScalar;
+		} else if (params.leftStrides[0] == 0u && params.rightStrides[0] == 0u) {
+			params.mode = 2u;
+			pipelineIndex = NNMetalTensorBroadcastScalar;
+		}
+	} else if (params.rank == 2u) {
+		uint32_t cols = params.dims[1];
+		if (params.leftStrides[0] == cols && params.leftStrides[1] == 1u &&
+			params.rightStrides[0] == 0u && params.rightStrides[1] == 1u) {
+			params.mode = 0u;
+			pipelineIndex = NNMetalTensorBroadcastLastAxis;
+		} else if (params.rightStrides[0] == cols && params.rightStrides[1] == 1u &&
+			params.leftStrides[0] == 0u && params.leftStrides[1] == 1u) {
+			params.mode = 1u;
+			pipelineIndex = NNMetalTensorBroadcastLastAxis;
+		}
+	}
+
+	id<MTLComputePipelineState> pipeline = nnMetalTensorBroadcastPipelines[pipelineIndex];
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalTensorBroadcastError);
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode tensor broadcast: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+		[encoder setBytes:&params length:sizeof(params) atIndex:3];
+		NSUInteger maxThreads = MIN((NSUInteger)256, [pipeline maxTotalThreadsPerThreadgroup]);
+		if (pipelineIndex == NNMetalTensorBroadcastLastAxis) {
+			NSUInteger rows = (NSUInteger)params.dims[0];
+			NSUInteger cols = (NSUInteger)params.dims[1];
+			NSUInteger tgX = MIN(cols, maxThreads);
+			NSUInteger tgY = MIN(rows, MAX((NSUInteger)1, maxThreads / tgX));
+			[encoder dispatchThreads:MTLSizeMake(cols, rows, 1) threadsPerThreadgroup:MTLSizeMake(tgX, tgY, 1)];
+		} else {
+			[encoder dispatchThreads:MTLSizeMake(params.count, 1, 1) threadsPerThreadgroup:MTLSizeMake(maxThreads, 1, 1)];
+		}
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:leftRecord->value];
+		[scopeRecord->retainedResources addObject:rightRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
 	return NNMetalStatusSuccess;

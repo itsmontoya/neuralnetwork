@@ -410,6 +410,79 @@ func (m *metalBackend) encodeElementwise(scope, left, right, result any, count u
 	return nil
 }
 
+func (m *metalBackend) encodeTensorScale(scope, input, result any, scale float32, count uint32) (err error) {
+	var (
+		scopeHandle  C.NNMetalScope
+		inputHandle  C.NNMetalBuffer
+		resultHandle C.NNMetalBuffer
+		status       C.int
+	)
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if inputHandle, err = m.bufferHandle(input); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_scope_encode_tensor_scale(
+		scopeHandle,
+		inputHandle,
+		resultHandle,
+		C.float(scale),
+		C.uint32_t(count),
+	)
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal tensor scale")
+	}
+	return nil
+}
+
+func (m *metalBackend) encodeTensorBroadcast(scope, left, right, result any, operation BroadcastOperation, spec BroadcastSpec) (err error) {
+	var (
+		scopeHandle  C.NNMetalScope
+		leftHandle   C.NNMetalBuffer
+		rightHandle  C.NNMetalBuffer
+		resultHandle C.NNMetalBuffer
+		params       C.NNMetalBroadcastParams
+		status       C.int
+	)
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if leftHandle, err = m.bufferHandle(left); err != nil {
+		return err
+	}
+	if rightHandle, err = m.bufferHandle(right); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	params.op = C.uint32_t(operation)
+	params.rank = C.uint32_t(spec.Rank)
+	params.count = C.uint32_t(spec.Count)
+	for i := range 6 {
+		params.dims[i] = C.uint32_t(spec.Dims[i])
+		params.outStrides[i] = C.uint32_t(spec.OutStrides[i])
+		params.leftStrides[i] = C.uint32_t(spec.LeftStrides[i])
+		params.rightStrides[i] = C.uint32_t(spec.RightStrides[i])
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_scope_encode_tensor_broadcast(scopeHandle, leftHandle, rightHandle, resultHandle, params)
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal tensor broadcast")
+	}
+	return nil
+}
+
 func (m *metalBackend) encodeTensorSoftmax(scope, input, result any, outer, axisSize, inner uint32) (err error) {
 	var (
 		scopeHandle  C.NNMetalScope

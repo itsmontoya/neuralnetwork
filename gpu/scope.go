@@ -188,6 +188,249 @@ func (s *Scope) Mul(left, right, destination *Tensor) (err error) {
 	return s.elementwise("mul", device.ElementwiseMul, destination, left, right)
 }
 
+// Sub records an elementwise FP32 difference (left - right) with the shape and
+// ownership rules of Add. Subtraction follows IEEE-754 FP32 arithmetic.
+func (s *Scope) Sub(left, right, destination *Tensor) (err error) {
+	return s.elementwise("sub", device.ElementwiseSub, destination, left, right)
+}
+
+// Div records an elementwise FP32 quotient (left / right) with the shape and
+// ownership rules of Add. Division follows IEEE-754 FP32 arithmetic, including
+// ±Inf for nonzero division by zero and NaN for 0/0 or Inf/Inf.
+func (s *Scope) Div(left, right, destination *Tensor) (err error) {
+	return s.elementwise("div", device.ElementwiseDiv, destination, left, right)
+}
+
+// Scale records input * scale in FP32 into destination with the shape and
+// ownership rules of SiLU. Scale may be any float32 value (including zero,
+// ±Inf, or NaN), following IEEE-754 multiplication semantics.
+func (s *Scope) Scale(input, destination *Tensor, scale float32) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	if input == nil || input.state == nil || destination == nil || destination.state == nil {
+		return state.reject("scale", fmt.Errorf("%w: missing input or destination", ErrInvalid))
+	}
+	var (
+		srcStorage = input.state.storage
+		dstStorage = destination.state.storage
+	)
+	if srcStorage.dtype != Float32 {
+		return state.reject("scale", fmt.Errorf("%w: scale requires float32 tensors, got %s", ErrInvalid, srcStorage.dtype))
+	}
+	if dstStorage.dtype != Float32 {
+		return state.reject("scale", fmt.Errorf("%w: scale requires float32 tensors, got %s", ErrInvalid, dstStorage.dtype))
+	}
+	if !slices.Equal(input.state.shape, destination.state.shape) {
+		return state.reject("scale", fmt.Errorf("%w: tensor shapes differ", ErrInvalid))
+	}
+	if dstStorage.count > math.MaxUint32 {
+		return state.reject("scale", fmt.Errorf("%w: tensor element count exceeds the Metal scale index range", ErrInvalid))
+	}
+	if err = state.acquire(destination, input); err != nil {
+		return state.reject("scale", err)
+	}
+	if err = state.commands.encodeScale(srcStorage.buffer, dstStorage.buffer, scale); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode scale: %w", err)
+	}
+	return nil
+}
+
+// AddBroadcast records an elementwise FP32 sum using ONNX/NumPy right-aligned
+// multidirectional broadcasting for ranks 1 through 6. Operands must be
+// Float32 on the scope's device with at most 2³²−1 elements each, and
+// destination must have the exact broadcast output shape without aliasing
+// either input (including through Tensor.View).
+func (s *Scope) AddBroadcast(left, right, destination *Tensor) (err error) {
+	return s.broadcast("add broadcast", device.BroadcastAdd, device.ElementwiseAdd, left, right, destination)
+}
+
+// SubBroadcast records an elementwise FP32 difference (left - right) with the
+// multidirectional broadcasting and ownership rules of AddBroadcast.
+func (s *Scope) SubBroadcast(left, right, destination *Tensor) (err error) {
+	return s.broadcast("sub broadcast", device.BroadcastSub, device.ElementwiseSub, left, right, destination)
+}
+
+// MulBroadcast records an elementwise FP32 product with the multidirectional
+// broadcasting and ownership rules of AddBroadcast.
+func (s *Scope) MulBroadcast(left, right, destination *Tensor) (err error) {
+	return s.broadcast("mul broadcast", device.BroadcastMul, device.ElementwiseMul, left, right, destination)
+}
+
+// DivBroadcast records an elementwise FP32 quotient (left / right) with the
+// multidirectional broadcasting and ownership rules of AddBroadcast.
+func (s *Scope) DivBroadcast(left, right, destination *Tensor) (err error) {
+	return s.broadcast("div broadcast", device.BroadcastDiv, device.ElementwiseDiv, left, right, destination)
+}
+
+const maxBroadcastRank = 6
+
+func (s *Scope) broadcast(
+	name string,
+	operation device.BroadcastOperation,
+	contiguousOp device.ElementwiseOperation,
+	left, right, destination *Tensor,
+) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	if left == nil || left.state == nil || right == nil || right.state == nil || destination == nil || destination.state == nil {
+		return state.reject(name, fmt.Errorf("%w: missing operand", ErrInvalid))
+	}
+	var (
+		leftStorage  = left.state.storage
+		rightStorage = right.state.storage
+		dstStorage   = destination.state.storage
+	)
+	if err = requireFloat32(name, left, right, destination); err != nil {
+		return state.reject(name, err)
+	}
+	if leftStorage.count > math.MaxUint32 || rightStorage.count > math.MaxUint32 || dstStorage.count > math.MaxUint32 {
+		return state.reject(name, fmt.Errorf("%w: tensor element count exceeds the Metal broadcast index range", ErrInvalid))
+	}
+	var (
+		expectedShape [maxBroadcastRank]int64
+		expectedRank  int
+		spec          device.BroadcastSpec
+		contiguous    bool
+	)
+	if expectedShape, expectedRank, spec, contiguous, err = buildBroadcastSpec(left.state.shape, right.state.shape); err != nil {
+		return state.reject(name, err)
+	}
+	if !slices.Equal(destination.state.shape, expectedShape[:expectedRank]) {
+		return state.reject(name, fmt.Errorf("%w: destination shape %v must match broadcast shape %v", ErrInvalid, destination.state.shape, expectedShape[:expectedRank]))
+	}
+	if err = state.acquire(destination, left, right); err != nil {
+		return state.reject(name, err)
+	}
+	if contiguous {
+		if err = state.commands.encodeElementwise(leftStorage.buffer, rightStorage.buffer, dstStorage.buffer, contiguousOp); err != nil {
+			state.status = scopePoisoned
+			return fmt.Errorf("gpu: encode %s: %w", name, err)
+		}
+		return nil
+	}
+	if err = state.commands.encodeBroadcast(leftStorage.buffer, rightStorage.buffer, dstStorage.buffer, operation, spec); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode %s: %w", name, err)
+	}
+	return nil
+}
+
+func buildBroadcastSpec(leftShape, rightShape []int64) (outShape [maxBroadcastRank]int64, outRank int, spec device.BroadcastSpec, contiguous bool, err error) {
+	var (
+		leftRank  = len(leftShape)
+		rightRank = len(rightShape)
+	)
+	if leftRank == 0 || leftRank > maxBroadcastRank || rightRank == 0 || rightRank > maxBroadcastRank {
+		return outShape, 0, spec, false, fmt.Errorf("%w: broadcast operands must have rank 1..%d, got %d and %d",
+			ErrInvalid, maxBroadcastRank, leftRank, rightRank)
+	}
+	outRank = max(leftRank, rightRank)
+
+	var (
+		leftRaw  [maxBroadcastRank]uint64
+		rightRaw [maxBroadcastRank]uint64
+		stride   uint64 = 1
+	)
+	for i := leftRank - 1; i >= 0; i-- {
+		var outIdx = outRank - leftRank + i
+		if leftShape[i] == 1 {
+			leftRaw[outIdx] = 0
+		} else {
+			leftRaw[outIdx] = stride
+			stride *= uint64(leftShape[i])
+		}
+	}
+	stride = 1
+	for i := rightRank - 1; i >= 0; i-- {
+		var outIdx = outRank - rightRank + i
+		if rightShape[i] == 1 {
+			rightRaw[outIdx] = 0
+		} else {
+			rightRaw[outIdx] = stride
+			stride *= uint64(rightShape[i])
+		}
+	}
+
+	var total uint64 = 1
+	for i := range outRank {
+		var (
+			lDim int64 = 1
+			rDim int64 = 1
+		)
+		if i >= outRank-leftRank {
+			lDim = leftShape[i-(outRank-leftRank)]
+		}
+		if i >= outRank-rightRank {
+			rDim = rightShape[i-(outRank-rightRank)]
+		}
+		if lDim != rDim && lDim != 1 && rDim != 1 {
+			return outShape, 0, spec, false, fmt.Errorf("%w: incompatible broadcast shapes %v and %v", ErrInvalid, leftShape, rightShape)
+		}
+		var outDim = max(lDim, rDim)
+		outShape[i] = outDim
+		if total > math.MaxUint32/uint64(outDim) {
+			return outShape, 0, spec, false, fmt.Errorf("%w: broadcast element count exceeds the Metal index range", ErrInvalid)
+		}
+		total *= uint64(outDim)
+	}
+
+	if slices.Equal(leftShape, rightShape) {
+		return outShape, outRank, spec, true, nil
+	}
+
+	var (
+		dims         [maxBroadcastRank]uint64
+		leftStrides  [maxBroadcastRank]uint64
+		rightStrides [maxBroadcastRank]uint64
+		rank         int
+	)
+	for i := range outRank {
+		if outShape[i] == 1 {
+			continue
+		}
+		var (
+			dim = uint64(outShape[i])
+			ls  = leftRaw[i]
+			rs  = rightRaw[i]
+		)
+		if rank > 0 && leftStrides[rank-1] == ls*dim && rightStrides[rank-1] == rs*dim {
+			dims[rank-1] *= dim
+			leftStrides[rank-1] = ls
+			rightStrides[rank-1] = rs
+			continue
+		}
+		dims[rank] = dim
+		leftStrides[rank] = ls
+		rightStrides[rank] = rs
+		rank++
+	}
+
+	if rank == 0 || (rank == 1 && leftStrides[0] == 1 && rightStrides[0] == 1) {
+		return outShape, outRank, spec, true, nil
+	}
+
+	spec.Rank = uint32(rank)
+	spec.Count = uint32(total)
+	var outStride uint64 = 1
+	for i := rank - 1; i >= 0; i-- {
+		spec.Dims[i] = uint32(dims[i])
+		spec.OutStrides[i] = uint32(outStride)
+		spec.LeftStrides[i] = uint32(leftStrides[i])
+		spec.RightStrides[i] = uint32(rightStrides[i])
+		outStride *= dims[i]
+	}
+	return outShape, outRank, spec, false, nil
+}
+
 // SiLU records input times its logistic sigmoid, evaluated in FP32 with a
 // stable sigmoid for negative inputs. It uses the shape and ownership rules
 // of Add. NaN propagates, positive infinity yields positive infinity, and
