@@ -8,20 +8,24 @@ import (
 )
 
 type fakeBackend struct {
-	bufferErr   error
-	scopeErr    error
-	liveBuffers atomic.Int32
-	liveScopes  atomic.Int32
-	submissions atomic.Int32
-	waits       atomic.Int32
-	uploads     atomic.Int32
-	downloads   atomic.Int32
-	matmuls     atomic.Int32
-	elementwise atomic.Int32
-	scales      atomic.Int32
-	broadcasts  atomic.Int32
-	softmaxes   atomic.Int32
-	layerNorms  atomic.Int32
+	bufferErr           error
+	scopeErr            error
+	liveBuffers         atomic.Int32
+	liveScopes          atomic.Int32
+	submissions         atomic.Int32
+	waits               atomic.Int32
+	uploads             atomic.Int32
+	downloads           atomic.Int32
+	matmuls             atomic.Int32
+	elementwise         atomic.Int32
+	scales              atomic.Int32
+	broadcasts          atomic.Int32
+	softmaxes           atomic.Int32
+	layerNorms          atomic.Int32
+	transposes          atomic.Int32
+	copies              atomic.Int32
+	matMulLeftTranspose atomic.Int32
+	batchedMatMuls      atomic.Int32
 }
 
 func (b *fakeBackend) newBuffer(count, bytes uint64, dtype DType) (buffer allocation, err error) {
@@ -145,6 +149,7 @@ func (c *fakeCommandBuffer) encodeFill(destination allocation, value float32) (e
 }
 
 func (c *fakeCommandBuffer) encodeCopy(source, destination allocation) (err error) {
+	c.backend.copies.Add(1)
 	var (
 		input  = source.(*fakeAllocation)
 		output = destination.(*fakeAllocation)
@@ -213,6 +218,21 @@ func (c *fakeCommandBuffer) encodeSoftmax(_, _ allocation, _, _, _ uint32) (err 
 
 func (c *fakeCommandBuffer) encodeLayerNorm(_, _, _, _ allocation, _, _ uint32, _ float32, _, _ DType) (err error) {
 	c.backend.layerNorms.Add(1)
+	return c.encodeErr
+}
+
+func (c *fakeCommandBuffer) encodeTranspose(_, _ allocation, _ device.TransposeSpec) (err error) {
+	c.backend.transposes.Add(1)
+	return c.encodeErr
+}
+
+func (c *fakeCommandBuffer) encodeMatMulLeftTranspose(_, _, _ allocation, _, _, _ uint32, _ DType) (err error) {
+	c.backend.matMulLeftTranspose.Add(1)
+	return c.encodeErr
+}
+
+func (c *fakeCommandBuffer) encodeBatchedMatMul(_, _, _ allocation, _ device.BatchedMatMulSpec) (err error) {
+	c.backend.batchedMatMuls.Add(1)
 	return c.encodeErr
 }
 

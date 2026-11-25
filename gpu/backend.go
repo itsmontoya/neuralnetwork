@@ -27,6 +27,9 @@ type commandBuffer interface {
 	encodeBroadcast(left, right, destination allocation, operation device.BroadcastOperation, spec device.BroadcastSpec) (err error)
 	encodeSoftmax(input, destination allocation, outer, axisSize, inner uint32) (err error)
 	encodeLayerNorm(input, weight, bias, destination allocation, rows, width uint32, epsilon float32, weightDType, biasDType DType) (err error)
+	encodeTranspose(input, destination allocation, spec device.TransposeSpec) (err error)
+	encodeMatMulLeftTranspose(left, right, destination allocation, m, n, k uint32, rightDType DType) (err error)
+	encodeBatchedMatMul(left, right, destination allocation, spec device.BatchedMatMulSpec) (err error)
 	encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32, cacheDType DType) (err error)
 	encodeAttentionMath(operation device.AttentionMathOperation, first, second, target, extra allocation, params [6]uint32, threads uint32) (err error)
 	Commit() (err error)
@@ -130,6 +133,26 @@ func layerNormDTypeTag(dtype DType) (tag uint32) {
 	default:
 		return 0
 	}
+}
+
+func (m metalCommandBuffer) encodeTranspose(input, destination allocation, spec device.TransposeSpec) (err error) {
+	return m.EncodeTensorTranspose(input.(*device.Buffer), destination.(*device.Buffer), spec)
+}
+
+func (m metalCommandBuffer) encodeMatMulLeftTranspose(left, right, destination allocation, rows, cols, inner uint32, rightDType DType) (err error) {
+	return m.EncodeTensorMatMulLeftTranspose(
+		left.(*device.Buffer),
+		right.(*device.Buffer),
+		destination.(*device.Buffer),
+		rows,
+		cols,
+		inner,
+		layerNormDTypeTag(rightDType),
+	)
+}
+
+func (m metalCommandBuffer) encodeBatchedMatMul(left, right, destination allocation, spec device.BatchedMatMulSpec) (err error) {
+	return m.EncodeTensorBatchedMatMul(left.(*device.Buffer), right.(*device.Buffer), destination.(*device.Buffer), spec)
 }
 
 func (m metalCommandBuffer) encodeMatMul(left, right, destination allocation, rows, cols, inner uint32, rightTransposed bool, rightDType DType) (err error) {
