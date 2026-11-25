@@ -2,6 +2,7 @@
 
 #include "metal_backend.h"
 #include "attention_metal_source.h"
+#include "matmul_mixed_metal_source.h"
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -356,6 +357,16 @@ static id<MTLComputePipelineState> nnMetalMatMulPipeline = nil;
 static pthread_once_t nnMetalTensorMatMulOnce = PTHREAD_ONCE_INIT;
 static id<MTLComputePipelineState> nnMetalTensorMatMulPipeline = nil;
 static char nnMetalTensorMatMulError[1024];
+typedef enum {
+	NNMetalMatMulMixedF16,
+	NNMetalMatMulMixedF16RowRT,
+	NNMetalMatMulMixedBF16,
+	NNMetalMatMulMixedBF16RowRT,
+	NNMetalMatMulMixedCount,
+} NNMetalMatMulMixedPipeline;
+static pthread_once_t nnMetalTensorMatMulMixedOnce = PTHREAD_ONCE_INIT;
+static id<MTLComputePipelineState> nnMetalTensorMatMulMixedPipelines[NNMetalMatMulMixedCount];
+static char nnMetalTensorMatMulMixedError[1024];
 static pthread_once_t nnMetalTensorElementwiseOnce = PTHREAD_ONCE_INIT;
 static id<MTLComputePipelineState> nnMetalTensorElementwisePipelines[NNMetalTensorElementwiseCount];
 static char nnMetalTensorElementwiseError[1024];
@@ -466,6 +477,43 @@ static void nn_metal_initialize_tensor_matmul(void) {
 		if (nnMetalTensorMatMulPipeline == nil) {
 			strlcpy(nnMetalTensorMatMulError, nnMetalLastError, sizeof(nnMetalTensorMatMulError));
 		}
+	}
+}
+
+// Mixed-precision FP16/BF16 matmul pipelines compile lazily with fastMathEnabled = NO.
+static void nn_metal_initialize_tensor_matmul_mixed(void) {
+	@autoreleasepool {
+		NSError *error = nil;
+		NSString *source = [NSString stringWithFormat:@"%s%s%s",
+			nnMetalShaderHeader, nnMetalMatMulDimensionsSource, nnMetalMatMulMixedSource];
+		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		[options setFastMathEnabled:NO];
+		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
+		[options release];
+		if (library == nil) {
+			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile mixed matmul library: %@", [error localizedDescription]]);
+			strlcpy(nnMetalTensorMatMulMixedError, nnMetalLastError, sizeof(nnMetalTensorMatMulMixedError));
+			return;
+		}
+
+		NSString *names[NNMetalMatMulMixedCount] = {
+			[NNMetalMatMulMixedF16] = @"nn_matmul_f16",
+			[NNMetalMatMulMixedF16RowRT] = @"nn_matmul_f16_row_right_transpose",
+			[NNMetalMatMulMixedBF16] = @"nn_matmul_bf16",
+			[NNMetalMatMulMixedBF16RowRT] = @"nn_matmul_bf16_row_right_transpose",
+		};
+		for (NSUInteger i = 0; i < NNMetalMatMulMixedCount; i++) {
+			nnMetalTensorMatMulMixedPipelines[i] = nn_metal_new_pipeline(library, names[i]);
+			if (nnMetalTensorMatMulMixedPipelines[i] == nil) {
+				strlcpy(nnMetalTensorMatMulMixedError, nnMetalLastError, sizeof(nnMetalTensorMatMulMixedError));
+				for (NSUInteger j = 0; j < i; j++) {
+					[nnMetalTensorMatMulMixedPipelines[j] release];
+					nnMetalTensorMatMulMixedPipelines[j] = nil;
+				}
+				break;
+			}
+		}
+		[library release];
 	}
 }
 
@@ -1740,6 +1788,112 @@ int nn_metal_scope_encode_matmul(
 		}
 		groupWidth = ((NSUInteger)dimensions.resultCols + threadWidth - 1) / threadWidth;
 		groupHeight = ((NSUInteger)dimensions.resultRows + threadHeight - 1) / threadHeight;
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+		[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
+		[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, threadHeight, 1)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:leftRecord->value];
+		[scopeRecord->retainedResources addObject:rightRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_matmul_mixed(
+	NNMetalScope scope,
+	NNMetalBuffer left,
+	NNMetalBuffer right,
+	NNMetalBuffer result,
+	NNMetalMatMulDimensions dimensions,
+	uint32_t weightDType
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *leftRecord = nn_metal_buffer_record(left);
+	NNMetalBufferRecord *rightRecord = nn_metal_buffer_record(right);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+	id<MTLComputePipelineState> pipeline = nil;
+	id<MTLComputeCommandEncoder> encoder = nil;
+	uint64_t leftBytes = 0;
+	uint64_t rightBytes = 0;
+	uint64_t resultBytes = 0;
+	int useRowRT = 0;
+	NSUInteger pipelineIndex = 0;
+
+	if (scopeRecord == NULL || leftRecord == NULL || rightRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode mixed matrix multiplication: nil handle");
+		return NNMetalStatusError;
+	}
+	leftBytes = (uint64_t)dimensions.leftRows * dimensions.leftCols * sizeof(float);
+	rightBytes = (uint64_t)dimensions.rightRows * dimensions.rightCols * sizeof(uint16_t);
+	resultBytes = (uint64_t)dimensions.resultRows * dimensions.resultCols * sizeof(float);
+	if (scopeRecord->committed ||
+		(dimensions.variant != 0 && dimensions.variant != 2) ||
+		(weightDType != NNMetalWeightFloat16 && weightDType != NNMetalWeightBFloat16) ||
+		leftBytes == 0 || rightBytes == 0 || resultBytes == 0 ||
+		leftBytes != leftRecord->bytes || rightBytes != rightRecord->bytes || resultBytes != resultRecord->bytes) {
+		nn_metal_set_error("metal: encode mixed matrix multiplication: invalid state, dimensions, dtype, or buffer length");
+		return NNMetalStatusError;
+	}
+
+	pthread_once(&nnMetalTensorMatMulMixedOnce, nn_metal_initialize_tensor_matmul_mixed);
+	useRowRT = (dimensions.resultRows == 1 && dimensions.variant == 2);
+	if (weightDType == NNMetalWeightFloat16) {
+		pipelineIndex = useRowRT ? NNMetalMatMulMixedF16RowRT : NNMetalMatMulMixedF16;
+	} else {
+		pipelineIndex = useRowRT ? NNMetalMatMulMixedBF16RowRT : NNMetalMatMulMixedBF16;
+	}
+	pipeline = nnMetalTensorMatMulMixedPipelines[pipelineIndex];
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalTensorMatMulMixedError);
+		return NNMetalStatusError;
+	}
+
+	MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
+	if (useRowRT) {
+		NSUInteger threads = 128;
+		if (threads > limits.width || threads > [pipeline maxTotalThreadsPerThreadgroup]) {
+			nn_metal_set_error("metal: encode mixed row matmul: threadgroup size exceeds Metal limits");
+			return NNMetalStatusError;
+		}
+		@autoreleasepool {
+			encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+			if (encoder == nil) {
+				nn_metal_set_error("metal: encode mixed row matmul: create compute encoder returned nil");
+				return NNMetalStatusError;
+			}
+			NSUInteger groups = ((NSUInteger)dimensions.resultCols + 7) / 8;
+			[encoder setComputePipelineState:pipeline];
+			[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
+			[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
+			[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+			[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
+			[encoder dispatchThreadgroups:MTLSizeMake(groups, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
+			[encoder endEncoding];
+			[scopeRecord->retainedResources addObject:leftRecord->value];
+			[scopeRecord->retainedResources addObject:rightRecord->value];
+			[scopeRecord->retainedResources addObject:resultRecord->value];
+		}
+		return NNMetalStatusSuccess;
+	}
+
+	NSUInteger threadWidth = 16;
+	NSUInteger threadHeight = 16;
+	if (threadWidth > limits.width || threadHeight > limits.height ||
+		threadWidth * threadHeight > [pipeline maxTotalThreadsPerThreadgroup]) {
+		nn_metal_set_error("metal: encode mixed matmul: threadgroup size exceeds Metal limits");
+		return NNMetalStatusError;
+	}
+	@autoreleasepool {
+		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode mixed matmul: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		NSUInteger groupWidth = ((NSUInteger)dimensions.resultCols + threadWidth - 1) / threadWidth;
+		NSUInteger groupHeight = ((NSUInteger)dimensions.resultRows + threadHeight - 1) / threadHeight;
 		[encoder setComputePipelineState:pipeline];
 		[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
 		[encoder setBuffer:rightRecord->value offset:0 atIndex:1];

@@ -227,23 +227,26 @@ func (s *Scope) elementwise(name string, operation device.ElementwiseOperation, 
 }
 
 // MatMul records destination[M,N] = left[M,K] × right[K,N]. All tensors must
-// be contiguous row-major FP32 matrices with positive dimensions and at most
-// 2³²−1 elements each. Use M=1 for a single-row projection. Operands must be
-// on this device. The inputs may share an allocation. They must already be
-// initialized or written by an earlier operation in the same scope. Destination
-// is fully overwritten and must be distinct from both inputs.
+// be contiguous row-major matrices with positive dimensions and at most
+// 2³²−1 elements each. Left and destination must be Float32; right may be
+// Float32, Float16, or BFloat16. Use M=1 for a single-row projection. Operands
+// must be on this device. The inputs may share an allocation. They must already
+// be initialized or written by an earlier operation in the same scope.
+// Destination is fully overwritten and must be distinct from both inputs.
 //
-// Each dot product accumulates in FP32 in contraction order and may use fused
-// multiply-add. NaNs propagate, and infinite operands follow IEEE arithmetic,
-// including NaN for zero times infinity or addition of opposite infinities.
-// NaN payloads, signed zero and subnormal preservation are unspecified.
+// Each dot product accumulates in FP32 and may use fused multiply-add. For
+// Float32 × Float32, accumulation proceeds in contraction order. NaNs
+// propagate, and infinite operands follow IEEE arithmetic, including NaN for
+// zero times infinity or addition of opposite infinities. NaN payloads, signed
+// zero and subnormal preservation are unspecified.
 func (s *Scope) MatMul(left, right, destination *Tensor) (err error) {
 	return s.matMul(left, right, destination, false)
 }
 
 // MatMulRightTranspose records destination[M,N] = left[M,K] × right[N,K]ᵀ
 // without moving or transposing the stored right operand. It uses the same
-// row-major output, ownership, shape limits and FP32 arithmetic as MatMul.
+// row-major output, ownership, shape limits, supported right dtypes (Float32,
+// Float16, or BFloat16), and FP32 accumulation semantics as MatMul.
 func (s *Scope) MatMulRightTranspose(left, right, destination *Tensor) (err error) {
 	return s.matMul(left, right, destination, true)
 }
@@ -259,12 +262,18 @@ func (s *Scope) matMul(left, right, destination *Tensor, rightTransposed bool) (
 		if operand == nil || operand.state == nil || len(operand.state.shape) != 2 {
 			return state.reject("matmul", fmt.Errorf("%w: operands must be rank-two tensors", ErrInvalid))
 		}
-		if operand.state.dtype != Float32 {
-			return state.reject("matmul", fmt.Errorf("%w: matmul requires float32 tensors, got %s", ErrInvalid, operand.state.dtype))
-		}
 		if operand.state.count > math.MaxUint32 {
 			return state.reject("matmul", fmt.Errorf("%w: tensor element count exceeds the Metal matmul index range", ErrInvalid))
 		}
+	}
+	if left.state.dtype != Float32 {
+		return state.reject("matmul", fmt.Errorf("%w: matmul requires float32 left operand, got %s", ErrInvalid, left.state.dtype))
+	}
+	if !right.state.dtype.Valid() {
+		return state.reject("matmul", fmt.Errorf("%w: matmul right operand has unsupported dtype %s", ErrInvalid, right.state.dtype))
+	}
+	if destination.state.dtype != Float32 {
+		return state.reject("matmul", fmt.Errorf("%w: matmul requires float32 destination, got %s", ErrInvalid, destination.state.dtype))
 	}
 
 	var (
@@ -284,7 +293,7 @@ func (s *Scope) matMul(left, right, destination *Tensor, rightTransposed bool) (
 		return state.reject("matmul", err)
 	}
 	if err = state.commands.encodeMatMul(left.state.buffer, right.state.buffer, destination.state.buffer,
-		uint32(m), uint32(n), uint32(k), rightTransposed); err != nil {
+		uint32(m), uint32(n), uint32(k), rightTransposed, right.state.dtype); err != nil {
 		state.status = scopePoisoned
 		return fmt.Errorf("gpu: encode matmul: %w", err)
 	}

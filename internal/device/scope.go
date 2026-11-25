@@ -753,7 +753,7 @@ func (s *Scope) EncodeMatMul(
 		err = errors.New("device: matrix multiplication destination must not alias an input")
 		return err
 	}
-	if operation > OperationTensorMatMulRightTranspose {
+	if operation > OperationTensorMatMulRightTransposeBFloat16 {
 		err = fmt.Errorf("device: unsupported matrix multiplication operation: %d", operation)
 		return err
 	}
@@ -764,18 +764,24 @@ func (s *Scope) EncodeMatMul(
 	dimensions.rightCols = rightCols
 	dimensions.resultRows = resultRows
 	dimensions.resultCols = resultCols
-	if err = s.validateMatMulCounts(left, right, result, dimensions); err != nil {
-		return err
-	}
-	if operation >= OperationTensorMatMul {
-		var inner, cols = rightRows, rightCols
-		if operation == OperationTensorMatMulRightTranspose {
-			inner, cols = cols, inner
+	if operation >= OperationTensorMatMulFloat16 {
+		if err = s.validateMixedMatMulBuffers(left, right, result, dimensions, operation); err != nil {
+			return err
 		}
-		if leftRows != resultRows || leftCols != inner || cols != resultCols ||
-			left.count == 0 || right.count == 0 || result.count == 0 ||
-			left.count > math.MaxUint32 || right.count > math.MaxUint32 || result.count > math.MaxUint32 {
-			return errors.New("device: invalid tensor matmul dimensions or index range")
+	} else {
+		if err = s.validateMatMulCounts(left, right, result, dimensions); err != nil {
+			return err
+		}
+		if operation >= OperationTensorMatMul {
+			var inner, cols = rightRows, rightCols
+			if operation == OperationTensorMatMulRightTranspose {
+				inner, cols = cols, inner
+			}
+			if leftRows != resultRows || leftCols != inner || cols != resultCols ||
+				left.count == 0 || right.count == 0 || result.count == 0 ||
+				left.count > math.MaxUint32 || right.count > math.MaxUint32 || result.count > math.MaxUint32 {
+				return errors.New("device: invalid tensor matmul dimensions or index range")
+			}
 		}
 	}
 
@@ -977,6 +983,43 @@ func (s *Scope) validateMatMulCounts(
 		return err
 	}
 
+	return nil
+}
+
+func (s *Scope) validateMixedMatMulBuffers(
+	left,
+	right,
+	result *Buffer,
+	dimensions matMulDimensions,
+	operation Operation,
+) (err error) {
+	var (
+		leftCount   = uint64(dimensions.leftRows) * uint64(dimensions.leftCols)
+		rightCount  = uint64(dimensions.rightRows) * uint64(dimensions.rightCols)
+		resultCount = uint64(dimensions.resultRows) * uint64(dimensions.resultCols)
+		inner       = dimensions.rightRows
+		cols        = dimensions.rightCols
+	)
+	if operation == OperationTensorMatMulRightTransposeFloat16 ||
+		operation == OperationTensorMatMulRightTransposeBFloat16 {
+		inner, cols = cols, inner
+	}
+	if dimensions.leftRows != dimensions.resultRows || dimensions.leftCols != inner || cols != dimensions.resultCols ||
+		leftCount == 0 || rightCount == 0 || resultCount == 0 ||
+		leftCount > math.MaxUint32 || rightCount > math.MaxUint32 || resultCount > math.MaxUint32 {
+		return errors.New("device: invalid mixed-precision tensor matmul dimensions or index range")
+	}
+	if left.count != leftCount || right.count != 0 || right.bytes != rightCount*2 || result.count != resultCount {
+		return fmt.Errorf(
+			"device: mixed-precision matrix multiplication buffer length mismatch: left=%d/%d rightBytes=%d/%d result=%d/%d",
+			left.count,
+			leftCount,
+			right.bytes,
+			rightCount*2,
+			result.count,
+			resultCount,
+		)
+	}
 	return nil
 }
 

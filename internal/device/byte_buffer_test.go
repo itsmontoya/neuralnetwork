@@ -99,3 +99,54 @@ func Test_RuntimeByteBufferRoundTripAndCopy(t *testing.T) {
 		t.Fatalf("copied uint16 = %x, want %x", u16Out, u16In)
 	}
 }
+
+func Test_ScopeEncodeMixedMatMulValidation(t *testing.T) {
+	var (
+		backend     = newTestBackend()
+		runtime     = newRuntime(backend)
+		left, err1  = runtime.NewBuffer(6)
+		right, err2 = runtime.NewByteBuffer(24)
+		wrong, err3 = runtime.NewBuffer(12)
+		short, err4 = runtime.NewByteBuffer(20)
+		out, err5   = runtime.NewBuffer(8)
+		scope, err6 = runtime.NewScope()
+	)
+	for _, err := range []error{err1, err2, err3, err4, err5, err6} {
+		if err != nil {
+			t.Fatalf("setup failed: %v", err)
+		}
+	}
+	defer left.Release()
+	defer right.Release()
+	defer wrong.Release()
+	defer short.Release()
+	defer out.Release()
+	defer scope.Release()
+
+	if err := scope.EncodeMatMul(left, right, out, 2, 3, 3, 4, 2, 4, OperationTensorMatMulFloat16); err != nil {
+		t.Fatalf("expected valid FP16 matmul, got %v", err)
+	}
+	if err := scope.EncodeMatMul(left, right, out, 2, 3, 4, 3, 2, 4, OperationTensorMatMulRightTransposeFloat16); err != nil {
+		t.Fatalf("expected valid FP16 right-transposed matmul, got %v", err)
+	}
+	if err := scope.EncodeMatMul(left, right, out, 2, 3, 3, 4, 2, 4, OperationTensorMatMulBFloat16); err != nil {
+		t.Fatalf("expected valid BF16 matmul, got %v", err)
+	}
+	if err := scope.EncodeMatMul(left, right, out, 2, 3, 4, 3, 2, 4, OperationTensorMatMulRightTransposeBFloat16); err != nil {
+		t.Fatalf("expected valid BF16 right-transposed matmul, got %v", err)
+	}
+
+	// FP32 right buffer, wrong byte length, and mismatched dimensions must fail.
+	if err := scope.EncodeMatMul(left, wrong, out, 2, 3, 3, 4, 2, 4, OperationTensorMatMulFloat16); err == nil {
+		t.Fatal("expected error when passing FP32 buffer as FP16 right operand")
+	}
+	if err := scope.EncodeMatMul(left, short, out, 2, 3, 3, 4, 2, 4, OperationTensorMatMulBFloat16); err == nil {
+		t.Fatal("expected error when passing undersized byte buffer as BF16 right operand")
+	}
+	if err := scope.EncodeMatMul(left, right, out, 2, 3, 3, 4, 2, 4, OperationTensorMatMulRightTransposeFloat16); err == nil {
+		t.Fatal("expected error on transposed inner dimension mismatch")
+	}
+	if err := scope.EncodeMatMul(left, right, out, 2, 3, 3, 4, 2, 4, OperationTensorMatMulRightTransposeBFloat16+1); err == nil {
+		t.Fatal("expected error on unknown matmul operation")
+	}
+}
