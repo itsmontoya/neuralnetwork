@@ -2,8 +2,10 @@
 
 #include "metal_backend.h"
 #include "attention_metal_source.h"
+#include "elementwise_metal_source.h"
 #include "matmul_mixed_metal_source.h"
 #include "matmul_quant_metal_source.h"
+#include "softmax_metal_source.h"
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -35,46 +37,18 @@ typedef enum {
 	NNMetalTensorMul,
 	NNMetalTensorSiLU,
 	NNMetalTensorSwiGLU,
+	NNMetalTensorReLU,
+	NNMetalTensorSigmoid,
+	NNMetalTensorTanh,
 	NNMetalTensorElementwiseCount,
 } NNMetalTensorElementwiseOperation;
 
-static const char *nnMetalTensorElementwiseSource =
-	"static float nn_silu(float x) {\n"
-	"    float exponent = exp(-fabs(x));\n"
-	"    float sigmoid = (x < 0.0f ? exponent : 1.0f) / (1.0f + exponent);\n"
-	"    return x * sigmoid;\n"
-	"}\n"
-	"kernel void nn_tensor_add(\n"
-	"    const device float *left [[buffer(0)]],\n"
-	"    const device float *right [[buffer(1)]],\n"
-	"    device float *result [[buffer(2)]],\n"
-	"    uint index [[thread_position_in_grid]]\n"
-	") {\n"
-	"    result[index] = left[index] + right[index];\n"
-	"}\n"
-	"kernel void nn_tensor_mul(\n"
-	"    const device float *left [[buffer(0)]],\n"
-	"    const device float *right [[buffer(1)]],\n"
-	"    device float *result [[buffer(2)]],\n"
-	"    uint index [[thread_position_in_grid]]\n"
-	") {\n"
-	"    result[index] = left[index] * right[index];\n"
-	"}\n"
-	"kernel void nn_tensor_silu(\n"
-	"    const device float *input [[buffer(0)]],\n"
-	"    device float *result [[buffer(2)]],\n"
-	"    uint index [[thread_position_in_grid]]\n"
-	") {\n"
-	"    result[index] = nn_silu(input[index]);\n"
-	"}\n"
-	"kernel void nn_tensor_swiglu(\n"
-	"    const device float *gate [[buffer(0)]],\n"
-	"    const device float *up [[buffer(1)]],\n"
-	"    device float *result [[buffer(2)]],\n"
-	"    uint index [[thread_position_in_grid]]\n"
-	") {\n"
-	"    result[index] = nn_silu(gate[index]) * up[index];\n"
-	"}\n";
+static int nn_metal_tensor_elementwise_is_unary(uint32_t operation) {
+	return operation == NNMetalTensorSiLU ||
+		operation == NNMetalTensorReLU ||
+		operation == NNMetalTensorSigmoid ||
+		operation == NNMetalTensorTanh;
+}
 
 static const char *nnMetalMatMulDimensionsSource =
 	"struct NNMetalMatMulDimensions {\n"
@@ -382,6 +356,14 @@ static pthread_once_t nnMetalTensorElementwiseOnce = PTHREAD_ONCE_INIT;
 static id<MTLComputePipelineState> nnMetalTensorElementwisePipelines[NNMetalTensorElementwiseCount];
 static char nnMetalTensorElementwiseError[1024];
 typedef enum {
+	NNMetalTensorSoftmaxLastAxis,
+	NNMetalTensorSoftmaxStrided,
+	NNMetalTensorSoftmaxCount,
+} NNMetalTensorSoftmaxPipeline;
+static pthread_once_t nnMetalTensorSoftmaxOnce = PTHREAD_ONCE_INIT;
+static id<MTLComputePipelineState> nnMetalTensorSoftmaxPipelines[NNMetalTensorSoftmaxCount];
+static char nnMetalTensorSoftmaxError[1024];
+typedef enum {
 	NNMetalTensorRMSNorm,
 	NNMetalTensorRMSNormFloat16,
 	NNMetalTensorRMSNormBFloat16,
@@ -591,6 +573,9 @@ static void nn_metal_initialize_tensor_elementwise(void) {
 			[NNMetalTensorMul] = @"nn_tensor_mul",
 			[NNMetalTensorSiLU] = @"nn_tensor_silu",
 			[NNMetalTensorSwiGLU] = @"nn_tensor_swiglu",
+			[NNMetalTensorReLU] = @"nn_tensor_relu",
+			[NNMetalTensorSigmoid] = @"nn_tensor_sigmoid",
+			[NNMetalTensorTanh] = @"nn_tensor_tanh",
 		};
 		for (NSUInteger i = 0; i < NNMetalTensorElementwiseCount; i++) {
 			nnMetalTensorElementwisePipelines[i] = nn_metal_new_pipeline(library, names[i]);
@@ -599,6 +584,40 @@ static void nn_metal_initialize_tensor_elementwise(void) {
 				for (NSUInteger j = 0; j < i; j++) {
 					[nnMetalTensorElementwisePipelines[j] release];
 					nnMetalTensorElementwisePipelines[j] = nil;
+				}
+				break;
+			}
+		}
+		[library release];
+	}
+}
+
+// Tensor softmax pipelines compile lazily with fastMathEnabled = NO.
+static void nn_metal_initialize_tensor_softmax(void) {
+	@autoreleasepool {
+		NSError *error = nil;
+		NSString *source = [NSString stringWithFormat:@"%s%s", nnMetalShaderHeader, nnMetalTensorSoftmaxSource];
+		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		[options setFastMathEnabled:NO];
+		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
+		[options release];
+		if (library == nil) {
+			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile tensor softmax library: %@", [error localizedDescription]]);
+			strlcpy(nnMetalTensorSoftmaxError, nnMetalLastError, sizeof(nnMetalTensorSoftmaxError));
+			return;
+		}
+
+		NSString *names[NNMetalTensorSoftmaxCount] = {
+			[NNMetalTensorSoftmaxLastAxis] = @"nn_tensor_softmax_last_axis",
+			[NNMetalTensorSoftmaxStrided] = @"nn_tensor_softmax_strided",
+		};
+		for (NSUInteger i = 0; i < NNMetalTensorSoftmaxCount; i++) {
+			nnMetalTensorSoftmaxPipelines[i] = nn_metal_new_pipeline(library, names[i]);
+			if (nnMetalTensorSoftmaxPipelines[i] == nil) {
+				strlcpy(nnMetalTensorSoftmaxError, nnMetalLastError, sizeof(nnMetalTensorSoftmaxError));
+				for (NSUInteger j = 0; j < i; j++) {
+					[nnMetalTensorSoftmaxPipelines[j] release];
+					nnMetalTensorSoftmaxPipelines[j] = nil;
 				}
 				break;
 			}
@@ -1260,7 +1279,7 @@ int nn_metal_scope_encode_tensor_elementwise(
 	uint64_t bytes = (uint64_t)count * sizeof(float);
 
 	if (scopeRecord == NULL || leftRecord == NULL || resultRecord == NULL ||
-		(rightRecord == NULL) != (operation == NNMetalTensorSiLU)) {
+		(rightRecord == NULL) != nn_metal_tensor_elementwise_is_unary(operation)) {
 		nn_metal_set_error("metal: encode tensor elementwise operation: invalid handles");
 		return NNMetalStatusError;
 	}
@@ -1298,6 +1317,87 @@ int nn_metal_scope_encode_tensor_elementwise(
 		if (rightRecord != NULL) {
 			[scopeRecord->retainedResources addObject:rightRecord->value];
 		}
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_tensor_softmax(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer result,
+	uint32_t outer,
+	uint32_t axisSize,
+	uint32_t inner
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *inputRecord = nn_metal_buffer_record(input);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+
+	if (scopeRecord == NULL || inputRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode tensor softmax: invalid handles");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || inputRecord == resultRecord ||
+		outer == 0 || axisSize == 0 || inner == 0) {
+		nn_metal_set_error("metal: encode tensor softmax: invalid state, alias or dimensions");
+		return NNMetalStatusError;
+	}
+	uint64_t total = (uint64_t)outer * (uint64_t)axisSize;
+	if (total > UINT32_MAX) {
+		nn_metal_set_error("metal: encode tensor softmax: element count exceeds uint32");
+		return NNMetalStatusError;
+	}
+	total *= (uint64_t)inner;
+	if (total > UINT32_MAX) {
+		nn_metal_set_error("metal: encode tensor softmax: element count exceeds uint32");
+		return NNMetalStatusError;
+	}
+	uint64_t bytes = total * sizeof(float);
+	if (bytes != inputRecord->bytes || bytes != resultRecord->bytes) {
+		nn_metal_set_error("metal: encode tensor softmax: buffer length mismatch");
+		return NNMetalStatusError;
+	}
+
+	pthread_once(&nnMetalTensorSoftmaxOnce, nn_metal_initialize_tensor_softmax);
+	NSUInteger pipelineIndex = (inner == 1) ? NNMetalTensorSoftmaxLastAxis : NNMetalTensorSoftmaxStrided;
+	id<MTLComputePipelineState> pipeline = nnMetalTensorSoftmaxPipelines[pipelineIndex];
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalTensorSoftmaxError);
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode tensor softmax: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:inputRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:1];
+		if (inner == 1) {
+			uint32_t params[1] = { axisSize };
+			[encoder setBytes:params length:sizeof(params) atIndex:2];
+			NSUInteger tgSize = 256;
+			if (axisSize <= 32) {
+				tgSize = 32;
+			} else if (axisSize <= 64) {
+				tgSize = 64;
+			} else if (axisSize <= 128) {
+				tgSize = 128;
+			}
+			tgSize = MIN(tgSize, [pipeline maxTotalThreadsPerThreadgroup]);
+			[encoder dispatchThreadgroups:MTLSizeMake(outer, 1, 1) threadsPerThreadgroup:MTLSizeMake(tgSize, 1, 1)];
+		} else {
+			uint32_t params[3] = { outer, axisSize, inner };
+			[encoder setBytes:params length:sizeof(params) atIndex:2];
+			NSUInteger totalSlices = (NSUInteger)outer * (NSUInteger)inner;
+			NSUInteger threadWidth = MIN((NSUInteger)256, [pipeline maxTotalThreadsPerThreadgroup]);
+			[encoder dispatchThreads:MTLSizeMake(totalSlices, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
+		}
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:inputRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
 	return NNMetalStatusSuccess;

@@ -410,6 +410,39 @@ func (m *metalBackend) encodeElementwise(scope, left, right, result any, count u
 	return nil
 }
 
+func (m *metalBackend) encodeTensorSoftmax(scope, input, result any, outer, axisSize, inner uint32) (err error) {
+	var (
+		scopeHandle  C.NNMetalScope
+		inputHandle  C.NNMetalBuffer
+		resultHandle C.NNMetalBuffer
+		status       C.int
+	)
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if inputHandle, err = m.bufferHandle(input); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_scope_encode_tensor_softmax(
+		scopeHandle,
+		inputHandle,
+		resultHandle,
+		C.uint32_t(outer),
+		C.uint32_t(axisSize),
+		C.uint32_t(inner),
+	)
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal tensor softmax")
+	}
+	return nil
+}
+
 func (m *metalBackend) encodeKVAppend(scope, history, keys, values, target any, plane, prefix uint32) (err error) {
 	var scopeHandle C.NNMetalScope
 	if scopeHandle, err = m.scopeHandle(scope); err != nil {

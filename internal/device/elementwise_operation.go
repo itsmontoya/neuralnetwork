@@ -13,4 +13,19 @@ const (
 	ElementwiseSiLU
 	// ElementwiseSwiGLU multiplies a SiLU-activated input by a second input.
 	ElementwiseSwiGLU
+	// ElementwiseReLU applies the rectified linear unit.
+	ElementwiseReLU
+	// ElementwiseSigmoid applies the logistic sigmoid.
+	ElementwiseSigmoid
+	// ElementwiseTanh applies the hyperbolic tangent.
+	ElementwiseTanh
 )
+
+func (o ElementwiseOperation) isUnary() (unary bool) {
+	switch o {
+	case ElementwiseSiLU, ElementwiseReLU, ElementwiseSigmoid, ElementwiseTanh:
+		return true
+	default:
+		return false
+	}
+}

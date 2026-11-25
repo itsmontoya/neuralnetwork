@@ -674,6 +674,10 @@ func (b *testBackend) encodeElementwise(_, _, _, _ any, _ uint32, _ ElementwiseO
 	return b.encodeErr
 }
 
+func (b *testBackend) encodeTensorSoftmax(_, _, _ any, _, _, _ uint32) (err error) {
+	return b.encodeErr
+}
+
 func (b *testBackend) encodeMatMul(
 	any,
 	any,
