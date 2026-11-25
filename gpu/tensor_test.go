@@ -53,7 +53,7 @@ func Test_TensorCloseDuringHostTransfer(t *testing.T) {
 		tensor = requireTensor(t, d, 1)
 		target = requireTensor(t, d, 1)
 		scope  = requireScope(t, d)
-		buffer = tensor.state.buffer.(*fakeAllocation)
+		buffer = tensor.state.storage.buffer.(*fakeAllocation)
 		gate   = make(chan struct{})
 		result = make(chan error, 1)
 	)

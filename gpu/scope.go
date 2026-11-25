@@ -15,7 +15,7 @@ func newScope(device *deviceState, commands commandBuffer) (out *Scope) {
 	var state scopeState
 	state.device = device
 	state.commands = commands
-	state.leases = make(map[*tensorState]tensorAccess)
+	state.leases = make(map[*tensorStorage]tensorAccess)
 	return &Scope{state: &state}
 }
 
@@ -52,7 +52,7 @@ type scopeState struct {
 	mutex      sync.Mutex // Acquire before the device mutex when both are needed.
 	device     *deviceState
 	commands   commandBuffer
-	leases     map[*tensorState]tensorAccess
+	leases     map[*tensorStorage]tensorAccess
 	kvAppends  []*kvAppendState
 	status     scopeStatus
 	completion *scopeCompletion
@@ -70,16 +70,17 @@ func (s *Scope) Fill(destination *Tensor, value float32) (err error) {
 	if destination == nil || destination.state == nil {
 		return state.reject("fill", fmt.Errorf("%w: missing destination", ErrInvalid))
 	}
-	if destination.state.dtype != Float32 {
-		return state.reject("fill", fmt.Errorf("%w: fill requires float32 tensor, got %s", ErrInvalid, destination.state.dtype))
+	var dstStorage = destination.state.storage
+	if dstStorage.dtype != Float32 {
+		return state.reject("fill", fmt.Errorf("%w: fill requires float32 tensor, got %s", ErrInvalid, dstStorage.dtype))
 	}
-	if destination.state.count > math.MaxUint32 {
+	if dstStorage.count > math.MaxUint32 {
 		return state.reject("fill", fmt.Errorf("%w: element count exceeds the Metal fill index range", ErrInvalid))
 	}
 	if err = state.acquire(destination); err != nil {
 		return state.reject("fill", err)
 	}
-	if err = state.commands.encodeFill(destination.state.buffer, value); err != nil {
+	if err = state.commands.encodeFill(dstStorage.buffer, value); err != nil {
 		state.status = scopePoisoned
 		return fmt.Errorf("gpu: encode fill: %w", err)
 	}
@@ -98,8 +99,12 @@ func (s *Scope) Copy(source, destination *Tensor) (err error) {
 	if source == nil || source.state == nil || destination == nil || destination.state == nil {
 		return state.reject("copy", fmt.Errorf("%w: missing source or destination", ErrInvalid))
 	}
-	if source.state.dtype != destination.state.dtype {
-		return state.reject("copy", fmt.Errorf("%w: tensor dtypes differ (%s vs %s)", ErrInvalid, source.state.dtype, destination.state.dtype))
+	var (
+		srcStorage = source.state.storage
+		dstStorage = destination.state.storage
+	)
+	if srcStorage.dtype != dstStorage.dtype {
+		return state.reject("copy", fmt.Errorf("%w: tensor dtypes differ (%s vs %s)", ErrInvalid, srcStorage.dtype, dstStorage.dtype))
 	}
 	if !slices.Equal(source.state.shape, destination.state.shape) {
 		return state.reject("copy", fmt.Errorf("%w: tensor shapes differ", ErrInvalid))
@@ -107,7 +112,7 @@ func (s *Scope) Copy(source, destination *Tensor) (err error) {
 	if err = state.acquire(destination, source); err != nil {
 		return state.reject("copy", err)
 	}
-	if err = state.commands.encodeCopy(source.state.buffer, destination.state.buffer); err != nil {
+	if err = state.commands.encodeCopy(srcStorage.buffer, dstStorage.buffer); err != nil {
 		state.status = scopePoisoned
 		return fmt.Errorf("gpu: encode copy: %w", err)
 	}
@@ -133,8 +138,10 @@ func (s *Scope) GatherRows(source *Tensor, rows []int64, destination *Tensor) (e
 		return state.reject("gather rows", fmt.Errorf("%w: operands must be rank-two tensors", ErrInvalid))
 	}
 	var (
-		srcDType = source.state.dtype
-		dstDType = destination.state.dtype
+		srcStorage = source.state.storage
+		dstStorage = destination.state.storage
+		srcDType   = srcStorage.dtype
+		dstDType   = dstStorage.dtype
 	)
 	if !srcDType.Valid() || !dstDType.Valid() || srcDType.IsQuantized() || dstDType.IsQuantized() ||
 		(srcDType != dstDType && !(dstDType == Float32 && srcDType.is16Bit())) {
@@ -158,7 +165,7 @@ func (s *Scope) GatherRows(source *Tensor, rows []int64, destination *Tensor) (e
 	if err = state.acquire(destination, source); err != nil {
 		return state.reject("gather rows", err)
 	}
-	if err = state.commands.encodeGatherRows(source.state.buffer, destination.state.buffer, uint64(columns), rows, srcDType, dstDType); err != nil {
+	if err = state.commands.encodeGatherRows(srcStorage.buffer, dstStorage.buffer, uint64(columns), rows, srcDType, dstDType); err != nil {
 		state.status = scopePoisoned
 		return fmt.Errorf("gpu: encode gather rows: %w", err)
 	}
@@ -205,18 +212,19 @@ func (s *Scope) elementwise(name string, operation device.ElementwiseOperation, 
 	if destination == nil || destination.state == nil {
 		return state.reject(name, fmt.Errorf("%w: missing destination", ErrInvalid))
 	}
-	if destination.state.dtype != Float32 {
-		return state.reject(name, fmt.Errorf("%w: %s requires float32 tensors, got %s", ErrInvalid, name, destination.state.dtype))
+	var dstStorage = destination.state.storage
+	if dstStorage.dtype != Float32 {
+		return state.reject(name, fmt.Errorf("%w: %s requires float32 tensors, got %s", ErrInvalid, name, dstStorage.dtype))
 	}
-	if destination.state.count > math.MaxUint32 {
+	if dstStorage.count > math.MaxUint32 {
 		return state.reject(name, fmt.Errorf("%w: tensor element count exceeds the Metal elementwise index range", ErrInvalid))
 	}
 	for _, input := range inputs {
 		if input == nil || input.state == nil {
 			return state.reject(name, fmt.Errorf("%w: missing input", ErrInvalid))
 		}
-		if input.state.dtype != Float32 {
-			return state.reject(name, fmt.Errorf("%w: %s requires float32 tensors, got %s", ErrInvalid, name, input.state.dtype))
+		if input.state.storage.dtype != Float32 {
+			return state.reject(name, fmt.Errorf("%w: %s requires float32 tensors, got %s", ErrInvalid, name, input.state.storage.dtype))
 		}
 		if !slices.Equal(input.state.shape, destination.state.shape) {
 			return state.reject(name, fmt.Errorf("%w: tensor shapes differ", ErrInvalid))
@@ -228,9 +236,9 @@ func (s *Scope) elementwise(name string, operation device.ElementwiseOperation, 
 
 	var second allocation
 	if len(inputs) == 2 {
-		second = inputs[1].state.buffer
+		second = inputs[1].state.storage.buffer
 	}
-	if err = state.commands.encodeElementwise(inputs[0].state.buffer, second, destination.state.buffer, operation); err != nil {
+	if err = state.commands.encodeElementwise(inputs[0].state.storage.buffer, second, dstStorage.buffer, operation); err != nil {
 		state.status = scopePoisoned
 		return fmt.Errorf("gpu: encode %s: %w", name, err)
 	}
@@ -274,21 +282,26 @@ func (s *Scope) matMul(left, right, destination *Tensor, rightTransposed bool) (
 		if operand == nil || operand.state == nil || len(operand.state.shape) != 2 {
 			return state.reject("matmul", fmt.Errorf("%w: operands must be rank-two tensors", ErrInvalid))
 		}
-		if operand.state.count > math.MaxUint32 {
+		if operand.state.storage.count > math.MaxUint32 {
 			return state.reject("matmul", fmt.Errorf("%w: tensor element count exceeds the Metal matmul index range", ErrInvalid))
 		}
 	}
-	if left.state.dtype != Float32 {
-		return state.reject("matmul", fmt.Errorf("%w: matmul requires float32 left operand, got %s", ErrInvalid, left.state.dtype))
+	var (
+		leftStorage  = left.state.storage
+		rightStorage = right.state.storage
+		dstStorage   = destination.state.storage
+	)
+	if leftStorage.dtype != Float32 {
+		return state.reject("matmul", fmt.Errorf("%w: matmul requires float32 left operand, got %s", ErrInvalid, leftStorage.dtype))
 	}
-	if !right.state.dtype.Valid() {
-		return state.reject("matmul", fmt.Errorf("%w: matmul right operand has unsupported dtype %s", ErrInvalid, right.state.dtype))
+	if !rightStorage.dtype.Valid() {
+		return state.reject("matmul", fmt.Errorf("%w: matmul right operand has unsupported dtype %s", ErrInvalid, rightStorage.dtype))
 	}
-	if right.state.dtype.IsQuantized() && !rightTransposed {
-		return state.reject("matmul", fmt.Errorf("%w: %s weights require MatMulRightTranspose", ErrInvalid, right.state.dtype))
+	if rightStorage.dtype.IsQuantized() && !rightTransposed {
+		return state.reject("matmul", fmt.Errorf("%w: %s weights require MatMulRightTranspose", ErrInvalid, rightStorage.dtype))
 	}
-	if destination.state.dtype != Float32 {
-		return state.reject("matmul", fmt.Errorf("%w: matmul requires float32 destination, got %s", ErrInvalid, destination.state.dtype))
+	if dstStorage.dtype != Float32 {
+		return state.reject("matmul", fmt.Errorf("%w: matmul requires float32 destination, got %s", ErrInvalid, dstStorage.dtype))
 	}
 
 	var (
@@ -304,14 +317,14 @@ func (s *Scope) matMul(left, right, destination *Tensor, rightTransposed bool) (
 		return state.reject("matmul", fmt.Errorf("%w: incompatible left %v, right %v and destination %v shapes (right transposed: %t)",
 			ErrInvalid, left.state.shape, right.state.shape, destination.state.shape, rightTransposed))
 	}
-	if right.state.dtype.IsQuantized() && k%QuantBlockSize != 0 {
-		return state.reject("matmul", fmt.Errorf("%w: %s inner dimension %d must be a multiple of %d", ErrInvalid, right.state.dtype, k, QuantBlockSize))
+	if rightStorage.dtype.IsQuantized() && k%QuantBlockSize != 0 {
+		return state.reject("matmul", fmt.Errorf("%w: %s inner dimension %d must be a multiple of %d", ErrInvalid, rightStorage.dtype, k, QuantBlockSize))
 	}
 	if err = state.acquire(destination, left, right); err != nil {
 		return state.reject("matmul", err)
 	}
-	if err = state.commands.encodeMatMul(left.state.buffer, right.state.buffer, destination.state.buffer,
-		uint32(m), uint32(n), uint32(k), rightTransposed, right.state.dtype); err != nil {
+	if err = state.commands.encodeMatMul(leftStorage.buffer, rightStorage.buffer, dstStorage.buffer,
+		uint32(m), uint32(n), uint32(k), rightTransposed, rightStorage.dtype); err != nil {
 		state.status = scopePoisoned
 		return fmt.Errorf("gpu: encode matmul: %w", err)
 	}
@@ -330,7 +343,7 @@ func (s *Scope) RMSNorm(input, weight, destination *Tensor, epsilon float32) (er
 	}
 	defer state.mutex.Unlock()
 
-	if input == nil || input.state == nil || input.state.count > math.MaxUint32 ||
+	if input == nil || input.state == nil || input.state.storage.count > math.MaxUint32 ||
 		!hasShape(destination, input.state.shape...) {
 		return state.reject("RMSNorm", fmt.Errorf("%w: invalid input or destination shape or index range", ErrInvalid))
 	}
@@ -342,7 +355,7 @@ func (s *Scope) RMSNorm(input, weight, destination *Tensor, epsilon float32) (er
 		return state.reject("RMSNorm", err)
 	}
 	var operation device.AttentionMathOperation
-	switch weight.state.dtype {
+	switch weight.state.storage.dtype {
 	case Float32:
 		operation = device.TensorRMSNorm
 	case Float16:
@@ -350,14 +363,14 @@ func (s *Scope) RMSNorm(input, weight, destination *Tensor, epsilon float32) (er
 	case BFloat16:
 		operation = device.TensorRMSNormBFloat16
 	default:
-		return state.reject("RMSNorm", fmt.Errorf("%w: RMSNorm weight has unsupported dtype %s", ErrInvalid, weight.state.dtype))
+		return state.reject("RMSNorm", fmt.Errorf("%w: RMSNorm weight has unsupported dtype %s", ErrInvalid, weight.state.storage.dtype))
 	}
 	if err = state.acquire(destination, input, weight); err != nil {
 		return state.reject("RMSNorm", err)
 	}
 	var rootEpsilon = float32(math.Sqrt(float64(epsilon)))
 	var params = [6]uint32{uint32(width), math.Float32bits(rootEpsilon)}
-	return state.encodeAttentionMath("RMSNorm", operation, input, weight, destination, nil, params, uint32(input.state.count/uint64(width)))
+	return state.encodeAttentionMath("RMSNorm", operation, input, weight, destination, nil, params, uint32(input.state.storage.count/uint64(width)))
 }
 
 // RotatePairs applies (x0*cos - x1*sin, x1*cos + x0*sin) to adjacent FP32
@@ -377,7 +390,7 @@ func (s *Scope) RotatePairs(input, cosine, sine, destination *Tensor, headWidth,
 		return state.reject("rotate pairs", fmt.Errorf("%w: invalid packed head shape, width or destination", ErrInvalid))
 	}
 	if cosine == nil || cosine.state == nil || len(cosine.state.shape) != 2 ||
-		cosine.state.count > math.MaxUint32 || cosine.state.shape[1] != headWidth/2 ||
+		cosine.state.storage.count > math.MaxUint32 || cosine.state.shape[1] != headWidth/2 ||
 		!hasShape(sine, cosine.state.shape...) {
 		return state.reject("rotate pairs", fmt.Errorf("%w: invalid cosine or sine table shape", ErrInvalid))
 	}
@@ -396,7 +409,7 @@ func (s *Scope) RotatePairs(input, cosine, sine, destination *Tensor, headWidth,
 		return state.reject("rotate pairs", err)
 	}
 	var params = [6]uint32{uint32(headWidth / 2), uint32(heads), uint32(offset)}
-	return state.encodeAttentionMath("rotate pairs", device.TensorRotatePairs, input, cosine, destination, sine, params, uint32(input.state.count/2))
+	return state.encodeAttentionMath("rotate pairs", device.TensorRotatePairs, input, cosine, destination, sine, params, uint32(input.state.storage.count/2))
 }
 
 // AppendKV stages positive consecutive rows at the cache's committed position.
@@ -424,9 +437,9 @@ func (s *Scope) AppendKV(cache *KVCache, keys, values *Tensor, position int64) (
 		active   allocation
 	)
 	if history != nil {
-		active = history.state.buffer
+		active = history.state.storage.buffer
 	}
-	if err = state.commands.encodeKVAppend(active, keys.state.buffer, values.state.buffer, destination.state.buffer,
+	if err = state.commands.encodeKVAppend(active, keys.state.storage.buffer, values.state.storage.buffer, destination.state.storage.buffer,
 		uint32(appendState.cache.capacity*rowWidth), uint32(position*rowWidth), appendState.cache.dtype); err != nil {
 		state.status = scopePoisoned
 		return nil, fmt.Errorf("gpu: encode append KV: %w", err)
@@ -510,7 +523,7 @@ func (s *Scope) CausalAttention(queries *Tensor, cache *KVCache, destination *Te
 		return state.reject("causal attention", err)
 	}
 	if length == 0 {
-		if err = state.commands.encodeFill(destination.state.buffer, 0); err != nil {
+		if err = state.commands.encodeFill(destination.state.storage.buffer, 0); err != nil {
 			state.status = scopePoisoned
 			return fmt.Errorf("gpu: encode empty causal attention: %w", err)
 		}
@@ -564,9 +577,9 @@ func (s *scopeState) acquireAttention(cache *kvCacheState, queries, destination 
 func (s *scopeState) encodeAttentionMath(name string, operation device.AttentionMathOperation, first, second, target, extra *Tensor, params [6]uint32, threads uint32) (err error) {
 	var additional allocation
 	if extra != nil {
-		additional = extra.state.buffer
+		additional = extra.state.storage.buffer
 	}
-	if err = s.commands.encodeAttentionMath(operation, first.state.buffer, second.state.buffer, target.state.buffer, additional, params, threads); err != nil {
+	if err = s.commands.encodeAttentionMath(operation, first.state.storage.buffer, second.state.storage.buffer, target.state.storage.buffer, additional, params, threads); err != nil {
 		s.status = scopePoisoned
 		return fmt.Errorf("gpu: encode %s: %w", name, err)
 	}
@@ -714,8 +727,8 @@ func requireFloat32(operation string, tensors ...*Tensor) (err error) {
 		if tensor == nil || tensor.state == nil {
 			continue
 		}
-		if tensor.state.dtype != Float32 {
-			return fmt.Errorf("%w: %s requires float32 tensors, got %s", ErrInvalid, operation, tensor.state.dtype)
+		if tensor.state.storage.dtype != Float32 {
+			return fmt.Errorf("%w: %s requires float32 tensors, got %s", ErrInvalid, operation, tensor.state.storage.dtype)
 		}
 	}
 	return nil
@@ -734,7 +747,7 @@ func (s *scopeState) acquireLocked(destination *Tensor, sources ...*Tensor) (err
 		return err
 	}
 	for _, source := range sources {
-		if source.state == target {
+		if source.state.storage == target.storage {
 			return fmt.Errorf("%w: destination aliases a source", ErrInvalid)
 		}
 		if err = s.validateAccess(source.state, readAccess); err != nil {
@@ -742,34 +755,37 @@ func (s *scopeState) acquireLocked(destination *Tensor, sources ...*Tensor) (err
 		}
 	}
 
-	if s.leases[target] == readAccess {
-		target.readers--
+	var targetStorage = target.storage
+	if s.leases[targetStorage] == readAccess {
+		targetStorage.readers--
 	}
-	target.writer = s
-	s.leases[target] = writeAccess
+	targetStorage.writer = s
+	s.leases[targetStorage] = writeAccess
 	for _, source := range sources {
-		if s.leases[source.state] == 0 {
-			source.state.readers++
-			s.leases[source.state] = readAccess
+		var sourceStorage = source.state.storage
+		if s.leases[sourceStorage] == 0 {
+			sourceStorage.readers++
+			s.leases[sourceStorage] = readAccess
 		}
 	}
 	return nil
 }
 
 func (s *scopeState) validateAccess(t *tensorState, access tensorAccess) (err error) {
-	if t.device != s.device {
+	var storage = t.storage
+	if storage.device != s.device {
 		return fmt.Errorf("%w: tensor belongs to another device", ErrInvalid)
 	}
 	if t.closed {
 		return ErrClosed
 	}
-	if t.hostAccess || (t.writer != nil && t.writer != s) {
+	if storage.hostAccess || (storage.writer != nil && storage.writer != s) {
 		return ErrBusy
 	}
-	if access == writeAccess && (t.readers > 1 || (t.readers == 1 && s.leases[t] != readAccess)) {
+	if access == writeAccess && (storage.readers > 1 || (storage.readers == 1 && s.leases[storage] != readAccess)) {
 		return ErrBusy
 	}
-	if access == readAccess && !t.initialized && t.writer != s {
+	if access == readAccess && !storage.initialized && storage.writer != s {
 		return ErrUninitialized
 	}
 	return nil
@@ -805,16 +821,16 @@ func (s *scopeState) finish(status scopeStatus, commandErr error, observed bool)
 
 	s.device.mutex.Lock()
 	defer s.device.mutex.Unlock()
-	for tensor, access := range s.leases {
+	for storage, access := range s.leases {
 		if access == writeAccess {
 			if status == scopeFinished {
-				tensor.initialized = commandErr == nil
+				storage.initialized = commandErr == nil
 			}
-			tensor.writer = nil
+			storage.writer = nil
 		} else {
-			tensor.readers--
+			storage.readers--
 		}
-		tensor.releaseIfIdle()
+		storage.releaseIfIdle()
 	}
 	for _, update := range s.kvAppends {
 		update.finish(observed && err == nil)

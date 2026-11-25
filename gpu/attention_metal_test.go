@@ -274,7 +274,7 @@ func Test_MetalAttentionConcurrentSessions(t *testing.T) {
 		requireError(t, err, nil)
 		defer updates[index].Close()
 	}
-	if f.q.state.readers != 2 || f.norm.state.readers != 2 {
+	if f.q.state.storage.readers != 2 || f.norm.state.storage.readers != 2 {
 		t.Fatal("independent recordings did not share read-only weights")
 	}
 	for _, scope := range scopes {

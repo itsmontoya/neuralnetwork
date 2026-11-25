@@ -32,7 +32,7 @@ func NewKVCacheWithDType(device *Device, capacity, heads, headWidth int64, dtype
 		state.slots[0].Close()
 		return nil, err
 	}
-	state.device = state.slots[0].state.device
+	state.device = state.slots[0].state.storage.device
 	state.dtype = dtype
 	state.capacity = capacity
 	state.heads = heads

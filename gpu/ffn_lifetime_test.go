@@ -106,7 +106,7 @@ func Test_FFNFailedWriteAndDrain(t *testing.T) {
 
 	// The fake math encoders record counts. Simulate a down write before
 	// returning the command failure so the test detects accidental publication.
-	var storage = scratch.output.state.buffer.(*fakeAllocation)
+	var storage = scratch.output.state.storage.buffer.(*fakeAllocation)
 	native.commands = append(native.commands, func() { storage.values[0] = 12 })
 	requireError(t, scope.Submit(ctx), nil)
 	go func() { waitResult <- scope.Wait(stop) }()

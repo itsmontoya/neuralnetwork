@@ -29,9 +29,11 @@
 // If a context is canceled at the submission boundary, Submit discards the
 // recording. Canceling Wait leaves submitted work and its leases outstanding.
 // Wait again or close the scope to drain it. Close every scope and tensor.
-// A tensor can outlive its scope. Closing a tensor prevents new uses and
-// releases its allocation after the last existing lease or transfer ends.
-// Device.Close returns ErrBusy while its children remain. The underlying
+// A tensor can outlive its scope. Tensor.View creates zero-copy reshaped views
+// that share the underlying allocation, initialization, and lease tracking.
+// Closing a tensor or view prevents new uses on that handle and releases the
+// underlying allocation after all sibling views close and the last existing
+// lease or transfer ends. Device.Close returns ErrBusy while its children remain. The underlying
 // default Metal device, queue and runtime pipelines are shared with the ANN
 // path for the life of the process.
 package gpu

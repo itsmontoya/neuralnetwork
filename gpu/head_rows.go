@@ -5,7 +5,7 @@ import "math"
 // headRows checks equally packed [rows, heads*width] and [rows, heads, width]
 // layouts. Both store features contiguously, then heads, then tokens.
 func headRows(tensor *Tensor, width int64) (rows, heads int64) {
-	if tensor == nil || tensor.state == nil || tensor.state.count > math.MaxUint32 || width <= 0 {
+	if tensor == nil || tensor.state == nil || tensor.state.storage.count > math.MaxUint32 || width <= 0 {
 		return 0, 0
 	}
 	var shape = tensor.state.shape

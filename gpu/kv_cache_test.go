@@ -72,7 +72,7 @@ func Test_KVCacheDiscardAndRetry(t *testing.T) {
 			requireError(t, first.Publish(), nil)
 			requireError(t, first.Publish(), ErrInvalid)
 			var (
-				active = cache.state.slots[cache.state.active].state.buffer.(*fakeAllocation)
+				active = cache.state.slots[cache.state.active].state.storage.buffer.(*fakeAllocation)
 				before = slices.Clone(active.values)
 				failed = requireScope(t, device)
 				native = failed.state.commands.(*fakeCommandBuffer)
@@ -137,7 +137,7 @@ func Test_KVCacheDiscardAndRetry(t *testing.T) {
 			finishStep(t, retry)
 			requireError(t, next.Publish(), nil)
 			var (
-				result = cache.state.slots[cache.state.active].state.buffer.(*fakeAllocation)
+				result = cache.state.slots[cache.state.active].state.storage.buffer.(*fakeAllocation)
 				want   = []float32{1, 2, 9, 10, 0, 0, 3, 4, 11, 12, 0, 0}
 			)
 			if cache.Len() != 2 || !slices.Equal(result.values, want) {
@@ -305,7 +305,7 @@ func Test_KVCacheWithDTypeValidationAndFloat16(t *testing.T) {
 	requireError(t, second.Close(), nil)
 	requireError(t, update2.Publish(), nil)
 
-	var active = f16Cache.state.slots[f16Cache.state.active].state.buffer.(*fakeAllocation)
+	var active = f16Cache.state.slots[f16Cache.state.active].state.storage.buffer.(*fakeAllocation)
 	var wantPrefix = []uint16{
 		Float32ToFloat16(1.5), Float32ToFloat16(-2.25),
 		Float32ToFloat16(3.0), Float32ToFloat16(-0.5),
