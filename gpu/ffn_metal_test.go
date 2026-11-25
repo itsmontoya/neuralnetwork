@@ -122,7 +122,7 @@ func checkMetalFFNConcurrent(t *testing.T, gpu *Device, first, second *ffnScratc
 	requireError(t, first.encode(scopeA, weights), nil)
 	requireError(t, second.encode(scopeB, weights), nil)
 	for _, weight := range weights {
-		if weight.state.readers != 2 || weight.state.writer != nil {
+		if weight.state.storage.readers != 2 || weight.state.storage.writer != nil {
 			t.Fatal("two independent FFNs must share each weight for reading")
 		}
 	}

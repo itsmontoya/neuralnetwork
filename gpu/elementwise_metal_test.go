@@ -52,7 +52,7 @@ func Test_MetalTensorElementwise(t *testing.T) {
 			var (
 				left   = requireTensor(t, gpu, shape...)
 				right  = requireTensor(t, gpu, shape...)
-				count  = int(left.state.count)
+				count  = int(left.state.storage.count)
 				random = rand.New(rand.NewPCG(0x4e4e04, 0x2048192))
 				l, r   = make([]float32, count), make([]float32, count)
 			)

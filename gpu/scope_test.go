@@ -215,7 +215,7 @@ func Test_ScopeCloseDrainsFailedSubmission(t *testing.T) {
 	unblock()
 	requireError(t, <-closeResult, fault)
 	requireError(t, scope.Close(), nil)
-	if got := target.state.buffer.(*fakeAllocation).values[0]; got != 8 {
+	if got := target.state.storage.buffer.(*fakeAllocation).values[0]; got != 8 {
 		t.Fatalf("fault did not simulate a completed native write: %g", got)
 	}
 	requireError(t, target.DownloadInto(output[:]), ErrUninitialized)
