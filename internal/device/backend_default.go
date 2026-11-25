@@ -83,6 +83,18 @@ func (unavailableBackend) encodeTensorLayerNorm(any, any, any, any, any, uint32,
 	return ErrUnavailable
 }
 
+func (unavailableBackend) encodeTensorTranspose(any, any, any, TransposeSpec) (err error) {
+	return ErrUnavailable
+}
+
+func (unavailableBackend) encodeTensorMatMulLeftTranspose(any, any, any, any, uint32, uint32, uint32, uint32) (err error) {
+	return ErrUnavailable
+}
+
+func (unavailableBackend) encodeTensorBatchedMatMul(any, any, any, any, BatchedMatMulSpec) (err error) {
+	return ErrUnavailable
+}
+
 func (unavailableBackend) encodeAddRowVector(any, any, any, uint32, uint32) (err error) {
 	return ErrUnavailable
 }

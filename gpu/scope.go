@@ -668,6 +668,385 @@ func (s *Scope) matMul(left, right, destination *Tensor, rightTransposed bool) (
 	return nil
 }
 
+const maxTensorRank = 6
+const maxBatchDims = 4
+
+// Transpose records a contiguous row-major axis permutation of input into
+// destination for any rank 1..6 Float32, Float16, or BFloat16 tensor. perm
+// must be a valid permutation of 0..rank-1, destination must have the exact
+// permuted shape and matching dtype, and destination must not alias input
+// (including through Tensor.View). Contiguous/identity permutations fast-path
+// to a device blit copy.
+func (s *Scope) Transpose(input, destination *Tensor, perm []int) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	if input == nil || input.state == nil || destination == nil || destination.state == nil {
+		return state.reject("transpose", fmt.Errorf("%w: missing input or destination", ErrInvalid))
+	}
+	var (
+		srcStorage = input.state.storage
+		dstStorage = destination.state.storage
+	)
+	if !srcStorage.dtype.Valid() || srcStorage.dtype.IsQuantized() {
+		return state.reject("transpose", fmt.Errorf("%w: transpose requires non-quantized tensor, got %s", ErrInvalid, srcStorage.dtype))
+	}
+	if srcStorage.dtype != dstStorage.dtype {
+		return state.reject("transpose", fmt.Errorf("%w: tensor dtypes differ (%s vs %s)", ErrInvalid, srcStorage.dtype, dstStorage.dtype))
+	}
+	var (
+		inShape  = input.state.shape
+		dstShape = destination.state.shape
+		rank     = len(inShape)
+	)
+	if rank == 0 || rank > maxTensorRank {
+		return state.reject("transpose", fmt.Errorf("%w: transpose requires rank 1..%d, got %d", ErrInvalid, maxTensorRank, rank))
+	}
+	if srcStorage.count > math.MaxUint32 {
+		return state.reject("transpose", fmt.Errorf("%w: tensor element count exceeds the Metal transpose index range", ErrInvalid))
+	}
+	if len(perm) != rank || len(dstShape) != rank {
+		return state.reject("transpose", fmt.Errorf("%w: permutation length %d and destination rank %d must match input rank %d", ErrInvalid, len(perm), len(dstShape), rank))
+	}
+	var seen [maxTensorRank]bool
+	for i, axis := range perm {
+		if axis < 0 || axis >= rank || seen[axis] {
+			return state.reject("transpose", fmt.Errorf("%w: invalid transpose permutation %v for rank %d", ErrInvalid, perm, rank))
+		}
+		seen[axis] = true
+		if dstShape[i] != inShape[axis] {
+			return state.reject("transpose", fmt.Errorf("%w: destination shape %v does not match permuted input shape", ErrInvalid, dstShape))
+		}
+	}
+	if err = state.acquire(destination, input); err != nil {
+		return state.reject("transpose", err)
+	}
+	var spec, contiguous = buildTransposeSpec(inShape, perm, uint32(srcStorage.dtype.Bytes()), uint32(srcStorage.count))
+	if contiguous {
+		if err = state.commands.encodeCopy(srcStorage.buffer, dstStorage.buffer); err != nil {
+			state.status = scopePoisoned
+			return fmt.Errorf("gpu: encode transpose copy: %w", err)
+		}
+		return nil
+	}
+	if err = state.commands.encodeTranspose(srcStorage.buffer, dstStorage.buffer, spec); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode transpose: %w", err)
+	}
+	return nil
+}
+
+func buildTransposeSpec(inShape []int64, perm []int, elemBytes, count uint32) (spec device.TransposeSpec, contiguous bool) {
+	var (
+		rank   = len(inShape)
+		inRaw  [maxTensorRank]uint64
+		stride uint64 = 1
+	)
+	for i := rank - 1; i >= 0; i-- {
+		inRaw[i] = stride
+		stride *= uint64(inShape[i])
+	}
+
+	var (
+		dims      [maxTensorRank]uint64
+		inStrides [maxTensorRank]uint64
+		coalesced int
+	)
+	for i := range rank {
+		var (
+			dim = uint64(inShape[perm[i]])
+			is  = inRaw[perm[i]]
+		)
+		if dim == 1 {
+			continue
+		}
+		if coalesced > 0 && inStrides[coalesced-1] == is*dim {
+			dims[coalesced-1] *= dim
+			inStrides[coalesced-1] = is
+			continue
+		}
+		dims[coalesced] = dim
+		inStrides[coalesced] = is
+		coalesced++
+	}
+	if coalesced == 0 || (coalesced == 1 && inStrides[0] == 1) {
+		return spec, true
+	}
+
+	spec.Rank = uint32(coalesced)
+	spec.Count = count
+	spec.ElemBytes = elemBytes
+	var outStride uint64 = 1
+	for i := coalesced - 1; i >= 0; i-- {
+		spec.Dims[i] = uint32(dims[i])
+		spec.OutStrides[i] = uint32(outStride)
+		spec.InStrides[i] = uint32(inStrides[i])
+		outStride *= dims[i]
+	}
+	return spec, false
+}
+
+// MatMulLeftTranspose records destination[M,N] = left[K,M]ᵀ × right[K,N]
+// without materializing a transposed copy of left. Operands must be rank-two
+// tensors with at most 2³²−1 elements each on this device. Left and destination
+// must be Float32; right may be Float32, Float16, or BFloat16. Accumulation
+// proceeds in FP32. Destination must not alias either input (including through
+// Tensor.View).
+func (s *Scope) MatMulLeftTranspose(left, right, destination *Tensor) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	for _, operand := range [3]*Tensor{left, right, destination} {
+		if operand == nil || operand.state == nil || len(operand.state.shape) != 2 {
+			return state.reject("matmul left transpose", fmt.Errorf("%w: operands must be rank-two tensors", ErrInvalid))
+		}
+		if operand.state.storage.count > math.MaxUint32 {
+			return state.reject("matmul left transpose", fmt.Errorf("%w: tensor element count exceeds the Metal matmul index range", ErrInvalid))
+		}
+	}
+	var (
+		leftStorage  = left.state.storage
+		rightStorage = right.state.storage
+		dstStorage   = destination.state.storage
+	)
+	if leftStorage.dtype != Float32 {
+		return state.reject("matmul left transpose", fmt.Errorf("%w: matmul left transpose requires float32 left operand, got %s", ErrInvalid, leftStorage.dtype))
+	}
+	if rightStorage.dtype != Float32 && rightStorage.dtype != Float16 && rightStorage.dtype != BFloat16 {
+		return state.reject("matmul left transpose", fmt.Errorf("%w: matmul left transpose right operand has unsupported dtype %s", ErrInvalid, rightStorage.dtype))
+	}
+	if dstStorage.dtype != Float32 {
+		return state.reject("matmul left transpose", fmt.Errorf("%w: matmul left transpose requires float32 destination, got %s", ErrInvalid, dstStorage.dtype))
+	}
+	var (
+		k      = left.state.shape[0]
+		m      = left.state.shape[1]
+		rightK = right.state.shape[0]
+		n      = right.state.shape[1]
+	)
+	if k != rightK || destination.state.shape[0] != m || destination.state.shape[1] != n {
+		return state.reject("matmul left transpose", fmt.Errorf("%w: incompatible left %v, right %v and destination %v shapes",
+			ErrInvalid, left.state.shape, right.state.shape, destination.state.shape))
+	}
+	if err = state.acquire(destination, left, right); err != nil {
+		return state.reject("matmul left transpose", err)
+	}
+	if err = state.commands.encodeMatMulLeftTranspose(
+		leftStorage.buffer,
+		rightStorage.buffer,
+		dstStorage.buffer,
+		uint32(m),
+		uint32(n),
+		uint32(k),
+		rightStorage.dtype,
+	); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode matmul left transpose: %w", err)
+	}
+	return nil
+}
+
+// BatchedMatMul records destination[...,M,N] = left[...,M,K] × right[...,K,N]
+// for rank 2..6 tensors with ONNX/NumPy right-aligned broadcasting over up to
+// 4 leading batch dimensions. Left and destination must be Float32; right may
+// be Float32, Float16, or BFloat16. Accumulation proceeds in FP32. Operands
+// must contain at most 2³²−1 elements each on this device, and destination
+// must not alias either input (including through Tensor.View).
+func (s *Scope) BatchedMatMul(left, right, destination *Tensor) (err error) {
+	return s.batchedMatMul("batched matmul", left, right, destination, false)
+}
+
+// BatchedMatMulRightTranspose records
+// destination[...,M,N] = left[...,M,K] × right[...,N,K]ᵀ with the rank,
+// broadcast, dtype, ownership, and FP32 accumulation rules of BatchedMatMul.
+func (s *Scope) BatchedMatMulRightTranspose(left, right, destination *Tensor) (err error) {
+	return s.batchedMatMul("batched matmul right transpose", left, right, destination, true)
+}
+
+func (s *Scope) batchedMatMul(name string, left, right, destination *Tensor, rightTransposed bool) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	for _, operand := range [3]*Tensor{left, right, destination} {
+		if operand == nil || operand.state == nil {
+			return state.reject(name, fmt.Errorf("%w: missing operand", ErrInvalid))
+		}
+		var rank = len(operand.state.shape)
+		if rank < 2 || rank > maxTensorRank {
+			return state.reject(name, fmt.Errorf("%w: operands must have rank 2..%d, got %d", ErrInvalid, maxTensorRank, rank))
+		}
+		if operand.state.storage.count > math.MaxUint32 {
+			return state.reject(name, fmt.Errorf("%w: tensor element count exceeds the Metal matmul index range", ErrInvalid))
+		}
+	}
+	var (
+		leftStorage  = left.state.storage
+		rightStorage = right.state.storage
+		dstStorage   = destination.state.storage
+	)
+	if leftStorage.dtype != Float32 {
+		return state.reject(name, fmt.Errorf("%w: %s requires float32 left operand, got %s", ErrInvalid, name, leftStorage.dtype))
+	}
+	if rightStorage.dtype != Float32 && rightStorage.dtype != Float16 && rightStorage.dtype != BFloat16 {
+		return state.reject(name, fmt.Errorf("%w: %s right operand has unsupported dtype %s", ErrInvalid, name, rightStorage.dtype))
+	}
+	if dstStorage.dtype != Float32 {
+		return state.reject(name, fmt.Errorf("%w: %s requires float32 destination, got %s", ErrInvalid, name, dstStorage.dtype))
+	}
+	var (
+		leftShape  = left.state.shape
+		rightShape = right.state.shape
+		dstShape   = destination.state.shape
+		leftRank   = len(leftShape)
+		rightRank  = len(rightShape)
+		m          = leftShape[leftRank-2]
+		k          = leftShape[leftRank-1]
+		rightK     = rightShape[rightRank-2]
+		n          = rightShape[rightRank-1]
+	)
+	if rightTransposed {
+		rightK, n = n, rightK
+	}
+	if k != rightK {
+		return state.reject(name, fmt.Errorf("%w: incompatible inner dimensions %d and %d", ErrInvalid, k, rightK))
+	}
+
+	var (
+		expectedBatch [maxBatchDims]int64
+		batchRank     int
+		spec          device.BatchedMatMulSpec
+	)
+	if expectedBatch, batchRank, spec, err = buildBatchedMatMulSpec(leftShape[:leftRank-2], rightShape[:rightRank-2], m, n, k, rightTransposed, rightStorage.dtype); err != nil {
+		return state.reject(name, err)
+	}
+	if len(dstShape) != batchRank+2 || !slices.Equal(dstShape[:batchRank], expectedBatch[:batchRank]) ||
+		dstShape[batchRank] != m || dstShape[batchRank+1] != n {
+		return state.reject(name, fmt.Errorf("%w: incompatible destination shape %v for left %v and right %v (right transposed: %t)",
+			ErrInvalid, dstShape, leftShape, rightShape, rightTransposed))
+	}
+	if err = state.acquire(destination, left, right); err != nil {
+		return state.reject(name, err)
+	}
+	if err = state.commands.encodeBatchedMatMul(leftStorage.buffer, rightStorage.buffer, dstStorage.buffer, spec); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode %s: %w", name, err)
+	}
+	return nil
+}
+
+func buildBatchedMatMulSpec(
+	leftBatch, rightBatch []int64,
+	m, n, k int64,
+	rightTransposed bool,
+	rightDType DType,
+) (outBatch [maxBatchDims]int64, outBatchRank int, spec device.BatchedMatMulSpec, err error) {
+	var (
+		leftRank  = len(leftBatch)
+		rightRank = len(rightBatch)
+	)
+	outBatchRank = max(leftRank, rightRank)
+
+	var (
+		leftRaw  [maxBatchDims]uint64
+		rightRaw [maxBatchDims]uint64
+		stride   uint64 = 1
+	)
+	for i := leftRank - 1; i >= 0; i-- {
+		var outIdx = outBatchRank - leftRank + i
+		if leftBatch[i] == 1 {
+			leftRaw[outIdx] = 0
+		} else {
+			leftRaw[outIdx] = stride
+			stride *= uint64(leftBatch[i])
+		}
+	}
+	stride = 1
+	for i := rightRank - 1; i >= 0; i-- {
+		var outIdx = outBatchRank - rightRank + i
+		if rightBatch[i] == 1 {
+			rightRaw[outIdx] = 0
+		} else {
+			rightRaw[outIdx] = stride
+			stride *= uint64(rightBatch[i])
+		}
+	}
+
+	var totalBatches uint64 = 1
+	for i := range outBatchRank {
+		var (
+			lDim int64 = 1
+			rDim int64 = 1
+		)
+		if i >= outBatchRank-leftRank {
+			lDim = leftBatch[i-(outBatchRank-leftRank)]
+		}
+		if i >= outBatchRank-rightRank {
+			rDim = rightBatch[i-(outBatchRank-rightRank)]
+		}
+		if lDim != rDim && lDim != 1 && rDim != 1 {
+			return outBatch, 0, spec, fmt.Errorf("%w: incompatible batch shapes %v and %v", ErrInvalid, leftBatch, rightBatch)
+		}
+		var outDim = max(lDim, rDim)
+		outBatch[i] = outDim
+		if totalBatches > math.MaxUint32/uint64(outDim) {
+			return outBatch, 0, spec, fmt.Errorf("%w: batched matmul batch count exceeds uint32", ErrInvalid)
+		}
+		totalBatches *= uint64(outDim)
+	}
+
+	var (
+		dims         [maxBatchDims]uint64
+		leftStrides  [maxBatchDims]uint64
+		rightStrides [maxBatchDims]uint64
+		coalesced    int
+	)
+	for i := range outBatchRank {
+		if outBatch[i] == 1 {
+			continue
+		}
+		var (
+			dim = uint64(outBatch[i])
+			ls  = leftRaw[i]
+			rs  = rightRaw[i]
+		)
+		if coalesced > 0 && leftStrides[coalesced-1] == ls*dim && rightStrides[coalesced-1] == rs*dim {
+			dims[coalesced-1] *= dim
+			leftStrides[coalesced-1] = ls
+			rightStrides[coalesced-1] = rs
+			continue
+		}
+		dims[coalesced] = dim
+		leftStrides[coalesced] = ls
+		rightStrides[coalesced] = rs
+		coalesced++
+	}
+
+	spec.M = uint32(m)
+	spec.N = uint32(n)
+	spec.K = uint32(k)
+	spec.TotalBatches = uint32(totalBatches)
+	spec.BatchRank = uint32(coalesced)
+	spec.RightTransposed = rightTransposed
+	spec.RightDType = layerNormDTypeTag(rightDType)
+	var outStride uint64 = 1
+	for i := coalesced - 1; i >= 0; i-- {
+		spec.OutBatchStrides[i] = uint32(outStride)
+		spec.LeftBatchStrides[i] = uint32(leftStrides[i])
+		spec.RightBatchStrides[i] = uint32(rightStrides[i])
+		outStride *= dims[i]
+	}
+	return outBatch, outBatchRank, spec, nil
+}
+
 // RMSNorm records input / sqrt(mean(input²) + epsilon) times weight for
 // each row of the last axis. Input and destination must be Float32 with
 // matching shapes; weight is a rank-one Float32, Float16, or BFloat16 vector
