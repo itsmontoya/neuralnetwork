@@ -241,6 +241,95 @@ func Test_KVCacheBounds(t *testing.T) {
 	}
 }
 
+func Test_KVCacheWithDTypeValidationAndFloat16(t *testing.T) {
+	var (
+		backend fakeBackend
+		device  = newDevice(&backend, 4096)
+		ctx     = context.Background()
+	)
+	defer func() {
+		requireError(t, device.Close(), nil)
+		if backend.liveBuffers.Load() != 0 || backend.liveScopes.Load() != 0 {
+			t.Fatal("KV cache dtype test leaked resources")
+		}
+	}()
+
+	for _, bad := range []DType{0, BFloat16, DType(99)} {
+		var out, err = NewKVCacheWithDType(device, 4, 1, 2, bad)
+		if out != nil || !errors.Is(err, ErrInvalid) {
+			t.Fatalf("NewKVCacheWithDType(%v) = %v, %v, want nil and ErrInvalid", bad, out, err)
+		}
+	}
+
+	var nilCache *KVCache
+	if nilCache.DType().Valid() {
+		t.Fatalf("nil cache DType = %v, want invalid", nilCache.DType())
+	}
+
+	var (
+		f32Cache, err32 = NewKVCacheWithDType(device, 4, 1, 2, Float32)
+		f16Cache, err16 = NewKVCacheWithDType(device, 4, 1, 2, Float16)
+	)
+	requireError(t, err32, nil)
+	requireError(t, err16, nil)
+	if f32Cache.DType() != Float32 || f16Cache.DType() != Float16 {
+		t.Fatalf("cache dtypes = (%v, %v), want (Float32, Float16)", f32Cache.DType(), f16Cache.DType())
+	}
+	if f16Cache.state.slots[0].Bytes()*2 != f32Cache.state.slots[0].Bytes() {
+		t.Fatalf("FP16 KV slot bytes = %d, want half of FP32 %d", f16Cache.state.slots[0].Bytes(), f32Cache.state.slots[0].Bytes())
+	}
+
+	var (
+		key   = requireTensor(t, device, 1, 2)
+		value = requireTensor(t, device, 1, 2)
+		scope = requireScope(t, device)
+	)
+	requireError(t, key.Upload([]float32{1.5, -2.25}), nil)
+	requireError(t, value.Upload([]float32{0.5, 4.0}), nil)
+	var update = stageKV(t, scope, f16Cache, key, value, 0)
+	requireError(t, scope.Submit(ctx), nil)
+	requireError(t, scope.Wait(ctx), nil)
+	requireError(t, scope.Close(), nil)
+	requireError(t, update.Publish(), nil)
+	if f16Cache.Len() != 1 {
+		t.Fatalf("FP16 cache len = %d, want 1", f16Cache.Len())
+	}
+
+	// Second append copies Float16 prefix and appends new Float16 rows.
+	requireError(t, key.Upload([]float32{3.0, -0.5}), nil)
+	requireError(t, value.Upload([]float32{-1.0, 2.0}), nil)
+	var second = requireScope(t, device)
+	var update2 = stageKV(t, second, f16Cache, key, value, 1)
+	requireError(t, second.Submit(ctx), nil)
+	requireError(t, second.Wait(ctx), nil)
+	requireError(t, second.Close(), nil)
+	requireError(t, update2.Publish(), nil)
+
+	var active = f16Cache.state.slots[f16Cache.state.active].state.buffer.(*fakeAllocation)
+	var wantPrefix = []uint16{
+		Float32ToFloat16(1.5), Float32ToFloat16(-2.25),
+		Float32ToFloat16(3.0), Float32ToFloat16(-0.5),
+	}
+	if !slices.Equal(active.bits16[:4], wantPrefix) {
+		t.Fatalf("FP16 KV keys = %x, want %x", active.bits16[:4], wantPrefix)
+	}
+	var wantValues = []uint16{
+		Float32ToFloat16(0.5), Float32ToFloat16(4.0),
+		Float32ToFloat16(-1.0), Float32ToFloat16(2.0),
+	}
+	if !slices.Equal(active.bits16[8:12], wantValues) {
+		t.Fatalf("FP16 KV values = %x, want %x", active.bits16[8:12], wantValues)
+	}
+
+	requireError(t, key.Close(), nil)
+	requireError(t, value.Close(), nil)
+	requireError(t, f32Cache.Close(), nil)
+	requireError(t, f16Cache.Close(), nil)
+	if f16Cache.DType() != Float16 {
+		t.Fatalf("closed cache DType = %v, want Float16", f16Cache.DType())
+	}
+}
+
 func canceledContext() (ctx context.Context) {
 	var end context.CancelFunc
 	ctx, end = context.WithCancel(context.Background())

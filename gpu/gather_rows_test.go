@@ -123,3 +123,46 @@ func Test_GatherRowsDiscardAndRetry(t *testing.T) {
 		t.Fatalf("submissions = %d, live scopes = %d", backend.submissions.Load(), backend.liveScopes.Load())
 	}
 }
+
+func Test_GatherRowsReducedPrecisionFake(t *testing.T) {
+	var (
+		backend fakeBackend
+		device  = newDevice(&backend, 4096)
+		ctx     = context.Background()
+		f16Src  = requireTensorWithDType(t, device, Float16, 3, 2)
+		f16Dst  = requireTensorWithDType(t, device, Float16, 2, 2)
+		bfSrc   = requireTensorWithDType(t, device, BFloat16, 3, 2)
+		bfDst   = requireTensorWithDType(t, device, BFloat16, 2, 2)
+		f32Dst  = requireTensorWithDType(t, device, Float32, 2, 2)
+		f32Dst2 = requireTensorWithDType(t, device, Float32, 2, 2)
+	)
+	requireError(t, f16Src.UploadFloat32As([]float32{1, 2, 3, 4, 5, 6}), nil)
+	requireError(t, bfSrc.UploadFloat32As([]float32{-1, -2, -3, -4, -5, -6}), nil)
+
+	var scope = requireScope(t, device)
+	requireError(t, scope.GatherRows(f16Src, []int64{2, 0}, f16Dst), nil)
+	requireError(t, scope.GatherRows(bfSrc, []int64{1, 2}, bfDst), nil)
+	requireError(t, scope.GatherRows(f16Src, []int64{2, 0}, f32Dst), nil)
+	requireError(t, scope.GatherRows(bfSrc, []int64{1, 2}, f32Dst2), nil)
+	requireError(t, scope.Submit(ctx), nil)
+	requireError(t, scope.Wait(ctx), nil)
+	requireError(t, scope.Close(), nil)
+
+	var gotF32 = make([]float32, 4)
+	requireError(t, f16Dst.DownloadFloat32Into(gotF32), nil)
+	if gotF32[0] != 5 || gotF32[1] != 6 || gotF32[2] != 1 || gotF32[3] != 2 {
+		t.Fatalf("f16->f16 gather = %v", gotF32)
+	}
+	requireError(t, bfDst.DownloadFloat32Into(gotF32), nil)
+	if gotF32[0] != -3 || gotF32[1] != -4 || gotF32[2] != -5 || gotF32[3] != -6 {
+		t.Fatalf("bf16->bf16 gather = %v", gotF32)
+	}
+	requireError(t, f32Dst.DownloadInto(gotF32), nil)
+	if gotF32[0] != 5 || gotF32[1] != 6 || gotF32[2] != 1 || gotF32[3] != 2 {
+		t.Fatalf("f16->f32 gather = %v", gotF32)
+	}
+	requireError(t, f32Dst2.DownloadInto(gotF32), nil)
+	if gotF32[0] != -3 || gotF32[1] != -4 || gotF32[2] != -5 || gotF32[3] != -6 {
+		t.Fatalf("bf16->f32 gather = %v", gotF32)
+	}
+}

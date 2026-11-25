@@ -115,9 +115,12 @@ func (s *Scope) Copy(source, destination *Tensor) (err error) {
 }
 
 // GatherRows records a full copy from source[R,C] into destination[len(rows),C].
-// Each row index is zero-based, and repeated indices are allowed. The indices
-// are consumed during recording. Source must be initialized or written earlier
-// in this scope. Destination must be distinct and on the same device.
+// Supported DType combinations are matching dtypes (Float32→Float32,
+// Float16→Float16, BFloat16→BFloat16) and dequantizing gathers into Float32
+// (Float16→Float32, BFloat16→Float32). Each row index is zero-based, and
+// repeated indices are allowed. The indices are consumed during recording.
+// Source must be initialized or written earlier in this scope. Destination
+// must be distinct and on the same device.
 func (s *Scope) GatherRows(source *Tensor, rows []int64, destination *Tensor) (err error) {
 	var state *scopeState
 	if state, err = s.beginEncoding(); err != nil {
@@ -129,8 +132,12 @@ func (s *Scope) GatherRows(source *Tensor, rows []int64, destination *Tensor) (e
 		destination == nil || destination.state == nil || len(destination.state.shape) != 2 {
 		return state.reject("gather rows", fmt.Errorf("%w: operands must be rank-two tensors", ErrInvalid))
 	}
-	if err = requireFloat32("gather rows", source, destination); err != nil {
-		return state.reject("gather rows", err)
+	var (
+		srcDType = source.state.dtype
+		dstDType = destination.state.dtype
+	)
+	if !srcDType.Valid() || !dstDType.Valid() || (srcDType != dstDType && !(dstDType == Float32 && srcDType.is16Bit())) {
+		return state.reject("gather rows", fmt.Errorf("%w: unsupported gather dtype conversion %s to %s", ErrInvalid, srcDType, dstDType))
 	}
 	var (
 		sourceRows = source.state.shape[0]
@@ -138,6 +145,9 @@ func (s *Scope) GatherRows(source *Tensor, rows []int64, destination *Tensor) (e
 	)
 	if len(rows) == 0 || destination.state.shape[0] != int64(len(rows)) || destination.state.shape[1] != columns {
 		return state.reject("gather rows", fmt.Errorf("%w: destination must match the index count and source width", ErrInvalid))
+	}
+	if srcDType != dstDType && uint64(columns) > math.MaxUint32 {
+		return state.reject("gather rows", fmt.Errorf("%w: column count exceeds the Metal mixed gather index range", ErrInvalid))
 	}
 	for i, row := range rows {
 		if row < 0 || row >= sourceRows {
@@ -147,7 +157,7 @@ func (s *Scope) GatherRows(source *Tensor, rows []int64, destination *Tensor) (e
 	if err = state.acquire(destination, source); err != nil {
 		return state.reject("gather rows", err)
 	}
-	if err = state.commands.encodeGatherRows(source.state.buffer, destination.state.buffer, uint64(columns), rows); err != nil {
+	if err = state.commands.encodeGatherRows(source.state.buffer, destination.state.buffer, uint64(columns), rows, srcDType, dstDType); err != nil {
 		state.status = scopePoisoned
 		return fmt.Errorf("gpu: encode gather rows: %w", err)
 	}
@@ -301,9 +311,10 @@ func (s *Scope) matMul(left, right, destination *Tensor, rightTransposed bool) (
 }
 
 // RMSNorm records input / sqrt(mean(input²) + epsilon) times weight for
-// each row of the last axis. Weight is a rank-one vector matching that axis.
-// Epsilon must be finite and positive. Input and destination shapes must
-// match. Destination is fully written and must be distinct from both inputs.
+// each row of the last axis. Input and destination must be Float32 with
+// matching shapes; weight is a rank-one Float32, Float16, or BFloat16 vector
+// matching that axis. Variance accumulates in FP32. Epsilon must be finite
+// and positive. Destination is fully written and must be distinct from both inputs.
 func (s *Scope) RMSNorm(input, weight, destination *Tensor, epsilon float32) (err error) {
 	var state *scopeState
 	if state, err = s.beginEncoding(); err != nil {
@@ -319,15 +330,26 @@ func (s *Scope) RMSNorm(input, weight, destination *Tensor, epsilon float32) (er
 	if !hasShape(weight, width) || !(epsilon > 0 && epsilon <= math.MaxFloat32) {
 		return state.reject("RMSNorm", fmt.Errorf("%w: expected a matching last-axis weight and finite positive epsilon", ErrInvalid))
 	}
-	if err = requireFloat32("RMSNorm", input, weight, destination); err != nil {
+	if err = requireFloat32("RMSNorm", input, destination); err != nil {
 		return state.reject("RMSNorm", err)
+	}
+	var operation device.AttentionMathOperation
+	switch weight.state.dtype {
+	case Float32:
+		operation = device.TensorRMSNorm
+	case Float16:
+		operation = device.TensorRMSNormFloat16
+	case BFloat16:
+		operation = device.TensorRMSNormBFloat16
+	default:
+		return state.reject("RMSNorm", fmt.Errorf("%w: RMSNorm weight has unsupported dtype %s", ErrInvalid, weight.state.dtype))
 	}
 	if err = state.acquire(destination, input, weight); err != nil {
 		return state.reject("RMSNorm", err)
 	}
 	var rootEpsilon = float32(math.Sqrt(float64(epsilon)))
 	var params = [6]uint32{uint32(width), math.Float32bits(rootEpsilon)}
-	return state.encodeAttentionMath("RMSNorm", device.TensorRMSNorm, input, weight, destination, nil, params, uint32(input.state.count/uint64(width)))
+	return state.encodeAttentionMath("RMSNorm", operation, input, weight, destination, nil, params, uint32(input.state.count/uint64(width)))
 }
 
 // RotatePairs applies (x0*cos - x1*sin, x1*cos + x0*sin) to adjacent FP32
@@ -397,7 +419,7 @@ func (s *Scope) AppendKV(cache *KVCache, keys, values *Tensor, position int64) (
 		active = history.state.buffer
 	}
 	if err = state.commands.encodeKVAppend(active, keys.state.buffer, values.state.buffer, destination.state.buffer,
-		uint32(appendState.cache.capacity*rowWidth), uint32(position*rowWidth)); err != nil {
+		uint32(appendState.cache.capacity*rowWidth), uint32(position*rowWidth), appendState.cache.dtype); err != nil {
 		state.status = scopePoisoned
 		return nil, fmt.Errorf("gpu: encode append KV: %w", err)
 	}
@@ -486,10 +508,15 @@ func (s *Scope) CausalAttention(queries *Tensor, cache *KVCache, destination *Te
 		}
 		return nil
 	}
-	var plane = cacheState.capacity * cacheState.heads * cacheState.width
-	var params = [6]uint32{uint32(cacheState.width), uint32(heads), uint32(cacheState.heads),
-		uint32(plane), uint32(length), uint32(min(position, length))}
-	return state.encodeAttentionMath("causal attention", device.TensorCausalAttention, queries, history, destination, nil, params, uint32(rows*heads))
+	var (
+		plane     = cacheState.capacity * cacheState.heads * cacheState.width
+		params    = [6]uint32{uint32(cacheState.width), uint32(heads), uint32(cacheState.heads), uint32(plane), uint32(length), uint32(min(position, length))}
+		operation = device.TensorCausalAttention
+	)
+	if cacheState.dtype == Float16 {
+		operation = device.TensorCausalAttentionFloat16
+	}
+	return state.encodeAttentionMath("causal attention", operation, queries, history, destination, nil, params, uint32(rows*heads))
 }
 
 func (s *scopeState) cacheState(cache *KVCache) (state *kvCacheState, err error) {

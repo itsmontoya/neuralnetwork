@@ -18,10 +18,10 @@ type allocation interface {
 type commandBuffer interface {
 	encodeFill(destination allocation, value float32) (err error)
 	encodeCopy(source, destination allocation) (err error)
-	encodeGatherRows(source, destination allocation, columns uint64, rows []int64) (err error)
+	encodeGatherRows(source, destination allocation, columns uint64, rows []int64, sourceDType, destinationDType DType) (err error)
 	encodeMatMul(left, right, destination allocation, m, n, k uint32, rightTransposed bool, rightDType DType) (err error)
 	encodeElementwise(left, right, destination allocation, operation device.ElementwiseOperation) (err error)
-	encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32) (err error)
+	encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32, cacheDType DType) (err error)
 	encodeAttentionMath(operation device.AttentionMathOperation, first, second, target, extra allocation, params [6]uint32, threads uint32) (err error)
 	Commit() (err error)
 	Wait() (err error)
@@ -66,8 +66,15 @@ func (m metalCommandBuffer) encodeCopy(source, destination allocation) (err erro
 	return m.EncodeCopy(source.(*device.Buffer), destination.(*device.Buffer))
 }
 
-func (m metalCommandBuffer) encodeGatherRows(source, destination allocation, columns uint64, rows []int64) (err error) {
-	return m.EncodeGatherRows(source.(*device.Buffer), destination.(*device.Buffer), columns, rows)
+func (m metalCommandBuffer) encodeGatherRows(source, destination allocation, columns uint64, rows []int64, sourceDType, destinationDType DType) (err error) {
+	if sourceDType == destinationDType {
+		return m.EncodeGatherRows(source.(*device.Buffer), destination.(*device.Buffer), columns, sourceDType.Bytes(), rows)
+	}
+	var nativeDType uint32 = 1
+	if sourceDType == BFloat16 {
+		nativeDType = 2
+	}
+	return m.EncodeGatherRowsMixed(source.(*device.Buffer), destination.(*device.Buffer), columns, rows, nativeDType)
 }
 
 func (m metalCommandBuffer) encodeElementwise(left, right, destination allocation, operation device.ElementwiseOperation) (err error) {
@@ -108,10 +115,13 @@ func (m metalCommandBuffer) encodeMatMul(left, right, destination allocation, ro
 		rows, inner, rightRows, rightCols, rows, cols, operation)
 }
 
-func (m metalCommandBuffer) encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32) (err error) {
+func (m metalCommandBuffer) encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32, cacheDType DType) (err error) {
 	var previous *device.Buffer
 	if history != nil {
 		previous = history.(*device.Buffer)
+	}
+	if cacheDType == Float16 {
+		return m.EncodeKVAppendFloat16(previous, keys.(*device.Buffer), values.(*device.Buffer), target.(*device.Buffer), plane, prefix)
 	}
 	return m.EncodeKVAppend(previous, keys.(*device.Buffer), values.(*device.Buffer), target.(*device.Buffer), plane, prefix)
 }

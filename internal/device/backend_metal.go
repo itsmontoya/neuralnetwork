@@ -321,6 +321,32 @@ func (m *metalBackend) encodeGatherRows(scope, source, destination any, rowBytes
 	return nil
 }
 
+func (m *metalBackend) encodeGatherRowsMixed(scope, source, destination any, columns uint64, rows []int64, sourceDType uint32) (err error) {
+	var (
+		scopeHandle       C.NNMetalScope
+		sourceHandle      C.NNMetalBuffer
+		destinationHandle C.NNMetalBuffer
+	)
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if sourceHandle, err = m.bufferHandle(source); err != nil {
+		return err
+	}
+	if destinationHandle, err = m.bufferHandle(destination); err != nil {
+		return err
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	var status = C.nn_metal_scope_encode_gather_rows_mixed(scopeHandle, sourceHandle, destinationHandle,
+		C.uint64_t(columns), (*C.int64_t)(unsafe.Pointer(unsafe.SliceData(rows))), C.uint64_t(len(rows)), C.uint32_t(sourceDType))
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal mixed row gather")
+	}
+	return nil
+}
+
 func (m *metalBackend) encodeFill(scope, buffer any, value float32, count uint64) (err error) {
 	var (
 		scopeHandle  C.NNMetalScope
@@ -405,6 +431,31 @@ func (m *metalBackend) encodeKVAppend(scope, history, keys, values, target any, 
 		C.uint32_t(plane), C.uint32_t(prefix))
 	if status != C.NNMetalStatusSuccess {
 		return m.lastError("encode Metal KV append")
+	}
+	return nil
+}
+
+func (m *metalBackend) encodeKVAppendFloat16(scope, history, keys, values, target any, plane, prefix uint32) (err error) {
+	var scopeHandle C.NNMetalScope
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	var handles [4]C.NNMetalBuffer
+	for index, buffer := range [4]any{history, keys, values, target} {
+		if index == 0 && history == nil {
+			continue
+		}
+		if handles[index], err = m.bufferHandle(buffer); err != nil {
+			return err
+		}
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	var status = C.nn_metal_scope_encode_kv_append_f16(scopeHandle, handles[0], handles[1], handles[2], handles[3],
+		C.uint32_t(plane), C.uint32_t(prefix))
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal FP16 KV append")
 	}
 	return nil
 }
