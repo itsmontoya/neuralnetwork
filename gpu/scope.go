@@ -202,6 +202,100 @@ func (s *Scope) SwiGLU(gate, up, destination *Tensor) (err error) {
 	return s.elementwise("swiglu", device.ElementwiseSwiGLU, destination, gate, up)
 }
 
+// ReLU records max(input, 0) in FP32 while propagating NaN. It uses the shape
+// and ownership rules of SiLU.
+func (s *Scope) ReLU(input, destination *Tensor) (err error) {
+	return s.elementwise("relu", device.ElementwiseReLU, destination, input)
+}
+
+// Sigmoid records the numerically stable FP32 logistic sigmoid
+// 1 / (1 + exp(-x)). It uses the shape and ownership rules of SiLU. Positive
+// infinity yields 1, negative infinity yields 0, and NaN propagates.
+func (s *Scope) Sigmoid(input, destination *Tensor) (err error) {
+	return s.elementwise("sigmoid", device.ElementwiseSigmoid, destination, input)
+}
+
+// Tanh records the numerically stable FP32 hyperbolic tangent, saturating to
+// ±1 for large finite magnitudes and ±Inf while propagating NaN. It uses the
+// shape and ownership rules of SiLU.
+func (s *Scope) Tanh(input, destination *Tensor) (err error) {
+	return s.elementwise("tanh", device.ElementwiseTanh, destination, input)
+}
+
+// Softmax records a numerically stable FP32 softmax along the last axis
+// (len(shape)-1). Operands must be Float32 with identical shapes, contain at
+// most 2³²−1 elements, belong to the scope's device, and not alias each other
+// (including through Tensor.View). For finite inputs, an axis of length 1
+// yields 1.0; rows containing NaN, +Inf, or all -Inf produce NaN across the
+// row, while finite rows with -Inf entries map -Inf to 0.
+func (s *Scope) Softmax(input, destination *Tensor) (err error) {
+	return s.softmax("softmax", input, destination, 0, true)
+}
+
+// SoftmaxAxis records a numerically stable FP32 softmax along axis, where
+// 0 <= axis < len(input.Shape()). It uses the shape, dtype, ownership, and
+// edge-case semantics of Softmax.
+func (s *Scope) SoftmaxAxis(input, destination *Tensor, axis int) (err error) {
+	return s.softmax("softmax", input, destination, axis, false)
+}
+
+func (s *Scope) softmax(name string, input, destination *Tensor, axis int, useLastAxis bool) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	if input == nil || input.state == nil || destination == nil || destination.state == nil {
+		return state.reject(name, fmt.Errorf("%w: missing input or destination", ErrInvalid))
+	}
+	var (
+		srcStorage = input.state.storage
+		dstStorage = destination.state.storage
+	)
+	if srcStorage.dtype != Float32 {
+		return state.reject(name, fmt.Errorf("%w: %s requires float32 tensors, got %s", ErrInvalid, name, srcStorage.dtype))
+	}
+	if dstStorage.dtype != Float32 {
+		return state.reject(name, fmt.Errorf("%w: %s requires float32 tensors, got %s", ErrInvalid, name, dstStorage.dtype))
+	}
+	if !slices.Equal(input.state.shape, destination.state.shape) {
+		return state.reject(name, fmt.Errorf("%w: tensor shapes differ", ErrInvalid))
+	}
+	if dstStorage.count > math.MaxUint32 {
+		return state.reject(name, fmt.Errorf("%w: tensor element count exceeds the Metal softmax index range", ErrInvalid))
+	}
+	var (
+		shape = input.state.shape
+		rank  = len(shape)
+	)
+	if useLastAxis {
+		axis = rank - 1
+	}
+	if axis < 0 || axis >= rank {
+		return state.reject(name, fmt.Errorf("%w: softmax axis %d out of range for rank %d", ErrInvalid, axis, rank))
+	}
+	var (
+		outer    uint64 = 1
+		axisSize        = uint64(shape[axis])
+		inner    uint64 = 1
+	)
+	for i := range axis {
+		outer *= uint64(shape[i])
+	}
+	for i := axis + 1; i < rank; i++ {
+		inner *= uint64(shape[i])
+	}
+	if err = state.acquire(destination, input); err != nil {
+		return state.reject(name, err)
+	}
+	if err = state.commands.encodeSoftmax(srcStorage.buffer, dstStorage.buffer, uint32(outer), uint32(axisSize), uint32(inner)); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode %s: %w", name, err)
+	}
+	return nil
+}
+
 func (s *Scope) elementwise(name string, operation device.ElementwiseOperation, destination *Tensor, inputs ...*Tensor) (err error) {
 	var state *scopeState
 	if state, err = s.beginEncoding(); err != nil {
