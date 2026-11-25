@@ -128,7 +128,7 @@ func (c *fakeCommandBuffer) encodeCopy(source, destination allocation) (err erro
 	return c.encodeErr
 }
 
-func (c *fakeCommandBuffer) encodeGatherRows(source, destination allocation, columns uint64, rows []int64) (err error) {
+func (c *fakeCommandBuffer) encodeGatherRows(source, destination allocation, columns uint64, rows []int64, sourceDType, destinationDType DType) (err error) {
 	var (
 		input   = source.(*fakeAllocation)
 		output  = destination.(*fakeAllocation)
@@ -138,7 +138,20 @@ func (c *fakeCommandBuffer) encodeGatherRows(source, destination allocation, col
 	c.commands = append(c.commands, func() {
 		for i, row := range indices {
 			var start = int(row) * width
-			copy(output.values[i*width:(i+1)*width], input.values[start:start+width])
+			switch {
+			case sourceDType == Float32 && destinationDType == Float32:
+				copy(output.values[i*width:(i+1)*width], input.values[start:start+width])
+			case sourceDType == destinationDType:
+				copy(output.bits16[i*width:(i+1)*width], input.bits16[start:start+width])
+			case sourceDType == Float16 && destinationDType == Float32:
+				for col := range width {
+					output.values[i*width+col] = Float16ToFloat32(input.bits16[start+col])
+				}
+			case sourceDType == BFloat16 && destinationDType == Float32:
+				for col := range width {
+					output.values[i*width+col] = BFloat16ToFloat32(input.bits16[start+col])
+				}
+			}
 		}
 	})
 	return c.encodeErr
@@ -154,13 +167,27 @@ func (c *fakeCommandBuffer) encodeElementwise(_, _, _ allocation, _ device.Eleme
 	return c.encodeErr
 }
 
-func (c *fakeCommandBuffer) encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32) (err error) {
+func (c *fakeCommandBuffer) encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32, cacheDType DType) (err error) {
 	var (
 		output    = target.(*fakeAllocation)
 		keyRows   = keys.(*fakeAllocation)
 		valueRows = values.(*fakeAllocation)
 	)
 	c.commands = append(c.commands, func() {
+		if cacheDType == Float16 {
+			if history != nil {
+				var active = history.(*fakeAllocation)
+				copy(output.bits16[:prefix], active.bits16[:prefix])
+				copy(output.bits16[plane:plane+prefix], active.bits16[plane:plane+prefix])
+			}
+			for i, v := range keyRows.values {
+				output.bits16[int(prefix)+i] = Float32ToFloat16(v)
+			}
+			for i, v := range valueRows.values {
+				output.bits16[int(plane+prefix)+i] = Float32ToFloat16(v)
+			}
+			return
+		}
 		if history != nil {
 			var active = history.(*fakeAllocation)
 			copy(output.values[:prefix], active.values[:prefix])
