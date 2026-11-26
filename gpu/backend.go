@@ -30,7 +30,7 @@ type commandBuffer interface {
 	encodeTranspose(input, destination allocation, spec device.TransposeSpec) (err error)
 	encodeMatMulLeftTranspose(left, right, destination allocation, m, n, k uint32, rightDType DType) (err error)
 	encodeBatchedMatMul(left, right, destination allocation, spec device.BatchedMatMulSpec) (err error)
-	encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32, cacheDType DType) (err error)
+	encodeKVAppend(keys, values, target allocation, plane, prefix uint32, cacheDType DType) (err error)
 	encodeAttentionMath(operation device.AttentionMathOperation, first, second, target, extra allocation, params [6]uint32, threads uint32) (err error)
 	Commit() (err error)
 	Wait() (err error)
@@ -196,15 +196,11 @@ func (m metalCommandBuffer) encodeMatMul(left, right, destination allocation, ro
 		rows, inner, rightRows, rightCols, rows, cols, operation)
 }
 
-func (m metalCommandBuffer) encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32, cacheDType DType) (err error) {
-	var previous *device.Buffer
-	if history != nil {
-		previous = history.(*device.Buffer)
-	}
+func (m metalCommandBuffer) encodeKVAppend(keys, values, target allocation, plane, prefix uint32, cacheDType DType) (err error) {
 	if cacheDType == Float16 {
-		return m.EncodeKVAppendFloat16(previous, keys.(*device.Buffer), values.(*device.Buffer), target.(*device.Buffer), plane, prefix)
+		return m.EncodeKVAppendFloat16(keys.(*device.Buffer), values.(*device.Buffer), target.(*device.Buffer), plane, prefix)
 	}
-	return m.EncodeKVAppend(previous, keys.(*device.Buffer), values.(*device.Buffer), target.(*device.Buffer), plane, prefix)
+	return m.EncodeKVAppend(keys.(*device.Buffer), values.(*device.Buffer), target.(*device.Buffer), plane, prefix)
 }
 
 func (m metalCommandBuffer) encodeAttentionMath(operation device.AttentionMathOperation, first, second, target, extra allocation, params [6]uint32, threads uint32) (err error) {

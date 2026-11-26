@@ -37,14 +37,13 @@ func (u *KVAppend) Publish() (err error) {
 	if update.scope != nil {
 		return ErrBusy
 	}
-	cache.active = 1 - cache.active
 	cache.length = update.length
 	cache.pending = nil
 	return nil
 }
 
 // Close abandons the update and leaves the committed history intact. Close
-// does not wait. Its slot remains reserved until the recording scope resolves.
+// does not wait. The cache remains busy until the recording scope resolves.
 func (u *KVAppend) Close() (err error) {
 	if u == nil || u.state == nil {
 		return nil
@@ -66,6 +65,9 @@ func (u *KVAppend) Close() (err error) {
 
 func (u *kvAppendState) finish(ready bool) {
 	u.scope = nil
+	if u.cache.length > 0 {
+		u.cache.slot.state.storage.initialized = true
+	}
 	if (!ready || u.discarded) && u.cache.pending == u {
 		u.cache.pending = nil
 	}

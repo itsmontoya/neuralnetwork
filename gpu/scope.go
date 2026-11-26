@@ -1204,11 +1204,13 @@ func (s *Scope) RotatePairs(input, cosine, sine, destination *Tensor, headWidth,
 	return state.encodeAttentionMath("rotate pairs", device.TensorRotatePairs, input, cosine, destination, sine, params, uint32(input.state.storage.count/2))
 }
 
-// AppendKV stages positive consecutive rows at the cache's committed position.
+// AppendKV writes positive consecutive rows directly into the uncommitted tail
+// starting at the cache's committed position without copying the prior prefix.
 // Key and value inputs are token-major [rows, heads*width] or [rows, heads, width].
-// The cache owns a disjoint staging slot for the existing prefix and new rows.
-// CausalAttention in this scope can use those rows in encode order. Other
-// scopes see the committed prefix until the returned update is published.
+// AppendKV acquires exclusive write access on the cache storage and returns
+// ErrBusy if another scope holds a lease or an append is already pending.
+// CausalAttention in this scope can use those rows in encode order. Subsequent
+// scopes observe the new rows only after Wait succeeds and Publish is called.
 func (s *Scope) AppendKV(cache *KVCache, keys, values *Tensor, position int64) (update *KVAppend, err error) {
 	var state *scopeState
 	if state, err = s.beginEncoding(); err != nil {
@@ -1218,20 +1220,13 @@ func (s *Scope) AppendKV(cache *KVCache, keys, values *Tensor, position int64) (
 
 	var (
 		appendState *kvAppendState
-		history     *Tensor
 		destination *Tensor
 	)
-	if appendState, history, destination, err = state.reserveAppend(cache, keys, values, position); err != nil {
+	if appendState, destination, err = state.reserveAppend(cache, keys, values, position); err != nil {
 		return nil, state.reject("append KV", err)
 	}
-	var (
-		rowWidth = appendState.cache.heads * appendState.cache.width
-		active   allocation
-	)
-	if history != nil {
-		active = history.state.storage.buffer
-	}
-	if err = state.commands.encodeKVAppend(active, keys.state.storage.buffer, values.state.storage.buffer, destination.state.storage.buffer,
+	var rowWidth = appendState.cache.heads * appendState.cache.width
+	if err = state.commands.encodeKVAppend(keys.state.storage.buffer, values.state.storage.buffer, destination.state.storage.buffer,
 		uint32(appendState.cache.capacity*rowWidth), uint32(position*rowWidth), appendState.cache.dtype); err != nil {
 		state.status = scopePoisoned
 		return nil, fmt.Errorf("gpu: encode append KV: %w", err)
@@ -1239,10 +1234,10 @@ func (s *Scope) AppendKV(cache *KVCache, keys, values *Tensor, position int64) (
 	return &KVAppend{state: appendState}, nil
 }
 
-func (s *scopeState) reserveAppend(cache *KVCache, keys, values *Tensor, position int64) (update *kvAppendState, history, dest *Tensor, err error) {
+func (s *scopeState) reserveAppend(cache *KVCache, keys, values *Tensor, position int64) (update *kvAppendState, dest *Tensor, err error) {
 	var state *kvCacheState
 	if state, err = s.cacheState(cache); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	var (
 		rows, keyHeads        = headRows(keys, state.width)
@@ -1250,36 +1245,31 @@ func (s *scopeState) reserveAppend(cache *KVCache, keys, values *Tensor, positio
 	)
 	if rows == 0 || keyHeads != state.heads || valueRows != rows || valueHeads != state.heads ||
 		position < 0 || position > state.capacity || rows > state.capacity-position {
-		return nil, nil, nil, fmt.Errorf("%w: invalid append shape or cache bounds", ErrInvalid)
+		return nil, nil, fmt.Errorf("%w: invalid append shape or cache bounds", ErrInvalid)
 	}
 	if err = requireFloat32("append KV", keys, values); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	s.device.mutex.Lock()
 	defer s.device.mutex.Unlock()
 	if state.closed {
-		return nil, nil, nil, ErrClosed
+		return nil, nil, ErrClosed
 	}
 	if state.pending != nil {
-		return nil, nil, nil, ErrBusy
+		return nil, nil, ErrBusy
 	}
 	if position != state.length {
-		return nil, nil, nil, fmt.Errorf("%w: append position must equal committed KV length", ErrInvalid)
+		return nil, nil, fmt.Errorf("%w: append position must equal committed KV length", ErrInvalid)
 	}
-	dest = state.slots[1-state.active]
-	var sources = []*Tensor{keys, values}
-	if position > 0 {
-		history = state.slots[state.active]
-		sources = append(sources, history)
-	}
-	if err = s.acquireLocked(dest, sources...); err != nil {
-		return nil, nil, nil, err
+	dest = state.slot
+	if err = s.acquireLocked(dest, keys, values); err != nil {
+		return nil, nil, err
 	}
 	update = &kvAppendState{cache: state, scope: s, length: position + rows}
 	state.pending = update
 	s.kvAppends = append(s.kvAppends, update)
-	return update, history, dest, nil
+	return update, dest, nil
 }
 
 // CausalAttention records scaled dot-product attention on absolute query
@@ -1348,16 +1338,14 @@ func (s *scopeState) acquireAttention(cache *kvCacheState, queries, destination 
 	if cache.closed {
 		return nil, 0, ErrClosed
 	}
-	var slot = cache.active
 	length = cache.length
 	if cache.pending != nil && cache.pending.scope == s && !cache.pending.discarded {
-		slot = 1 - slot
 		length = cache.pending.length
 	}
 
 	var sources = []*Tensor{queries}
 	if length > 0 {
-		history = cache.slots[slot]
+		history = cache.slot
 		sources = append(sources, history)
 	}
 	if err = s.acquireLocked(destination, sources...); err != nil {
