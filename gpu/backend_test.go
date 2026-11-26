@@ -194,6 +194,9 @@ func (c *fakeCommandBuffer) encodeGatherRows(source, destination allocation, col
 			case sourceDType == Q4_0 && destinationDType == Float32:
 				var rowBytes = int((columns / QuantBlockSize) * QuantBlockBytesQ4_0)
 				dequantizeQ4_0Into(input.raw[int(row)*rowBytes:(int(row)+1)*rowBytes], output.values[i*width:(i+1)*width])
+			case sourceDType == Q4_1 && destinationDType == Float32:
+				var rowBytes = int((columns / QuantBlockSize) * QuantBlockBytesQ4_1)
+				dequantizeQ4_1Into(input.raw[int(row)*rowBytes:(int(row)+1)*rowBytes], output.values[i*width:(i+1)*width])
 			}
 		}
 	})

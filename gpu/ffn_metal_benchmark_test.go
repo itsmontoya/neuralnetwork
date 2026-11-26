@@ -20,11 +20,11 @@ func Benchmark_FFNMetal(b *testing.B) {
 }
 
 // Benchmark_FFNMixedMetal compares full resident FFN across Float32, Float16,
-// BFloat16, Q8_0, and Q4_0 weights with FP32 activations and accumulation.
+// BFloat16, Q8_0, Q4_0, and Q4_1 weights with FP32 activations and accumulation.
 func Benchmark_FFNMixedMetal(b *testing.B) {
 	for _, rows := range ffnRowCounts {
 		b.Run(fmt.Sprintf("M%d", rows), func(b *testing.B) {
-			for _, dtype := range []DType{Float32, Float16, BFloat16, Q8_0, Q4_0} {
+			for _, dtype := range []DType{Float32, Float16, BFloat16, Q8_0, Q4_0, Q4_1} {
 				b.Run(dtype.String(), func(b *testing.B) {
 					benchmarkMetalFFNDType(b, dtype, rows)
 				})

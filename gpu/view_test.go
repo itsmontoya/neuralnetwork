@@ -133,7 +133,7 @@ func Test_TensorViewValidationErrors(t *testing.T) {
 	}
 
 	// Quantized tensors must reject View with ErrInvalid.
-	for _, qdtype := range []DType{Q8_0, Q4_0} {
+	for _, qdtype := range []DType{Q8_0, Q4_0, Q4_1} {
 		t.Run("quantized_"+qdtype.String(), func(t *testing.T) {
 			var qt = requireTensorWithDType(t, d, qdtype, 2, 32)
 			defer func() { requireError(t, qt.Close(), nil) }()

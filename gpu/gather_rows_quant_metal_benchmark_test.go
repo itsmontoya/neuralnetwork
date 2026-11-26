@@ -12,7 +12,7 @@ import (
 // Benchmark_TiedEmbeddingClassifierMetal measures tied Llama 3.2 1B
 // [128256, 2048] GatherRows (M=1, M=29), MatMulRightTranspose (M=1), and
 // combined single-scope GatherRows + MatMulRightTranspose across BFloat16,
-// Q8_0, and Q4_0.
+// Q8_0, Q4_0, and Q4_1.
 func Benchmark_TiedEmbeddingClassifierMetal(b *testing.B) {
 	const (
 		vocab int64 = 128256
@@ -36,7 +36,7 @@ func Benchmark_TiedEmbeddingClassifierMetal(b *testing.B) {
 	)
 	requireError(b, embed1.Upload(attentionValues(width, 301, 1)), nil)
 
-	for _, dtype := range []DType{BFloat16, Q8_0, Q4_0} {
+	for _, dtype := range []DType{BFloat16, Q8_0, Q4_0, Q4_1} {
 		var (
 			weight = requireTensorWithDType(b, dev, dtype, vocab, width)
 			raw    = make([]byte, weight.Bytes())
