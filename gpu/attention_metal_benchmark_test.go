@@ -98,8 +98,8 @@ func benchmarkAttentionMetal(b *testing.B, rows, position int64) {
 		modelBytes   = 4 * (2*fixture.hidden*fixture.hidden + 2*fixture.hidden*fixture.kvWidth + fixture.hidden)
 		tableBytes   = 4 * capacity * width
 	)
-	if final.LiveBuffers != baseline.LiveBuffers+19 || final.LiveScopes != baseline.LiveScopes ||
-		final.LiveBufferBytes != baseline.LiveBufferBytes+uint64(scratchBytes+2*slotBytes+modelBytes+tableBytes) ||
+	if final.LiveBuffers != baseline.LiveBuffers+18 || final.LiveScopes != baseline.LiveScopes ||
+		final.LiveBufferBytes != baseline.LiveBufferBytes+uint64(scratchBytes+slotBytes+modelBytes+tableBytes) ||
 		final.CreatedBuffers != warm.CreatedBuffers || final.SubmittedCommands != warm.SubmittedCommands+uint64(b.N)+3 ||
 		final.CompletedCommands != warm.CompletedCommands+uint64(b.N)+3 {
 		b.Fatalf("unexpected resource use: baseline %+v warm %+v final %+v", baseline, warm, final)
@@ -115,10 +115,10 @@ func benchmarkAttentionMetal(b *testing.B, rows, position int64) {
 	}
 	b.ReportMetric(float64(scratchBytes), "scratch-device-B")
 	b.ReportMetric(float64(slotBytes), "active-kv-device-B")
-	b.ReportMetric(float64(slotBytes), "staged-kv-device-B")
+	b.ReportMetric(0, "staged-kv-device-B")
 	b.ReportMetric(float64(modelBytes+tableBytes), "shared-device-B")
 	b.ReportMetric(float64(4*len(input)+4*len(output)), "activation-host-B")
-	b.ReportMetric(float64(2*position*kvHeads*width*4), "prefix-copy-B/op")
+	b.ReportMetric(0, "prefix-copy-B/op")
 	b.ReportMetric(float64(2*rows*kvHeads*width*4), "append-copy-B/op")
 	b.ReportMetric(1, "commands/op")
 }
