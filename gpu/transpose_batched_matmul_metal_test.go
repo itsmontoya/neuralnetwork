@@ -364,8 +364,14 @@ func Test_MetalMatMulLeftTransposeAgainstFP64(t *testing.T) {
 	var shapes = []shape{
 		{name: "1x1x1", k: 1, m: 1, n: 1},
 		{name: "3x5x7", k: 3, m: 5, n: 7},
+		{name: "7x7x7", k: 7, m: 7, n: 7},
+		{name: "8x4x8", k: 8, m: 4, n: 8},
+		{name: "15x15x15", k: 15, m: 15, n: 15},
+		{name: "16x16x16", k: 16, m: 16, n: 16},
 		{name: "17x19x23", k: 17, m: 19, n: 23},
+		{name: "31x31x31", k: 31, m: 31, n: 31},
 		{name: "64x32x64", k: 64, m: 32, n: 64},
+		{name: "128x65x128", k: 128, m: 65, n: 128},
 		{name: "129x33x65", k: 129, m: 33, n: 65},
 	}
 
@@ -483,18 +489,30 @@ func Test_MetalBatchedMatMulAgainstFP64(t *testing.T) {
 		rightT     bool
 	}
 	var tests = []testcase{
+		{name: "2d_x_2d_tiny_fallback", leftShape: []int64{3, 7}, rightShape: []int64{7, 7}},
+		{name: "2d_x_2d_rt_tiny_fallback", leftShape: []int64{7, 8}, rightShape: []int64{9, 8}, rightT: true},
+		{name: "2d_x_2d_tiled_min", leftShape: []int64{4, 8}, rightShape: []int64{8, 8}},
+		{name: "2d_x_2d_rt_tiled_min", leftShape: []int64{8, 8}, rightShape: []int64{8, 8}, rightT: true},
+		{name: "2d_x_2d_15x15x15", leftShape: []int64{15, 15}, rightShape: []int64{15, 15}},
+		{name: "2d_x_2d_16x16x16_rt", leftShape: []int64{16, 16}, rightShape: []int64{16, 16}, rightT: true},
 		{name: "2d_x_2d", leftShape: []int64{17, 33}, rightShape: []int64{33, 19}},
 		{name: "2d_x_2d_rt_vec4", leftShape: []int64{17, 64}, rightShape: []int64{19, 64}, rightT: true},
 		{name: "3d_x_3d_odd", leftShape: []int64{4, 17, 33}, rightShape: []int64{4, 33, 19}},
 		{name: "3d_x_3d_rt_odd", leftShape: []int64{4, 17, 33}, rightShape: []int64{4, 19, 33}, rightT: true},
+		{name: "3d_x_3d_edge_31x31x31", leftShape: []int64{2, 31, 31}, rightShape: []int64{2, 31, 31}},
+		{name: "3d_x_3d_edge_33x35x65", leftShape: []int64{2, 33, 35}, rightShape: []int64{2, 35, 65}},
+		{name: "3d_x_3d_rt_edge_33x35x65", leftShape: []int64{2, 33, 35}, rightShape: []int64{2, 65, 35}, rightT: true},
 		{name: "3d_x_2d_shared_weight", leftShape: []int64{3, 19, 64}, rightShape: []int64{64, 48}},
 		{name: "3d_x_2d_shared_weight_rt", leftShape: []int64{3, 19, 64}, rightShape: []int64{48, 64}, rightT: true},
+		{name: "3d_x_2d_large_edge_65x128x128", leftShape: []int64{2, 65, 128}, rightShape: []int64{128, 128}},
 		{name: "2d_x_3d_broadcast", leftShape: []int64{11, 29}, rightShape: []int64{3, 29, 13}},
 		{name: "4d_attention_scores", leftShape: []int64{2, 8, 32, 64}, rightShape: []int64{2, 8, 64, 32}},
 		{name: "4d_attention_scores_rt", leftShape: []int64{2, 8, 32, 64}, rightShape: []int64{2, 8, 32, 64}, rightT: true},
 		{name: "4d_multi_broadcast", leftShape: []int64{2, 1, 13, 29}, rightShape: []int64{1, 3, 29, 17}},
 		{name: "6d_broadcast", leftShape: []int64{2, 1, 2, 1, 5, 7}, rightShape: []int64{1, 2, 1, 3, 7, 4}},
 		{name: "6d_broadcast_rt", leftShape: []int64{2, 1, 2, 1, 5, 8}, rightShape: []int64{1, 2, 1, 3, 4, 8}, rightT: true},
+		{name: "6d_broadcast_tiled", leftShape: []int64{2, 1, 2, 1, 9, 17}, rightShape: []int64{1, 2, 1, 2, 17, 19}},
+		{name: "6d_broadcast_tiled_rt", leftShape: []int64{2, 1, 2, 1, 9, 17}, rightShape: []int64{1, 2, 1, 2, 19, 17}, rightT: true},
 	}
 
 	for _, tt := range tests {
@@ -1090,6 +1108,394 @@ func Test_MetalONNXTransformerEncoderBlockSingleScope(t *testing.T) {
 		})
 	}
 
+	if after := native.ResourceSnapshot(); after.LiveBuffers != initial.LiveBuffers || after.LiveScopes != initial.LiveScopes {
+		t.Fatalf("resource leak: initial=%+v after=%+v", initial, after)
+	}
+}
+
+func Test_MetalMatMulLeftTransposeSpecialValues(t *testing.T) {
+	var (
+		dev     = requireMetalDevice(t)
+		ctx     = context.Background()
+		native  = dev.state.backend.(metalBackend).runtime
+		initial = native.ResourceSnapshot()
+	)
+
+	type shapeCase struct {
+		name    string
+		k, m, n int64
+	}
+	var shapes = []shapeCase{
+		{name: "fallback_2x3x3", k: 2, m: 3, n: 3},
+		{name: "tiled_partial_9x8x9", k: 9, m: 8, n: 9},
+		{name: "tiled_edge_35x33x65", k: 35, m: 33, n: 65},
+	}
+
+	for _, sc := range shapes {
+		for _, dt := range []DType{Float32, Float16, BFloat16} {
+			t.Run(fmt.Sprintf("%s/%s", sc.name, dt), func(t *testing.T) {
+				var (
+					leftVals  = make([]float32, sc.k*sc.m)
+					rightVals = make([]float32, sc.k*sc.n)
+					m         = int(sc.m)
+					n         = int(sc.n)
+				)
+				for i := range leftVals {
+					leftVals[i] = 1.0
+				}
+				for i := range rightVals {
+					rightVals[i] = 1.0
+				}
+				// [0, 0]: NaN * 1 -> NaN.
+				leftVals[0*m+0] = float32(math.NaN())
+				// [1, 1]: 0 * +Inf -> NaN.
+				leftVals[0*m+1] = 0
+				rightVals[0*n+1] = float32(math.Inf(1))
+				// [2, 0]: +Inf * 1 + 1 * 1 -> +Inf.
+				leftVals[0*m+2] = float32(math.Inf(1))
+				// [2, 2]: +Inf * 1 + 1 * (-Inf) -> NaN.
+				rightVals[1*n+2] = float32(math.Inf(-1))
+				// Edge element check on tiled shapes.
+				if sc.m > 3 && sc.n > 3 {
+					leftVals[(int(sc.k)-1)*m+(m-1)] = 2.0
+					rightVals[(int(sc.k)-1)*n+(n-1)] = 3.0
+				}
+
+				var (
+					left  = requireTensor(t, dev, sc.k, sc.m)
+					right = requireTensorWithDType(t, dev, dt, sc.k, sc.n)
+					dst   = requireTensor(t, dev, sc.m, sc.n)
+				)
+				requireError(t, left.Upload(leftVals), nil)
+				requireError(t, right.UploadFloat32As(rightVals), nil)
+				var scope, err = dev.NewScope()
+				requireError(t, err, nil)
+				requireError(t, scope.MatMulLeftTranspose(left, right, dst), nil)
+				requireError(t, scope.Submit(ctx), nil)
+				requireError(t, scope.Wait(ctx), nil)
+				requireError(t, scope.Close(), nil)
+
+				var got = make([]float32, sc.m*sc.n)
+				requireError(t, dst.DownloadInto(got), nil)
+
+				if !math.IsNaN(float64(got[0*n+0])) {
+					t.Fatalf("expected NaN at [0,0], got %v", got[0*n+0])
+				}
+				if !math.IsNaN(float64(got[1*n+1])) {
+					t.Fatalf("expected 0*Inf -> NaN at [1,1], got %v", got[1*n+1])
+				}
+				if !math.IsInf(float64(got[2*n+0]), 1) {
+					t.Fatalf("expected +Inf at [2,0], got %v", got[2*n+0])
+				}
+				if !math.IsNaN(float64(got[2*n+2])) {
+					t.Fatalf("expected opposing Inf -> NaN at [2,2], got %v", got[2*n+2])
+				}
+				if sc.m > 3 && sc.n > 3 {
+					var wantLast = float32(sc.k + 5)
+					var gotLast = got[(m-1)*n+(n-1)]
+					if math.Abs(float64(gotLast-wantLast)) > 1e-4 {
+						t.Fatalf("edge element [%d,%d]: got %v, want %v", m-1, n-1, gotLast, wantLast)
+					}
+				}
+
+				for _, tensor := range []*Tensor{left, right, dst} {
+					requireError(t, tensor.Close(), nil)
+				}
+			})
+		}
+	}
+
+	if after := native.ResourceSnapshot(); after.LiveBuffers != initial.LiveBuffers || after.LiveScopes != initial.LiveScopes {
+		t.Fatalf("resource leak: initial=%+v after=%+v", initial, after)
+	}
+}
+
+func Test_MetalBatchedMatMulSpecialValues(t *testing.T) {
+	var (
+		dev     = requireMetalDevice(t)
+		ctx     = context.Background()
+		native  = dev.state.backend.(metalBackend).runtime
+		initial = native.ResourceSnapshot()
+	)
+
+	type shapeCase struct {
+		name   string
+		b      int64
+		m, k   int64
+		n      int64
+		rightT bool
+		bcastR bool
+	}
+	var cases = []shapeCase{
+		{name: "fallback_nn_2x3x2x3", b: 2, m: 3, k: 2, n: 3},
+		{name: "fallback_rt_2x3x2x3", b: 2, m: 3, k: 2, n: 3, rightT: true},
+		{name: "tiled_partial_nn_2x8x9x9_bcast", b: 2, m: 8, k: 9, n: 9, bcastR: true},
+		{name: "tiled_partial_rt_2x8x9x9_bcast", b: 2, m: 8, k: 9, n: 9, rightT: true, bcastR: true},
+		{name: "tiled_edge_nn_2x33x35x65", b: 2, m: 33, k: 35, n: 65},
+		{name: "tiled_edge_rt_2x33x35x65", b: 2, m: 33, k: 35, n: 65, rightT: true},
+	}
+
+	for _, tc := range cases {
+		for _, dt := range []DType{Float32, Float16, BFloat16} {
+			t.Run(fmt.Sprintf("%s/%s", tc.name, dt), func(t *testing.T) {
+				var (
+					rBatches  = tc.b
+					leftVals  = make([]float32, tc.b*tc.m*tc.k)
+					m         = int(tc.m)
+					k         = int(tc.k)
+					n         = int(tc.n)
+					leftShape = []int64{tc.b, tc.m, tc.k}
+					dstShape  = []int64{tc.b, tc.m, tc.n}
+				)
+				if tc.bcastR {
+					rBatches = 1
+				}
+				var rightVals = make([]float32, rBatches*tc.k*tc.n)
+				var rightShape []int64
+				if tc.rightT {
+					if tc.bcastR {
+						rightShape = []int64{tc.n, tc.k}
+					} else {
+						rightShape = []int64{tc.b, tc.n, tc.k}
+					}
+				} else {
+					if tc.bcastR {
+						rightShape = []int64{tc.k, tc.n}
+					} else {
+						rightShape = []int64{tc.b, tc.k, tc.n}
+					}
+				}
+
+				for i := range leftVals {
+					leftVals[i] = 1.0
+				}
+				for i := range rightVals {
+					rightVals[i] = 1.0
+				}
+				setRight := func(batch, kk, col int, val float32) {
+					var base = batch * k * n
+					if tc.rightT {
+						rightVals[base+col*k+kk] = val
+					} else {
+						rightVals[base+kk*n+col] = val
+					}
+				}
+
+				// Batch 0 special cases:
+				// [0, 0, 0]: NaN * 1 -> NaN
+				leftVals[0*k+0] = float32(math.NaN())
+				// [0, 1, 1]: 0 * +Inf -> NaN
+				leftVals[1*k+0] = 0
+				setRight(0, 0, 1, float32(math.Inf(1)))
+				// [0, 2, 0]: +Inf * 1 + 1*1 -> +Inf
+				leftVals[2*k+0] = float32(math.Inf(1))
+				// [0, 2, 2]: +Inf * 1 + 1 * (-Inf) -> NaN
+				setRight(0, 1, 2, float32(math.Inf(-1)))
+
+				// Batch 1 finite check at last element.
+				var b1Base = m * k
+				leftVals[b1Base+(m-1)*k+(k-1)] = 2.0
+				if !tc.bcastR {
+					setRight(1, k-1, n-1, 3.0)
+				} else {
+					setRight(0, k-1, n-1, 3.0)
+				}
+
+				var (
+					left  = requireTensor(t, dev, leftShape...)
+					right = requireTensorWithDType(t, dev, dt, rightShape...)
+					dst   = requireTensor(t, dev, dstShape...)
+				)
+				requireError(t, left.Upload(leftVals), nil)
+				requireError(t, right.UploadFloat32As(rightVals), nil)
+				var scope, err = dev.NewScope()
+				requireError(t, err, nil)
+				if tc.rightT {
+					requireError(t, scope.BatchedMatMulRightTranspose(left, right, dst), nil)
+				} else {
+					requireError(t, scope.BatchedMatMul(left, right, dst), nil)
+				}
+				requireError(t, scope.Submit(ctx), nil)
+				requireError(t, scope.Wait(ctx), nil)
+				requireError(t, scope.Close(), nil)
+
+				var got = make([]float32, tc.b*tc.m*tc.n)
+				requireError(t, dst.DownloadInto(got), nil)
+
+				if !math.IsNaN(float64(got[0*n+0])) {
+					t.Fatalf("expected NaN at [0,0,0], got %v", got[0*n+0])
+				}
+				if !math.IsNaN(float64(got[1*n+1])) {
+					t.Fatalf("expected 0*Inf -> NaN at [0,1,1], got %v", got[1*n+1])
+				}
+				if !math.IsInf(float64(got[2*n+0]), 1) {
+					t.Fatalf("expected +Inf at [0,2,0], got %v", got[2*n+0])
+				}
+				if !math.IsNaN(float64(got[2*n+2])) {
+					t.Fatalf("expected opposing Inf -> NaN at [0,2,2], got %v", got[2*n+2])
+				}
+				if tc.m > 3 && tc.n > 3 {
+					var wantLast = float32(tc.k + 5)
+					var gotLast = got[m*n+(m-1)*n+(n-1)]
+					if math.Abs(float64(gotLast-wantLast)) > 1e-4 {
+						t.Fatalf("batch 1 edge element [%d,%d]: got %v, want %v", m-1, n-1, gotLast, wantLast)
+					}
+				}
+
+				for _, tensor := range []*Tensor{left, right, dst} {
+					requireError(t, tensor.Close(), nil)
+				}
+			})
+		}
+	}
+
+	if after := native.ResourceSnapshot(); after.LiveBuffers != initial.LiveBuffers || after.LiveScopes != initial.LiveScopes {
+		t.Fatalf("resource leak: initial=%+v after=%+v", initial, after)
+	}
+}
+
+func Test_MetalBatchedMatMulTiledConcurrentStress(t *testing.T) {
+	var (
+		dev     = requireMetalDevice(t)
+		ctx     = context.Background()
+		native  = dev.state.backend.(metalBackend).runtime
+		initial = native.ResourceSnapshot()
+		rng     = rand.New(rand.NewPCG(2301, 2302))
+	)
+
+	const (
+		kDim = 67
+		mDim = 33
+		nDim = 65
+	)
+
+	var (
+		ltL  = requireTensor(t, dev, kDim, mDim)
+		ltR  = requireTensorWithDType(t, dev, Float16, kDim, nDim)
+		nnL  = requireTensor(t, dev, 2, mDim, kDim)
+		nnR  = requireTensorWithDType(t, dev, BFloat16, kDim, nDim)
+		rtL  = requireTensor(t, dev, 2, 2, mDim, kDim)
+		rtR  = requireTensorWithDType(t, dev, Float32, 2, 2, nDim, kDim)
+		ltLV = make([]float32, kDim*mDim)
+		ltRV = make([]float32, kDim*nDim)
+		nnLV = make([]float32, 2*mDim*kDim)
+		nnRV = make([]float32, kDim*nDim)
+		rtLV = make([]float32, 4*mDim*kDim)
+		rtRV = make([]float32, 4*nDim*kDim)
+	)
+	for _, buf := range [][]float32{ltLV, ltRV, nnLV, nnRV, rtLV, rtRV} {
+		for i := range buf {
+			buf[i] = float32(rng.Float64()*2 - 1)
+		}
+	}
+	requireError(t, ltL.Upload(ltLV), nil)
+	requireError(t, ltR.UploadFloat32As(ltRV), nil)
+	requireError(t, nnL.Upload(nnLV), nil)
+	requireError(t, nnR.UploadFloat32As(nnRV), nil)
+	requireError(t, rtL.Upload(rtLV), nil)
+	requireError(t, rtR.UploadFloat32As(rtRV), nil)
+
+	var (
+		wantLT    = referenceMatMulLeftTransposeFP64(ltLV, quantizeRoundTrip(ltRV, Float16), kDim, mDim, nDim)
+		wantNN, _ = referenceBatchedMatMulFP64(nnLV, quantizeRoundTrip(nnRV, BFloat16), []int64{2, mDim, kDim}, []int64{kDim, nDim}, false)
+		wantRT, _ = referenceBatchedMatMulFP64(rtLV, rtRV, []int64{2, 2, mDim, kDim}, []int64{2, 2, nDim, kDim}, true)
+	)
+
+	const (
+		workers = 8
+		iters   = 16
+	)
+	var (
+		wg    sync.WaitGroup
+		errCh = make(chan error, workers*iters)
+	)
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var (
+				ltDst = requireTensor(t, dev, mDim, nDim)
+				nnDst = requireTensor(t, dev, 2, mDim, nDim)
+				rtDst = requireTensor(t, dev, 2, 2, mDim, nDim)
+				gotLT = make([]float32, len(wantLT))
+				gotNN = make([]float32, len(wantNN))
+				gotRT = make([]float32, len(wantRT))
+			)
+			defer func() {
+				_ = ltDst.Close()
+				_ = nnDst.Close()
+				_ = rtDst.Close()
+			}()
+			for range iters {
+				var scope, err = dev.NewScope()
+				if err != nil {
+					errCh <- err
+					return
+				}
+				if err = scope.MatMulLeftTranspose(ltL, ltR, ltDst); err != nil {
+					_ = scope.Close()
+					errCh <- err
+					return
+				}
+				if err = scope.BatchedMatMul(nnL, nnR, nnDst); err != nil {
+					_ = scope.Close()
+					errCh <- err
+					return
+				}
+				if err = scope.BatchedMatMulRightTranspose(rtL, rtR, rtDst); err != nil {
+					_ = scope.Close()
+					errCh <- err
+					return
+				}
+				if err = scope.Submit(ctx); err != nil {
+					_ = scope.Close()
+					errCh <- err
+					return
+				}
+				if err = scope.Wait(ctx); err != nil {
+					_ = scope.Close()
+					errCh <- err
+					return
+				}
+				if err = scope.Close(); err != nil {
+					errCh <- err
+					return
+				}
+				if err = ltDst.DownloadInto(gotLT); err != nil {
+					errCh <- err
+					return
+				}
+				if err = nnDst.DownloadInto(gotNN); err != nil {
+					errCh <- err
+					return
+				}
+				if err = rtDst.DownloadInto(gotRT); err != nil {
+					errCh <- err
+					return
+				}
+				if _, _, _, maxErr := nn17ErrorStats(gotLT, wantLT); maxErr > 1e-4 {
+					errCh <- fmt.Errorf("tiled concurrent left-transpose max err %.3e", maxErr)
+					return
+				}
+				if _, _, _, maxErr := nn17ErrorStats(gotNN, wantNN); maxErr > 1e-4 {
+					errCh <- fmt.Errorf("tiled concurrent batched nn max err %.3e", maxErr)
+					return
+				}
+				if _, _, _, maxErr := nn17ErrorStats(gotRT, wantRT); maxErr > 1e-4 {
+					errCh <- fmt.Errorf("tiled concurrent batched rt max err %.3e", maxErr)
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		t.Fatal(err)
+	}
+	for _, tensor := range []*Tensor{ltL, ltR, nnL, nnR, rtL, rtR} {
+		requireError(t, tensor.Close(), nil)
+	}
 	if after := native.ResourceSnapshot(); after.LiveBuffers != initial.LiveBuffers || after.LiveScopes != initial.LiveScopes {
 		t.Fatalf("resource leak: initial=%+v after=%+v", initial, after)
 	}

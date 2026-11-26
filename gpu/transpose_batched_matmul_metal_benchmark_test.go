@@ -305,3 +305,107 @@ func Benchmark_ONNXTransformerEncoderBlockMetal(b *testing.B) {
 		})
 	}
 }
+
+func Benchmark_BatchedMatMulTiledSweepMetal(b *testing.B) {
+	type sweepCase struct {
+		name       string
+		leftShape  []int64
+		rightShape []int64
+		dstShape   []int64
+		rightT     bool
+		leftT      bool
+		flops      float64
+		dtypes     []DType
+	}
+	var cases = []sweepCase{
+		{
+			name:       "LeftT_K768_M128_N3072",
+			leftShape:  []int64{768, 128},
+			rightShape: []int64{768, 3072},
+			dstShape:   []int64{128, 3072},
+			leftT:      true,
+			flops:      2 * 128 * 768 * 3072,
+			dtypes:     []DType{Float32, Float16, BFloat16},
+		},
+		{
+			name:       "SharedProj_2x64x768_x_768x3072",
+			leftShape:  []int64{2, 64, 768},
+			rightShape: []int64{768, 3072},
+			dstShape:   []int64{2, 64, 3072},
+			flops:      2 * 2 * 64 * 768 * 3072,
+			dtypes:     []DType{Float32, Float16, BFloat16},
+		},
+		{
+			name:       "SharedProj_2x64x3072_x_768x3072_RT",
+			leftShape:  []int64{2, 64, 3072},
+			rightShape: []int64{768, 3072},
+			dstShape:   []int64{2, 64, 768},
+			rightT:     true,
+			flops:      2 * 2 * 64 * 3072 * 768,
+			dtypes:     []DType{Float32, Float16, BFloat16},
+		},
+		{
+			name:       "AttnScores_2x12x256x64_RT",
+			leftShape:  []int64{2, 12, 256, 64},
+			rightShape: []int64{2, 12, 256, 64},
+			dstShape:   []int64{2, 12, 256, 256},
+			rightT:     true,
+			flops:      2 * 2 * 12 * 256 * 64 * 256,
+			dtypes:     []DType{Float32},
+		},
+		{
+			name:       "AttnContext_2x12x256x256",
+			leftShape:  []int64{2, 12, 256, 256},
+			rightShape: []int64{2, 12, 256, 64},
+			dstShape:   []int64{2, 12, 256, 64},
+			flops:      2 * 2 * 12 * 256 * 256 * 64,
+			dtypes:     []DType{Float32},
+		},
+	}
+
+	for _, tc := range cases {
+		for _, dt := range tc.dtypes {
+			b.Run(fmt.Sprintf("%s/%s", tc.name, dt), func(b *testing.B) {
+				var (
+					dev   = requireMetalDevice(b)
+					ctx   = context.Background()
+					left  = requireTensor(b, dev, tc.leftShape...)
+					right = requireTensorWithDType(b, dev, dt, tc.rightShape...)
+					dst   = requireTensor(b, dev, tc.dstShape...)
+				)
+				requireError(b, left.Upload(attentionValues(int64(left.state.storage.count), 330, 1)), nil)
+				requireError(b, right.UploadFloat32As(attentionValues(int64(right.state.storage.count), 331, 1)), nil)
+				runOnce := func() (elapsed time.Duration) {
+					var (
+						start      = time.Now()
+						scope, err = dev.NewScope()
+					)
+					requireError(b, err, nil)
+					defer scope.Close()
+					switch {
+					case tc.leftT:
+						requireError(b, scope.MatMulLeftTranspose(left, right, dst), nil)
+					case tc.rightT:
+						requireError(b, scope.BatchedMatMulRightTranspose(left, right, dst), nil)
+					default:
+						requireError(b, scope.BatchedMatMul(left, right, dst), nil)
+					}
+					requireError(b, scope.Submit(ctx), nil)
+					requireError(b, scope.Wait(ctx), nil)
+					requireError(b, scope.Close(), nil)
+					return time.Since(start)
+				}
+				_ = runOnce()
+				b.ResetTimer()
+				var total time.Duration
+				for range b.N {
+					total += runOnce()
+				}
+				b.StopTimer()
+				var secPerOp = float64(total.Nanoseconds()) / float64(b.N) / 1e9
+				b.ReportMetric(secPerOp*1e3, "ms/op")
+				b.ReportMetric(tc.flops/secPerOp/1e9, "GFLOP/s")
+			})
+		}
+	}
+}
