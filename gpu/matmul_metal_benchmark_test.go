@@ -214,6 +214,35 @@ func Benchmark_MatMulMixedBatchMetal(b *testing.B) {
 	}
 }
 
+// Benchmark_MatMulQuantBatchMetal measures isolated resident multi-row (M=2..256)
+// MatMulRightTranspose projections for quantized Q8_0 and Q4_0 weights.
+func Benchmark_MatMulQuantBatchMetal(b *testing.B) {
+	var cases = []struct {
+		name              string
+		rows, inner, cols int64
+	}{
+		{name: "MatMulRT_M2_K2048_N8192", rows: 2, inner: 2048, cols: 8192},
+		{name: "MatMulRT_M4_K2048_N8192", rows: 4, inner: 2048, cols: 8192},
+		{name: "MatMulRT_M6_K2048_N8192", rows: 6, inner: 2048, cols: 8192},
+		{name: "MatMulRT_M32_K2048_N2048", rows: 32, inner: 2048, cols: 2048},
+		{name: "MatMulRT_M64_K2048_N2048", rows: 64, inner: 2048, cols: 2048},
+		{name: "MatMulRT_M128_K2048_N2048", rows: 128, inner: 2048, cols: 2048},
+		{name: "MatMulRT_M256_K2048_N2048", rows: 256, inner: 2048, cols: 2048},
+		{name: "MatMulRT_M32_K2048_N8192", rows: 32, inner: 2048, cols: 8192},
+		{name: "MatMulRT_M128_K2048_N8192", rows: 128, inner: 2048, cols: 8192},
+		{name: "MatMulRT_M256_K2048_N8192", rows: 256, inner: 2048, cols: 8192},
+	}
+	for _, tc := range cases {
+		b.Run(tc.name, func(b *testing.B) {
+			for _, dtype := range []DType{Q8_0, Q4_0} {
+				b.Run(dtype.String(), func(b *testing.B) {
+					benchmarkMetalMatMulMixedDType(b, dtype, tc.rows, tc.inner, tc.cols, true)
+				})
+			}
+		})
+	}
+}
+
 func benchmarkMetalMatMulMixedDType(b *testing.B, dtype DType, rows, inner, cols int64, transposed bool) {
 	var (
 		gpu      = requireMetalDevice(b)
