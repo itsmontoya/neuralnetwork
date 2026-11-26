@@ -102,7 +102,7 @@ func Test_Gemm_PreparedRightTranspose(t *testing.T) {
 			if len(weight.storage.floats) != len(right) {
 				t.Fatal("prepared storage changed the weight count")
 			}
-			if weight.packed != (hostMatrixProduct && float32product.CanPackRightTranspose(tt.inner, tt.cols)) {
+			if weight.packed != float32product.CanPackRightTranspose(tt.inner, tt.cols) {
 				t.Fatal("unexpected prepared layout")
 			}
 			for _, config := range []GemmConfig{
