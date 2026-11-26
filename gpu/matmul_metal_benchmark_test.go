@@ -183,3 +183,112 @@ func runResidentRightTranspose(b *testing.B, gpu *Device, left, right, output *T
 	requireError(b, scope.Wait(context.Background()), nil)
 	requireError(b, scope.Close(), nil)
 }
+
+// Benchmark_MatMulMixedBatchMetal measures isolated resident multi-row (M=32..256)
+// MatMul and MatMulRightTranspose projections for Float16 and BFloat16 weights.
+func Benchmark_MatMulMixedBatchMetal(b *testing.B) {
+	var cases = []struct {
+		name              string
+		rows, inner, cols int64
+		transposed        bool
+	}{
+		{name: "MatMul_M32_K2048_N2048", rows: 32, inner: 2048, cols: 2048, transposed: false},
+		{name: "MatMul_M64_K2048_N2048", rows: 64, inner: 2048, cols: 2048, transposed: false},
+		{name: "MatMul_M128_K2048_N2048", rows: 128, inner: 2048, cols: 2048, transposed: false},
+		{name: "MatMul_M256_K2048_N2048", rows: 256, inner: 2048, cols: 2048, transposed: false},
+		{name: "MatMulRT_M32_K2048_N2048", rows: 32, inner: 2048, cols: 2048, transposed: true},
+		{name: "MatMulRT_M64_K2048_N2048", rows: 64, inner: 2048, cols: 2048, transposed: true},
+		{name: "MatMulRT_M128_K2048_N2048", rows: 128, inner: 2048, cols: 2048, transposed: true},
+		{name: "MatMulRT_M256_K2048_N2048", rows: 256, inner: 2048, cols: 2048, transposed: true},
+		{name: "MatMulRT_M32_K2048_N8192", rows: 32, inner: 2048, cols: 8192, transposed: true},
+		{name: "MatMulRT_M128_K2048_N8192", rows: 128, inner: 2048, cols: 8192, transposed: true},
+	}
+	for _, tc := range cases {
+		b.Run(tc.name, func(b *testing.B) {
+			for _, dtype := range []DType{Float16, BFloat16} {
+				b.Run(dtype.String(), func(b *testing.B) {
+					benchmarkMetalMatMulMixedDType(b, dtype, tc.rows, tc.inner, tc.cols, tc.transposed)
+				})
+			}
+		})
+	}
+}
+
+func benchmarkMetalMatMulMixedDType(b *testing.B, dtype DType, rows, inner, cols int64, transposed bool) {
+	var (
+		gpu      = requireMetalDevice(b)
+		native   = gpu.state.backend.(metalBackend).runtime
+		baseline = native.ResourceSnapshot()
+		left     = requireTensor(b, gpu, rows, inner)
+		output   = requireTensor(b, gpu, rows, cols)
+		random   = rand.New(rand.NewPCG(0x6e6e21, uint64(rows*1000003+inner*1009+cols)))
+		right    *Tensor
+	)
+	if transposed {
+		right = requireTensorWithDType(b, gpu, dtype, cols, inner)
+	} else {
+		right = requireTensorWithDType(b, gpu, dtype, inner, cols)
+	}
+	var (
+		leftValues  = make([]float32, rows*inner)
+		rightValues = make([]float32, cols*inner)
+	)
+	for i := range leftValues {
+		leftValues[i] = 2*random.Float32() - 1
+	}
+	for i := range rightValues {
+		rightValues[i] = 2*random.Float32() - 1
+	}
+	requireError(b, left.Upload(leftValues), nil)
+	requireError(b, right.UploadFloat32As(rightValues), nil)
+	leftValues = nil
+	rightValues = nil
+
+	var run = func() {
+		var scope, err = gpu.NewScope()
+		requireError(b, err, nil)
+		if transposed {
+			requireError(b, scope.MatMulRightTranspose(left, right, output), nil)
+		} else {
+			requireError(b, scope.MatMul(left, right, output), nil)
+		}
+		requireError(b, scope.Submit(context.Background()), nil)
+		requireError(b, scope.Wait(context.Background()), nil)
+		requireError(b, scope.Close(), nil)
+	}
+
+	var firstStart = time.Now()
+	run()
+	var firstElapsed = time.Since(firstStart)
+
+	for range 3 {
+		run()
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	var totalStart = time.Now()
+	for b.Loop() {
+		run()
+	}
+	var totalElapsed = time.Since(totalStart)
+	b.StopTimer()
+
+	var (
+		totalTrafficBytes = float64(left.Bytes() + right.Bytes() + output.Bytes())
+		totalFlops        = 2.0 * float64(rows) * float64(inner) * float64(cols)
+		secondsPerOp      = totalElapsed.Seconds() / float64(b.N)
+	)
+	b.ReportMetric(float64(firstElapsed), "first-use-ns")
+	if secondsPerOp > 0 {
+		b.ReportMetric(totalTrafficBytes/secondsPerOp/1e9, "effective-GB/s")
+		b.ReportMetric(totalFlops/secondsPerOp/1e9, "effective-GFLOP/s")
+	}
+	b.ReportMetric(float64(right.Bytes()), "weight-B")
+	var final = native.ResourceSnapshot()
+	var expectedBuffers = baseline.LiveBuffers + 3
+	if final.LiveBuffers != expectedBuffers || final.LiveScopes != baseline.LiveScopes {
+		b.Fatalf("unexpected resident projection resource use: before %+v, after %+v", baseline, final)
+	}
+	b.ReportMetric(float64(final.LiveBufferBytes-baseline.LiveBufferBytes), "requested-device-B")
+}
