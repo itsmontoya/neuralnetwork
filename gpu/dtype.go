@@ -21,16 +21,20 @@ const (
 	// IEEE-754 binary16 scale followed by 16 packed uint8 nibble pairs in GGUF
 	// split-half order, offset by -8).
 	Q4_0
+	// Q4_1 is asymmetric block-quantized 4-bit storage (20 bytes per 32 elements:
+	// 2-byte IEEE-754 binary16 scale, 2-byte IEEE-754 binary16 minimum, and 16
+	// packed uint8 unsigned nibble pairs in GGUF split-half order).
+	Q4_1
 )
 
 // Valid reports whether d is a supported tensor element type.
 func (d DType) Valid() (ok bool) {
-	return d == Float32 || d == Float16 || d == BFloat16 || d == Q8_0 || d == Q4_0
+	return d == Float32 || d == Float16 || d == BFloat16 || d == Q8_0 || d == Q4_0 || d == Q4_1
 }
 
 // IsQuantized reports whether d is a block-quantized storage format.
 func (d DType) IsQuantized() (ok bool) {
-	return d == Q8_0 || d == Q4_0
+	return d == Q8_0 || d == Q4_0 || d == Q4_1
 }
 
 // Bytes returns the storage width in bytes of one element of d, or zero if d is
@@ -47,12 +51,13 @@ func (d DType) Bytes() (size uint64) {
 }
 
 // BlockSize returns the number of logical elements per storage block (1 for
-// scalar floating-point dtypes, 32 for Q8_0 and Q4_0), or zero if d is invalid.
+// scalar floating-point dtypes, 32 for Q8_0, Q4_0, and Q4_1), or zero if d is
+// invalid.
 func (d DType) BlockSize() (size uint64) {
 	switch d {
 	case Float32, Float16, BFloat16:
 		return 1
-	case Q8_0, Q4_0:
+	case Q8_0, Q4_0, Q4_1:
 		return QuantBlockSize
 	default:
 		return 0
@@ -70,6 +75,8 @@ func (d DType) BlockBytes() (size uint64) {
 		return QuantBlockBytesQ8_0
 	case Q4_0:
 		return QuantBlockBytesQ4_0
+	case Q4_1:
+		return QuantBlockBytesQ4_1
 	default:
 		return 0
 	}
@@ -88,6 +95,8 @@ func (d DType) String() (name string) {
 		return "q8_0"
 	case Q4_0:
 		return "q4_0"
+	case Q4_1:
+		return "q4_1"
 	default:
 		return "invalid"
 	}

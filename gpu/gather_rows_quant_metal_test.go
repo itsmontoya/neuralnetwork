@@ -47,7 +47,7 @@ func Test_MetalGatherRowsQuantizedBitExact(t *testing.T) {
 		{name: "M600_C64_multichunk", srcRows: 16, cols: 64, rows: buildIndices(600, 16)},
 	}
 
-	for _, dtype := range []DType{Q8_0, Q4_0} {
+	for _, dtype := range []DType{Q8_0, Q4_0, Q4_1} {
 		for _, sc := range shapes {
 			t.Run(fmt.Sprintf("%s/%s", dtype, sc.name), func(t *testing.T) {
 				var (
@@ -56,15 +56,21 @@ func Test_MetalGatherRowsQuantizedBitExact(t *testing.T) {
 					deqRef   []float32
 					err      error
 				)
-				if dtype == Q8_0 {
+				switch dtype {
+				case Q8_0:
 					srcBytes, err = QuantizeQ8_0(srcData)
 					requireError(t, err, nil)
 					deqRef, err = DequantizeQ8_0(srcBytes)
 					requireError(t, err, nil)
-				} else {
+				case Q4_0:
 					srcBytes, err = QuantizeQ4_0(srcData)
 					requireError(t, err, nil)
 					deqRef, err = DequantizeQ4_0(srcBytes)
+					requireError(t, err, nil)
+				case Q4_1:
+					srcBytes, err = QuantizeQ4_1(srcData)
+					requireError(t, err, nil)
+					deqRef, err = DequantizeQ4_1(srcBytes)
 					requireError(t, err, nil)
 				}
 
@@ -130,7 +136,7 @@ func Test_MetalGatherRowsQuantizedSpecialScales(t *testing.T) {
 		ids     = []int64{srcRows - 1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0}
 	)
 
-	for _, dtype := range []DType{Q8_0, Q4_0} {
+	for _, dtype := range []DType{Q8_0, Q4_0, Q4_1} {
 		t.Run(dtype.String(), func(t *testing.T) {
 			var (
 				blockBytes = int(dtype.BlockBytes())
@@ -141,7 +147,8 @@ func Test_MetalGatherRowsQuantizedSpecialScales(t *testing.T) {
 				for b := range blocksRow {
 					var dst = raw[(row*blocksRow+b)*blockBytes : (row*blocksRow+b+1)*blockBytes]
 					binary.LittleEndian.PutUint16(dst[0:2], scaleBits[row])
-					if dtype == Q8_0 {
+					switch dtype {
+					case Q8_0:
 						for i := range QuantBlockSize {
 							// Cover -128, 0, +127, and varied signed values.
 							var q int8
@@ -157,7 +164,7 @@ func Test_MetalGatherRowsQuantizedSpecialScales(t *testing.T) {
 							}
 							dst[2+i] = byte(q)
 						}
-					} else {
+					case Q4_0:
 						for j := range 16 {
 							// Cover low/high nibbles 0 (-8), 8 (0), 15 (+7).
 							var (
@@ -173,6 +180,24 @@ func Test_MetalGatherRowsQuantizedSpecialScales(t *testing.T) {
 							}
 							dst[2+j] = lo | (hi << 4)
 						}
+					case Q4_1:
+						// Pair special scales with varied min values (including negative and non-zero with d=0).
+						var minBits = Float32ToFloat16(float32(b)*1.25 - 2.5)
+						if row == 0 {
+							minBits = Float32ToFloat16(3.5)
+						}
+						binary.LittleEndian.PutUint16(dst[2:4], minBits)
+						for j := range 16 {
+							var (
+								lo = uint8((j + row + b) & 0x0f)
+								hi = uint8((15 - j + row + b) & 0x0f)
+							)
+							if j == 0 {
+								lo = 0
+								hi = 15
+							}
+							dst[4+j] = lo | (hi << 4)
+						}
 					}
 				}
 			}
@@ -181,10 +206,13 @@ func Test_MetalGatherRowsQuantizedSpecialScales(t *testing.T) {
 				deqRef []float32
 				err    error
 			)
-			if dtype == Q8_0 {
+			switch dtype {
+			case Q8_0:
 				deqRef, err = DequantizeQ8_0(raw)
-			} else {
+			case Q4_0:
 				deqRef, err = DequantizeQ4_0(raw)
+			case Q4_1:
+				deqRef, err = DequantizeQ4_1(raw)
 			}
 			requireError(t, err, nil)
 
@@ -239,7 +267,7 @@ func Test_MetalGatherRowsQuantizedTiedLlama128256x2048(t *testing.T) {
 	)
 	var dev = requireMetalDevice(t)
 
-	for _, dtype := range []DType{Q8_0, Q4_0} {
+	for _, dtype := range []DType{Q8_0, Q4_0, Q4_1} {
 		t.Run(dtype.String(), func(t *testing.T) {
 			var (
 				native    = dev.state.backend.(metalBackend).runtime
@@ -272,15 +300,21 @@ func Test_MetalGatherRowsQuantizedTiedLlama128256x2048(t *testing.T) {
 					encTwo []byte
 					err    error
 				)
-				if dtype == Q8_0 {
+				switch dtype {
+				case Q8_0:
 					encOne, err = QuantizeQ8_0(onesRow)
 					requireError(t, err, nil)
 					encTwo, err = QuantizeQ8_0(twosRow)
 					requireError(t, err, nil)
-				} else {
+				case Q4_0:
 					encOne, err = QuantizeQ4_0(onesRow)
 					requireError(t, err, nil)
 					encTwo, err = QuantizeQ4_0(twosRow)
+					requireError(t, err, nil)
+				case Q4_1:
+					encOne, err = QuantizeQ4_1(onesRow)
+					requireError(t, err, nil)
+					encTwo, err = QuantizeQ4_1(twosRow)
 					requireError(t, err, nil)
 				}
 				copy(raw[42*rowBytes:43*rowBytes], encOne)
@@ -295,15 +329,21 @@ func Test_MetalGatherRowsQuantizedTiedLlama128256x2048(t *testing.T) {
 					wantEmbed []float32
 					wantTwo   []float32
 				)
-				if dtype == Q8_0 {
+				switch dtype {
+				case Q8_0:
 					wantEmbed, err = DequantizeQ8_0(encOne)
 					requireError(t, err, nil)
 					wantTwo, err = DequantizeQ8_0(encTwo)
 					requireError(t, err, nil)
-				} else {
+				case Q4_0:
 					wantEmbed, err = DequantizeQ4_0(encOne)
 					requireError(t, err, nil)
 					wantTwo, err = DequantizeQ4_0(encTwo)
+					requireError(t, err, nil)
+				case Q4_1:
+					wantEmbed, err = DequantizeQ4_1(encOne)
+					requireError(t, err, nil)
+					wantTwo, err = DequantizeQ4_1(encTwo)
 					requireError(t, err, nil)
 				}
 
@@ -356,16 +396,20 @@ func Test_MetalGatherRowsQuantizedViewAliasAndConcurrency(t *testing.T) {
 		cols    int64 = 128
 	)
 	var (
-		srcData  = attentionValues(srcRows*cols, 777, 2)
-		q8Raw, _ = QuantizeQ8_0(srcData)
-		q4Raw, _ = QuantizeQ4_0(srcData)
-		q8Ref, _ = DequantizeQ8_0(q8Raw)
-		q4Ref, _ = DequantizeQ4_0(q4Raw)
-		q8Src    = requireTensorWithDType(t, dev, Q8_0, srcRows, cols)
-		q4Src    = requireTensorWithDType(t, dev, Q4_0, srcRows, cols)
+		srcData   = attentionValues(srcRows*cols, 777, 2)
+		q8Raw, _  = QuantizeQ8_0(srcData)
+		q4Raw, _  = QuantizeQ4_0(srcData)
+		q41Raw, _ = QuantizeQ4_1(srcData)
+		q8Ref, _  = DequantizeQ8_0(q8Raw)
+		q4Ref, _  = DequantizeQ4_0(q4Raw)
+		q41Ref, _ = DequantizeQ4_1(q41Raw)
+		q8Src     = requireTensorWithDType(t, dev, Q8_0, srcRows, cols)
+		q4Src     = requireTensorWithDType(t, dev, Q4_0, srcRows, cols)
+		q41Src    = requireTensorWithDType(t, dev, Q4_1, srcRows, cols)
 	)
 	requireError(t, q8Src.UploadBytes(q8Raw), nil)
 	requireError(t, q4Src.UploadBytes(q4Raw), nil)
+	requireError(t, q41Src.UploadBytes(q41Raw), nil)
 
 	// Alias rejection: same quantized storage as source and destination,
 	// and competing writes to distinct views of the same Float32 destination.
@@ -411,11 +455,17 @@ func Test_MetalGatherRowsQuantizedViewAliasAndConcurrency(t *testing.T) {
 				raw   = q8Raw
 				ref   = q8Ref
 			)
-			if worker%2 == 1 {
+			switch worker % 3 {
+			case 1:
 				dtype = Q4_0
 				src = q4Src
 				raw = q4Raw
 				ref = q4Ref
+			case 2:
+				dtype = Q4_1
+				src = q41Src
+				raw = q41Raw
+				ref = q41Ref
 			}
 			var (
 				ids       = []int64{int64(worker % int(srcRows)), int64((worker*3 + 5) % int(srcRows)), srcRows - 1}

@@ -26,4 +26,6 @@ const (
 	OperationTensorMatMulRightTransposeQ8_0
 	// OperationTensorMatMulRightTransposeQ4_0 multiplies FP32 left by transposed Q4_0 right with FP32 accumulation.
 	OperationTensorMatMulRightTransposeQ4_0
+	// OperationTensorMatMulRightTransposeQ4_1 multiplies FP32 left by transposed Q4_1 right with FP32 accumulation.
+	OperationTensorMatMulRightTransposeQ4_1
 )

@@ -89,6 +89,8 @@ func (m metalCommandBuffer) encodeGatherRows(source, destination allocation, col
 		nativeDType = 3
 	case Q4_0:
 		nativeDType = 4
+	case Q4_1:
+		nativeDType = 5
 	}
 	return m.EncodeGatherRowsMixed(source.(*device.Buffer), destination.(*device.Buffer), columns, rows, nativeDType)
 }
@@ -179,6 +181,8 @@ func (m metalCommandBuffer) encodeMatMul(left, right, destination allocation, ro
 			operation = device.OperationTensorMatMulRightTransposeQ8_0
 		case Q4_0:
 			operation = device.OperationTensorMatMulRightTransposeQ4_0
+		case Q4_1:
+			operation = device.OperationTensorMatMulRightTransposeQ4_1
 		default:
 			operation = device.OperationTensorMatMulRightTranspose
 		}

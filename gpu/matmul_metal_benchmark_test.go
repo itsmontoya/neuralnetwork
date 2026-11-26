@@ -85,7 +85,8 @@ func benchmarkMetalRightTranspose(b *testing.B, rows, inner, cols int64) {
 }
 
 // Benchmark_MatMulRightTransposeMixedMetal compares isolated resident
-// right-transposed projections across Float32, Float16, BFloat16, Q8_0, and Q4_0 weights.
+// right-transposed projections across Float32, Float16, BFloat16, Q8_0, Q4_0,
+// and Q4_1 weights.
 func Benchmark_MatMulRightTransposeMixedMetal(b *testing.B) {
 	var cases = []struct {
 		name              string
@@ -106,7 +107,7 @@ func Benchmark_MatMulRightTransposeMixedMetal(b *testing.B) {
 		b.Run(tc.name, func(b *testing.B) {
 			var dtypes = []DType{Float32, Float16, BFloat16}
 			if tc.inner%QuantBlockSize == 0 {
-				dtypes = append(dtypes, Q8_0, Q4_0)
+				dtypes = append(dtypes, Q8_0, Q4_0, Q4_1)
 			}
 			for _, dtype := range dtypes {
 				b.Run(dtype.String(), func(b *testing.B) {
@@ -215,7 +216,7 @@ func Benchmark_MatMulMixedBatchMetal(b *testing.B) {
 }
 
 // Benchmark_MatMulQuantBatchMetal measures isolated resident multi-row (M=2..256)
-// MatMulRightTranspose projections for quantized Q8_0 and Q4_0 weights.
+// MatMulRightTranspose projections for quantized Q8_0, Q4_0, and Q4_1 weights.
 func Benchmark_MatMulQuantBatchMetal(b *testing.B) {
 	var cases = []struct {
 		name              string
@@ -234,7 +235,7 @@ func Benchmark_MatMulQuantBatchMetal(b *testing.B) {
 	}
 	for _, tc := range cases {
 		b.Run(tc.name, func(b *testing.B) {
-			for _, dtype := range []DType{Q8_0, Q4_0} {
+			for _, dtype := range []DType{Q8_0, Q4_0, Q4_1} {
 				b.Run(dtype.String(), func(b *testing.B) {
 					benchmarkMetalMatMulMixedDType(b, dtype, tc.rows, tc.inner, tc.cols, true)
 				})

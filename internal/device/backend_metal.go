@@ -1227,12 +1227,15 @@ func (m *metalBackend) encodeMatMul(
 	case OperationTensorMatMulRightTransposeQ4_0:
 		weightDType = C.NNMetalWeightQ4_0
 		metalDimensions.variant = C.uint32_t(OperationMatMulRightTranspose)
+	case OperationTensorMatMulRightTransposeQ4_1:
+		weightDType = C.NNMetalWeightQ4_1
+		metalDimensions.variant = C.uint32_t(OperationMatMulRightTranspose)
 	default:
 		metalDimensions.variant = C.uint32_t(operation)
 	}
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	if weightDType == C.NNMetalWeightQ8_0 || weightDType == C.NNMetalWeightQ4_0 {
+	if weightDType == C.NNMetalWeightQ8_0 || weightDType == C.NNMetalWeightQ4_0 || weightDType == C.NNMetalWeightQ4_1 {
 		status = C.nn_metal_scope_encode_matmul_quant(
 			scopeHandle,
 			leftHandle,

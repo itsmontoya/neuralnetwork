@@ -183,7 +183,7 @@ func Test_GatherRowsQuantizedFake(t *testing.T) {
 		srcData[i] = float32((i%19)-9) * 0.25
 	}
 
-	for _, dtype := range []DType{Q8_0, Q4_0} {
+	for _, dtype := range []DType{Q8_0, Q4_0, Q4_1} {
 		t.Run(dtype.String(), func(t *testing.T) {
 			var (
 				src      = requireTensorWithDType(t, device, dtype, srcRows, cols)
@@ -193,15 +193,21 @@ func Test_GatherRowsQuantizedFake(t *testing.T) {
 				deqRef   []float32
 				err      error
 			)
-			if dtype == Q8_0 {
+			switch dtype {
+			case Q8_0:
 				srcBytes, err = QuantizeQ8_0(srcData)
 				requireError(t, err, nil)
 				deqRef, err = DequantizeQ8_0(srcBytes)
 				requireError(t, err, nil)
-			} else {
+			case Q4_0:
 				srcBytes, err = QuantizeQ4_0(srcData)
 				requireError(t, err, nil)
 				deqRef, err = DequantizeQ4_0(srcBytes)
+				requireError(t, err, nil)
+			case Q4_1:
+				srcBytes, err = QuantizeQ4_1(srcData)
+				requireError(t, err, nil)
+				deqRef, err = DequantizeQ4_1(srcBytes)
 				requireError(t, err, nil)
 			}
 			requireError(t, src.UploadBytes(srcBytes), nil)

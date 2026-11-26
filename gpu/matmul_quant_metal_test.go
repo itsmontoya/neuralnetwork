@@ -59,7 +59,7 @@ func Test_MetalTensorMatMulQuant(t *testing.T) {
 		{name: "projection_down_prefill_29", rows: 29, inner: 8192, cols: 2048},
 	}
 
-	for _, dtype := range []DType{Q8_0, Q4_0} {
+	for _, dtype := range []DType{Q8_0, Q4_0, Q4_1} {
 		t.Run(dtype.String(), func(t *testing.T) {
 			for _, tc := range cases {
 				t.Run(tc.name, func(t *testing.T) {
@@ -81,7 +81,6 @@ func Test_MetalTensorMatMulQuant(t *testing.T) {
 						got     = runMetalMatMulQuant(t, gpu, dtype, tc.rows, tc.inner, tc.cols, left, weight)
 					)
 					checkMetalMatMul(t, tc.inner, tc.cols, left, dequant, got)
-					logMatMulQuantError(t, tc.rows, tc.inner, tc.cols, left, dequant, got)
 				})
 			}
 		})
@@ -100,23 +99,33 @@ func Test_MetalTensorMatMulQuantSpecialValues(t *testing.T) {
 		nan = float32(math.NaN())
 	)
 
-	for _, dtype := range []DType{Q8_0, Q4_0} {
+	for _, dtype := range []DType{Q8_0, Q4_0, Q4_1} {
 		t.Run(dtype.String(), func(t *testing.T) {
 			var blockBytes = int(dtype.BlockBytes())
-			makeBlock := func(scaleBits uint16, qVal int) (block []byte) {
+			makeBlock := func(scaleBits, minBits uint16, qVal int) (block []byte) {
 				block = make([]byte, blockBytes)
 				binary.LittleEndian.PutUint16(block[0:2], scaleBits)
-				if dtype == Q8_0 {
+				switch dtype {
+				case Q8_0:
 					for i := range QuantBlockSize {
 						block[2+i] = byte(int8(qVal))
 					}
-				} else {
+				case Q4_0:
 					var (
 						u      = uint8(qVal + 8)
 						packed = u | (u << 4)
 					)
 					for j := range 16 {
 						block[2+j] = packed
+					}
+				case Q4_1:
+					binary.LittleEndian.PutUint16(block[2:4], minBits)
+					var (
+						u      = uint8(qVal)
+						packed = u | (u << 4)
+					)
+					for j := range 16 {
+						block[4+j] = packed
 					}
 				}
 				return block
@@ -125,36 +134,56 @@ func Test_MetalTensorMatMulQuantSpecialValues(t *testing.T) {
 			type specialCase struct {
 				name      string
 				scaleBits uint16
+				minBits   uint16
 				qVal      int
 				leftVal   float32
 				want      float32
 			}
-			var cases = []specialCase{
-				{name: "zero_scale_finite_left", scaleBits: 0x0000, qVal: 3, leftVal: 2.0, want: 0.0},
-				{name: "zero_scale_inf_left", scaleBits: 0x0000, qVal: 3, leftVal: inf, want: nan},
-				{name: "negative_scale", scaleBits: Float32ToFloat16(-2.5), qVal: 2, leftVal: 1.5, want: 32 * 1.5 * (-2.5 * 2)},
-				{name: "extreme_max_fp16_scale", scaleBits: 0x7bff, qVal: 1, leftVal: 1.0, want: 32 * 65504.0},
-				{name: "min_subnormal_scale", scaleBits: 0x0001, qVal: 1, leftVal: 1.0, want: 32 * Float16ToFloat32(0x0001)},
-				{name: "nan_scale", scaleBits: 0x7e00, qVal: 1, leftVal: 1.0, want: nan},
-				{name: "inf_scale_positive", scaleBits: 0x7c00, qVal: 1, leftVal: 1.0, want: inf},
-				{name: "inf_scale_zero_left", scaleBits: 0x7c00, qVal: 1, leftVal: 0.0, want: nan},
-				{name: "nan_left", scaleBits: Float32ToFloat16(1.0), qVal: 1, leftVal: nan, want: nan},
-				{name: "inf_left", scaleBits: Float32ToFloat16(1.0), qVal: -1, leftVal: inf, want: -inf},
-			}
-			if dtype == Q8_0 {
-				cases = append(cases, specialCase{
-					name:      "q8_min_int8_minus_128",
-					scaleBits: Float32ToFloat16(0.25),
-					qVal:      -128,
-					leftVal:   1.0,
-					want:      32 * (0.25 * -128),
-				})
+			var cases []specialCase
+			if dtype == Q4_1 {
+				cases = []specialCase{
+					{name: "zero_scale_zero_min_finite_left", scaleBits: 0x0000, minBits: 0x0000, qVal: 3, leftVal: 2.0, want: 0.0},
+					{name: "zero_scale_nonzero_min", scaleBits: 0x0000, minBits: Float32ToFloat16(1.5), qVal: 5, leftVal: 2.0, want: 32 * 2.0 * 1.5},
+					{name: "zero_scale_negative_min", scaleBits: 0x0000, minBits: Float32ToFloat16(-2.5), qVal: 0, leftVal: 1.5, want: 32 * 1.5 * (-2.5)},
+					{name: "zero_scale_zero_min_inf_left", scaleBits: 0x0000, minBits: 0x0000, qVal: 3, leftVal: inf, want: nan},
+					{name: "positive_scale_negative_min", scaleBits: Float32ToFloat16(0.5), minBits: Float32ToFloat16(-3.0), qVal: 4, leftVal: 2.0, want: 32 * 2.0 * (0.5*4.0 - 3.0)},
+					{name: "extreme_max_fp16_scale", scaleBits: 0x7bff, minBits: 0x0000, qVal: 1, leftVal: 1.0, want: 32 * 65504.0},
+					{name: "min_subnormal_scale", scaleBits: 0x0001, minBits: 0x0000, qVal: 1, leftVal: 1.0, want: 32 * Float16ToFloat32(0x0001)},
+					{name: "nan_scale", scaleBits: 0x7e00, minBits: 0x0000, qVal: 1, leftVal: 1.0, want: nan},
+					{name: "nan_min", scaleBits: Float32ToFloat16(1.0), minBits: 0x7e00, qVal: 1, leftVal: 1.0, want: nan},
+					{name: "inf_scale_positive", scaleBits: 0x7c00, minBits: 0x0000, qVal: 1, leftVal: 1.0, want: inf},
+					{name: "inf_scale_zero_left", scaleBits: 0x7c00, minBits: 0x0000, qVal: 1, leftVal: 0.0, want: nan},
+					{name: "nan_left", scaleBits: Float32ToFloat16(1.0), minBits: Float32ToFloat16(-1.0), qVal: 2, leftVal: nan, want: nan},
+					{name: "inf_left_neg_weight", scaleBits: Float32ToFloat16(0.5), minBits: Float32ToFloat16(-2.0), qVal: 1, leftVal: inf, want: -inf},
+				}
+			} else {
+				cases = []specialCase{
+					{name: "zero_scale_finite_left", scaleBits: 0x0000, qVal: 3, leftVal: 2.0, want: 0.0},
+					{name: "zero_scale_inf_left", scaleBits: 0x0000, qVal: 3, leftVal: inf, want: nan},
+					{name: "negative_scale", scaleBits: Float32ToFloat16(-2.5), qVal: 2, leftVal: 1.5, want: 32 * 1.5 * (-2.5 * 2)},
+					{name: "extreme_max_fp16_scale", scaleBits: 0x7bff, qVal: 1, leftVal: 1.0, want: 32 * 65504.0},
+					{name: "min_subnormal_scale", scaleBits: 0x0001, qVal: 1, leftVal: 1.0, want: 32 * Float16ToFloat32(0x0001)},
+					{name: "nan_scale", scaleBits: 0x7e00, qVal: 1, leftVal: 1.0, want: nan},
+					{name: "inf_scale_positive", scaleBits: 0x7c00, qVal: 1, leftVal: 1.0, want: inf},
+					{name: "inf_scale_zero_left", scaleBits: 0x7c00, qVal: 1, leftVal: 0.0, want: nan},
+					{name: "nan_left", scaleBits: Float32ToFloat16(1.0), qVal: 1, leftVal: nan, want: nan},
+					{name: "inf_left", scaleBits: Float32ToFloat16(1.0), qVal: -1, leftVal: inf, want: -inf},
+				}
+				if dtype == Q8_0 {
+					cases = append(cases, specialCase{
+						name:      "q8_min_int8_minus_128",
+						scaleBits: Float32ToFloat16(0.25),
+						qVal:      -128,
+						leftVal:   1.0,
+						want:      32 * (0.25 * -128),
+					})
+				}
 			}
 
 			for _, tc := range cases {
 				t.Run(tc.name, func(t *testing.T) {
 					var (
-						block = makeBlock(tc.scaleBits, tc.qVal)
+						block = makeBlock(tc.scaleBits, tc.minBits, tc.qVal)
 						left1 = make([]float32, 32)
 						left2 = make([]float32, 64)
 					)
@@ -236,7 +265,7 @@ func Test_MetalTensorMatMulQuantCopyAndConcurrency(t *testing.T) {
 		initial = native.ResourceSnapshot()
 		ctx     = context.Background()
 	)
-	for _, dtype := range []DType{Q8_0, Q4_0} {
+	for _, dtype := range []DType{Q8_0, Q4_0, Q4_1} {
 		t.Run(dtype.String(), func(t *testing.T) {
 			var (
 				weight       = requireTensorWithDType(t, gpu, dtype, 2, 32)
@@ -342,7 +371,7 @@ func Test_MetalTensorMatMulQuantTiledConcurrentStress(t *testing.T) {
 		cols    = int64(65)
 		workers = 8
 	)
-	for _, dtype := range []DType{Q8_0, Q4_0} {
+	for _, dtype := range []DType{Q8_0, Q4_0, Q4_1} {
 		t.Run(dtype.String(), func(t *testing.T) {
 			var (
 				random  = rand.New(rand.NewPCG(0x6e6e22, uint64(dtype)*19))
@@ -455,7 +484,17 @@ func Test_MetalFFNQuantized(t *testing.T) {
 		initial      = native.ResourceSnapshot()
 		weightValues = ffnWeightValues()
 	)
-	for _, dtype := range []DType{Q8_0, Q4_0} {
+	var (
+		sqnrM1     = make(map[DType]float64)
+		fp32Inputs = make(map[int64][]float32, len(ffnRowCounts))
+		fp32Refs   = make(map[int64][]float64, len(ffnRowCounts))
+	)
+	for _, rows := range ffnRowCounts {
+		var input = ffnInputs(rows)
+		fp32Inputs[rows] = input
+		fp32Refs[rows] = ffnReference(input, weightValues, ffnHidden, ffnIntermediate)
+	}
+	for _, dtype := range []DType{Q8_0, Q4_0, Q4_1} {
 		t.Run(dtype.String(), func(t *testing.T) {
 			var (
 				weights        = newFFNWeightsWithDType(t, gpu, dtype, ffnHidden, ffnIntermediate)
@@ -475,9 +514,9 @@ func Test_MetalFFNQuantized(t *testing.T) {
 			for _, rows := range ffnRowCounts {
 				t.Run(fmt.Sprintf("M%d", rows), func(t *testing.T) {
 					var (
-						input      = ffnInputs(rows)
+						input      = fp32Inputs[rows]
 						wantDequan = ffnReference(input, dequantWeights, ffnHidden, ffnIntermediate)
-						wantFP32   = ffnReference(input, weightValues, ffnHidden, ffnIntermediate)
+						wantFP32   = fp32Refs[rows]
 						scratch    = newFFNScratch(t, gpu, rows, ffnHidden, ffnIntermediate)
 						output     = make([]float32, len(input))
 						scope      = requireScope(t, gpu)
@@ -492,10 +531,16 @@ func Test_MetalFFNQuantized(t *testing.T) {
 					checkFFN(t, output, wantDequan)
 					logFFNError(t, output, wantDequan)
 					var sqnr, maxQuantErr = computeSQNR(wantFP32, output)
+					if rows == 1 {
+						sqnrM1[dtype] = sqnr
+					}
 					t.Logf("FFN %s M=%d vs unquantized FP32: SQNR=%.2f dB, maxAbsErr=%g", dtype, rows, sqnr, maxQuantErr)
 				})
 			}
 		})
+	}
+	if sqnrM1[Q4_1] <= sqnrM1[Q4_0] {
+		t.Fatalf("expected Q4_1 FFN M=1 SQNR (%.2f dB) > Q4_0 (%.2f dB)", sqnrM1[Q4_1], sqnrM1[Q4_0])
 	}
 	var after = native.ResourceSnapshot()
 	if after.LiveBuffers != initial.LiveBuffers || after.LiveBufferBytes != initial.LiveBufferBytes || after.LiveScopes != initial.LiveScopes {
@@ -583,41 +628,16 @@ func dequantizeWeightsSlice(t testing.TB, values []float32, dtype DType) (out []
 		out, err = DequantizeQ4_0(encoded)
 		requireError(t, err, nil)
 		return out
+	case Q4_1:
+		var encoded, err = QuantizeQ4_1(values)
+		requireError(t, err, nil)
+		out, err = DequantizeQ4_1(encoded)
+		requireError(t, err, nil)
+		return out
 	default:
 		t.Fatalf("unsupported dtype %v", dtype)
 		return nil
 	}
-}
-
-func logMatMulQuantError(t *testing.T, rows, inner, cols int64, left, dequantWeight, got []float32) {
-	t.Helper()
-	var (
-		diffs = make([]float64, len(got))
-		idx   int
-	)
-	for row := range rows {
-		var leftRow = left[row*inner : (row+1)*inner]
-		for col := range cols {
-			var (
-				rightRow = dequantWeight[col*inner : (col+1)*inner]
-				sum      float64
-			)
-			for k := range inner {
-				sum += float64(leftRow[k]) * float64(rightRow[k])
-			}
-			diffs[idx] = math.Abs(float64(got[idx]) - sum)
-			idx++
-		}
-	}
-	slices.Sort(diffs)
-	var (
-		n   = len(diffs)
-		p50 = diffs[(n-1)*50/100]
-		p95 = diffs[(n-1)*95/100]
-		p99 = diffs[(n-1)*99/100]
-		mx  = diffs[n-1]
-	)
-	t.Logf("FP64 abs error (n=%d): p50=%.3e p95=%.3e p99=%.3e max=%.3e", n, p50, p95, p99, mx)
 }
 
 func computeSQNR(reference []float64, quantized []float32) (sqnrDB, maxAbs float64) {
