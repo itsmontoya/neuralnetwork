@@ -356,8 +356,10 @@ static char nnMetalTensorMatMulMixedError[1024];
 typedef enum {
 	NNMetalMatMulQuantQ8_0,
 	NNMetalMatMulQuantQ8_0RowRT,
+	NNMetalMatMulQuantQ8_0Tiled,
 	NNMetalMatMulQuantQ4_0,
 	NNMetalMatMulQuantQ4_0RowRT,
+	NNMetalMatMulQuantQ4_0Tiled,
 	NNMetalMatMulQuantCount,
 } NNMetalMatMulQuantPipeline;
 static pthread_once_t nnMetalTensorMatMulQuantOnce = PTHREAD_ONCE_INIT;
@@ -587,8 +589,10 @@ static void nn_metal_initialize_tensor_matmul_quant(void) {
 		NSString *names[NNMetalMatMulQuantCount] = {
 			[NNMetalMatMulQuantQ8_0] = @"nn_matmul_q8_0",
 			[NNMetalMatMulQuantQ8_0RowRT] = @"nn_matmul_q8_0_row_right_transpose",
+			[NNMetalMatMulQuantQ8_0Tiled] = @"nn_matmul_q8_0_tiled",
 			[NNMetalMatMulQuantQ4_0] = @"nn_matmul_q4_0",
 			[NNMetalMatMulQuantQ4_0RowRT] = @"nn_matmul_q4_0_row_right_transpose",
+			[NNMetalMatMulQuantQ4_0Tiled] = @"nn_matmul_q4_0_tiled",
 		};
 		for (NSUInteger i = 0; i < NNMetalMatMulQuantCount; i++) {
 			nnMetalTensorMatMulQuantPipelines[i] = nn_metal_new_pipeline(library, names[i]);
@@ -3030,6 +3034,7 @@ int nn_metal_scope_encode_matmul_quant(
 	uint64_t resultBytes = 0;
 	uint64_t blockBytes = 0;
 	int useRowRT = 0;
+	int useTiled = 0;
 	NSUInteger pipelineIndex = 0;
 
 	if (scopeRecord == NULL || leftRecord == NULL || rightRecord == NULL || resultRecord == NULL) {
@@ -3061,10 +3066,23 @@ int nn_metal_scope_encode_matmul_quant(
 
 	pthread_once(&nnMetalTensorMatMulQuantOnce, nn_metal_initialize_tensor_matmul_quant);
 	useRowRT = (dimensions.resultRows == 1);
+	useTiled = (!useRowRT && dimensions.resultRows >= 8 && dimensions.resultCols >= 8);
 	if (weightDType == NNMetalWeightQ8_0) {
-		pipelineIndex = useRowRT ? NNMetalMatMulQuantQ8_0RowRT : NNMetalMatMulQuantQ8_0;
+		if (useRowRT) {
+			pipelineIndex = NNMetalMatMulQuantQ8_0RowRT;
+		} else if (useTiled) {
+			pipelineIndex = NNMetalMatMulQuantQ8_0Tiled;
+		} else {
+			pipelineIndex = NNMetalMatMulQuantQ8_0;
+		}
 	} else {
-		pipelineIndex = useRowRT ? NNMetalMatMulQuantQ4_0RowRT : NNMetalMatMulQuantQ4_0;
+		if (useRowRT) {
+			pipelineIndex = NNMetalMatMulQuantQ4_0RowRT;
+		} else if (useTiled) {
+			pipelineIndex = NNMetalMatMulQuantQ4_0Tiled;
+		} else {
+			pipelineIndex = NNMetalMatMulQuantQ4_0;
+		}
 	}
 	pipeline = nnMetalTensorMatMulQuantPipelines[pipelineIndex];
 	if (pipeline == nil) {
@@ -3092,6 +3110,34 @@ int nn_metal_scope_encode_matmul_quant(
 			[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
 			[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
 			[encoder dispatchThreadgroups:MTLSizeMake(groups, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
+			[encoder endEncoding];
+			[scopeRecord->retainedResources addObject:leftRecord->value];
+			[scopeRecord->retainedResources addObject:rightRecord->value];
+			[scopeRecord->retainedResources addObject:resultRecord->value];
+		}
+		return NNMetalStatusSuccess;
+	}
+
+	if (useTiled) {
+		NSUInteger threads = 128;
+		if (threads > limits.width || threads > [pipeline maxTotalThreadsPerThreadgroup]) {
+			nn_metal_set_error("metal: encode quantized tiled matmul: threadgroup size exceeds Metal limits");
+			return NNMetalStatusError;
+		}
+		@autoreleasepool {
+			encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+			if (encoder == nil) {
+				nn_metal_set_error("metal: encode quantized tiled matmul: create compute encoder returned nil");
+				return NNMetalStatusError;
+			}
+			NSUInteger groupWidth = ((NSUInteger)dimensions.resultCols + 63) / 64;
+			NSUInteger groupHeight = ((NSUInteger)dimensions.resultRows + 31) / 32;
+			[encoder setComputePipelineState:pipeline];
+			[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
+			[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
+			[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+			[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
+			[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
 			[encoder endEncoding];
 			[scopeRecord->retainedResources addObject:leftRecord->value];
 			[scopeRecord->retainedResources addObject:rightRecord->value];
