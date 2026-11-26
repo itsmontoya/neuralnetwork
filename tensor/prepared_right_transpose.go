@@ -26,7 +26,7 @@ func PrepareRightTranspose(shape []int64, values []float32) (out *PreparedRightT
 		return nil, fmt.Errorf("tensor: float32 values length mismatch: got %d, want %d", len(values), elements)
 	}
 	weight.storage = newTensor(Float32, shape, elements)
-	weight.packed = hostMatrixProduct && float32product.CanPackRightTranspose(int(shape[1]), int(shape[0]))
+	weight.packed = float32product.CanPackRightTranspose(int(shape[1]), int(shape[0]))
 	if weight.packed {
 		float32product.PackRightTranspose(values, weight.storage.floats, int(shape[1]), int(shape[0]))
 	} else {
