@@ -185,7 +185,7 @@ func (t *Tensor) DownloadBitsInto(destination []uint16) (err error) {
 
 // UploadBytes copies a full raw byte buffer into the tensor without conversion.
 // The slice length must equal Tensor.Bytes(). This supports all valid DTypes,
-// including pre-packed Q8_0 and Q4_0 weight blocks.
+// including pre-packed Q8_0, Q4_0, and Q4_1 weight blocks.
 func (t *Tensor) UploadBytes(values []byte) (err error) {
 	var storage *tensorStorage
 	if storage, err = t.beginByteTransfer(len(values), true); err != nil {
@@ -218,7 +218,7 @@ func (t *Tensor) DownloadBytesInto(destination []byte) (err error) {
 
 // UploadFloat32As converts FP32 values on the host to the tensor's DType
 // (using IEEE-754 round-to-nearest-even for Float16/BFloat16 and block
-// quantization for Q8_0/Q4_0) and copies the full set into the tensor. For
+// quantization for Q8_0/Q4_0/Q4_1) and copies the full set into the tensor. For
 // Float32 tensors, values are uploaded directly without conversion.
 func (t *Tensor) UploadFloat32As(values []float32) (err error) {
 	var storage *tensorStorage
@@ -249,6 +249,11 @@ func (t *Tensor) UploadFloat32As(values []float32) (err error) {
 	case Q4_0:
 		var encoded []byte
 		if encoded, err = QuantizeQ4_0(values); err == nil {
+			err = storage.buffer.UploadBytes(encoded)
+		}
+	case Q4_1:
+		var encoded []byte
+		if encoded, err = QuantizeQ4_1(values); err == nil {
 			err = storage.buffer.UploadBytes(encoded)
 		}
 	}
@@ -293,6 +298,11 @@ func (t *Tensor) DownloadFloat32Into(destination []float32) (err error) {
 		var raw = make([]byte, storage.bytes)
 		if err = storage.buffer.DownloadBytes(raw); err == nil {
 			dequantizeQ4_0Into(raw, destination)
+		}
+	case Q4_1:
+		var raw = make([]byte, storage.bytes)
+		if err = storage.buffer.DownloadBytes(raw); err == nil {
+			dequantizeQ4_1Into(raw, destination)
 		}
 	}
 	storage.endTransfer(false, err == nil)

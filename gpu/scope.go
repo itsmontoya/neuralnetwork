@@ -121,12 +121,12 @@ func (s *Scope) Copy(source, destination *Tensor) (err error) {
 
 // GatherRows records a full copy from source[R,C] into destination[len(rows),C].
 // Supported DType combinations are matching dtypes (Float32→Float32,
-// Float16→Float16, BFloat16→BFloat16, Q8_0→Q8_0, Q4_0→Q4_0) and dequantizing
-// gathers into Float32 (Float16→Float32, BFloat16→Float32, Q8_0→Float32,
-// Q4_0→Float32). Each row index is zero-based, and repeated indices are
-// allowed. The indices are consumed during recording. Source must be
-// initialized or written earlier in this scope. Destination must be distinct
-// (including through Tensor.View) and on the same device.
+// Float16→Float16, BFloat16→BFloat16, Q8_0→Q8_0, Q4_0→Q4_0, Q4_1→Q4_1) and
+// dequantizing gathers into Float32 (Float16→Float32, BFloat16→Float32,
+// Q8_0→Float32, Q4_0→Float32, Q4_1→Float32). Each row index is zero-based, and
+// repeated indices are allowed. The indices are consumed during recording.
+// Source must be initialized or written earlier in this scope. Destination must
+// be distinct (including through Tensor.View) and on the same device.
 func (s *Scope) GatherRows(source *Tensor, rows []int64, destination *Tensor) (err error) {
 	var state *scopeState
 	if state, err = s.beginEncoding(); err != nil {
@@ -607,8 +607,8 @@ func (s *Scope) MatMul(left, right, destination *Tensor) (err error) {
 // MatMulRightTranspose records destination[M,N] = left[M,K] × right[N,K]ᵀ
 // without moving or transposing the stored right operand. It uses the same
 // row-major output, ownership, shape limits, and FP32 accumulation semantics as
-// MatMul, and supports Float32, Float16, BFloat16, Q8_0, and Q4_0 right weights
-// (with K % 32 == 0 required for Q8_0 and Q4_0).
+// MatMul, and supports Float32, Float16, BFloat16, Q8_0, Q4_0, and Q4_1 right
+// weights (with K % 32 == 0 required for Q8_0, Q4_0, and Q4_1).
 func (s *Scope) MatMulRightTranspose(left, right, destination *Tensor) (err error) {
 	return s.matMul(left, right, destination, true)
 }
