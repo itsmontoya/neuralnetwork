@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand/v2"
+	"sync"
 	"testing"
 )
 
@@ -48,6 +49,26 @@ func Test_MetalTensorMatMulMixed(t *testing.T) {
 		{name: "projection_prefill_28", rows: 28, inner: 2048, cols: 8192, transposed: true},
 		{name: "projection_prefill_29", rows: 29, inner: 2048, cols: 8192, transposed: true},
 		{name: "projection_down_prefill_29", rows: 29, inner: 8192, cols: 2048, transposed: true},
+		{name: "tiled_m2_k16_n16_nn", rows: 2, inner: 16, cols: 16},
+		{name: "tiled_m3_k31_n31_nt", rows: 3, inner: 31, cols: 31, transposed: true},
+		{name: "tiled_m4_k8_n8_nn", rows: 4, inner: 8, cols: 8},
+		{name: "tiled_m4_k8_n8_nt", rows: 4, inner: 8, cols: 8, transposed: true},
+		{name: "tiled_m4_k7_n7_nn", rows: 4, inner: 7, cols: 7},
+		{name: "tiled_m7_k33_n65_nn", rows: 7, inner: 33, cols: 65},
+		{name: "tiled_m7_k33_n65_nt", rows: 7, inner: 33, cols: 65, transposed: true},
+		{name: "tiled_m15_k16_n31_nn", rows: 15, inner: 16, cols: 31},
+		{name: "tiled_m16_k32_n32_nt", rows: 16, inner: 32, cols: 32, transposed: true},
+		{name: "tiled_m17_k33_n33_nn", rows: 17, inner: 33, cols: 33},
+		{name: "tiled_m17_k33_n33_nt", rows: 17, inner: 33, cols: 33, transposed: true},
+		{name: "tiled_m31_k257_n33_nn", rows: 31, inner: 257, cols: 33},
+		{name: "tiled_m32_k32_n64_nn", rows: 32, inner: 32, cols: 64},
+		{name: "tiled_m32_k32_n64_nt", rows: 32, inner: 32, cols: 64, transposed: true},
+		{name: "tiled_m33_k65_n65_nn", rows: 33, inner: 65, cols: 65},
+		{name: "tiled_m33_k65_n65_nt", rows: 33, inner: 65, cols: 65, transposed: true},
+		{name: "tiled_m64_k128_n128_nn", rows: 64, inner: 128, cols: 128},
+		{name: "tiled_m64_k128_n128_nt", rows: 64, inner: 128, cols: 128, transposed: true},
+		{name: "tiled_m128_k64_n128_nn", rows: 128, inner: 64, cols: 128},
+		{name: "tiled_m128_k64_n128_nt", rows: 128, inner: 64, cols: 128, transposed: true},
 	}
 
 	for _, dtype := range []DType{Float16, BFloat16} {
@@ -132,7 +153,7 @@ func Test_MetalTensorMatMulMixedSpecialValues(t *testing.T) {
 						}
 					}
 
-					// Multi-row M=2 tiled path for both orientations.
+					// Multi-row M=2 fallback path for both orientations.
 					var multiLeft = make([]float32, 2*len(tc.left))
 					copy(multiLeft[:len(tc.left)], tc.left)
 					copy(multiLeft[len(tc.left):], tc.left)
@@ -141,6 +162,36 @@ func Test_MetalTensorMatMulMixedSpecialValues(t *testing.T) {
 						for row, got := range gotMulti {
 							if !sameSpecialFloat32(got, tc.want) {
 								t.Fatalf("M=2 right transposed %t row %d: got %g, want %g", transposed, row, got, tc.want)
+							}
+						}
+					}
+
+					// Tiled simdgroup path: partial tile (M=8, K=9, N=9) and multi-tile edge (M=33, K=35, N=65).
+					type tiledSpec struct {
+						name              string
+						rows, inner, cols int64
+					}
+					var tiledSpecs = []tiledSpec{
+						{name: "tiled_partial_8x9x9", rows: 8, inner: 9, cols: 9},
+						{name: "tiled_edge_33x35x65", rows: 33, inner: 35, cols: 65},
+					}
+					for _, spec := range tiledSpecs {
+						var (
+							tiledLeft  = make([]float32, spec.rows*spec.inner)
+							tiledRight = make([]float32, spec.cols*spec.inner)
+						)
+						for row := range spec.rows {
+							copy(tiledLeft[row*spec.inner:], tc.left)
+						}
+						for col := range spec.cols {
+							copy(tiledRight[col*spec.inner:], tc.right)
+						}
+						for _, transposed := range []bool{false, true} {
+							var gotTiled = runMetalMatMulMixed(t, gpu, dtype, spec.rows, spec.inner, spec.cols, tiledLeft, tiledRight, transposed)
+							for idx, got := range gotTiled {
+								if !sameSpecialFloat32(got, tc.want) {
+									t.Fatalf("%s right transposed %t idx %d: got %g, want %g", spec.name, transposed, idx, got, tc.want)
+								}
 							}
 						}
 					}
@@ -208,6 +259,143 @@ func Test_MetalTensorMatMulMixedSharedWeightsAndConcurrency(t *testing.T) {
 	var after = native.ResourceSnapshot()
 	if after.LiveBuffers != initial.LiveBuffers || after.LiveBufferBytes != initial.LiveBufferBytes || after.LiveScopes != initial.LiveScopes {
 		t.Fatalf("shared mixed matmul leaked native resources: before %+v; after %+v", initial, after)
+	}
+}
+
+func Test_MetalTensorMatMulMixedTiledConcurrentStress(t *testing.T) {
+	var (
+		gpu     = requireMetalDevice(t)
+		native  = gpu.state.backend.(metalBackend).runtime
+		initial = native.ResourceSnapshot()
+		ctx     = context.Background()
+		rows    = int64(33)
+		inner   = int64(131)
+		cols    = int64(67)
+		workers = 8
+	)
+	for _, dtype := range []DType{Float16, BFloat16} {
+		for _, transposed := range []bool{false, true} {
+			var label = fmt.Sprintf("%s_rt_%t", dtype, transposed)
+			t.Run(label, func(t *testing.T) {
+				var (
+					random  = rand.New(rand.NewPCG(0x6e6e21, uint64(dtype)*17))
+					leftVal = make([]float32, rows*inner)
+					weightV = make([]float32, cols*inner)
+					dequant = make([]float32, cols*inner)
+					weight  *Tensor
+				)
+				for i := range leftVal {
+					leftVal[i] = 2*random.Float32() - 1
+				}
+				for i := range weightV {
+					weightV[i] = 2*random.Float32() - 1
+					dequant[i] = roundTripDType(weightV[i], dtype)
+				}
+				if transposed {
+					weight = requireTensorWithDType(t, gpu, dtype, cols, inner)
+					requireError(t, weight.UploadFloat32As(weightV), nil)
+				} else {
+					var physical = make([]float32, len(weightV))
+					for col := range cols {
+						for k := range inner {
+							physical[k*cols+col] = weightV[col*inner+k]
+						}
+					}
+					weight = requireTensorWithDType(t, gpu, dtype, inner, cols)
+					requireError(t, weight.UploadFloat32As(physical), nil)
+				}
+
+				var (
+					wg   sync.WaitGroup
+					errs = make(chan error, workers)
+				)
+				for worker := range workers {
+					wg.Add(1)
+					go func(workerID int) {
+						defer wg.Done()
+						var (
+							left, errL = gpu.NewFloat32([]int64{rows, inner})
+							out, errO  = gpu.NewFloat32([]int64{rows, cols})
+						)
+						if errL != nil {
+							errs <- errL
+							return
+						}
+						defer left.Close()
+						if errO != nil {
+							errs <- errO
+							return
+						}
+						defer out.Close()
+						if err := left.Upload(leftVal); err != nil {
+							errs <- err
+							return
+						}
+						for iter := range 4 {
+							var scope, errS = gpu.NewScope()
+							if errS != nil {
+								errs <- errS
+								return
+							}
+							var errOp error
+							if transposed {
+								errOp = scope.MatMulRightTranspose(left, weight, out)
+							} else {
+								errOp = scope.MatMul(left, weight, out)
+							}
+							if errOp != nil {
+								_ = scope.Close()
+								errs <- errOp
+								return
+							}
+							if err := scope.Submit(ctx); err != nil {
+								_ = scope.Close()
+								errs <- err
+								return
+							}
+							if err := scope.Wait(ctx); err != nil {
+								_ = scope.Close()
+								errs <- err
+								return
+							}
+							if err := scope.Close(); err != nil {
+								errs <- err
+								return
+							}
+							if iter == 3 {
+								var got = make([]float32, rows*cols)
+								if err := out.DownloadInto(got); err != nil {
+									errs <- err
+									return
+								}
+								for row := range rows {
+									for col := range cols {
+										var want float64
+										for k := range inner {
+											want += float64(leftVal[row*inner+k]) * float64(dequant[col*inner+k])
+										}
+										var diff = math.Abs(float64(got[row*cols+col]) - want)
+										if diff > 1e-3 {
+											errs <- fmt.Errorf("worker %d (%d,%d): got %g, want %g (diff %g)", workerID, row, col, got[row*cols+col], want, diff)
+											return
+										}
+									}
+								}
+							}
+						}
+					}(worker)
+				}
+				wg.Wait()
+				close(errs)
+				for err := range errs {
+					t.Fatal(err)
+				}
+			})
+		}
+	}
+	var after = native.ResourceSnapshot()
+	if after.LiveBuffers != initial.LiveBuffers || after.LiveBufferBytes != initial.LiveBufferBytes || after.LiveScopes != initial.LiveScopes {
+		t.Fatalf("concurrent tiled mixed matmul leaked native resources: before %+v; after %+v", initial, after)
 	}
 }
 
