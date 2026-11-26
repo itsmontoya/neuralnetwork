@@ -121,11 +121,12 @@ func (s *Scope) Copy(source, destination *Tensor) (err error) {
 
 // GatherRows records a full copy from source[R,C] into destination[len(rows),C].
 // Supported DType combinations are matching dtypes (Float32→Float32,
-// Float16→Float16, BFloat16→BFloat16) and dequantizing gathers into Float32
-// (Float16→Float32, BFloat16→Float32). Each row index is zero-based, and
-// repeated indices are allowed. The indices are consumed during recording.
-// Source must be initialized or written earlier in this scope. Destination
-// must be distinct and on the same device.
+// Float16→Float16, BFloat16→BFloat16, Q8_0→Q8_0, Q4_0→Q4_0) and dequantizing
+// gathers into Float32 (Float16→Float32, BFloat16→Float32, Q8_0→Float32,
+// Q4_0→Float32). Each row index is zero-based, and repeated indices are
+// allowed. The indices are consumed during recording. Source must be
+// initialized or written earlier in this scope. Destination must be distinct
+// (including through Tensor.View) and on the same device.
 func (s *Scope) GatherRows(source *Tensor, rows []int64, destination *Tensor) (err error) {
 	var state *scopeState
 	if state, err = s.beginEncoding(); err != nil {
@@ -143,8 +144,9 @@ func (s *Scope) GatherRows(source *Tensor, rows []int64, destination *Tensor) (e
 		srcDType   = srcStorage.dtype
 		dstDType   = dstStorage.dtype
 	)
-	if !srcDType.Valid() || !dstDType.Valid() || srcDType.IsQuantized() || dstDType.IsQuantized() ||
-		(srcDType != dstDType && !(dstDType == Float32 && srcDType.is16Bit())) {
+	var supportedDType = srcDType.Valid() && dstDType.Valid() &&
+		(srcDType == dstDType || (dstDType == Float32 && (srcDType.is16Bit() || srcDType.IsQuantized())))
+	if !supportedDType {
 		return state.reject("gather rows", fmt.Errorf("%w: unsupported gather dtype conversion %s to %s", ErrInvalid, srcDType, dstDType))
 	}
 	var (
@@ -154,7 +156,10 @@ func (s *Scope) GatherRows(source *Tensor, rows []int64, destination *Tensor) (e
 	if len(rows) == 0 || destination.state.shape[0] != int64(len(rows)) || destination.state.shape[1] != columns {
 		return state.reject("gather rows", fmt.Errorf("%w: destination must match the index count and source width", ErrInvalid))
 	}
-	if srcDType != dstDType && uint64(columns) > math.MaxUint32 {
+	if srcDType.IsQuantized() && columns%QuantBlockSize != 0 {
+		return state.reject("gather rows", fmt.Errorf("%w: %s column count %d must be a multiple of %d", ErrInvalid, srcDType, columns, QuantBlockSize))
+	}
+	if (srcDType != dstDType || srcDType.IsQuantized()) && uint64(columns) > math.MaxUint32 {
 		return state.reject("gather rows", fmt.Errorf("%w: column count exceeds the Metal mixed gather index range", ErrInvalid))
 	}
 	for i, row := range rows {

@@ -64,8 +64,8 @@ func (s *Scope) EncodeCopy(source, destination *Buffer) (err error) {
 	return nil
 }
 
-// EncodeGatherRows copies each indexed row of elemBytes-wide elements into a
-// disjoint destination.
+// EncodeGatherRows copies each indexed row of elemBytes-wide elements or blocks
+// (2, 4, 18, or 34 bytes) into a disjoint destination.
 func (s *Scope) EncodeGatherRows(source, destination *Buffer, columns, elemBytes uint64, rows []int64) (err error) {
 	if err = s.lockForEncoding(); err != nil {
 		return err
@@ -78,7 +78,7 @@ func (s *Scope) EncodeGatherRows(source, destination *Buffer, columns, elemBytes
 	if err = s.validateBuffer(destination, "gather destination"); err != nil {
 		return err
 	}
-	if elemBytes != 2 && elemBytes != 4 {
+	if elemBytes != 2 && elemBytes != 4 && elemBytes != 18 && elemBytes != 34 {
 		return errors.New("device: invalid gather element width")
 	}
 	if source == destination || columns == 0 || len(rows) == 0 || columns > math.MaxUint64/elemBytes {
@@ -101,8 +101,9 @@ func (s *Scope) EncodeGatherRows(source, destination *Buffer, columns, elemBytes
 	return err
 }
 
-// EncodeGatherRowsMixed gathers indexed 16-bit rows (sourceDType: 1=Float16,
-// 2=BFloat16) and converts them into a disjoint FP32 destination.
+// EncodeGatherRowsMixed gathers indexed reduced-precision or block-quantized
+// rows (sourceDType: 1=Float16, 2=BFloat16, 3=Q8_0, 4=Q4_0) and converts them
+// into a disjoint FP32 destination.
 func (s *Scope) EncodeGatherRowsMixed(source, destination *Buffer, columns uint64, rows []int64, sourceDType uint32) (err error) {
 	if err = s.lockForEncoding(); err != nil {
 		return err
@@ -120,13 +121,25 @@ func (s *Scope) EncodeGatherRowsMixed(source, destination *Buffer, columns uint6
 		return err
 	}
 	if source == destination || columns == 0 || columns > math.MaxUint32 || len(rows) == 0 ||
-		(sourceDType != 1 && sourceDType != 2) || source.count != 0 || destination.count == 0 {
+		sourceDType < 1 || sourceDType > 4 || source.count != 0 || destination.count == 0 {
 		return errors.New("device: invalid mixed gather buffers, dtype, or row size")
 	}
-	var (
+	var srcRowBytes uint64
+	switch sourceDType {
+	case 1, 2:
 		srcRowBytes = columns * 2
-		dstRowCount = destination.count / columns
-	)
+	case 3:
+		if columns%32 != 0 {
+			return errors.New("device: Q8_0 mixed gather columns must be a multiple of 32")
+		}
+		srcRowBytes = (columns / 32) * 34
+	case 4:
+		if columns%32 != 0 {
+			return errors.New("device: Q4_0 mixed gather columns must be a multiple of 32")
+		}
+		srcRowBytes = (columns / 32) * 18
+	}
+	var dstRowCount = destination.count / columns
 	if srcRowBytes > source.bytes || source.bytes%srcRowBytes != 0 ||
 		destination.count%columns != 0 || dstRowCount != uint64(len(rows)) {
 		return errors.New("device: invalid mixed gather buffers or row size")

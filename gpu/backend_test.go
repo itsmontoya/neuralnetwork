@@ -175,6 +175,9 @@ func (c *fakeCommandBuffer) encodeGatherRows(source, destination allocation, col
 			switch {
 			case sourceDType == Float32 && destinationDType == Float32:
 				copy(output.values[i*width:(i+1)*width], input.values[start:start+width])
+			case sourceDType == destinationDType && sourceDType.IsQuantized():
+				var rowBytes = int((columns / QuantBlockSize) * sourceDType.BlockBytes())
+				copy(output.raw[i*rowBytes:(i+1)*rowBytes], input.raw[int(row)*rowBytes:(int(row)+1)*rowBytes])
 			case sourceDType == destinationDType:
 				copy(output.bits16[i*width:(i+1)*width], input.bits16[start:start+width])
 			case sourceDType == Float16 && destinationDType == Float32:
@@ -185,6 +188,12 @@ func (c *fakeCommandBuffer) encodeGatherRows(source, destination allocation, col
 				for col := range width {
 					output.values[i*width+col] = BFloat16ToFloat32(input.bits16[start+col])
 				}
+			case sourceDType == Q8_0 && destinationDType == Float32:
+				var rowBytes = int((columns / QuantBlockSize) * QuantBlockBytesQ8_0)
+				dequantizeQ8_0Into(input.raw[int(row)*rowBytes:(int(row)+1)*rowBytes], output.values[i*width:(i+1)*width])
+			case sourceDType == Q4_0 && destinationDType == Float32:
+				var rowBytes = int((columns / QuantBlockSize) * QuantBlockBytesQ4_0)
+				dequantizeQ4_0Into(input.raw[int(row)*rowBytes:(int(row)+1)*rowBytes], output.values[i*width:(i+1)*width])
 			}
 		}
 	})

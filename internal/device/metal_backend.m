@@ -414,6 +414,8 @@ typedef enum {
 	NNMetalTensorCausalAttentionFloat16,
 	NNMetalTensorGatherRowsFloat16ToFloat32,
 	NNMetalTensorGatherRowsBFloat16ToFloat32,
+	NNMetalTensorGatherRowsQ8_0ToFloat32,
+	NNMetalTensorGatherRowsQ4_0ToFloat32,
 	NNMetalTensorKVAppendFloat16,
 	NNMetalAttentionMathCount,
 } NNMetalAttentionMathOperation;
@@ -826,6 +828,8 @@ static void nn_metal_initialize_attention_math(void) {
 			[NNMetalTensorCausalAttentionFloat16] = @"nn_tensor_causal_attention_f16",
 			[NNMetalTensorGatherRowsFloat16ToFloat32] = @"nn_tensor_gather_rows_f16_to_f32",
 			[NNMetalTensorGatherRowsBFloat16ToFloat32] = @"nn_tensor_gather_rows_bf16_to_f32",
+			[NNMetalTensorGatherRowsQ8_0ToFloat32] = @"nn_tensor_gather_rows_q8_0_to_f32",
+			[NNMetalTensorGatherRowsQ4_0ToFloat32] = @"nn_tensor_gather_rows_q4_0_to_f32",
 			[NNMetalTensorKVAppendFloat16] = @"nn_tensor_kv_append_f16",
 		};
 		for (NSUInteger i = 0; i < NNMetalAttentionMathCount; i++) {
@@ -1336,11 +1340,42 @@ int nn_metal_scope_encode_gather_rows_mixed(
 	}
 	if (scopeRecord->committed || sourceRecord == destinationRecord ||
 		columns == 0 || columns > UINT32_MAX || count == 0 ||
-		(sourceDType != NNMetalWeightFloat16 && sourceDType != NNMetalWeightBFloat16)) {
+		(sourceDType != NNMetalWeightFloat16 && sourceDType != NNMetalWeightBFloat16 &&
+		 sourceDType != NNMetalWeightQ8_0 && sourceDType != NNMetalWeightQ4_0)) {
 		nn_metal_set_error("metal: encode mixed gather rows: invalid state, dtype, or dimensions");
 		return NNMetalStatusError;
 	}
-	uint64_t srcRowBytes = columns * sizeof(uint16_t);
+	uint64_t srcRowBytes = 0;
+	NSUInteger pipelineIndex = 0;
+	switch (sourceDType) {
+	case NNMetalWeightFloat16:
+		srcRowBytes = columns * sizeof(uint16_t);
+		pipelineIndex = NNMetalTensorGatherRowsFloat16ToFloat32;
+		break;
+	case NNMetalWeightBFloat16:
+		srcRowBytes = columns * sizeof(uint16_t);
+		pipelineIndex = NNMetalTensorGatherRowsBFloat16ToFloat32;
+		break;
+	case NNMetalWeightQ8_0:
+		if (columns % 32 != 0) {
+			nn_metal_set_error("metal: encode mixed gather rows: Q8_0 columns must be a multiple of 32");
+			return NNMetalStatusError;
+		}
+		srcRowBytes = (columns / 32) * 34;
+		pipelineIndex = NNMetalTensorGatherRowsQ8_0ToFloat32;
+		break;
+	case NNMetalWeightQ4_0:
+		if (columns % 32 != 0) {
+			nn_metal_set_error("metal: encode mixed gather rows: Q4_0 columns must be a multiple of 32");
+			return NNMetalStatusError;
+		}
+		srcRowBytes = (columns / 32) * 18;
+		pipelineIndex = NNMetalTensorGatherRowsQ4_0ToFloat32;
+		break;
+	default:
+		nn_metal_set_error("metal: encode mixed gather rows: unsupported dtype");
+		return NNMetalStatusError;
+	}
 	uint64_t dstRowBytes = columns * sizeof(float);
 	if (sourceRecord->bytes % srcRowBytes != 0 ||
 		destinationRecord->bytes % dstRowBytes != 0 ||
@@ -1357,9 +1392,6 @@ int nn_metal_scope_encode_gather_rows_mixed(
 	}
 
 	pthread_once(&nnMetalAttentionMathOnce, nn_metal_initialize_attention_math);
-	NSUInteger pipelineIndex = (sourceDType == NNMetalWeightFloat16)
-		? NNMetalTensorGatherRowsFloat16ToFloat32
-		: NNMetalTensorGatherRowsBFloat16ToFloat32;
 	id<MTLComputePipelineState> pipeline = nnMetalAttentionMathPipelines[pipelineIndex];
 	if (pipeline == nil) {
 		nn_metal_set_error(nnMetalAttentionMathError);

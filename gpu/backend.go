@@ -77,11 +77,18 @@ func (m metalCommandBuffer) encodeCopy(source, destination allocation) (err erro
 
 func (m metalCommandBuffer) encodeGatherRows(source, destination allocation, columns uint64, rows []int64, sourceDType, destinationDType DType) (err error) {
 	if sourceDType == destinationDType {
-		return m.EncodeGatherRows(source.(*device.Buffer), destination.(*device.Buffer), columns, sourceDType.Bytes(), rows)
+		return m.EncodeGatherRows(source.(*device.Buffer), destination.(*device.Buffer), columns/sourceDType.BlockSize(), sourceDType.BlockBytes(), rows)
 	}
-	var nativeDType uint32 = 1
-	if sourceDType == BFloat16 {
+	var nativeDType uint32
+	switch sourceDType {
+	case Float16:
+		nativeDType = 1
+	case BFloat16:
 		nativeDType = 2
+	case Q8_0:
+		nativeDType = 3
+	case Q4_0:
+		nativeDType = 4
 	}
 	return m.EncodeGatherRowsMixed(source.(*device.Buffer), destination.(*device.Buffer), columns, rows, nativeDType)
 }

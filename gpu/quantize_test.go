@@ -338,10 +338,25 @@ func Test_ScopeQuantizedOpValidation(t *testing.T) {
 	requireError(t, q8Sq.UploadFloat32As(make([]float32, 32*32)), nil)
 	requireError(t, q4Sq.UploadFloat32As(make([]float32, 32*32)), nil)
 
-	// Same-dtype Copy and MatMulRightTranspose succeed for Q8_0 and Q4_0.
-	var scope = requireScope(t, d)
+	// Same-dtype Copy, GatherRows (same-dtype and dequantizing into Float32),
+	// and MatMulRightTranspose succeed for Q8_0 and Q4_0.
+	var (
+		f16B  = requireTensorWithDType(t, d, Float16, 2, 32)
+		bf16B = requireTensorWithDType(t, d, BFloat16, 2, 32)
+		f32G8 = requireTensor(t, d, 2, 32)
+		f32G4 = requireTensor(t, d, 2, 32)
+		q8Dst = requireTensorWithDType(t, d, Q8_0, 2, 32)
+		q4Dst = requireTensorWithDType(t, d, Q4_0, 2, 32)
+		scope = requireScope(t, d)
+	)
+	requireError(t, f16B.UploadFloat32As(make([]float32, 64)), nil)
+	requireError(t, bf16B.UploadFloat32As(make([]float32, 64)), nil)
 	requireError(t, scope.Copy(q8A, q8B), nil)
 	requireError(t, scope.Copy(q4A, q4B), nil)
+	requireError(t, scope.GatherRows(q8A, []int64{1, 0}, q8Dst), nil)
+	requireError(t, scope.GatherRows(q4A, []int64{1, 0}, q4Dst), nil)
+	requireError(t, scope.GatherRows(q8A, []int64{1, 0}, f32G8), nil)
+	requireError(t, scope.GatherRows(q4A, []int64{1, 0}, f32G4), nil)
 	requireError(t, scope.MatMulRightTranspose(f32L, q8A, f32D), nil)
 	requireError(t, scope.MatMulRightTranspose(f32L, q4A, f32D), nil)
 	requireError(t, scope.Submit(ctx), nil)
@@ -374,8 +389,16 @@ func Test_ScopeQuantizedOpValidation(t *testing.T) {
 		{name: "MatMul non-transposed q4", call: func(s *Scope) error { return s.MatMul(f32L, q4Sq, f32L) }},
 		{name: "MatMulRightTranspose q8 left", call: func(s *Scope) error { return s.MatMulRightTranspose(q8A, f32R, f32D) }},
 		{name: "MatMulRightTranspose q4 dst", call: func(s *Scope) error { return s.MatMulRightTranspose(f32R, q4Sq, q4B) }},
-		{name: "GatherRows q8->f32", call: func(s *Scope) error { return s.GatherRows(q8A, []int64{0, 1}, f32R) }},
-		{name: "GatherRows q4->q4", call: func(s *Scope) error { return s.GatherRows(q4A, []int64{0, 1}, q4B) }},
+		{name: "GatherRows q8->q4", call: func(s *Scope) error { return s.GatherRows(q8A, []int64{0, 1}, q4B) }},
+		{name: "GatherRows q4->q8", call: func(s *Scope) error { return s.GatherRows(q4A, []int64{0, 1}, q8B) }},
+		{name: "GatherRows q8->f16", call: func(s *Scope) error { return s.GatherRows(q8A, []int64{0, 1}, f16B) }},
+		{name: "GatherRows q8->bf16", call: func(s *Scope) error { return s.GatherRows(q8A, []int64{0, 1}, bf16B) }},
+		{name: "GatherRows q4->f16", call: func(s *Scope) error { return s.GatherRows(q4A, []int64{0, 1}, f16B) }},
+		{name: "GatherRows q4->bf16", call: func(s *Scope) error { return s.GatherRows(q4A, []int64{0, 1}, bf16B) }},
+		{name: "GatherRows f32->q8", call: func(s *Scope) error { return s.GatherRows(f32R, []int64{0, 1}, q8B) }},
+		{name: "GatherRows f32->q4", call: func(s *Scope) error { return s.GatherRows(f32R, []int64{0, 1}, q4B) }},
+		{name: "GatherRows f16->q8", call: func(s *Scope) error { return s.GatherRows(f16B, []int64{0, 1}, q8B) }},
+		{name: "GatherRows bf16->q4", call: func(s *Scope) error { return s.GatherRows(bf16B, []int64{0, 1}, q4B) }},
 		{name: "Add q8", call: func(s *Scope) error { return s.Add(q8A, q8A, q8B) }},
 		{name: "Mul q4", call: func(s *Scope) error { return s.Mul(q4A, q4A, q4B) }},
 		{name: "SiLU q8", call: func(s *Scope) error { return s.SiLU(q8A, q8B) }},
