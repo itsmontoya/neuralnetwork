@@ -190,7 +190,7 @@ func (s *Scope) EncodeElementwise(left, right, result *Buffer, operation Element
 	defer s.mutex.Unlock()
 
 	var unary = operation.isUnary()
-	if operation > ElementwiseDiv || (unary && right != nil) {
+	if operation > ElementwiseGELUTanh || (unary && right != nil) {
 		return errors.New("device: unsupported elementwise operation or input count")
 	}
 	if err = s.validateBuffer(left, "elementwise input"); err != nil {

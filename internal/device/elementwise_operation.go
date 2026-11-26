@@ -23,11 +23,15 @@ const (
 	ElementwiseSub
 	// ElementwiseDiv divides corresponding elements.
 	ElementwiseDiv
+	// ElementwiseGELU applies the exact erf Gaussian error linear unit.
+	ElementwiseGELU
+	// ElementwiseGELUTanh applies the tanh-approximate Gaussian error linear unit.
+	ElementwiseGELUTanh
 )
 
 func (o ElementwiseOperation) isUnary() (unary bool) {
 	switch o {
-	case ElementwiseSiLU, ElementwiseReLU, ElementwiseSigmoid, ElementwiseTanh:
+	case ElementwiseSiLU, ElementwiseReLU, ElementwiseSigmoid, ElementwiseTanh, ElementwiseGELU, ElementwiseGELUTanh:
 		return true
 	default:
 		return false

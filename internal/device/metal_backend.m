@@ -47,6 +47,8 @@ typedef enum {
 	NNMetalTensorTanh,
 	NNMetalTensorSub,
 	NNMetalTensorDiv,
+	NNMetalTensorGELU,
+	NNMetalTensorGELUTanh,
 	NNMetalTensorElementwiseCount,
 } NNMetalTensorElementwiseOperation;
 
@@ -54,7 +56,9 @@ static int nn_metal_tensor_elementwise_is_unary(uint32_t operation) {
 	return operation == NNMetalTensorSiLU ||
 		operation == NNMetalTensorReLU ||
 		operation == NNMetalTensorSigmoid ||
-		operation == NNMetalTensorTanh;
+		operation == NNMetalTensorTanh ||
+		operation == NNMetalTensorGELU ||
+		operation == NNMetalTensorGELUTanh;
 }
 
 static const char *nnMetalMatMulDimensionsSource =
@@ -650,6 +654,8 @@ static void nn_metal_initialize_tensor_elementwise(void) {
 			[NNMetalTensorTanh] = @"nn_tensor_tanh",
 			[NNMetalTensorSub] = @"nn_tensor_sub",
 			[NNMetalTensorDiv] = @"nn_tensor_div",
+			[NNMetalTensorGELU] = @"nn_tensor_gelu",
+			[NNMetalTensorGELUTanh] = @"nn_tensor_gelu_tanh",
 		};
 		for (NSUInteger i = 0; i < NNMetalTensorElementwiseCount; i++) {
 			nnMetalTensorElementwisePipelines[i] = nn_metal_new_pipeline(library, names[i]);

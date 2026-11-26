@@ -470,6 +470,21 @@ func (s *Scope) Tanh(input, destination *Tensor) (err error) {
 	return s.elementwise("tanh", device.ElementwiseTanh, destination, input)
 }
 
+// GELU records the exact-erf FP32 Gaussian error linear unit
+// 0.5 * x * (1 + erf(x / sqrt(2))). It uses the shape and ownership rules of
+// SiLU. Large positive inputs and +Inf map to x, large negative inputs and -Inf
+// map to 0, and NaN propagates.
+func (s *Scope) GELU(input, destination *Tensor) (err error) {
+	return s.elementwise("gelu", device.ElementwiseGELU, destination, input)
+}
+
+// GELUTanh records the tanh-approximate FP32 Gaussian error linear unit
+// 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x³))). It uses the shape,
+// ownership, and edge-case saturation rules of GELU.
+func (s *Scope) GELUTanh(input, destination *Tensor) (err error) {
+	return s.elementwise("gelu tanh", device.ElementwiseGELUTanh, destination, input)
+}
+
 // Softmax records a numerically stable FP32 softmax along the last axis
 // (len(shape)-1). Operands must be Float32 with identical shapes, contain at
 // most 2³²−1 elements, belong to the scope's device, and not alias each other
