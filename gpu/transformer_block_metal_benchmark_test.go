@@ -162,7 +162,7 @@ func benchmarkTransformerBlockMetal(b *testing.B, rows, position int64, weightDT
 	var (
 		weightBytes = wNorm1.Bytes() + wq.Bytes() + wk.Bytes() + wv.Bytes() + wo.Bytes() +
 			wNorm2.Bytes() + wg.Bytes() + wu.Bytes() + wd.Bytes()
-		kvBytes = cache.state.slots[0].Bytes() + cache.state.slots[1].Bytes()
+		kvBytes = cache.state.slot.Bytes()
 	)
 	b.ReportMetric(float64(total.Nanoseconds())/float64(b.N)/1e6, "ms/op")
 	b.ReportMetric(float64(weightBytes), "weight-B")

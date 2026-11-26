@@ -299,8 +299,8 @@ func Test_MetalKVCacheFloat16AndAttention(t *testing.T) {
 
 				// Verify exact 50% KV slot byte footprint.
 				var wantSlotBytes = uint64(2 * capRows * tc.kv * tc.width * 2)
-				if cache.state.slots[0].Bytes() != wantSlotBytes || cache.state.slots[1].Bytes() != wantSlotBytes {
-					t.Fatalf("FP16 KV slot bytes = %d, want %d", cache.state.slots[0].Bytes(), wantSlotBytes)
+				if cache.state.slot.Bytes() != wantSlotBytes {
+					t.Fatalf("FP16 KV slot bytes = %d, want %d", cache.state.slot.Bytes(), wantSlotBytes)
 				}
 
 				// Empty cache yields zeros.

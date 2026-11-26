@@ -58,8 +58,8 @@ type backend interface {
 }
 
 type attentionBackend interface {
-	encodeKVAppend(scope, history, keys, values, target any, plane, prefix uint32) (err error)
-	encodeKVAppendFloat16(scope, history, keys, values, target any, plane, prefix uint32) (err error)
+	encodeKVAppend(scope, keys, values, target any, plane, prefix uint32) (err error)
+	encodeKVAppendFloat16(scope, keys, values, target any, plane, prefix uint32) (err error)
 	encodeGatherRowsMixed(scope, source, destination any, columns uint64, rows []int64, sourceDType uint32) (err error)
 	encodeAttentionMath(scope any, operation AttentionMathOperation, buffers [4]any, params [6]uint32, threads uint32) (err error)
 }

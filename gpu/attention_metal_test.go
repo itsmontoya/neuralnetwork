@@ -210,13 +210,22 @@ func Test_MetalKVFailureAndRetention(t *testing.T) {
 
 	var (
 		oldReader = requireScope(t, device)
-		failed    = requireScope(t, device)
+		busy      = requireScope(t, device)
 		next      = requireTensor(t, device, 1, 2)
 		fault     = errors.New("injected terminal error after real GPU writes")
 		ctx       = context.Background()
 	)
 	requireError(t, next.Upload([]float32{2, 4}), nil)
 	requireError(t, oldReader.CausalAttention(input, cache, output, 1), nil)
+	requireError(t, cache.Reset(), ErrBusy)
+	var _, err = busy.AppendKV(cache, next, next, 1)
+	requireError(t, err, ErrBusy)
+	requireError(t, busy.Close(), nil)
+	completeAttentionScope(t, oldReader)
+	requireError(t, output.DownloadInto(result[:]), nil)
+	compareAttention(t, result[:], []float64{1, 3}, 0)
+
+	var failed = requireScope(t, device)
 	var update = stageKV(t, failed, cache, next, next, 1)
 	failed.state.commands = failedAttentionCommand{commandBuffer: failed.state.commands, fault: fault}
 	requireError(t, failed.Submit(ctx), nil)
@@ -226,18 +235,19 @@ func Test_MetalKVFailureAndRetention(t *testing.T) {
 	if cache.Len() != 1 {
 		t.Fatal("failed command published staged rows")
 	}
+
+	// Committed prefix remains initialized and readable after a failed append.
+	var afterFail = requireScope(t, device)
+	requireError(t, afterFail.CausalAttention(input, cache, output, 1), nil)
+	completeAttentionScope(t, afterFail)
+	requireError(t, output.DownloadInto(result[:]), nil)
+	compareAttention(t, result[:], []float64{1, 3}, 0)
+
 	requireError(t, next.Upload([]float32{0, 1}), nil)
 	var retry = requireScope(t, device)
 	var retried = stageKV(t, retry, cache, next, next, 1)
 	completeAttentionScope(t, retry)
 	requireError(t, retried.Publish(), nil)
-	var busy = requireScope(t, device)
-	var _, err = busy.AppendKV(cache, next, next, 2)
-	requireError(t, err, ErrBusy)
-	requireError(t, busy.Close(), nil)
-	completeAttentionScope(t, oldReader)
-	requireError(t, output.DownloadInto(result[:]), nil)
-	compareAttention(t, result[:], []float64{1, 3}, 0)
 	var read = requireScope(t, device)
 	requireError(t, read.CausalAttention(input, cache, output, 1), nil)
 	requireError(t, read.Submit(ctx), nil)

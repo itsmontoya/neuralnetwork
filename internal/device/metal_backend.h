@@ -171,11 +171,11 @@ int nn_metal_scope_encode_tensor_broadcast(
 	NNMetalBroadcastParams params
 );
 int nn_metal_scope_encode_kv_append(
-	NNMetalScope scope, NNMetalBuffer history, NNMetalBuffer keys, NNMetalBuffer values,
+	NNMetalScope scope, NNMetalBuffer keys, NNMetalBuffer values,
 	NNMetalBuffer target, uint32_t plane, uint32_t prefix
 );
 int nn_metal_scope_encode_kv_append_f16(
-	NNMetalScope scope, NNMetalBuffer history, NNMetalBuffer keys, NNMetalBuffer values,
+	NNMetalScope scope, NNMetalBuffer keys, NNMetalBuffer values,
 	NNMetalBuffer target, uint32_t plane, uint32_t prefix
 );
 int nn_metal_scope_encode_attention_math(

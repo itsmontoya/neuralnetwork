@@ -245,7 +245,7 @@ func (c *fakeCommandBuffer) encodeBatchedMatMul(_, _, _ allocation, _ device.Bat
 	return c.encodeErr
 }
 
-func (c *fakeCommandBuffer) encodeKVAppend(history, keys, values, target allocation, plane, prefix uint32, cacheDType DType) (err error) {
+func (c *fakeCommandBuffer) encodeKVAppend(keys, values, target allocation, plane, prefix uint32, cacheDType DType) (err error) {
 	var (
 		output    = target.(*fakeAllocation)
 		keyRows   = keys.(*fakeAllocation)
@@ -253,11 +253,6 @@ func (c *fakeCommandBuffer) encodeKVAppend(history, keys, values, target allocat
 	)
 	c.commands = append(c.commands, func() {
 		if cacheDType == Float16 {
-			if history != nil {
-				var active = history.(*fakeAllocation)
-				copy(output.bits16[:prefix], active.bits16[:prefix])
-				copy(output.bits16[plane:plane+prefix], active.bits16[plane:plane+prefix])
-			}
 			for i, v := range keyRows.values {
 				output.bits16[int(prefix)+i] = Float32ToFloat16(v)
 			}
@@ -265,11 +260,6 @@ func (c *fakeCommandBuffer) encodeKVAppend(history, keys, values, target allocat
 				output.bits16[int(plane+prefix)+i] = Float32ToFloat16(v)
 			}
 			return
-		}
-		if history != nil {
-			var active = history.(*fakeAllocation)
-			copy(output.values[:prefix], active.values[:prefix])
-			copy(output.values[plane:plane+prefix], active.values[plane:plane+prefix])
 		}
 		copy(output.values[prefix:plane], keyRows.values)
 		copy(output.values[plane+prefix:], valueRows.values)

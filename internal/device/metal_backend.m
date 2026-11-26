@@ -2165,11 +2165,10 @@ int nn_metal_scope_encode_batched_matmul(
 }
 
 int nn_metal_scope_encode_kv_append(
-	NNMetalScope scope, NNMetalBuffer history, NNMetalBuffer keys, NNMetalBuffer values,
+	NNMetalScope scope, NNMetalBuffer keys, NNMetalBuffer values,
 	NNMetalBuffer target, uint32_t plane, uint32_t prefix
 ) {
 	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
-	NNMetalBufferRecord *previous = nn_metal_buffer_record(history);
 	NNMetalBufferRecord *keyRows = nn_metal_buffer_record(keys);
 	NNMetalBufferRecord *valueRows = nn_metal_buffer_record(values);
 	NNMetalBufferRecord *result = nn_metal_buffer_record(target);
@@ -2178,9 +2177,8 @@ int nn_metal_scope_encode_kv_append(
 
 	if (scopeRecord == NULL || keyRows == NULL || valueRows == NULL || result == NULL ||
 		scopeRecord->committed || keyRows == result || valueRows == result ||
-		keyRows->bytes != valueRows->bytes || prefixBytes > planeBytes ||
-		keyRows->bytes > planeBytes - prefixBytes || result->bytes != 2 * planeBytes ||
-		(prefix != 0 && (previous == NULL || previous == result || previous->bytes != result->bytes))) {
+		keyRows->bytes == 0 || keyRows->bytes != valueRows->bytes || prefixBytes > planeBytes ||
+		keyRows->bytes > planeBytes - prefixBytes || result->bytes != 2 * planeBytes) {
 		nn_metal_set_error("metal: encode KV append: invalid state, buffers or range");
 		return NNMetalStatusError;
 	}
@@ -2190,11 +2188,6 @@ int nn_metal_scope_encode_kv_append(
 		if (encoder == nil) {
 			nn_metal_set_error("metal: encode KV append: create blit encoder returned nil");
 			return NNMetalStatusError;
-		}
-		if (prefix != 0) {
-			[encoder copyFromBuffer:previous->value sourceOffset:0 toBuffer:result->value destinationOffset:0 size:(NSUInteger)prefixBytes];
-			[encoder copyFromBuffer:previous->value sourceOffset:(NSUInteger)planeBytes toBuffer:result->value destinationOffset:(NSUInteger)planeBytes size:(NSUInteger)prefixBytes];
-			[scopeRecord->retainedResources addObject:previous->value];
 		}
 		[encoder copyFromBuffer:keyRows->value sourceOffset:0 toBuffer:result->value destinationOffset:(NSUInteger)prefixBytes size:(NSUInteger)keyRows->bytes];
 		[encoder copyFromBuffer:valueRows->value sourceOffset:0 toBuffer:result->value destinationOffset:(NSUInteger)(planeBytes + prefixBytes) size:(NSUInteger)valueRows->bytes];
@@ -2207,24 +2200,21 @@ int nn_metal_scope_encode_kv_append(
 }
 
 int nn_metal_scope_encode_kv_append_f16(
-	NNMetalScope scope, NNMetalBuffer history, NNMetalBuffer keys, NNMetalBuffer values,
+	NNMetalScope scope, NNMetalBuffer keys, NNMetalBuffer values,
 	NNMetalBuffer target, uint32_t plane, uint32_t prefix
 ) {
 	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
-	NNMetalBufferRecord *previous = nn_metal_buffer_record(history);
 	NNMetalBufferRecord *keyRows = nn_metal_buffer_record(keys);
 	NNMetalBufferRecord *valueRows = nn_metal_buffer_record(values);
 	NNMetalBufferRecord *result = nn_metal_buffer_record(target);
 	uint64_t planeBytes = (uint64_t)plane * sizeof(uint16_t);
-	uint64_t prefixBytes = (uint64_t)prefix * sizeof(uint16_t);
 
 	if (scopeRecord == NULL || keyRows == NULL || valueRows == NULL || result == NULL ||
 		scopeRecord->committed || keyRows == result || valueRows == result ||
 		keyRows->bytes == 0 || keyRows->bytes % sizeof(float) != 0 ||
 		keyRows->bytes != valueRows->bytes || prefix > plane ||
 		keyRows->bytes / sizeof(float) > (uint64_t)(plane - prefix) ||
-		result->bytes != 2 * planeBytes ||
-		(prefix != 0 && (previous == NULL || previous == result || previous->bytes != result->bytes))) {
+		result->bytes != 2 * planeBytes) {
 		nn_metal_set_error("metal: encode FP16 KV append: invalid state, buffers or range");
 		return NNMetalStatusError;
 	}
@@ -2238,18 +2228,6 @@ int nn_metal_scope_encode_kv_append_f16(
 
 	uint32_t count = (uint32_t)(keyRows->bytes / sizeof(float));
 	@autoreleasepool {
-		if (prefix != 0) {
-			id<MTLBlitCommandEncoder> blit = [scopeRecord->commandBuffer blitCommandEncoder];
-			if (blit == nil) {
-				nn_metal_set_error("metal: encode FP16 KV append: create blit encoder returned nil");
-				return NNMetalStatusError;
-			}
-			[blit copyFromBuffer:previous->value sourceOffset:0 toBuffer:result->value destinationOffset:0 size:(NSUInteger)prefixBytes];
-			[blit copyFromBuffer:previous->value sourceOffset:(NSUInteger)planeBytes toBuffer:result->value destinationOffset:(NSUInteger)planeBytes size:(NSUInteger)prefixBytes];
-			[blit endEncoding];
-			[scopeRecord->retainedResources addObject:previous->value];
-		}
-
 		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
 		if (encoder == nil) {
 			nn_metal_set_error("metal: encode FP16 KV append: create compute encoder returned nil");

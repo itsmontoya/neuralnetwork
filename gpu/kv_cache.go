@@ -5,13 +5,13 @@ import (
 	"math"
 )
 
-// NewKVCache allocates two pairs of contiguous FP32 key and value planes.
+// NewKVCache allocates one contiguous pair of FP32 key and value planes.
 // Each plane has logical shape [capacity, heads, headWidth] and starts empty.
 func NewKVCache(device *Device, capacity, heads, headWidth int64) (out *KVCache, err error) {
 	return NewKVCacheWithDType(device, capacity, heads, headWidth, Float32)
 }
 
-// NewKVCacheWithDType allocates two pairs of contiguous key and value planes
+// NewKVCacheWithDType allocates one contiguous pair of key and value planes
 // using the requested storage DType (Float32 or Float16). Each plane has
 // logical shape [capacity, heads, headWidth] and starts empty.
 func NewKVCacheWithDType(device *Device, capacity, heads, headWidth int64, dtype DType) (out *KVCache, err error) {
@@ -25,14 +25,10 @@ func NewKVCacheWithDType(device *Device, capacity, heads, headWidth int64, dtype
 	if _, _, err = tensorLayout(shape, dtype, uint64(math.MaxUint32)*dtype.Bytes()); err != nil {
 		return nil, fmt.Errorf("gpu: KV cache: %w", err)
 	}
-	if state.slots[0], err = device.NewTensorWithDType(shape, dtype); err != nil {
+	if state.slot, err = device.NewTensorWithDType(shape, dtype); err != nil {
 		return nil, err
 	}
-	if state.slots[1], err = device.NewTensorWithDType(shape, dtype); err != nil {
-		state.slots[0].Close()
-		return nil, err
-	}
-	state.device = state.slots[0].state.storage.device
+	state.device = state.slot.state.storage.device
 	state.dtype = dtype
 	state.capacity = capacity
 	state.heads = heads
@@ -53,10 +49,9 @@ type kvCacheState struct {
 	capacity int64
 	heads    int64
 	width    int64
-	slots    [2]*Tensor
+	slot     *Tensor
 
 	// The device mutex protects the publication state and slot leases.
-	active  int
 	length  int64
 	pending *kvAppendState
 	closed  bool
@@ -82,8 +77,9 @@ func (c *KVCache) Len() (length int64) {
 	return state.length
 }
 
-// Reset clears the committed length without reallocating. Previously encoded
-// readers keep their snapshot. Reset returns ErrBusy while an append is pending.
+// Reset clears the committed length without reallocating. Reset returns
+// ErrBusy while an append is pending or while any scope holds a lease on the
+// cache storage.
 func (c *KVCache) Reset() (err error) {
 	if c == nil || c.state == nil {
 		return ErrClosed
@@ -94,15 +90,16 @@ func (c *KVCache) Reset() (err error) {
 	if state.closed {
 		return ErrClosed
 	}
-	if state.pending != nil {
+	var storage = state.slot.state.storage
+	if state.pending != nil || storage.readers > 0 || storage.writer != nil || storage.hostAccess {
 		return ErrBusy
 	}
 	state.length = 0
 	return nil
 }
 
-// Close prevents new uses and publication and releases both slots after their
-// outstanding GPU leases end. Close does not wait and is idempotent.
+// Close prevents new uses and publication and releases the backing storage
+// after its outstanding GPU leases end. Close does not wait and is idempotent.
 func (c *KVCache) Close() (err error) {
 	if c == nil || c.state == nil {
 		return nil
@@ -113,8 +110,6 @@ func (c *KVCache) Close() (err error) {
 	state.length = 0
 	state.pending = nil
 	state.device.mutex.Unlock()
-	for _, slot := range state.slots {
-		slot.Close()
-	}
+	state.slot.Close()
 	return nil
 }
