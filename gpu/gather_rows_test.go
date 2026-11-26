@@ -166,3 +166,81 @@ func Test_GatherRowsReducedPrecisionFake(t *testing.T) {
 		t.Fatalf("bf16->f32 gather = %v", gotF32)
 	}
 }
+
+func Test_GatherRowsQuantizedFake(t *testing.T) {
+	var (
+		backend fakeBackend
+		device  = newDevice(&backend, 1<<20)
+		ctx     = context.Background()
+		rows    = []int64{2, 0, 2}
+	)
+	const (
+		srcRows int64 = 3
+		cols    int64 = 64
+	)
+	var srcData = make([]float32, srcRows*cols)
+	for i := range srcData {
+		srcData[i] = float32((i%19)-9) * 0.25
+	}
+
+	for _, dtype := range []DType{Q8_0, Q4_0} {
+		t.Run(dtype.String(), func(t *testing.T) {
+			var (
+				src      = requireTensorWithDType(t, device, dtype, srcRows, cols)
+				sameDst  = requireTensorWithDType(t, device, dtype, int64(len(rows)), cols)
+				f32Dst   = requireTensor(t, device, int64(len(rows)), cols)
+				srcBytes []byte
+				deqRef   []float32
+				err      error
+			)
+			if dtype == Q8_0 {
+				srcBytes, err = QuantizeQ8_0(srcData)
+				requireError(t, err, nil)
+				deqRef, err = DequantizeQ8_0(srcBytes)
+				requireError(t, err, nil)
+			} else {
+				srcBytes, err = QuantizeQ4_0(srcData)
+				requireError(t, err, nil)
+				deqRef, err = DequantizeQ4_0(srcBytes)
+				requireError(t, err, nil)
+			}
+			requireError(t, src.UploadBytes(srcBytes), nil)
+
+			var scope = requireScope(t, device)
+			requireError(t, scope.GatherRows(src, rows, sameDst), nil)
+			requireError(t, scope.GatherRows(src, rows, f32Dst), nil)
+			requireError(t, scope.Submit(ctx), nil)
+			requireError(t, scope.Wait(ctx), nil)
+			requireError(t, scope.Close(), nil)
+
+			var gotRaw = make([]byte, sameDst.Bytes())
+			requireError(t, sameDst.DownloadBytesInto(gotRaw), nil)
+			var rowBytes = int((uint64(cols) / QuantBlockSize) * dtype.BlockBytes())
+			for outRow, srcRow := range rows {
+				var (
+					wantSlice = srcBytes[int(srcRow)*rowBytes : (int(srcRow)+1)*rowBytes]
+					gotSlice  = gotRaw[outRow*rowBytes : (outRow+1)*rowBytes]
+				)
+				for j := range rowBytes {
+					if gotSlice[j] != wantSlice[j] {
+						t.Fatalf("%s same-dtype row %d byte %d = 0x%02x, want 0x%02x", dtype, outRow, j, gotSlice[j], wantSlice[j])
+					}
+				}
+			}
+
+			var gotF32 = make([]float32, int64(len(rows))*cols)
+			requireError(t, f32Dst.DownloadInto(gotF32), nil)
+			for outRow, srcRow := range rows {
+				for col := range cols {
+					var (
+						got  = gotF32[int64(outRow)*cols+col]
+						want = deqRef[srcRow*cols+col]
+					)
+					if math.Float32bits(got) != math.Float32bits(want) {
+						t.Fatalf("%s f32 [%d,%d] = %v, want %v", dtype, outRow, col, got, want)
+					}
+				}
+			}
+		})
+	}
+}
