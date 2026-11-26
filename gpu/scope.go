@@ -1180,6 +1180,61 @@ func (s *Scope) LayerNorm(input, weight, bias, destination *Tensor, epsilon floa
 	return nil
 }
 
+// BatchNorm records stored-statistics FP32 inference batch normalization over
+// [N, C, ...]: scale[c] * (x - mean[c]) / sqrt(variance[c] + epsilon) + bias[c],
+// matching tensor.BatchNormalizationInto and ONNX opset-15 BatchNormalization.
+// Input and destination must be Float32 with matching rank >= 2 shapes and at
+// most 2³²−1 elements. Scale, bias, mean, and variance must be rank-one [C]
+// Float32 tensors. Epsilon must be finite and nonnegative (0 is permitted).
+// Destination is fully written and must not alias any input (including via
+// Tensor.View).
+func (s *Scope) BatchNorm(input, scale, bias, mean, variance, destination *Tensor, epsilon float32) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	if input == nil || input.state == nil || len(input.state.shape) < 2 ||
+		input.state.storage.count > math.MaxUint32 ||
+		!hasShape(destination, input.state.shape...) {
+		return state.reject("BatchNorm", fmt.Errorf("%w: input and destination must have matching rank >= 2 shape within Metal index range", ErrInvalid))
+	}
+	var (
+		batch    = uint32(input.state.shape[0])
+		channels = input.state.shape[1]
+	)
+	if !(epsilon >= 0 && epsilon <= math.MaxFloat32) {
+		return state.reject("BatchNorm", fmt.Errorf("%w: epsilon must be finite and nonnegative, got %g", ErrInvalid, epsilon))
+	}
+	if !hasShape(scale, channels) || !hasShape(bias, channels) || !hasShape(mean, channels) || !hasShape(variance, channels) {
+		return state.reject("BatchNorm", fmt.Errorf("%w: scale, bias, mean and variance must have shape [%d]", ErrInvalid, channels))
+	}
+	if err = requireFloat32("BatchNorm", input, scale, bias, mean, variance, destination); err != nil {
+		return state.reject("BatchNorm", err)
+	}
+	if err = state.acquire(destination, input, scale, bias, mean, variance); err != nil {
+		return state.reject("BatchNorm", err)
+	}
+	var spatial = uint32(input.state.storage.count / (uint64(batch) * uint64(channels)))
+	if err = state.commands.encodeBatchNorm(
+		input.state.storage.buffer,
+		scale.state.storage.buffer,
+		bias.state.storage.buffer,
+		mean.state.storage.buffer,
+		variance.state.storage.buffer,
+		destination.state.storage.buffer,
+		batch,
+		uint32(channels),
+		spatial,
+		epsilon,
+	); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode BatchNorm: %w", err)
+	}
+	return nil
+}
+
 // RotatePairs applies (x0*cos - x1*sin, x1*cos + x0*sin) to adjacent FP32
 // feature pairs within each head. Input and destination are token-major
 // [rows, heads*headWidth] or [rows, heads, headWidth] with an even head width.

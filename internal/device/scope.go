@@ -387,6 +387,67 @@ func (s *Scope) EncodeTensorLayerNorm(input, weight, bias, result *Buffer, rows,
 	return err
 }
 
+// EncodeTensorBatchNorm appends stored-statistics FP32 batch normalization
+// over [batch, channels, spatial] into a disjoint destination buffer.
+func (s *Scope) EncodeTensorBatchNorm(input, scale, bias, mean, variance, result *Buffer, batch, channels, spatial uint32, epsilon float32) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(input, "BatchNorm input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(scale, "BatchNorm scale"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(bias, "BatchNorm bias"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(mean, "BatchNorm mean"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(variance, "BatchNorm variance"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "BatchNorm destination"); err != nil {
+		return err
+	}
+	if input == result || scale == result || bias == result || mean == result || variance == result ||
+		batch == 0 || channels == 0 || spatial == 0 || !(epsilon >= 0 && epsilon <= math.MaxFloat32) {
+		return errors.New("device: invalid BatchNorm destination, dimensions or epsilon")
+	}
+	var total = uint64(batch) * uint64(channels)
+	if total > math.MaxUint32 {
+		return errors.New("device: BatchNorm element count exceeds uint32")
+	}
+	total *= uint64(spatial)
+	if total > math.MaxUint32 || input.count != total || result.count != total {
+		return errors.New("device: BatchNorm input or destination buffer length mismatch")
+	}
+	var paramCount = uint64(channels)
+	if scale.count != paramCount || bias.count != paramCount || mean.count != paramCount || variance.count != paramCount {
+		return errors.New("device: BatchNorm parameter buffer length mismatch")
+	}
+	if err = s.runtime.backend.encodeTensorBatchNorm(
+		s.handle,
+		input.handle,
+		scale.handle,
+		bias.handle,
+		mean.handle,
+		variance.handle,
+		result.handle,
+		batch,
+		channels,
+		spatial,
+		epsilon,
+	); err != nil {
+		err = fmt.Errorf("device: encode tensor BatchNorm: %w", err)
+		s.fail(err)
+	}
+	return err
+}
+
 // EncodeTensorTranspose appends a contiguous 2-byte or 4-byte axis permutation
 // described by spec into a disjoint destination buffer.
 func (s *Scope) EncodeTensorTranspose(input, result *Buffer, spec TransposeSpec) (err error) {

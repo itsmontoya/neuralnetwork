@@ -103,6 +103,19 @@ int nn_metal_scope_encode_tensor_layernorm(
 	uint32_t weightDType,
 	uint32_t biasDType
 );
+int nn_metal_scope_encode_tensor_batchnorm(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer scale,
+	NNMetalBuffer bias,
+	NNMetalBuffer mean,
+	NNMetalBuffer variance,
+	NNMetalBuffer result,
+	uint32_t batch,
+	uint32_t channels,
+	uint32_t spatial,
+	float epsilon
+);
 typedef struct {
 	uint32_t rank;
 	uint32_t count;
