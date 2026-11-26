@@ -360,6 +360,9 @@ typedef enum {
 	NNMetalMatMulQuantQ4_0,
 	NNMetalMatMulQuantQ4_0RowRT,
 	NNMetalMatMulQuantQ4_0Tiled,
+	NNMetalMatMulQuantQ4_1,
+	NNMetalMatMulQuantQ4_1RowRT,
+	NNMetalMatMulQuantQ4_1Tiled,
 	NNMetalMatMulQuantCount,
 } NNMetalMatMulQuantPipeline;
 static pthread_once_t nnMetalTensorMatMulQuantOnce = PTHREAD_ONCE_INIT;
@@ -431,6 +434,7 @@ typedef enum {
 	NNMetalTensorGatherRowsBFloat16ToFloat32,
 	NNMetalTensorGatherRowsQ8_0ToFloat32,
 	NNMetalTensorGatherRowsQ4_0ToFloat32,
+	NNMetalTensorGatherRowsQ4_1ToFloat32,
 	NNMetalTensorKVAppendFloat16,
 	NNMetalAttentionMathCount,
 } NNMetalAttentionMathOperation;
@@ -579,7 +583,7 @@ static void nn_metal_initialize_tensor_matmul_mixed(void) {
 	}
 }
 
-// Block-quantized Q8_0/Q4_0 matmul pipelines compile lazily with fastMathEnabled = NO.
+// Block-quantized Q8_0/Q4_0/Q4_1 matmul pipelines compile lazily with fastMathEnabled = NO.
 static void nn_metal_initialize_tensor_matmul_quant(void) {
 	@autoreleasepool {
 		NSError *error = nil;
@@ -602,6 +606,9 @@ static void nn_metal_initialize_tensor_matmul_quant(void) {
 			[NNMetalMatMulQuantQ4_0] = @"nn_matmul_q4_0",
 			[NNMetalMatMulQuantQ4_0RowRT] = @"nn_matmul_q4_0_row_right_transpose",
 			[NNMetalMatMulQuantQ4_0Tiled] = @"nn_matmul_q4_0_tiled",
+			[NNMetalMatMulQuantQ4_1] = @"nn_matmul_q4_1",
+			[NNMetalMatMulQuantQ4_1RowRT] = @"nn_matmul_q4_1_row_right_transpose",
+			[NNMetalMatMulQuantQ4_1Tiled] = @"nn_matmul_q4_1_tiled",
 		};
 		for (NSUInteger i = 0; i < NNMetalMatMulQuantCount; i++) {
 			nnMetalTensorMatMulQuantPipelines[i] = nn_metal_new_pipeline(library, names[i]);
@@ -860,6 +867,7 @@ static void nn_metal_initialize_attention_math(void) {
 			[NNMetalTensorGatherRowsBFloat16ToFloat32] = @"nn_tensor_gather_rows_bf16_to_f32",
 			[NNMetalTensorGatherRowsQ8_0ToFloat32] = @"nn_tensor_gather_rows_q8_0_to_f32",
 			[NNMetalTensorGatherRowsQ4_0ToFloat32] = @"nn_tensor_gather_rows_q4_0_to_f32",
+			[NNMetalTensorGatherRowsQ4_1ToFloat32] = @"nn_tensor_gather_rows_q4_1_to_f32",
 			[NNMetalTensorKVAppendFloat16] = @"nn_tensor_kv_append_f16",
 		};
 		for (NSUInteger i = 0; i < NNMetalAttentionMathCount; i++) {
@@ -1371,7 +1379,8 @@ int nn_metal_scope_encode_gather_rows_mixed(
 	if (scopeRecord->committed || sourceRecord == destinationRecord ||
 		columns == 0 || columns > UINT32_MAX || count == 0 ||
 		(sourceDType != NNMetalWeightFloat16 && sourceDType != NNMetalWeightBFloat16 &&
-		 sourceDType != NNMetalWeightQ8_0 && sourceDType != NNMetalWeightQ4_0)) {
+		 sourceDType != NNMetalWeightQ8_0 && sourceDType != NNMetalWeightQ4_0 &&
+		 sourceDType != NNMetalWeightQ4_1)) {
 		nn_metal_set_error("metal: encode mixed gather rows: invalid state, dtype, or dimensions");
 		return NNMetalStatusError;
 	}
@@ -1401,6 +1410,14 @@ int nn_metal_scope_encode_gather_rows_mixed(
 		}
 		srcRowBytes = (columns / 32) * 18;
 		pipelineIndex = NNMetalTensorGatherRowsQ4_0ToFloat32;
+		break;
+	case NNMetalWeightQ4_1:
+		if (columns % 32 != 0) {
+			nn_metal_set_error("metal: encode mixed gather rows: Q4_1 columns must be a multiple of 32");
+			return NNMetalStatusError;
+		}
+		srcRowBytes = (columns / 32) * 20;
+		pipelineIndex = NNMetalTensorGatherRowsQ4_1ToFloat32;
 		break;
 	default:
 		nn_metal_set_error("metal: encode mixed gather rows: unsupported dtype");
@@ -3076,6 +3093,8 @@ int nn_metal_scope_encode_matmul_quant(
 		blockBytes = 34;
 	} else if (weightDType == NNMetalWeightQ4_0) {
 		blockBytes = 18;
+	} else if (weightDType == NNMetalWeightQ4_1) {
+		blockBytes = 20;
 	} else {
 		nn_metal_set_error("metal: encode quantized matrix multiplication: unsupported weight dtype");
 		return NNMetalStatusError;
@@ -3106,13 +3125,21 @@ int nn_metal_scope_encode_matmul_quant(
 		} else {
 			pipelineIndex = NNMetalMatMulQuantQ8_0;
 		}
-	} else {
+	} else if (weightDType == NNMetalWeightQ4_0) {
 		if (useRowRT) {
 			pipelineIndex = NNMetalMatMulQuantQ4_0RowRT;
 		} else if (useTiled) {
 			pipelineIndex = NNMetalMatMulQuantQ4_0Tiled;
 		} else {
 			pipelineIndex = NNMetalMatMulQuantQ4_0;
+		}
+	} else {
+		if (useRowRT) {
+			pipelineIndex = NNMetalMatMulQuantQ4_1RowRT;
+		} else if (useTiled) {
+			pipelineIndex = NNMetalMatMulQuantQ4_1Tiled;
+		} else {
+			pipelineIndex = NNMetalMatMulQuantQ4_1;
 		}
 	}
 	pipeline = nnMetalTensorMatMulQuantPipelines[pipelineIndex];

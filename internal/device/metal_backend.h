@@ -256,6 +256,7 @@ enum {
 	NNMetalWeightBFloat16 = 2,
 	NNMetalWeightQ8_0 = 3,
 	NNMetalWeightQ4_0 = 4,
+	NNMetalWeightQ4_1 = 5,
 };
 
 int nn_metal_scope_encode_matmul(

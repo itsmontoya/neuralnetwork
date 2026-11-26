@@ -65,7 +65,7 @@ func (s *Scope) EncodeCopy(source, destination *Buffer) (err error) {
 }
 
 // EncodeGatherRows copies each indexed row of elemBytes-wide elements or blocks
-// (2, 4, 18, or 34 bytes) into a disjoint destination.
+// (2, 4, 18, 20, or 34 bytes) into a disjoint destination.
 func (s *Scope) EncodeGatherRows(source, destination *Buffer, columns, elemBytes uint64, rows []int64) (err error) {
 	if err = s.lockForEncoding(); err != nil {
 		return err
@@ -78,7 +78,7 @@ func (s *Scope) EncodeGatherRows(source, destination *Buffer, columns, elemBytes
 	if err = s.validateBuffer(destination, "gather destination"); err != nil {
 		return err
 	}
-	if elemBytes != 2 && elemBytes != 4 && elemBytes != 18 && elemBytes != 34 {
+	if elemBytes != 2 && elemBytes != 4 && elemBytes != 18 && elemBytes != 20 && elemBytes != 34 {
 		return errors.New("device: invalid gather element width")
 	}
 	if source == destination || columns == 0 || len(rows) == 0 || columns > math.MaxUint64/elemBytes {
@@ -102,8 +102,8 @@ func (s *Scope) EncodeGatherRows(source, destination *Buffer, columns, elemBytes
 }
 
 // EncodeGatherRowsMixed gathers indexed reduced-precision or block-quantized
-// rows (sourceDType: 1=Float16, 2=BFloat16, 3=Q8_0, 4=Q4_0) and converts them
-// into a disjoint FP32 destination.
+// rows (sourceDType: 1=Float16, 2=BFloat16, 3=Q8_0, 4=Q4_0, 5=Q4_1) and
+// converts them into a disjoint FP32 destination.
 func (s *Scope) EncodeGatherRowsMixed(source, destination *Buffer, columns uint64, rows []int64, sourceDType uint32) (err error) {
 	if err = s.lockForEncoding(); err != nil {
 		return err
@@ -121,7 +121,7 @@ func (s *Scope) EncodeGatherRowsMixed(source, destination *Buffer, columns uint6
 		return err
 	}
 	if source == destination || columns == 0 || columns > math.MaxUint32 || len(rows) == 0 ||
-		sourceDType < 1 || sourceDType > 4 || source.count != 0 || destination.count == 0 {
+		sourceDType < 1 || sourceDType > 5 || source.count != 0 || destination.count == 0 {
 		return errors.New("device: invalid mixed gather buffers, dtype, or row size")
 	}
 	var srcRowBytes uint64
@@ -138,6 +138,11 @@ func (s *Scope) EncodeGatherRowsMixed(source, destination *Buffer, columns uint6
 			return errors.New("device: Q4_0 mixed gather columns must be a multiple of 32")
 		}
 		srcRowBytes = (columns / 32) * 18
+	case 5:
+		if columns%32 != 0 {
+			return errors.New("device: Q4_1 mixed gather columns must be a multiple of 32")
+		}
+		srcRowBytes = (columns / 32) * 20
 	}
 	var dstRowCount = destination.count / columns
 	if srcRowBytes > source.bytes || source.bytes%srcRowBytes != 0 ||
@@ -1136,7 +1141,7 @@ func (s *Scope) EncodeMatMul(
 		err = errors.New("device: matrix multiplication destination must not alias an input")
 		return err
 	}
-	if operation > OperationTensorMatMulRightTransposeQ4_0 {
+	if operation > OperationTensorMatMulRightTransposeQ4_1 {
 		err = fmt.Errorf("device: unsupported matrix multiplication operation: %d", operation)
 		return err
 	}
@@ -1386,7 +1391,8 @@ func (s *Scope) validateMixedMatMulBuffers(
 	if operation == OperationTensorMatMulRightTransposeFloat16 ||
 		operation == OperationTensorMatMulRightTransposeBFloat16 ||
 		operation == OperationTensorMatMulRightTransposeQ8_0 ||
-		operation == OperationTensorMatMulRightTransposeQ4_0 {
+		operation == OperationTensorMatMulRightTransposeQ4_0 ||
+		operation == OperationTensorMatMulRightTransposeQ4_1 {
 		inner, cols = cols, inner
 	}
 	if dimensions.leftRows != dimensions.resultRows || dimensions.leftCols != inner || cols != dimensions.resultCols ||
@@ -1406,6 +1412,11 @@ func (s *Scope) validateMixedMatMulBuffers(
 			return errors.New("device: Q4_0 tensor matmul inner dimension must be a multiple of 32")
 		}
 		expectedRightBytes = (rightCount / 32) * 18
+	case OperationTensorMatMulRightTransposeQ4_1:
+		if inner%32 != 0 {
+			return errors.New("device: Q4_1 tensor matmul inner dimension must be a multiple of 32")
+		}
+		expectedRightBytes = (rightCount / 32) * 20
 	default:
 		expectedRightBytes = rightCount * 2
 	}
