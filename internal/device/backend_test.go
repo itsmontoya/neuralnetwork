@@ -694,6 +694,10 @@ func (b *testBackend) encodeTensorBatchNorm(_, _, _, _, _, _, _ any, _, _, _ uin
 	return b.encodeErr
 }
 
+func (b *testBackend) encodeTensorPool2D(_, _, _ any, _ Pool2DSpec) (err error) {
+	return b.encodeErr
+}
+
 func (b *testBackend) encodeTensorTranspose(_, _, _ any, _ TransposeSpec) (err error) {
 	return b.encodeErr
 }

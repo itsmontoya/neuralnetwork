@@ -9,6 +9,7 @@
 #include "layernorm_metal_source.h"
 #include "matmul_mixed_metal_source.h"
 #include "matmul_quant_metal_source.h"
+#include "pool2d_metal_source.h"
 #include "softmax_metal_source.h"
 #include "transpose_metal_source.h"
 
@@ -395,6 +396,14 @@ typedef enum {
 static pthread_once_t nnMetalTensorBatchNormOnce = PTHREAD_ONCE_INIT;
 static id<MTLComputePipelineState> nnMetalTensorBatchNormPipelines[NNMetalTensorBatchNormCount];
 static char nnMetalTensorBatchNormError[1024];
+typedef enum {
+	NNMetalTensorMaxPool2D,
+	NNMetalTensorAvgPool2D,
+	NNMetalTensorPool2DCount,
+} NNMetalTensorPool2DPipeline;
+static pthread_once_t nnMetalTensorPool2DOnce = PTHREAD_ONCE_INIT;
+static id<MTLComputePipelineState> nnMetalTensorPool2DPipelines[NNMetalTensorPool2DCount];
+static char nnMetalTensorPool2DError[1024];
 typedef enum {
 	NNMetalTensorTranspose2DU32,
 	NNMetalTensorTranspose2DU16,
@@ -798,6 +807,39 @@ static void nn_metal_initialize_tensor_batchnorm(void) {
 				for (NSUInteger j = 0; j < i; j++) {
 					[nnMetalTensorBatchNormPipelines[j] release];
 					nnMetalTensorBatchNormPipelines[j] = nil;
+				}
+				break;
+			}
+		}
+		[library release];
+	}
+}
+
+// Tensor Pool2D pipelines compile lazily with fastMathEnabled = NO.
+static void nn_metal_initialize_tensor_pool2d(void) {
+	@autoreleasepool {
+		NSError *error = nil;
+		NSString *source = [NSString stringWithFormat:@"%s%s", nnMetalShaderHeader, nnMetalTensorPool2DSource];
+		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		[options setFastMathEnabled:NO];
+		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
+		[options release];
+		if (library == nil) {
+			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile tensor Pool2D library: %@", [error localizedDescription]]);
+			strlcpy(nnMetalTensorPool2DError, nnMetalLastError, sizeof(nnMetalTensorPool2DError));
+			return;
+		}
+		NSString *names[NNMetalTensorPool2DCount] = {
+			[NNMetalTensorMaxPool2D] = @"nn_tensor_max_pool2d",
+			[NNMetalTensorAvgPool2D] = @"nn_tensor_avg_pool2d",
+		};
+		for (NSUInteger i = 0; i < NNMetalTensorPool2DCount; i++) {
+			nnMetalTensorPool2DPipelines[i] = nn_metal_new_pipeline(library, names[i]);
+			if (nnMetalTensorPool2DPipelines[i] == nil) {
+				strlcpy(nnMetalTensorPool2DError, nnMetalLastError, sizeof(nnMetalTensorPool2DError));
+				for (NSUInteger j = 0; j < i; j++) {
+					[nnMetalTensorPool2DPipelines[j] release];
+					nnMetalTensorPool2DPipelines[j] = nil;
 				}
 				break;
 			}
@@ -2059,6 +2101,81 @@ int nn_metal_scope_encode_tensor_batchnorm(
 		[scopeRecord->retainedResources addObject:biasRecord->value];
 		[scopeRecord->retainedResources addObject:meanRecord->value];
 		[scopeRecord->retainedResources addObject:varianceRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_tensor_pool2d(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer result,
+	NNMetalPool2DParams params,
+	uint32_t average
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *inputRecord = nn_metal_buffer_record(input);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+
+	if (scopeRecord == NULL || inputRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode tensor Pool2D: invalid handles");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || inputRecord == resultRecord ||
+		params.channelsTotal == 0 || params.inH == 0 || params.inW == 0 ||
+		params.outH == 0 || params.outW == 0 ||
+		params.kernelH == 0 || params.kernelW == 0 ||
+		params.strideH == 0 || params.strideW == 0 ||
+		params.dilationH == 0 || params.dilationW == 0 ||
+		average > 1u) {
+		nn_metal_set_error("metal: encode tensor Pool2D: invalid state, alias, dimensions or mode");
+		return NNMetalStatusError;
+	}
+	uint64_t inSpatial = (uint64_t)params.inH * (uint64_t)params.inW;
+	uint64_t outSpatial = (uint64_t)params.outH * (uint64_t)params.outW;
+	if (inSpatial > UINT32_MAX || outSpatial > UINT32_MAX) {
+		nn_metal_set_error("metal: encode tensor Pool2D: spatial extent exceeds uint32");
+		return NNMetalStatusError;
+	}
+	uint64_t inTotal = (uint64_t)params.channelsTotal * inSpatial;
+	uint64_t outTotal = (uint64_t)params.channelsTotal * outSpatial;
+	if (inTotal > UINT32_MAX || outTotal > UINT32_MAX) {
+		nn_metal_set_error("metal: encode tensor Pool2D: element count exceeds uint32");
+		return NNMetalStatusError;
+	}
+	if (inTotal * sizeof(float) != inputRecord->bytes || outTotal * sizeof(float) != resultRecord->bytes) {
+		nn_metal_set_error("metal: encode tensor Pool2D: buffer length mismatch");
+		return NNMetalStatusError;
+	}
+
+	pthread_once(&nnMetalTensorPool2DOnce, nn_metal_initialize_tensor_pool2d);
+	id<MTLComputePipelineState> pipeline = nnMetalTensorPool2DPipelines[average ? NNMetalTensorAvgPool2D : NNMetalTensorMaxPool2D];
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalTensorPool2DError);
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode tensor Pool2D: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:inputRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:1];
+		[encoder setBytes:&params length:sizeof(params) atIndex:2];
+
+		MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
+		NSUInteger maxTG = MIN((NSUInteger)256, [pipeline maxTotalThreadsPerThreadgroup]);
+		NSUInteger targetX = (params.outH > 1u) ? (NSUInteger)16 : maxTG;
+		NSUInteger tgX = MIN((NSUInteger)params.outW, MIN(targetX, MIN(maxTG, limits.width)));
+		NSUInteger tgY = MIN((NSUInteger)params.outH, MIN(maxTG / tgX, limits.height));
+		NSUInteger tgZ = MIN((NSUInteger)params.channelsTotal, MIN(maxTG / (tgX * tgY), limits.depth));
+		[encoder dispatchThreads:MTLSizeMake(params.outW, params.outH, params.channelsTotal)
+			threadsPerThreadgroup:MTLSizeMake(tgX, tgY, tgZ)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:inputRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
 	return NNMetalStatusSuccess;
