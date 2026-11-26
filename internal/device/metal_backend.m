@@ -2292,6 +2292,33 @@ int nn_metal_scope_encode_attention_math(
 			}
 			tgSize = MIN(tgSize, [pipeline maxTotalThreadsPerThreadgroup]);
 			[encoder dispatchThreadgroups:MTLSizeMake(threads, 1, 1) threadsPerThreadgroup:MTLSizeMake(tgSize, 1, 1)];
+		} else if (operation == NNMetalTensorCausalAttention ||
+			operation == NNMetalTensorCausalAttentionFloat16) {
+			NSUInteger simdWidth = [pipeline threadExecutionWidth];
+			if (simdWidth == 0) {
+				simdWidth = 32;
+			}
+			uint64_t queryRows = (uint64_t)threads / params[1];
+			uint64_t maxVisible = (uint64_t)params[5] + queryRows;
+			if (maxVisible > params[4]) {
+				maxVisible = params[4];
+			}
+			NSUInteger tgSize = simdWidth;
+			if (params[0] <= 128) {
+				if (maxVisible >= 256) {
+					tgSize = simdWidth * 8;
+				} else if (maxVisible >= 64) {
+					tgSize = simdWidth * 4;
+				}
+			}
+			NSUInteger maxThreads = [pipeline maxTotalThreadsPerThreadgroup];
+			if (tgSize > maxThreads) {
+				tgSize = (maxThreads / simdWidth) * simdWidth;
+			}
+			if (tgSize < simdWidth) {
+				tgSize = simdWidth;
+			}
+			[encoder dispatchThreadgroups:MTLSizeMake(threads, 1, 1) threadsPerThreadgroup:MTLSizeMake(tgSize, 1, 1)];
 		} else {
 			NSUInteger threadWidth = MIN([pipeline threadExecutionWidth], [pipeline maxTotalThreadsPerThreadgroup]);
 			[encoder dispatchThreads:MTLSizeMake(threads, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
