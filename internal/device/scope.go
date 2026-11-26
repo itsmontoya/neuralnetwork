@@ -521,16 +521,14 @@ func (s *Scope) EncodeTensorBatchedMatMul(left, right, result *Buffer, spec Batc
 	return err
 }
 
-// EncodeKVAppend stages two equal-shaped planes in a disjoint storage slot.
-func (s *Scope) EncodeKVAppend(history, keys, values, target *Buffer, plane, prefix uint32) (err error) {
+// EncodeKVAppend writes keys and values directly into the uncommitted tail of
+// target at offsets prefix and plane+prefix without copying the prior prefix.
+func (s *Scope) EncodeKVAppend(keys, values, target *Buffer, plane, prefix uint32) (err error) {
 	if err = s.lockForEncoding(); err != nil {
 		return err
 	}
 	defer s.mutex.Unlock()
-	var (
-		backend, available = s.runtime.backend.(attentionBackend)
-		historyHandle      any
-	)
+	var backend, available = s.runtime.backend.(attentionBackend)
 	if !available {
 		return ErrUnavailable
 	}
@@ -539,36 +537,25 @@ func (s *Scope) EncodeKVAppend(history, keys, values, target *Buffer, plane, pre
 			return err
 		}
 	}
-	if prefix > 0 {
-		if err = s.validateBuffer(history, "KV history"); err != nil {
-			return err
-		}
-		if history == target || history.count != target.count {
-			return errors.New("device: invalid KV history")
-		}
-		historyHandle = history.handle
-	}
 	if target == keys || target == values || keys.count == 0 || keys.count != values.count ||
 		target.count != 2*uint64(plane) || uint64(prefix)+keys.count > uint64(plane) {
 		return errors.New("device: invalid KV append buffers or range")
 	}
-	if err = backend.encodeKVAppend(s.handle, historyHandle, keys.handle, values.handle, target.handle, plane, prefix); err != nil {
+	if err = backend.encodeKVAppend(s.handle, keys.handle, values.handle, target.handle, plane, prefix); err != nil {
 		s.fail(err)
 	}
 	return err
 }
 
-// EncodeKVAppendFloat16 copies the Float16 prefix and converts FP32 keys and
-// values into a disjoint Float16 KV storage slot.
-func (s *Scope) EncodeKVAppendFloat16(history, keys, values, target *Buffer, plane, prefix uint32) (err error) {
+// EncodeKVAppendFloat16 converts FP32 keys and values directly into the
+// uncommitted tail of a Float16 KV storage buffer at offsets prefix and
+// plane+prefix without copying the prior prefix.
+func (s *Scope) EncodeKVAppendFloat16(keys, values, target *Buffer, plane, prefix uint32) (err error) {
 	if err = s.lockForEncoding(); err != nil {
 		return err
 	}
 	defer s.mutex.Unlock()
-	var (
-		backend, available = s.runtime.backend.(attentionBackend)
-		historyHandle      any
-	)
+	var backend, available = s.runtime.backend.(attentionBackend)
 	if !available {
 		return ErrUnavailable
 	}
@@ -577,20 +564,11 @@ func (s *Scope) EncodeKVAppendFloat16(history, keys, values, target *Buffer, pla
 			return err
 		}
 	}
-	if prefix > 0 {
-		if err = s.validateBuffer(history, "FP16 KV history"); err != nil {
-			return err
-		}
-		if history == target || history.count != 0 || history.bytes != target.bytes {
-			return errors.New("device: invalid FP16 KV history")
-		}
-		historyHandle = history.handle
-	}
 	if target == keys || target == values || keys.count == 0 || keys.count != values.count ||
 		target.count != 0 || target.bytes != 2*uint64(plane)*2 || uint64(prefix)+keys.count > uint64(plane) {
 		return errors.New("device: invalid FP16 KV append buffers or range")
 	}
-	if err = backend.encodeKVAppendFloat16(s.handle, historyHandle, keys.handle, values.handle, target.handle, plane, prefix); err != nil {
+	if err = backend.encodeKVAppendFloat16(s.handle, keys.handle, values.handle, target.handle, plane, prefix); err != nil {
 		s.fail(err)
 	}
 	return err

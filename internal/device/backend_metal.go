@@ -695,16 +695,13 @@ func (m *metalBackend) encodeTensorBatchedMatMul(scope, left, right, result any,
 	return nil
 }
 
-func (m *metalBackend) encodeKVAppend(scope, history, keys, values, target any, plane, prefix uint32) (err error) {
+func (m *metalBackend) encodeKVAppend(scope, keys, values, target any, plane, prefix uint32) (err error) {
 	var scopeHandle C.NNMetalScope
 	if scopeHandle, err = m.scopeHandle(scope); err != nil {
 		return err
 	}
-	var handles [4]C.NNMetalBuffer
-	for index, buffer := range [4]any{history, keys, values, target} {
-		if index == 0 && history == nil {
-			continue
-		}
+	var handles [3]C.NNMetalBuffer
+	for index, buffer := range [3]any{keys, values, target} {
 		if handles[index], err = m.bufferHandle(buffer); err != nil {
 			return err
 		}
@@ -712,7 +709,7 @@ func (m *metalBackend) encodeKVAppend(scope, history, keys, values, target any, 
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	var status = C.nn_metal_scope_encode_kv_append(scopeHandle, handles[0], handles[1], handles[2], handles[3],
+	var status = C.nn_metal_scope_encode_kv_append(scopeHandle, handles[0], handles[1], handles[2],
 		C.uint32_t(plane), C.uint32_t(prefix))
 	if status != C.NNMetalStatusSuccess {
 		return m.lastError("encode Metal KV append")
@@ -720,16 +717,13 @@ func (m *metalBackend) encodeKVAppend(scope, history, keys, values, target any, 
 	return nil
 }
 
-func (m *metalBackend) encodeKVAppendFloat16(scope, history, keys, values, target any, plane, prefix uint32) (err error) {
+func (m *metalBackend) encodeKVAppendFloat16(scope, keys, values, target any, plane, prefix uint32) (err error) {
 	var scopeHandle C.NNMetalScope
 	if scopeHandle, err = m.scopeHandle(scope); err != nil {
 		return err
 	}
-	var handles [4]C.NNMetalBuffer
-	for index, buffer := range [4]any{history, keys, values, target} {
-		if index == 0 && history == nil {
-			continue
-		}
+	var handles [3]C.NNMetalBuffer
+	for index, buffer := range [3]any{keys, values, target} {
 		if handles[index], err = m.bufferHandle(buffer); err != nil {
 			return err
 		}
@@ -737,7 +731,7 @@ func (m *metalBackend) encodeKVAppendFloat16(scope, history, keys, values, targe
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	var status = C.nn_metal_scope_encode_kv_append_f16(scopeHandle, handles[0], handles[1], handles[2], handles[3],
+	var status = C.nn_metal_scope_encode_kv_append_f16(scopeHandle, handles[0], handles[1], handles[2],
 		C.uint32_t(plane), C.uint32_t(prefix))
 	if status != C.NNMetalStatusSuccess {
 		return m.lastError("encode Metal FP16 KV append")
