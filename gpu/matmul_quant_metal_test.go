@@ -10,6 +10,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"slices"
+	"sync"
 	"testing"
 )
 
@@ -33,8 +34,19 @@ func Test_MetalTensorMatMulQuant(t *testing.T) {
 		{name: "row_rt_k96_n15", rows: 1, inner: 96, cols: 15},
 		{name: "row_rt_k160_n17", rows: 1, inner: 160, cols: 17},
 		{name: "row_rt_k256_n33", rows: 1, inner: 256, cols: 33},
+		{name: "multi_rt_m2_k32_n17", rows: 2, inner: 32, cols: 17},
 		{name: "multi_rt_m3_k96_n17", rows: 3, inner: 96, cols: 17},
+		{name: "multi_rt_m4_k64_n33", rows: 4, inner: 64, cols: 33},
+		{name: "tiled_partial_m8_k32_n9", rows: 8, inner: 32, cols: 9},
+		{name: "tiled_m15_k64_n17", rows: 15, inner: 64, cols: 17},
+		{name: "tiled_m16_k256_n33", rows: 16, inner: 256, cols: 33},
 		{name: "multi_rt_m17_k160_n33", rows: 17, inner: 160, cols: 33},
+		{name: "tiled_m31_k64_n65", rows: 31, inner: 64, cols: 65},
+		{name: "tiled_exact_m32_k256_n64", rows: 32, inner: 256, cols: 64},
+		{name: "tiled_edge_m33_k128_n65", rows: 33, inner: 128, cols: 65},
+		{name: "tiled_m64_k256_n512", rows: 64, inner: 256, cols: 512},
+		{name: "tiled_m128_k256_n128", rows: 128, inner: 256, cols: 128},
+		{name: "tiled_small_n_m32_k64_n3", rows: 32, inner: 64, cols: 3},
 		{name: "projection_attn_kv_decode", rows: 1, inner: 2048, cols: 512},
 		{name: "projection_attn_qo_decode", rows: 1, inner: 2048, cols: 2048},
 		{name: "projection_gate_up_decode", rows: 1, inner: 2048, cols: 8192},
@@ -168,11 +180,47 @@ func Test_MetalTensorMatMulQuantSpecialValues(t *testing.T) {
 						}
 					}
 
-					// M=2, N=2 (multi-row GEMM kernel).
+					// M=2, N=2 (multi-row fallback kernel).
 					var gotM2 = runMetalMatMulQuantRaw(t, gpu, dtype, 2, 32, 2, left2, twoBlocks)
 					for idx, v := range gotM2 {
 						if !sameSpecialFloat32(v, tc.want) {
 							t.Fatalf("M=2 N=2 idx %d: got %g, want %g", idx, v, tc.want)
+						}
+					}
+
+					// M=8, N=9 (tiled kernel partial edge tile).
+					var (
+						left8   = make([]float32, 8*32)
+						blocks9 = make([]byte, 0, 9*blockBytes)
+					)
+					for i := range left8 {
+						left8[i] = tc.leftVal
+					}
+					for range 9 {
+						blocks9 = append(blocks9, block...)
+					}
+					var gotM8 = runMetalMatMulQuantRaw(t, gpu, dtype, 8, 32, 9, left8, blocks9)
+					for idx, v := range gotM8 {
+						if !sameSpecialFloat32(v, tc.want) {
+							t.Fatalf("M=8 N=9 idx %d: got %g, want %g", idx, v, tc.want)
+						}
+					}
+
+					// M=33, N=65 (tiled kernel interior + boundary tiles).
+					var (
+						left33   = make([]float32, 33*32)
+						blocks65 = make([]byte, 0, 65*blockBytes)
+					)
+					for i := range left33 {
+						left33[i] = tc.leftVal
+					}
+					for range 65 {
+						blocks65 = append(blocks65, block...)
+					}
+					var gotM33 = runMetalMatMulQuantRaw(t, gpu, dtype, 33, 32, 65, left33, blocks65)
+					for idx, v := range gotM33 {
+						if !sameSpecialFloat32(v, tc.want) {
+							t.Fatalf("M=33 N=65 idx %d: got %g, want %g", idx, v, tc.want)
 						}
 					}
 				})
@@ -280,6 +328,123 @@ func Test_MetalTensorMatMulQuantCopyAndConcurrency(t *testing.T) {
 	var after = native.ResourceSnapshot()
 	if after.LiveBuffers != initial.LiveBuffers || after.LiveBufferBytes != initial.LiveBufferBytes || after.LiveScopes != initial.LiveScopes {
 		t.Fatalf("shared quantized matmul leaked native resources: before %+v; after %+v", initial, after)
+	}
+}
+
+func Test_MetalTensorMatMulQuantTiledConcurrentStress(t *testing.T) {
+	var (
+		gpu     = requireMetalDevice(t)
+		native  = gpu.state.backend.(metalBackend).runtime
+		initial = native.ResourceSnapshot()
+		ctx     = context.Background()
+		rows    = int64(33)
+		inner   = int64(128)
+		cols    = int64(65)
+		workers = 8
+	)
+	for _, dtype := range []DType{Q8_0, Q4_0} {
+		t.Run(dtype.String(), func(t *testing.T) {
+			var (
+				random  = rand.New(rand.NewPCG(0x6e6e22, uint64(dtype)*19))
+				leftVal = make([]float32, rows*inner)
+				weightV = make([]float32, cols*inner)
+			)
+			for i := range leftVal {
+				leftVal[i] = 2*random.Float32() - 1
+			}
+			for i := range weightV {
+				weightV[i] = 2*random.Float32() - 1
+			}
+			var (
+				dequant = dequantizeWeightsSlice(t, weightV, dtype)
+				weight  = requireTensorWithDType(t, gpu, dtype, cols, inner)
+			)
+			requireError(t, weight.UploadFloat32As(weightV), nil)
+
+			var (
+				wg   sync.WaitGroup
+				errs = make(chan error, workers)
+			)
+			for worker := range workers {
+				wg.Add(1)
+				go func(workerID int) {
+					defer wg.Done()
+					var (
+						left, errL = gpu.NewFloat32([]int64{rows, inner})
+						out, errO  = gpu.NewFloat32([]int64{rows, cols})
+					)
+					if errL != nil {
+						errs <- errL
+						return
+					}
+					defer left.Close()
+					if errO != nil {
+						errs <- errO
+						return
+					}
+					defer out.Close()
+					if err := left.Upload(leftVal); err != nil {
+						errs <- err
+						return
+					}
+					for iter := range 4 {
+						var scope, errS = gpu.NewScope()
+						if errS != nil {
+							errs <- errS
+							return
+						}
+						if err := scope.MatMulRightTranspose(left, weight, out); err != nil {
+							_ = scope.Close()
+							errs <- err
+							return
+						}
+						if err := scope.Submit(ctx); err != nil {
+							_ = scope.Close()
+							errs <- err
+							return
+						}
+						if err := scope.Wait(ctx); err != nil {
+							_ = scope.Close()
+							errs <- err
+							return
+						}
+						if err := scope.Close(); err != nil {
+							errs <- err
+							return
+						}
+						if iter == 3 {
+							var got = make([]float32, rows*cols)
+							if err := out.DownloadInto(got); err != nil {
+								errs <- err
+								return
+							}
+							for row := range rows {
+								for col := range cols {
+									var want float64
+									for k := range inner {
+										want += float64(leftVal[row*inner+k]) * float64(dequant[col*inner+k])
+									}
+									var diff = math.Abs(float64(got[row*cols+col]) - want)
+									if diff > 1e-3 {
+										errs <- fmt.Errorf("worker %d (%d,%d): got %g, want %g (diff %g)", workerID, row, col, got[row*cols+col], want, diff)
+										return
+									}
+								}
+							}
+						}
+					}
+				}(worker)
+			}
+			wg.Wait()
+			close(errs)
+			for err := range errs {
+				t.Fatal(err)
+			}
+		})
+	}
+	var after = native.ResourceSnapshot()
+	if after.LiveBuffers != initial.LiveBuffers || after.LiveBufferBytes != initial.LiveBufferBytes || after.LiveScopes != initial.LiveScopes {
+		t.Fatalf("concurrent tiled quantized matmul leaked native resources: before %+v; after %+v", initial, after)
 	}
 }
 
