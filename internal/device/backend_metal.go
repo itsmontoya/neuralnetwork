@@ -670,6 +670,71 @@ func (m *metalBackend) encodeTensorPool2D(scope, input, result any, spec Pool2DS
 	return nil
 }
 
+func (m *metalBackend) encodeTensorConv2D(scope, input, weights, bias, result any, spec Conv2DSpec) (err error) {
+	var (
+		scopeHandle   C.NNMetalScope
+		inputHandle   C.NNMetalBuffer
+		weightsHandle C.NNMetalBuffer
+		biasHandle    C.NNMetalBuffer
+		resultHandle  C.NNMetalBuffer
+		params        C.NNMetalConv2DParams
+		status        C.int
+	)
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if inputHandle, err = m.bufferHandle(input); err != nil {
+		return err
+	}
+	if weightsHandle, err = m.bufferHandle(weights); err != nil {
+		return err
+	}
+	if bias != nil {
+		if biasHandle, err = m.bufferHandle(bias); err != nil {
+			return err
+		}
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+	params.batch = C.uint32_t(spec.Batch)
+	params.inChannels = C.uint32_t(spec.InChannels)
+	params.inH = C.uint32_t(spec.InH)
+	params.inW = C.uint32_t(spec.InW)
+	params.outChannels = C.uint32_t(spec.OutChannels)
+	params.outH = C.uint32_t(spec.OutH)
+	params.outW = C.uint32_t(spec.OutW)
+	params.kernelH = C.uint32_t(spec.KernelH)
+	params.kernelW = C.uint32_t(spec.KernelW)
+	params.strideH = C.uint32_t(spec.StrideH)
+	params.strideW = C.uint32_t(spec.StrideW)
+	params.padTop = C.uint32_t(spec.PadTop)
+	params.padLeft = C.uint32_t(spec.PadLeft)
+	params.dilationH = C.uint32_t(spec.DilationH)
+	params.dilationW = C.uint32_t(spec.DilationW)
+	params.groups = C.uint32_t(spec.Groups)
+	params.biasDType = C.uint32_t(spec.BiasDType)
+	if spec.HasBias {
+		params.hasBias = 1
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_scope_encode_tensor_conv2d(
+		scopeHandle,
+		inputHandle,
+		weightsHandle,
+		biasHandle,
+		resultHandle,
+		params,
+		C.uint32_t(spec.WeightDType),
+	)
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal tensor Conv2D")
+	}
+	return nil
+}
+
 func (m *metalBackend) encodeTensorTranspose(scope, input, result any, spec TransposeSpec) (err error) {
 	var (
 		scopeHandle  C.NNMetalScope

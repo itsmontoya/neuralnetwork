@@ -140,6 +140,35 @@ int nn_metal_scope_encode_tensor_pool2d(
 	uint32_t average
 );
 typedef struct {
+	uint32_t batch;
+	uint32_t inChannels;
+	uint32_t inH;
+	uint32_t inW;
+	uint32_t outChannels;
+	uint32_t outH;
+	uint32_t outW;
+	uint32_t kernelH;
+	uint32_t kernelW;
+	uint32_t strideH;
+	uint32_t strideW;
+	uint32_t padTop;
+	uint32_t padLeft;
+	uint32_t dilationH;
+	uint32_t dilationW;
+	uint32_t groups;
+	uint32_t biasDType;
+	uint32_t hasBias;
+} NNMetalConv2DParams;
+int nn_metal_scope_encode_tensor_conv2d(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer weights,
+	NNMetalBuffer bias,
+	NNMetalBuffer result,
+	NNMetalConv2DParams params,
+	uint32_t weightDType
+);
+typedef struct {
 	uint32_t rank;
 	uint32_t count;
 	uint32_t dims[6];
