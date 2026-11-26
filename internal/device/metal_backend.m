@@ -342,8 +342,12 @@ static char nnMetalTensorMatMulError[1024];
 typedef enum {
 	NNMetalMatMulMixedF16,
 	NNMetalMatMulMixedF16RowRT,
+	NNMetalMatMulMixedF16TiledNN,
+	NNMetalMatMulMixedF16TiledNT,
 	NNMetalMatMulMixedBF16,
 	NNMetalMatMulMixedBF16RowRT,
+	NNMetalMatMulMixedBF16TiledNN,
+	NNMetalMatMulMixedBF16TiledNT,
 	NNMetalMatMulMixedCount,
 } NNMetalMatMulMixedPipeline;
 static pthread_once_t nnMetalTensorMatMulMixedOnce = PTHREAD_ONCE_INIT;
@@ -542,8 +546,12 @@ static void nn_metal_initialize_tensor_matmul_mixed(void) {
 		NSString *names[NNMetalMatMulMixedCount] = {
 			[NNMetalMatMulMixedF16] = @"nn_matmul_f16",
 			[NNMetalMatMulMixedF16RowRT] = @"nn_matmul_f16_row_right_transpose",
+			[NNMetalMatMulMixedF16TiledNN] = @"nn_matmul_f16_tiled_nn",
+			[NNMetalMatMulMixedF16TiledNT] = @"nn_matmul_f16_tiled_nt",
 			[NNMetalMatMulMixedBF16] = @"nn_matmul_bf16",
 			[NNMetalMatMulMixedBF16RowRT] = @"nn_matmul_bf16_row_right_transpose",
+			[NNMetalMatMulMixedBF16TiledNN] = @"nn_matmul_bf16_tiled_nn",
+			[NNMetalMatMulMixedBF16TiledNT] = @"nn_matmul_bf16_tiled_nt",
 		};
 		for (NSUInteger i = 0; i < NNMetalMatMulMixedCount; i++) {
 			nnMetalTensorMatMulMixedPipelines[i] = nn_metal_new_pipeline(library, names[i]);
@@ -2870,6 +2878,7 @@ int nn_metal_scope_encode_matmul_mixed(
 	uint64_t rightBytes = 0;
 	uint64_t resultBytes = 0;
 	int useRowRT = 0;
+	int useTiled = 0;
 	NSUInteger pipelineIndex = 0;
 
 	if (scopeRecord == NULL || leftRecord == NULL || rightRecord == NULL || resultRecord == NULL) {
@@ -2890,10 +2899,26 @@ int nn_metal_scope_encode_matmul_mixed(
 
 	pthread_once(&nnMetalTensorMatMulMixedOnce, nn_metal_initialize_tensor_matmul_mixed);
 	useRowRT = (dimensions.resultRows == 1 && dimensions.variant == 2);
+	useTiled = (!useRowRT &&
+		dimensions.resultCols >= 8 &&
+		dimensions.leftCols >= 8 &&
+		(dimensions.variant == 0 ? dimensions.resultRows >= 4 : dimensions.resultRows >= 8));
 	if (weightDType == NNMetalWeightFloat16) {
-		pipelineIndex = useRowRT ? NNMetalMatMulMixedF16RowRT : NNMetalMatMulMixedF16;
+		if (useRowRT) {
+			pipelineIndex = NNMetalMatMulMixedF16RowRT;
+		} else if (useTiled) {
+			pipelineIndex = (dimensions.variant == 2) ? NNMetalMatMulMixedF16TiledNT : NNMetalMatMulMixedF16TiledNN;
+		} else {
+			pipelineIndex = NNMetalMatMulMixedF16;
+		}
 	} else {
-		pipelineIndex = useRowRT ? NNMetalMatMulMixedBF16RowRT : NNMetalMatMulMixedBF16;
+		if (useRowRT) {
+			pipelineIndex = NNMetalMatMulMixedBF16RowRT;
+		} else if (useTiled) {
+			pipelineIndex = (dimensions.variant == 2) ? NNMetalMatMulMixedBF16TiledNT : NNMetalMatMulMixedBF16TiledNN;
+		} else {
+			pipelineIndex = NNMetalMatMulMixedBF16;
+		}
 	}
 	pipeline = nnMetalTensorMatMulMixedPipelines[pipelineIndex];
 	if (pipeline == nil) {
@@ -2921,6 +2946,34 @@ int nn_metal_scope_encode_matmul_mixed(
 			[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
 			[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
 			[encoder dispatchThreadgroups:MTLSizeMake(groups, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
+			[encoder endEncoding];
+			[scopeRecord->retainedResources addObject:leftRecord->value];
+			[scopeRecord->retainedResources addObject:rightRecord->value];
+			[scopeRecord->retainedResources addObject:resultRecord->value];
+		}
+		return NNMetalStatusSuccess;
+	}
+
+	if (useTiled) {
+		NSUInteger threads = 128;
+		if (threads > limits.width || threads > [pipeline maxTotalThreadsPerThreadgroup]) {
+			nn_metal_set_error("metal: encode mixed tiled matmul: threadgroup size exceeds Metal limits");
+			return NNMetalStatusError;
+		}
+		@autoreleasepool {
+			encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+			if (encoder == nil) {
+				nn_metal_set_error("metal: encode mixed tiled matmul: create compute encoder returned nil");
+				return NNMetalStatusError;
+			}
+			NSUInteger groupWidth = ((NSUInteger)dimensions.resultCols + 63) / 64;
+			NSUInteger groupHeight = ((NSUInteger)dimensions.resultRows + 31) / 32;
+			[encoder setComputePipelineState:pipeline];
+			[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
+			[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
+			[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+			[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
+			[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
 			[encoder endEncoding];
 			[scopeRecord->retainedResources addObject:leftRecord->value];
 			[scopeRecord->retainedResources addObject:rightRecord->value];
