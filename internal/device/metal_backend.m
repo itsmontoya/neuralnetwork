@@ -393,9 +393,18 @@ typedef enum {
 	NNMetalMatMulLeftTransposeF32,
 	NNMetalMatMulLeftTransposeF16,
 	NNMetalMatMulLeftTransposeBF16,
+	NNMetalMatMulLeftTransposeF32Tiled,
+	NNMetalMatMulLeftTransposeF16Tiled,
+	NNMetalMatMulLeftTransposeBF16Tiled,
 	NNMetalBatchedMatMulF32,
 	NNMetalBatchedMatMulF16,
 	NNMetalBatchedMatMulBF16,
+	NNMetalBatchedMatMulF32TiledNN,
+	NNMetalBatchedMatMulF32TiledNT,
+	NNMetalBatchedMatMulF16TiledNN,
+	NNMetalBatchedMatMulF16TiledNT,
+	NNMetalBatchedMatMulBF16TiledNN,
+	NNMetalBatchedMatMulBF16TiledNT,
 	NNMetalBatchedMatMulCount,
 } NNMetalBatchedMatMulPipeline;
 static pthread_once_t nnMetalBatchedMatMulOnce = PTHREAD_ONCE_INIT;
@@ -797,9 +806,18 @@ static void nn_metal_initialize_batched_matmul(void) {
 			[NNMetalMatMulLeftTransposeF32] = @"nn_matmul_left_transpose_f32",
 			[NNMetalMatMulLeftTransposeF16] = @"nn_matmul_left_transpose_f16",
 			[NNMetalMatMulLeftTransposeBF16] = @"nn_matmul_left_transpose_bf16",
+			[NNMetalMatMulLeftTransposeF32Tiled] = @"nn_matmul_left_transpose_f32_tiled",
+			[NNMetalMatMulLeftTransposeF16Tiled] = @"nn_matmul_left_transpose_f16_tiled",
+			[NNMetalMatMulLeftTransposeBF16Tiled] = @"nn_matmul_left_transpose_bf16_tiled",
 			[NNMetalBatchedMatMulF32] = @"nn_batched_matmul_f32",
 			[NNMetalBatchedMatMulF16] = @"nn_batched_matmul_f16",
 			[NNMetalBatchedMatMulBF16] = @"nn_batched_matmul_bf16",
+			[NNMetalBatchedMatMulF32TiledNN] = @"nn_batched_matmul_f32_tiled_nn",
+			[NNMetalBatchedMatMulF32TiledNT] = @"nn_batched_matmul_f32_tiled_nt",
+			[NNMetalBatchedMatMulF16TiledNN] = @"nn_batched_matmul_f16_tiled_nn",
+			[NNMetalBatchedMatMulF16TiledNT] = @"nn_batched_matmul_f16_tiled_nt",
+			[NNMetalBatchedMatMulBF16TiledNN] = @"nn_batched_matmul_bf16_tiled_nn",
+			[NNMetalBatchedMatMulBF16TiledNT] = @"nn_batched_matmul_bf16_tiled_nt",
 		};
 		for (NSUInteger i = 0; i < NNMetalBatchedMatMulCount; i++) {
 			nnMetalBatchedMatMulPipelines[i] = nn_metal_new_pipeline(library, names[i]);
@@ -1992,20 +2010,28 @@ int nn_metal_scope_encode_matmul_left_transpose(
 	}
 
 	pthread_once(&nnMetalBatchedMatMulOnce, nn_metal_initialize_batched_matmul);
-	NSUInteger pipelineIndex = NNMetalMatMulLeftTransposeF32 + rightDType;
+	int useTiled = (m >= 4 && n >= 8 && k >= 8);
+	NSUInteger pipelineIndex = (useTiled ? NNMetalMatMulLeftTransposeF32Tiled : NNMetalMatMulLeftTransposeF32) + rightDType;
 	id<MTLComputePipelineState> pipeline = nnMetalBatchedMatMulPipelines[pipelineIndex];
 	if (pipeline == nil) {
 		nn_metal_set_error(nnMetalBatchedMatMulError);
 		return NNMetalStatusError;
 	}
 
-	NSUInteger threadWidth = 16;
-	NSUInteger threadHeight = 16;
 	MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
-	if (threadWidth > limits.width || threadHeight > limits.height ||
-		threadWidth * threadHeight > [pipeline maxTotalThreadsPerThreadgroup]) {
-		nn_metal_set_error("metal: encode left-transposed matmul: threadgroup size exceeds Metal limits");
-		return NNMetalStatusError;
+	if (useTiled) {
+		if (128 > limits.width || 128 > [pipeline maxTotalThreadsPerThreadgroup]) {
+			nn_metal_set_error("metal: encode left-transposed matmul: threadgroup size exceeds Metal limits");
+			return NNMetalStatusError;
+		}
+	} else {
+		NSUInteger threadWidth = 16;
+		NSUInteger threadHeight = 16;
+		if (threadWidth > limits.width || threadHeight > limits.height ||
+			threadWidth * threadHeight > [pipeline maxTotalThreadsPerThreadgroup]) {
+			nn_metal_set_error("metal: encode left-transposed matmul: threadgroup size exceeds Metal limits");
+			return NNMetalStatusError;
+		}
 	}
 
 	NNMetalBatchedMatMulParams params;
@@ -2021,14 +2047,20 @@ int nn_metal_scope_encode_matmul_left_transpose(
 			nn_metal_set_error("metal: encode left-transposed matmul: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
-		NSUInteger groupWidth = ((NSUInteger)n + threadWidth - 1) / threadWidth;
-		NSUInteger groupHeight = ((NSUInteger)m + threadHeight - 1) / threadHeight;
 		[encoder setComputePipelineState:pipeline];
 		[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
 		[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
 		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
 		[encoder setBytes:&params length:sizeof(params) atIndex:3];
-		[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, threadHeight, 1)];
+		if (useTiled) {
+			NSUInteger groupWidth = ((NSUInteger)n + 63) / 64;
+			NSUInteger groupHeight = ((NSUInteger)m + 31) / 32;
+			[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(128, 1, 1)];
+		} else {
+			NSUInteger groupWidth = ((NSUInteger)n + 15) / 16;
+			NSUInteger groupHeight = ((NSUInteger)m + 15) / 16;
+			[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(16, 16, 1)];
+		}
 		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:leftRecord->value];
 		[scopeRecord->retainedResources addObject:rightRecord->value];
@@ -2072,20 +2104,34 @@ int nn_metal_scope_encode_batched_matmul(
 	}
 
 	pthread_once(&nnMetalBatchedMatMulOnce, nn_metal_initialize_batched_matmul);
-	NSUInteger pipelineIndex = NNMetalBatchedMatMulF32 + rightDType;
+	int useTiled = (params.n >= 8 && params.k >= 8 &&
+		(params.rightTransposed != 0 ? params.m >= 8 : params.m >= 4));
+	NSUInteger pipelineIndex = 0;
+	if (useTiled) {
+		pipelineIndex = NNMetalBatchedMatMulF32TiledNN + (NSUInteger)rightDType * 2 + (params.rightTransposed != 0 ? 1 : 0);
+	} else {
+		pipelineIndex = NNMetalBatchedMatMulF32 + rightDType;
+	}
 	id<MTLComputePipelineState> pipeline = nnMetalBatchedMatMulPipelines[pipelineIndex];
 	if (pipeline == nil) {
 		nn_metal_set_error(nnMetalBatchedMatMulError);
 		return NNMetalStatusError;
 	}
 
-	NSUInteger threadWidth = 16;
-	NSUInteger threadHeight = 16;
 	MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
-	if (threadWidth > limits.width || threadHeight > limits.height ||
-		threadWidth * threadHeight > [pipeline maxTotalThreadsPerThreadgroup]) {
-		nn_metal_set_error("metal: encode batched matmul: threadgroup size exceeds Metal limits");
-		return NNMetalStatusError;
+	if (useTiled) {
+		if (128 > limits.width || 128 > [pipeline maxTotalThreadsPerThreadgroup]) {
+			nn_metal_set_error("metal: encode batched matmul: threadgroup size exceeds Metal limits");
+			return NNMetalStatusError;
+		}
+	} else {
+		NSUInteger threadWidth = 16;
+		NSUInteger threadHeight = 16;
+		if (threadWidth > limits.width || threadHeight > limits.height ||
+			threadWidth * threadHeight > [pipeline maxTotalThreadsPerThreadgroup]) {
+			nn_metal_set_error("metal: encode batched matmul: threadgroup size exceeds Metal limits");
+			return NNMetalStatusError;
+		}
 	}
 
 	@autoreleasepool {
@@ -2094,15 +2140,22 @@ int nn_metal_scope_encode_batched_matmul(
 			nn_metal_set_error("metal: encode batched matmul: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
-		NSUInteger groupWidth = ((NSUInteger)params.n + threadWidth - 1) / threadWidth;
-		NSUInteger groupHeight = ((NSUInteger)params.m + threadHeight - 1) / threadHeight;
 		[encoder setComputePipelineState:pipeline];
 		[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
 		[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
 		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
 		[encoder setBytes:&params length:sizeof(params) atIndex:3];
-		[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, params.totalBatches)
-			threadsPerThreadgroup:MTLSizeMake(threadWidth, threadHeight, 1)];
+		if (useTiled) {
+			NSUInteger groupWidth = ((NSUInteger)params.n + 63) / 64;
+			NSUInteger groupHeight = ((NSUInteger)params.m + 31) / 32;
+			[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, params.totalBatches)
+				threadsPerThreadgroup:MTLSizeMake(128, 1, 1)];
+		} else {
+			NSUInteger groupWidth = ((NSUInteger)params.n + 15) / 16;
+			NSUInteger groupHeight = ((NSUInteger)params.m + 15) / 16;
+			[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, params.totalBatches)
+				threadsPerThreadgroup:MTLSizeMake(16, 16, 1)];
+		}
 		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:leftRecord->value];
 		[scopeRecord->retainedResources addObject:rightRecord->value];
