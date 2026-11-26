@@ -28,6 +28,7 @@ type commandBuffer interface {
 	encodeSoftmax(input, destination allocation, outer, axisSize, inner uint32) (err error)
 	encodeLayerNorm(input, weight, bias, destination allocation, rows, width uint32, epsilon float32, weightDType, biasDType DType) (err error)
 	encodeBatchNorm(input, scale, bias, mean, variance, destination allocation, batch, channels, spatial uint32, epsilon float32) (err error)
+	encodePool2D(input, destination allocation, spec device.Pool2DSpec) (err error)
 	encodeTranspose(input, destination allocation, spec device.TransposeSpec) (err error)
 	encodeMatMulLeftTranspose(left, right, destination allocation, m, n, k uint32, rightDType DType) (err error)
 	encodeBatchedMatMul(left, right, destination allocation, spec device.BatchedMatMulSpec) (err error)
@@ -158,6 +159,10 @@ func (m metalCommandBuffer) encodeBatchNorm(input, scale, bias, mean, variance, 
 		spatial,
 		epsilon,
 	)
+}
+
+func (m metalCommandBuffer) encodePool2D(input, destination allocation, spec device.Pool2DSpec) (err error) {
+	return m.EncodeTensorPool2D(input.(*device.Buffer), destination.(*device.Buffer), spec)
 }
 
 func (m metalCommandBuffer) encodeTranspose(input, destination allocation, spec device.TransposeSpec) (err error) {

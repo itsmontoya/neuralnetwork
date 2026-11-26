@@ -23,6 +23,7 @@ type fakeBackend struct {
 	softmaxes           atomic.Int32
 	layerNorms          atomic.Int32
 	batchNorms          atomic.Int32
+	pool2Ds             atomic.Int32
 	transposes          atomic.Int32
 	copies              atomic.Int32
 	matMulLeftTranspose atomic.Int32
@@ -236,6 +237,11 @@ func (c *fakeCommandBuffer) encodeLayerNorm(_, _, _, _ allocation, _, _ uint32, 
 
 func (c *fakeCommandBuffer) encodeBatchNorm(_, _, _, _, _, _ allocation, _, _, _ uint32, _ float32) (err error) {
 	c.backend.batchNorms.Add(1)
+	return c.encodeErr
+}
+
+func (c *fakeCommandBuffer) encodePool2D(_, _ allocation, _ device.Pool2DSpec) (err error) {
+	c.backend.pool2Ds.Add(1)
 	return c.encodeErr
 }
 

@@ -1235,6 +1235,104 @@ func (s *Scope) BatchNorm(input, scale, bias, mean, variance, destination *Tenso
 	return nil
 }
 
+// MaxPool2D records FP32 NCHW 2D spatial max pooling from input into a disjoint
+// destination matching Pool2DShape(input.Shape(), config). Out-of-bounds padded
+// positions are excluded; windows with no valid in-bounds samples yield -Inf,
+// and NaN values propagate within their windows. config.CountIncludePad is
+// ignored, matching tensor.MaxPool2DInto and ONNX MaxPool.
+func (s *Scope) MaxPool2D(input, destination *Tensor, config Pool2DConfig) (err error) {
+	return s.pool2D("MaxPool2D", input, destination, config, false)
+}
+
+// AvgPool2D records FP32 NCHW 2D spatial average pooling from input into a
+// disjoint destination matching Pool2DShape(input.Shape(), config). Sums
+// accumulate in FP32. When config.CountIncludePad is false, each output divides
+// by the count of valid in-bounds samples (yielding NaN if zero); when true,
+// each output divides by Kernel[0]*Kernel[1] (including padded positions),
+// matching tensor.AveragePool2DInto and ONNX AveragePool.
+func (s *Scope) AvgPool2D(input, destination *Tensor, config Pool2DConfig) (err error) {
+	return s.pool2D("AvgPool2D", input, destination, config, true)
+}
+
+func (s *Scope) pool2D(name string, input, destination *Tensor, config Pool2DConfig, average bool) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	if input == nil || input.state == nil || destination == nil || destination.state == nil {
+		return state.reject(name, fmt.Errorf("%w: missing input or destination", ErrInvalid))
+	}
+	if err = requireFloat32(name, input, destination); err != nil {
+		return state.reject(name, err)
+	}
+	var expectedShape []int64
+	if expectedShape, err = Pool2DShape(input.state.shape, config); err != nil {
+		return state.reject(name, err)
+	}
+	if !slices.Equal(destination.state.shape, expectedShape) {
+		return state.reject(name, fmt.Errorf("%w: destination shape %v must match Pool2D output shape %v", ErrInvalid, destination.state.shape, expectedShape))
+	}
+	var (
+		srcStorage = input.state.storage
+		dstStorage = destination.state.storage
+	)
+	if srcStorage.count > math.MaxUint32 || dstStorage.count > math.MaxUint32 {
+		return state.reject(name, fmt.Errorf("%w: tensor element count exceeds the Metal Pool2D index range", ErrInvalid))
+	}
+	var (
+		inH     = input.state.shape[2]
+		inW     = input.state.shape[3]
+		outH    = expectedShape[2]
+		outW    = expectedShape[3]
+		kernelH = config.Kernel[0]
+		kernelW = config.Kernel[1]
+		strideH = config.Strides[0]
+		strideW = config.Strides[1]
+		padTop  = config.Pads[0]
+		padLeft = config.Pads[1]
+		dilH    = config.Dilations[0]
+		dilW    = config.Dilations[1]
+	)
+	if inH > math.MaxInt32 || inW > math.MaxInt32 ||
+		outH > math.MaxInt32 || outW > math.MaxInt32 ||
+		kernelH > math.MaxInt32 || kernelW > math.MaxInt32 ||
+		strideH > math.MaxInt32 || strideW > math.MaxInt32 ||
+		padTop > math.MaxInt32 || padLeft > math.MaxInt32 ||
+		dilH > math.MaxInt32 || dilW > math.MaxInt32 ||
+		inH+padTop > math.MaxInt32 || inW+padLeft > math.MaxInt32 ||
+		padTop+dilH > math.MaxInt32 || padLeft+dilW > math.MaxInt32 ||
+		(outH-1)*strideH+(kernelH-1)*dilH > math.MaxInt32 ||
+		(outW-1)*strideW+(kernelW-1)*dilW > math.MaxInt32 {
+		return state.reject(name, fmt.Errorf("%w: Pool2D geometry exceeds the Metal int32 coordinate range", ErrInvalid))
+	}
+	if err = state.acquire(destination, input); err != nil {
+		return state.reject(name, err)
+	}
+	var spec device.Pool2DSpec
+	spec.ChannelsTotal = uint32(input.state.shape[0] * input.state.shape[1])
+	spec.InH = uint32(inH)
+	spec.InW = uint32(inW)
+	spec.OutH = uint32(outH)
+	spec.OutW = uint32(outW)
+	spec.KernelH = uint32(kernelH)
+	spec.KernelW = uint32(kernelW)
+	spec.StrideH = uint32(strideH)
+	spec.StrideW = uint32(strideW)
+	spec.PadTop = uint32(padTop)
+	spec.PadLeft = uint32(padLeft)
+	spec.DilationH = uint32(dilH)
+	spec.DilationW = uint32(dilW)
+	spec.CountIncludePad = average && config.CountIncludePad
+	spec.Average = average
+	if err = state.commands.encodePool2D(srcStorage.buffer, dstStorage.buffer, spec); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode %s: %w", name, err)
+	}
+	return nil
+}
+
 // RotatePairs applies (x0*cos - x1*sin, x1*cos + x0*sin) to adjacent FP32
 // feature pairs within each head. Input and destination are token-major
 // [rows, heads*headWidth] or [rows, heads, headWidth] with an even head width.
