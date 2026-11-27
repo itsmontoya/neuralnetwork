@@ -117,6 +117,29 @@ int nn_metal_scope_encode_tensor_batchnorm(
 	float epsilon
 );
 typedef struct {
+	uint32_t channelsTotal;
+	uint32_t inH;
+	uint32_t inW;
+	uint32_t outH;
+	uint32_t outW;
+	uint32_t kernelH;
+	uint32_t kernelW;
+	uint32_t strideH;
+	uint32_t strideW;
+	uint32_t padTop;
+	uint32_t padLeft;
+	uint32_t dilationH;
+	uint32_t dilationW;
+	uint32_t countIncludePad;
+} NNMetalPool2DParams;
+int nn_metal_scope_encode_tensor_pool2d(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer result,
+	NNMetalPool2DParams params,
+	uint32_t average
+);
+typedef struct {
 	uint32_t rank;
 	uint32_t count;
 	uint32_t dims[6];

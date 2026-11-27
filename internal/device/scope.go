@@ -448,6 +448,54 @@ func (s *Scope) EncodeTensorBatchNorm(input, scale, bias, mean, variance, result
 	return err
 }
 
+// EncodeTensorPool2D appends an FP32 NCHW 2D spatial max or average pooling
+// operation described by spec into a disjoint destination buffer.
+func (s *Scope) EncodeTensorPool2D(input, result *Buffer, spec Pool2DSpec) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(input, "Pool2D input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(result, "Pool2D destination"); err != nil {
+		return err
+	}
+	if input == result ||
+		spec.ChannelsTotal == 0 || spec.InH == 0 || spec.InW == 0 ||
+		spec.OutH == 0 || spec.OutW == 0 ||
+		spec.KernelH == 0 || spec.KernelW == 0 ||
+		spec.StrideH == 0 || spec.StrideW == 0 ||
+		spec.DilationH == 0 || spec.DilationW == 0 {
+		return errors.New("device: invalid Pool2D destination or dimensions")
+	}
+	if spec.InH > math.MaxInt32 || spec.InW > math.MaxInt32 ||
+		spec.OutH > math.MaxInt32 || spec.OutW > math.MaxInt32 ||
+		spec.KernelH > math.MaxInt32 || spec.KernelW > math.MaxInt32 ||
+		spec.StrideH > math.MaxInt32 || spec.StrideW > math.MaxInt32 ||
+		spec.PadTop > math.MaxInt32 || spec.PadLeft > math.MaxInt32 ||
+		spec.DilationH > math.MaxInt32 || spec.DilationW > math.MaxInt32 {
+		return errors.New("device: Pool2D parameter exceeds int32 coordinate range")
+	}
+	var (
+		inSpatial  = uint64(spec.InH) * uint64(spec.InW)
+		outSpatial = uint64(spec.OutH) * uint64(spec.OutW)
+		inTotal    = uint64(spec.ChannelsTotal) * inSpatial
+		outTotal   = uint64(spec.ChannelsTotal) * outSpatial
+	)
+	if inSpatial > math.MaxUint32 || outSpatial > math.MaxUint32 ||
+		inTotal > math.MaxUint32 || outTotal > math.MaxUint32 ||
+		input.count != inTotal || result.count != outTotal {
+		return errors.New("device: Pool2D input or destination buffer length mismatch")
+	}
+	if err = s.runtime.backend.encodeTensorPool2D(s.handle, input.handle, result.handle, spec); err != nil {
+		err = fmt.Errorf("device: encode tensor Pool2D: %w", err)
+		s.fail(err)
+	}
+	return err
+}
+
 // EncodeTensorTranspose appends a contiguous 2-byte or 4-byte axis permutation
 // described by spec into a disjoint destination buffer.
 func (s *Scope) EncodeTensorTranspose(input, result *Buffer, spec TransposeSpec) (err error) {

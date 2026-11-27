@@ -21,6 +21,7 @@ type backend interface {
 	encodeTensorSoftmax(scope, input, result any, outer, axisSize, inner uint32) (err error)
 	encodeTensorLayerNorm(scope, input, weight, bias, result any, rows, width uint32, epsilon float32, weightDType, biasDType uint32) (err error)
 	encodeTensorBatchNorm(scope, input, scale, bias, mean, variance, result any, batch, channels, spatial uint32, epsilon float32) (err error)
+	encodeTensorPool2D(scope, input, result any, spec Pool2DSpec) (err error)
 	encodeTensorTranspose(scope, input, result any, spec TransposeSpec) (err error)
 	encodeTensorMatMulLeftTranspose(scope, left, right, result any, m, n, k, rightDType uint32) (err error)
 	encodeTensorBatchedMatMul(scope, left, right, result any, spec BatchedMatMulSpec) (err error)
