@@ -83,6 +83,10 @@ func (unavailableBackend) encodeTensorLayerNorm(any, any, any, any, any, uint32,
 	return ErrUnavailable
 }
 
+func (unavailableBackend) encodeTensorBatchNorm(any, any, any, any, any, any, any, uint32, uint32, uint32, float32) (err error) {
+	return ErrUnavailable
+}
+
 func (unavailableBackend) encodeTensorTranspose(any, any, any, TransposeSpec) (err error) {
 	return ErrUnavailable
 }

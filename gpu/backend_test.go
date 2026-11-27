@@ -22,6 +22,7 @@ type fakeBackend struct {
 	broadcasts          atomic.Int32
 	softmaxes           atomic.Int32
 	layerNorms          atomic.Int32
+	batchNorms          atomic.Int32
 	transposes          atomic.Int32
 	copies              atomic.Int32
 	matMulLeftTranspose atomic.Int32
@@ -230,6 +231,11 @@ func (c *fakeCommandBuffer) encodeSoftmax(_, _ allocation, _, _, _ uint32) (err 
 
 func (c *fakeCommandBuffer) encodeLayerNorm(_, _, _, _ allocation, _, _ uint32, _ float32, _, _ DType) (err error) {
 	c.backend.layerNorms.Add(1)
+	return c.encodeErr
+}
+
+func (c *fakeCommandBuffer) encodeBatchNorm(_, _, _, _, _, _ allocation, _, _, _ uint32, _ float32) (err error) {
+	c.backend.batchNorms.Add(1)
 	return c.encodeErr
 }
 

@@ -3,6 +3,7 @@
 #include "metal_backend.h"
 #include "attention_metal_source.h"
 #include "batched_matmul_metal_source.h"
+#include "batchnorm_metal_source.h"
 #include "broadcast_metal_source.h"
 #include "elementwise_metal_source.h"
 #include "layernorm_metal_source.h"
@@ -47,6 +48,8 @@ typedef enum {
 	NNMetalTensorTanh,
 	NNMetalTensorSub,
 	NNMetalTensorDiv,
+	NNMetalTensorGELU,
+	NNMetalTensorGELUTanh,
 	NNMetalTensorElementwiseCount,
 } NNMetalTensorElementwiseOperation;
 
@@ -54,7 +57,9 @@ static int nn_metal_tensor_elementwise_is_unary(uint32_t operation) {
 	return operation == NNMetalTensorSiLU ||
 		operation == NNMetalTensorReLU ||
 		operation == NNMetalTensorSigmoid ||
-		operation == NNMetalTensorTanh;
+		operation == NNMetalTensorTanh ||
+		operation == NNMetalTensorGELU ||
+		operation == NNMetalTensorGELUTanh;
 }
 
 static const char *nnMetalMatMulDimensionsSource =
@@ -383,6 +388,14 @@ static pthread_once_t nnMetalTensorLayerNormOnce = PTHREAD_ONCE_INIT;
 static id<MTLComputePipelineState> nnMetalTensorLayerNormPipeline = nil;
 static char nnMetalTensorLayerNormError[1024];
 typedef enum {
+	NNMetalTensorBatchNorm,
+	NNMetalTensorBatchNormVec4,
+	NNMetalTensorBatchNormCount,
+} NNMetalTensorBatchNormPipeline;
+static pthread_once_t nnMetalTensorBatchNormOnce = PTHREAD_ONCE_INIT;
+static id<MTLComputePipelineState> nnMetalTensorBatchNormPipelines[NNMetalTensorBatchNormCount];
+static char nnMetalTensorBatchNormError[1024];
+typedef enum {
 	NNMetalTensorTranspose2DU32,
 	NNMetalTensorTranspose2DU16,
 	NNMetalTensorTransposeGeneralU32,
@@ -650,6 +663,8 @@ static void nn_metal_initialize_tensor_elementwise(void) {
 			[NNMetalTensorTanh] = @"nn_tensor_tanh",
 			[NNMetalTensorSub] = @"nn_tensor_sub",
 			[NNMetalTensorDiv] = @"nn_tensor_div",
+			[NNMetalTensorGELU] = @"nn_tensor_gelu",
+			[NNMetalTensorGELUTanh] = @"nn_tensor_gelu_tanh",
 		};
 		for (NSUInteger i = 0; i < NNMetalTensorElementwiseCount; i++) {
 			nnMetalTensorElementwisePipelines[i] = nn_metal_new_pipeline(library, names[i]);
@@ -753,6 +768,39 @@ static void nn_metal_initialize_tensor_layernorm(void) {
 		nnMetalTensorLayerNormPipeline = nn_metal_new_pipeline(library, @"nn_tensor_layer_norm");
 		if (nnMetalTensorLayerNormPipeline == nil) {
 			strlcpy(nnMetalTensorLayerNormError, nnMetalLastError, sizeof(nnMetalTensorLayerNormError));
+		}
+		[library release];
+	}
+}
+
+// Tensor BatchNorm pipelines compile lazily with fastMathEnabled = NO.
+static void nn_metal_initialize_tensor_batchnorm(void) {
+	@autoreleasepool {
+		NSError *error = nil;
+		NSString *source = [NSString stringWithFormat:@"%s%s", nnMetalShaderHeader, nnMetalTensorBatchNormSource];
+		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		[options setFastMathEnabled:NO];
+		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
+		[options release];
+		if (library == nil) {
+			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile tensor BatchNorm library: %@", [error localizedDescription]]);
+			strlcpy(nnMetalTensorBatchNormError, nnMetalLastError, sizeof(nnMetalTensorBatchNormError));
+			return;
+		}
+		NSString *names[NNMetalTensorBatchNormCount] = {
+			[NNMetalTensorBatchNorm] = @"nn_tensor_batch_norm",
+			[NNMetalTensorBatchNormVec4] = @"nn_tensor_batch_norm_vec4",
+		};
+		for (NSUInteger i = 0; i < NNMetalTensorBatchNormCount; i++) {
+			nnMetalTensorBatchNormPipelines[i] = nn_metal_new_pipeline(library, names[i]);
+			if (nnMetalTensorBatchNormPipelines[i] == nil) {
+				strlcpy(nnMetalTensorBatchNormError, nnMetalLastError, sizeof(nnMetalTensorBatchNormError));
+				for (NSUInteger j = 0; j < i; j++) {
+					[nnMetalTensorBatchNormPipelines[j] release];
+					nnMetalTensorBatchNormPipelines[j] = nil;
+				}
+				break;
+			}
 		}
 		[library release];
 	}
@@ -1914,6 +1962,103 @@ int nn_metal_scope_encode_tensor_layernorm(
 		if (biasRecord != NULL) {
 			[scopeRecord->retainedResources addObject:biasRecord->value];
 		}
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_tensor_batchnorm(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer scale,
+	NNMetalBuffer bias,
+	NNMetalBuffer mean,
+	NNMetalBuffer variance,
+	NNMetalBuffer result,
+	uint32_t batch,
+	uint32_t channels,
+	uint32_t spatial,
+	float epsilon
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *inputRecord = nn_metal_buffer_record(input);
+	NNMetalBufferRecord *scaleRecord = nn_metal_buffer_record(scale);
+	NNMetalBufferRecord *biasRecord = nn_metal_buffer_record(bias);
+	NNMetalBufferRecord *meanRecord = nn_metal_buffer_record(mean);
+	NNMetalBufferRecord *varianceRecord = nn_metal_buffer_record(variance);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+
+	if (scopeRecord == NULL || inputRecord == NULL || scaleRecord == NULL ||
+		biasRecord == NULL || meanRecord == NULL || varianceRecord == NULL || resultRecord == NULL) {
+		nn_metal_set_error("metal: encode tensor BatchNorm: invalid handles");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || batch == 0 || channels == 0 || spatial == 0 ||
+		!(epsilon >= 0.0f && epsilon <= FLT_MAX) ||
+		inputRecord == resultRecord || scaleRecord == resultRecord || biasRecord == resultRecord ||
+		meanRecord == resultRecord || varianceRecord == resultRecord) {
+		nn_metal_set_error("metal: encode tensor BatchNorm: invalid state, alias, dimensions or epsilon");
+		return NNMetalStatusError;
+	}
+	uint64_t total = (uint64_t)batch * (uint64_t)channels;
+	if (total > UINT32_MAX) {
+		nn_metal_set_error("metal: encode tensor BatchNorm: element count exceeds uint32");
+		return NNMetalStatusError;
+	}
+	total *= (uint64_t)spatial;
+	if (total > UINT32_MAX) {
+		nn_metal_set_error("metal: encode tensor BatchNorm: element count exceeds uint32");
+		return NNMetalStatusError;
+	}
+	uint64_t dataBytes = total * sizeof(float);
+	uint64_t paramBytes = (uint64_t)channels * sizeof(float);
+	if (dataBytes != inputRecord->bytes || dataBytes != resultRecord->bytes ||
+		paramBytes != scaleRecord->bytes || paramBytes != biasRecord->bytes ||
+		paramBytes != meanRecord->bytes || paramBytes != varianceRecord->bytes) {
+		nn_metal_set_error("metal: encode tensor BatchNorm: buffer length mismatch");
+		return NNMetalStatusError;
+	}
+
+	pthread_once(&nnMetalTensorBatchNormOnce, nn_metal_initialize_tensor_batchnorm);
+	int useVec4 = (spatial % 4u == 0u);
+	id<MTLComputePipelineState> pipeline = nnMetalTensorBatchNormPipelines[useVec4 ? NNMetalTensorBatchNormVec4 : NNMetalTensorBatchNorm];
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalTensorBatchNormError);
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode tensor BatchNorm: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		uint32_t epsilonBits = 0;
+		memcpy(&epsilonBits, &epsilon, sizeof(epsilonBits));
+		uint32_t gridX = useVec4 ? (spatial / 4u) : spatial;
+		uint32_t params[3] = { channels, gridX, epsilonBits };
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:inputRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:scaleRecord->value offset:0 atIndex:1];
+		[encoder setBuffer:biasRecord->value offset:0 atIndex:2];
+		[encoder setBuffer:meanRecord->value offset:0 atIndex:3];
+		[encoder setBuffer:varianceRecord->value offset:0 atIndex:4];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:5];
+		[encoder setBytes:params length:sizeof(params) atIndex:6];
+
+		MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
+		NSUInteger maxTG = MIN((NSUInteger)256, [pipeline maxTotalThreadsPerThreadgroup]);
+		NSUInteger tgX = MIN((NSUInteger)gridX, MIN(maxTG, limits.width));
+		NSUInteger tgY = MIN((NSUInteger)channels, MIN(maxTG / tgX, limits.height));
+		NSUInteger tgZ = MIN((NSUInteger)batch, MIN(maxTG / (tgX * tgY), limits.depth));
+		[encoder dispatchThreads:MTLSizeMake(gridX, channels, batch)
+			threadsPerThreadgroup:MTLSizeMake(tgX, tgY, tgZ)];
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:inputRecord->value];
+		[scopeRecord->retainedResources addObject:scaleRecord->value];
+		[scopeRecord->retainedResources addObject:biasRecord->value];
+		[scopeRecord->retainedResources addObject:meanRecord->value];
+		[scopeRecord->retainedResources addObject:varianceRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
 	return NNMetalStatusSuccess;

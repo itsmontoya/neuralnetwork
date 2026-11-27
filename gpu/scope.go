@@ -470,6 +470,21 @@ func (s *Scope) Tanh(input, destination *Tensor) (err error) {
 	return s.elementwise("tanh", device.ElementwiseTanh, destination, input)
 }
 
+// GELU records the exact-erf FP32 Gaussian error linear unit
+// 0.5 * x * (1 + erf(x / sqrt(2))). It uses the shape and ownership rules of
+// SiLU. Large positive inputs and +Inf map to x, large negative inputs and -Inf
+// map to 0, and NaN propagates.
+func (s *Scope) GELU(input, destination *Tensor) (err error) {
+	return s.elementwise("gelu", device.ElementwiseGELU, destination, input)
+}
+
+// GELUTanh records the tanh-approximate FP32 Gaussian error linear unit
+// 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x³))). It uses the shape,
+// ownership, and edge-case saturation rules of GELU.
+func (s *Scope) GELUTanh(input, destination *Tensor) (err error) {
+	return s.elementwise("gelu tanh", device.ElementwiseGELUTanh, destination, input)
+}
+
 // Softmax records a numerically stable FP32 softmax along the last axis
 // (len(shape)-1). Operands must be Float32 with identical shapes, contain at
 // most 2³²−1 elements, belong to the scope's device, and not alias each other
@@ -1161,6 +1176,61 @@ func (s *Scope) LayerNorm(input, weight, bias, destination *Tensor, epsilon floa
 	); err != nil {
 		state.status = scopePoisoned
 		return fmt.Errorf("gpu: encode LayerNorm: %w", err)
+	}
+	return nil
+}
+
+// BatchNorm records stored-statistics FP32 inference batch normalization over
+// [N, C, ...]: scale[c] * (x - mean[c]) / sqrt(variance[c] + epsilon) + bias[c],
+// matching tensor.BatchNormalizationInto and ONNX opset-15 BatchNormalization.
+// Input and destination must be Float32 with matching rank >= 2 shapes and at
+// most 2³²−1 elements. Scale, bias, mean, and variance must be rank-one [C]
+// Float32 tensors. Epsilon must be finite and nonnegative (0 is permitted).
+// Destination is fully written and must not alias any input (including via
+// Tensor.View).
+func (s *Scope) BatchNorm(input, scale, bias, mean, variance, destination *Tensor, epsilon float32) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	if input == nil || input.state == nil || len(input.state.shape) < 2 ||
+		input.state.storage.count > math.MaxUint32 ||
+		!hasShape(destination, input.state.shape...) {
+		return state.reject("BatchNorm", fmt.Errorf("%w: input and destination must have matching rank >= 2 shape within Metal index range", ErrInvalid))
+	}
+	var (
+		batch    = uint32(input.state.shape[0])
+		channels = input.state.shape[1]
+	)
+	if !(epsilon >= 0 && epsilon <= math.MaxFloat32) {
+		return state.reject("BatchNorm", fmt.Errorf("%w: epsilon must be finite and nonnegative, got %g", ErrInvalid, epsilon))
+	}
+	if !hasShape(scale, channels) || !hasShape(bias, channels) || !hasShape(mean, channels) || !hasShape(variance, channels) {
+		return state.reject("BatchNorm", fmt.Errorf("%w: scale, bias, mean and variance must have shape [%d]", ErrInvalid, channels))
+	}
+	if err = requireFloat32("BatchNorm", input, scale, bias, mean, variance, destination); err != nil {
+		return state.reject("BatchNorm", err)
+	}
+	if err = state.acquire(destination, input, scale, bias, mean, variance); err != nil {
+		return state.reject("BatchNorm", err)
+	}
+	var spatial = uint32(input.state.storage.count / (uint64(batch) * uint64(channels)))
+	if err = state.commands.encodeBatchNorm(
+		input.state.storage.buffer,
+		scale.state.storage.buffer,
+		bias.state.storage.buffer,
+		mean.state.storage.buffer,
+		variance.state.storage.buffer,
+		destination.state.storage.buffer,
+		batch,
+		uint32(channels),
+		spatial,
+		epsilon,
+	); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode BatchNorm: %w", err)
 	}
 	return nil
 }

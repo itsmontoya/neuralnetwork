@@ -563,6 +563,60 @@ func (m *metalBackend) encodeTensorLayerNorm(scope, input, weight, bias, result 
 	return nil
 }
 
+func (m *metalBackend) encodeTensorBatchNorm(scope, input, scale, bias, mean, variance, result any, batch, channels, spatial uint32, epsilon float32) (err error) {
+	var (
+		scopeHandle    C.NNMetalScope
+		inputHandle    C.NNMetalBuffer
+		scaleHandle    C.NNMetalBuffer
+		biasHandle     C.NNMetalBuffer
+		meanHandle     C.NNMetalBuffer
+		varianceHandle C.NNMetalBuffer
+		resultHandle   C.NNMetalBuffer
+		status         C.int
+	)
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if inputHandle, err = m.bufferHandle(input); err != nil {
+		return err
+	}
+	if scaleHandle, err = m.bufferHandle(scale); err != nil {
+		return err
+	}
+	if biasHandle, err = m.bufferHandle(bias); err != nil {
+		return err
+	}
+	if meanHandle, err = m.bufferHandle(mean); err != nil {
+		return err
+	}
+	if varianceHandle, err = m.bufferHandle(variance); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_scope_encode_tensor_batchnorm(
+		scopeHandle,
+		inputHandle,
+		scaleHandle,
+		biasHandle,
+		meanHandle,
+		varianceHandle,
+		resultHandle,
+		C.uint32_t(batch),
+		C.uint32_t(channels),
+		C.uint32_t(spatial),
+		C.float(epsilon),
+	)
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal tensor BatchNorm")
+	}
+	return nil
+}
+
 func (m *metalBackend) encodeTensorTranspose(scope, input, result any, spec TransposeSpec) (err error) {
 	var (
 		scopeHandle  C.NNMetalScope

@@ -690,6 +690,10 @@ func (b *testBackend) encodeTensorLayerNorm(_, _, _, _, _ any, _, _ uint32, _ fl
 	return b.encodeErr
 }
 
+func (b *testBackend) encodeTensorBatchNorm(_, _, _, _, _, _, _ any, _, _, _ uint32, _ float32) (err error) {
+	return b.encodeErr
+}
+
 func (b *testBackend) encodeTensorTranspose(_, _, _ any, _ TransposeSpec) (err error) {
 	return b.encodeErr
 }
