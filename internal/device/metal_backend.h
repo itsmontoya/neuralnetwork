@@ -182,6 +182,17 @@ int nn_metal_scope_encode_tensor_transpose(
 	NNMetalTransposeParams params,
 	uint32_t elemBytes
 );
+int nn_metal_scope_encode_tensor_concat(
+	NNMetalScope scope,
+	const NNMetalBuffer *inputs,
+	const uint32_t *srcAxisLens,
+	uint64_t inputCount,
+	NNMetalBuffer result,
+	uint32_t outer,
+	uint32_t dstAxisLen,
+	uint32_t inner,
+	uint32_t elemBytes
+);
 typedef struct {
 	uint32_t m;
 	uint32_t n;

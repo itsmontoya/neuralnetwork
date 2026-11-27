@@ -24,6 +24,7 @@ type backend interface {
 	encodeTensorPool2D(scope, input, result any, spec Pool2DSpec) (err error)
 	encodeTensorConv2D(scope, input, weights, bias, result any, spec Conv2DSpec) (err error)
 	encodeTensorTranspose(scope, input, result any, spec TransposeSpec) (err error)
+	encodeTensorConcat(scope any, inputs []any, result any, spec ConcatSpec) (err error)
 	encodeTensorMatMulLeftTranspose(scope, left, right, result any, m, n, k, rightDType uint32) (err error)
 	encodeTensorBatchedMatMul(scope, left, right, result any, spec BatchedMatMulSpec) (err error)
 	encodeAddRowVector(scope, values, rowVector any, rows, cols uint32) (err error)
