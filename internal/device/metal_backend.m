@@ -30,6 +30,7 @@ typedef struct {
 
 typedef struct {
 	id<MTLCommandBuffer> commandBuffer;
+	id<MTLComputeCommandEncoder> computeEncoder;
 	NSMutableArray *retainedResources;
 	int committed;
 	int completionRecorded;
@@ -1134,6 +1135,35 @@ static NNMetalScopeRecord *nn_metal_scope_record(NNMetalScope scope) {
 	return (NNMetalScopeRecord *)scope;
 }
 
+static id<MTLComputeCommandEncoder> nn_metal_scope_compute_encoder(
+	NNMetalScopeRecord *record,
+	const char *context
+) {
+	if (record == NULL || record->commandBuffer == nil) {
+		nn_metal_set_error_ns([NSString stringWithFormat:@"%s: nil command buffer", context]);
+		return nil;
+	}
+	if (record->computeEncoder != nil) {
+		return record->computeEncoder;
+	}
+	id<MTLComputeCommandEncoder> encoder = [record->commandBuffer computeCommandEncoder];
+	if (encoder == nil) {
+		nn_metal_set_error_ns([NSString stringWithFormat:@"%s: create compute encoder returned nil", context]);
+		return nil;
+	}
+	record->computeEncoder = [encoder retain];
+	return record->computeEncoder;
+}
+
+static void nn_metal_scope_end_compute_encoder(NNMetalScopeRecord *record) {
+	if (record == NULL || record->computeEncoder == nil) {
+		return;
+	}
+	[record->computeEncoder endEncoding];
+	[record->computeEncoder release];
+	record->computeEncoder = nil;
+}
+
 static void nn_metal_record_buffer_created(uint64_t bytes) {
 	pthread_mutex_lock(&nnMetalResourceMutex);
 	nnMetalResources.liveBuffers++;
@@ -1439,6 +1469,7 @@ int nn_metal_scope_encode_copy(
 	}
 
 	@autoreleasepool {
+		nn_metal_scope_end_compute_encoder(scopeRecord);
 		encoder = [scopeRecord->commandBuffer blitCommandEncoder];
 		if (encoder == nil) {
 			nn_metal_set_error("metal: encode copy: create blit encoder returned nil");
@@ -1483,6 +1514,7 @@ int nn_metal_scope_encode_gather_rows(
 	}
 
 	@autoreleasepool {
+		nn_metal_scope_end_compute_encoder(scopeRecord);
 		id<MTLBlitCommandEncoder> encoder = [scopeRecord->commandBuffer blitCommandEncoder];
 		if (encoder == nil) {
 			nn_metal_set_error("metal: encode gather rows: create blit encoder returned nil");
@@ -1587,9 +1619,8 @@ int nn_metal_scope_encode_gather_rows_mixed(
 
 	const uint64_t maxChunkRows = 512; // 512 * sizeof(uint64_t) == 4096 bytes (Metal setBytes limit).
 	@autoreleasepool {
-		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode mixed gather rows");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode mixed gather rows: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		[encoder setComputePipelineState:pipeline];
@@ -1610,7 +1641,6 @@ int nn_metal_scope_encode_gather_rows_mixed(
 			[encoder dispatchThreads:MTLSizeMake((NSUInteger)columns, (NSUInteger)chunk, 1)
 				threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
 		}
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:sourceRecord->value];
 		[scopeRecord->retainedResources addObject:destinationRecord->value];
 	}
@@ -1640,9 +1670,8 @@ int nn_metal_scope_encode_fill(
 	}
 
 	@autoreleasepool {
-		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode fill");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode fill: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		shaderCount = (uint32_t)count;
@@ -1653,7 +1682,6 @@ int nn_metal_scope_encode_fill(
 		[encoder setBytes:&value length:sizeof(value) atIndex:1];
 		[encoder setBytes:&shaderCount length:sizeof(shaderCount) atIndex:2];
 		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:bufferRecord->value];
 	}
 	return NNMetalStatusSuccess;
@@ -1694,9 +1722,8 @@ int nn_metal_scope_encode_tensor_elementwise(
 	}
 
 	@autoreleasepool {
-		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode tensor elementwise operation");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode tensor elementwise operation: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		[encoder setComputePipelineState:pipeline];
@@ -1707,7 +1734,6 @@ int nn_metal_scope_encode_tensor_elementwise(
 		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
 		NSUInteger threadWidth = MIN((NSUInteger)256, [pipeline maxTotalThreadsPerThreadgroup]);
 		[encoder dispatchThreads:MTLSizeMake(count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:leftRecord->value];
 		if (rightRecord != NULL) {
 			[scopeRecord->retainedResources addObject:rightRecord->value];
@@ -1747,9 +1773,8 @@ int nn_metal_scope_encode_tensor_scale(
 	}
 
 	@autoreleasepool {
-		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode tensor scale");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode tensor scale: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		[encoder setComputePipelineState:pipeline];
@@ -1758,7 +1783,6 @@ int nn_metal_scope_encode_tensor_scale(
 		[encoder setBytes:&scale length:sizeof(scale) atIndex:2];
 		NSUInteger threadWidth = MIN((NSUInteger)256, [pipeline maxTotalThreadsPerThreadgroup]);
 		[encoder dispatchThreads:MTLSizeMake(count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
@@ -1849,9 +1873,8 @@ int nn_metal_scope_encode_tensor_broadcast(
 	}
 
 	@autoreleasepool {
-		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode tensor broadcast");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode tensor broadcast: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		[encoder setComputePipelineState:pipeline];
@@ -1869,7 +1892,6 @@ int nn_metal_scope_encode_tensor_broadcast(
 		} else {
 			[encoder dispatchThreads:MTLSizeMake(params.count, 1, 1) threadsPerThreadgroup:MTLSizeMake(maxThreads, 1, 1)];
 		}
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:leftRecord->value];
 		[scopeRecord->retainedResources addObject:rightRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -1923,9 +1945,8 @@ int nn_metal_scope_encode_tensor_softmax(
 	}
 
 	@autoreleasepool {
-		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode tensor softmax");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode tensor softmax: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		[encoder setComputePipelineState:pipeline];
@@ -1951,7 +1972,6 @@ int nn_metal_scope_encode_tensor_softmax(
 			NSUInteger threadWidth = MIN((NSUInteger)256, [pipeline maxTotalThreadsPerThreadgroup]);
 			[encoder dispatchThreads:MTLSizeMake(totalSlices, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
 		}
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
@@ -2023,9 +2043,8 @@ int nn_metal_scope_encode_tensor_layernorm(
 	}
 
 	@autoreleasepool {
-		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode tensor LayerNorm");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode tensor LayerNorm: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		uint32_t epsilonBits = 0;
@@ -2048,7 +2067,6 @@ int nn_metal_scope_encode_tensor_layernorm(
 		}
 		tgSize = MIN(tgSize, [pipeline maxTotalThreadsPerThreadgroup]);
 		[encoder dispatchThreadgroups:MTLSizeMake(rows, 1, 1) threadsPerThreadgroup:MTLSizeMake(tgSize, 1, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
 		[scopeRecord->retainedResources addObject:weightRecord->value];
 		if (biasRecord != NULL) {
@@ -2120,9 +2138,8 @@ int nn_metal_scope_encode_tensor_batchnorm(
 	}
 
 	@autoreleasepool {
-		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode tensor BatchNorm");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode tensor BatchNorm: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		uint32_t epsilonBits = 0;
@@ -2145,7 +2162,6 @@ int nn_metal_scope_encode_tensor_batchnorm(
 		NSUInteger tgZ = MIN((NSUInteger)batch, MIN(maxTG / (tgX * tgY), limits.depth));
 		[encoder dispatchThreads:MTLSizeMake(gridX, channels, batch)
 			threadsPerThreadgroup:MTLSizeMake(tgX, tgY, tgZ)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
 		[scopeRecord->retainedResources addObject:scaleRecord->value];
 		[scopeRecord->retainedResources addObject:biasRecord->value];
@@ -2206,9 +2222,8 @@ int nn_metal_scope_encode_tensor_pool2d(
 	}
 
 	@autoreleasepool {
-		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode tensor Pool2D");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode tensor Pool2D: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		[encoder setComputePipelineState:pipeline];
@@ -2224,7 +2239,6 @@ int nn_metal_scope_encode_tensor_pool2d(
 		NSUInteger tgZ = MIN((NSUInteger)params.channelsTotal, MIN(maxTG / (tgX * tgY), limits.depth));
 		[encoder dispatchThreads:MTLSizeMake(params.outW, params.outH, params.channelsTotal)
 			threadsPerThreadgroup:MTLSizeMake(tgX, tgY, tgZ)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
@@ -2307,10 +2321,17 @@ int nn_metal_scope_encode_tensor_conv2d(
 		return NNMetalStatusError;
 	}
 
+	MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
+	if (useImplicitGEMM) {
+		if (128u > limits.width || 128u > [pipeline maxTotalThreadsPerThreadgroup]) {
+			nn_metal_set_error("metal: encode tensor Conv2D: threadgroup size exceeds Metal limits");
+			return NNMetalStatusError;
+		}
+	}
+
 	@autoreleasepool {
-		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode tensor Conv2D");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode tensor Conv2D: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		[encoder setComputePipelineState:pipeline];
@@ -2320,13 +2341,7 @@ int nn_metal_scope_encode_tensor_conv2d(
 		[encoder setBuffer:resultRecord->value offset:0 atIndex:3];
 		[encoder setBytes:&params length:sizeof(params) atIndex:4];
 
-		MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
 		if (useImplicitGEMM) {
-			if (128u > limits.width || 128u > [pipeline maxTotalThreadsPerThreadgroup]) {
-				[encoder endEncoding];
-				nn_metal_set_error("metal: encode tensor Conv2D: threadgroup size exceeds Metal limits");
-				return NNMetalStatusError;
-			}
 			NSUInteger gridX = ((NSUInteger)gemmN + 63u) / 64u;
 			NSUInteger gridY = ((NSUInteger)gemmM + 31u) / 32u;
 			NSUInteger gridZ = (NSUInteger)params.groups;
@@ -2342,7 +2357,6 @@ int nn_metal_scope_encode_tensor_conv2d(
 			[encoder dispatchThreads:MTLSizeMake(params.outW, params.outH, totalNM)
 				threadsPerThreadgroup:MTLSizeMake(tgX, tgY, tgZ)];
 		}
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
 		[scopeRecord->retainedResources addObject:weightsRecord->value];
 		if (biasRecord != NULL) {
@@ -2394,10 +2408,19 @@ int nn_metal_scope_encode_tensor_transpose(
 		return NNMetalStatusError;
 	}
 
+	NSUInteger tile = 16;
+	if (is2D) {
+		MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
+		if (tile > limits.width || tile > limits.height ||
+			tile * tile > [pipeline maxTotalThreadsPerThreadgroup]) {
+			nn_metal_set_error("metal: encode tensor transpose: threadgroup size exceeds Metal limits");
+			return NNMetalStatusError;
+		}
+	}
+
 	@autoreleasepool {
-		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode tensor transpose");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode tensor transpose: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		[encoder setComputePipelineState:pipeline];
@@ -2405,14 +2428,6 @@ int nn_metal_scope_encode_tensor_transpose(
 		[encoder setBuffer:resultRecord->value offset:0 atIndex:1];
 		[encoder setBytes:&params length:sizeof(params) atIndex:2];
 		if (is2D) {
-			NSUInteger tile = 16;
-			MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
-			if (tile > limits.width || tile > limits.height ||
-				tile * tile > [pipeline maxTotalThreadsPerThreadgroup]) {
-				[encoder endEncoding];
-				nn_metal_set_error("metal: encode tensor transpose: threadgroup size exceeds Metal limits");
-				return NNMetalStatusError;
-			}
 			NSUInteger groupWidth = ((NSUInteger)params.dims[0] + tile - 1) / tile;
 			NSUInteger groupHeight = ((NSUInteger)params.dims[1] + tile - 1) / tile;
 			[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(tile, tile, 1)];
@@ -2420,7 +2435,6 @@ int nn_metal_scope_encode_tensor_transpose(
 			NSUInteger threadWidth = MIN((NSUInteger)256, [pipeline maxTotalThreadsPerThreadgroup]);
 			[encoder dispatchThreads:MTLSizeMake(params.count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
 		}
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
@@ -2493,9 +2507,8 @@ int nn_metal_scope_encode_matmul_left_transpose(
 	params.totalBatches = 1;
 
 	@autoreleasepool {
-		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode left-transposed matmul");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode left-transposed matmul: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		[encoder setComputePipelineState:pipeline];
@@ -2512,7 +2525,6 @@ int nn_metal_scope_encode_matmul_left_transpose(
 			NSUInteger groupHeight = ((NSUInteger)m + 15) / 16;
 			[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(16, 16, 1)];
 		}
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:leftRecord->value];
 		[scopeRecord->retainedResources addObject:rightRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -2586,9 +2598,8 @@ int nn_metal_scope_encode_batched_matmul(
 	}
 
 	@autoreleasepool {
-		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode batched matmul");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode batched matmul: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		[encoder setComputePipelineState:pipeline];
@@ -2607,7 +2618,6 @@ int nn_metal_scope_encode_batched_matmul(
 			[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, params.totalBatches)
 				threadsPerThreadgroup:MTLSizeMake(16, 16, 1)];
 		}
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:leftRecord->value];
 		[scopeRecord->retainedResources addObject:rightRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -2635,6 +2645,7 @@ int nn_metal_scope_encode_kv_append(
 	}
 
 	@autoreleasepool {
+		nn_metal_scope_end_compute_encoder(scopeRecord);
 		id<MTLBlitCommandEncoder> encoder = [scopeRecord->commandBuffer blitCommandEncoder];
 		if (encoder == nil) {
 			nn_metal_set_error("metal: encode KV append: create blit encoder returned nil");
@@ -2679,9 +2690,8 @@ int nn_metal_scope_encode_kv_append_f16(
 
 	uint32_t count = (uint32_t)(keyRows->bytes / sizeof(float));
 	@autoreleasepool {
-		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode FP16 KV append");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode FP16 KV append: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		uint32_t params[3] = { plane, prefix, count };
@@ -2692,7 +2702,6 @@ int nn_metal_scope_encode_kv_append_f16(
 		[encoder setBuffer:result->value offset:0 atIndex:2];
 		[encoder setBytes:params length:sizeof(params) atIndex:3];
 		[encoder dispatchThreads:MTLSizeMake(count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:keyRows->value];
 		[scopeRecord->retainedResources addObject:valueRows->value];
 		[scopeRecord->retainedResources addObject:result->value];
@@ -2762,9 +2771,8 @@ int nn_metal_scope_encode_attention_math(
 	}
 
 	@autoreleasepool {
-		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode attention math");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode attention math: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		[encoder setComputePipelineState:pipeline];
@@ -2817,7 +2825,6 @@ int nn_metal_scope_encode_attention_math(
 			NSUInteger threadWidth = MIN([pipeline threadExecutionWidth], [pipeline maxTotalThreadsPerThreadgroup]);
 			[encoder dispatchThreads:MTLSizeMake(threads, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
 		}
-		[encoder endEncoding];
 	}
 	return NNMetalStatusSuccess;
 }
@@ -2851,9 +2858,8 @@ int nn_metal_scope_encode_add_row_vector(
 
 	@autoreleasepool {
 		count = (uint32_t)countValue;
-		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode row-vector addition");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode row-vector addition: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		threadWidth = MIN((NSUInteger)256, [nnMetalAddRowVectorPipeline maxTotalThreadsPerThreadgroup]);
@@ -2864,7 +2870,6 @@ int nn_metal_scope_encode_add_row_vector(
 		[encoder setBytes:&count length:sizeof(count) atIndex:2];
 		[encoder setBytes:&cols length:sizeof(cols) atIndex:3];
 		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:valuesRecord->value];
 		[scopeRecord->retainedResources addObject:rowVectorRecord->value];
 	}
@@ -2899,9 +2904,8 @@ int nn_metal_scope_encode_add_scaled(
 	}
 
 	@autoreleasepool {
-		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode scaled addition");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode scaled addition: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		threadWidth = MIN((NSUInteger)256, [nnMetalAddScaledPipeline maxTotalThreadsPerThreadgroup]);
@@ -2913,7 +2917,6 @@ int nn_metal_scope_encode_add_scaled(
 		[encoder setBytes:&scale length:sizeof(scale) atIndex:3];
 		[encoder setBytes:&count length:sizeof(count) atIndex:4];
 		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:leftRecord->value];
 		[scopeRecord->retainedResources addObject:rightRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -2945,9 +2948,8 @@ int nn_metal_scope_encode_relu(
 	}
 
 	@autoreleasepool {
-		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode ReLU");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode ReLU: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		threadWidth = MIN((NSUInteger)256, [nnMetalReLUPipeline maxTotalThreadsPerThreadgroup]);
@@ -2957,7 +2959,6 @@ int nn_metal_scope_encode_relu(
 		[encoder setBuffer:resultRecord->value offset:0 atIndex:1];
 		[encoder setBytes:&count length:sizeof(count) atIndex:2];
 		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
@@ -2991,9 +2992,8 @@ int nn_metal_scope_encode_relu_backward(
 	}
 
 	@autoreleasepool {
-		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode ReLU backward");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode ReLU backward: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		threadWidth = MIN((NSUInteger)256, [nnMetalReLUBackwardPipeline maxTotalThreadsPerThreadgroup]);
@@ -3004,7 +3004,6 @@ int nn_metal_scope_encode_relu_backward(
 		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
 		[encoder setBytes:&count length:sizeof(count) atIndex:3];
 		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
 		[scopeRecord->retainedResources addObject:outputGradientRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -3039,9 +3038,8 @@ int nn_metal_scope_encode_softmax_rows(
 	}
 
 	@autoreleasepool {
-		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode Softmax");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode Softmax: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		threadWidth = MIN((NSUInteger)256, [nnMetalSoftmaxRowsPipeline maxTotalThreadsPerThreadgroup]);
@@ -3052,7 +3050,6 @@ int nn_metal_scope_encode_softmax_rows(
 		[encoder setBytes:&rows length:sizeof(rows) atIndex:2];
 		[encoder setBytes:&cols length:sizeof(cols) atIndex:3];
 		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
@@ -3089,9 +3086,8 @@ int nn_metal_scope_encode_softmax_rows_backward(
 	}
 
 	@autoreleasepool {
-		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode Softmax backward");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode Softmax backward: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		threadWidth = MIN((NSUInteger)256, [nnMetalSoftmaxRowsBackwardPipeline maxTotalThreadsPerThreadgroup]);
@@ -3103,7 +3099,6 @@ int nn_metal_scope_encode_softmax_rows_backward(
 		[encoder setBytes:&rows length:sizeof(rows) atIndex:3];
 		[encoder setBytes:&cols length:sizeof(cols) atIndex:4];
 		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
 		[scopeRecord->retainedResources addObject:outputGradientRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -3139,9 +3134,8 @@ int nn_metal_scope_encode_column_sums(
 	}
 
 	@autoreleasepool {
-		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode column sums");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode column sums: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		threadWidth = MIN((NSUInteger)256, [nnMetalColumnSumsPipeline maxTotalThreadsPerThreadgroup]);
@@ -3153,7 +3147,6 @@ int nn_metal_scope_encode_column_sums(
 		[encoder setBytes:&cols length:sizeof(cols) atIndex:3];
 		[encoder setBytes:&accumulate length:sizeof(accumulate) atIndex:4];
 		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
@@ -3191,9 +3184,8 @@ int nn_metal_scope_encode_categorical_cross_entropy(
 	}
 
 	@autoreleasepool {
-		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode categorical cross entropy");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode categorical cross entropy: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		[encoder setComputePipelineState:nnMetalCategoricalCrossEntropyPipeline];
@@ -3204,7 +3196,6 @@ int nn_metal_scope_encode_categorical_cross_entropy(
 		[encoder setBytes:&cols length:sizeof(cols) atIndex:4];
 		[encoder setBytes:&epsilon length:sizeof(epsilon) atIndex:5];
 		[encoder dispatchThreadgroups:MTLSizeMake(1, 1, 1) threadsPerThreadgroup:MTLSizeMake(1, 1, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:predictionRecord->value];
 		[scopeRecord->retainedResources addObject:targetRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -3249,9 +3240,8 @@ int nn_metal_scope_encode_categorical_cross_entropy_gradient(
 
 	@autoreleasepool {
 		count = (uint32_t)countValue;
-		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode categorical cross entropy gradient");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode categorical cross entropy gradient: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		threadWidth = MIN(
@@ -3267,7 +3257,6 @@ int nn_metal_scope_encode_categorical_cross_entropy_gradient(
 		[encoder setBytes:&rows length:sizeof(rows) atIndex:4];
 		[encoder setBytes:&epsilon length:sizeof(epsilon) atIndex:5];
 		[encoder dispatchThreadgroups:MTLSizeMake(groupCount, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:predictionRecord->value];
 		[scopeRecord->retainedResources addObject:targetRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -3325,9 +3314,8 @@ int nn_metal_scope_encode_matmul(
 	}
 
 	@autoreleasepool {
-		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode matrix multiplication");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode matrix multiplication: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		groupWidth = ((NSUInteger)dimensions.resultCols + threadWidth - 1) / threadWidth;
@@ -3338,7 +3326,6 @@ int nn_metal_scope_encode_matmul(
 		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
 		[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
 		[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, threadHeight, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:leftRecord->value];
 		[scopeRecord->retainedResources addObject:rightRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -3420,9 +3407,8 @@ int nn_metal_scope_encode_matmul_mixed(
 			return NNMetalStatusError;
 		}
 		@autoreleasepool {
-			encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+			encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode mixed row matmul");
 			if (encoder == nil) {
-				nn_metal_set_error("metal: encode mixed row matmul: create compute encoder returned nil");
 				return NNMetalStatusError;
 			}
 			NSUInteger groups = ((NSUInteger)dimensions.resultCols + 7) / 8;
@@ -3432,7 +3418,6 @@ int nn_metal_scope_encode_matmul_mixed(
 			[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
 			[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
 			[encoder dispatchThreadgroups:MTLSizeMake(groups, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
-			[encoder endEncoding];
 			[scopeRecord->retainedResources addObject:leftRecord->value];
 			[scopeRecord->retainedResources addObject:rightRecord->value];
 			[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -3447,9 +3432,8 @@ int nn_metal_scope_encode_matmul_mixed(
 			return NNMetalStatusError;
 		}
 		@autoreleasepool {
-			encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+			encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode mixed tiled matmul");
 			if (encoder == nil) {
-				nn_metal_set_error("metal: encode mixed tiled matmul: create compute encoder returned nil");
 				return NNMetalStatusError;
 			}
 			NSUInteger groupWidth = ((NSUInteger)dimensions.resultCols + 63) / 64;
@@ -3460,7 +3444,6 @@ int nn_metal_scope_encode_matmul_mixed(
 			[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
 			[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
 			[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
-			[encoder endEncoding];
 			[scopeRecord->retainedResources addObject:leftRecord->value];
 			[scopeRecord->retainedResources addObject:rightRecord->value];
 			[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -3476,9 +3459,8 @@ int nn_metal_scope_encode_matmul_mixed(
 		return NNMetalStatusError;
 	}
 	@autoreleasepool {
-		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode mixed matmul");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode mixed matmul: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		NSUInteger groupWidth = ((NSUInteger)dimensions.resultCols + threadWidth - 1) / threadWidth;
@@ -3489,7 +3471,6 @@ int nn_metal_scope_encode_matmul_mixed(
 		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
 		[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
 		[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, threadHeight, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:leftRecord->value];
 		[scopeRecord->retainedResources addObject:rightRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -3590,9 +3571,8 @@ int nn_metal_scope_encode_matmul_quant(
 			return NNMetalStatusError;
 		}
 		@autoreleasepool {
-			encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+			encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode quantized row matmul");
 			if (encoder == nil) {
-				nn_metal_set_error("metal: encode quantized row matmul: create compute encoder returned nil");
 				return NNMetalStatusError;
 			}
 			NSUInteger groups = ((NSUInteger)dimensions.resultCols + 7) / 8;
@@ -3602,7 +3582,6 @@ int nn_metal_scope_encode_matmul_quant(
 			[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
 			[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
 			[encoder dispatchThreadgroups:MTLSizeMake(groups, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
-			[encoder endEncoding];
 			[scopeRecord->retainedResources addObject:leftRecord->value];
 			[scopeRecord->retainedResources addObject:rightRecord->value];
 			[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -3617,9 +3596,8 @@ int nn_metal_scope_encode_matmul_quant(
 			return NNMetalStatusError;
 		}
 		@autoreleasepool {
-			encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+			encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode quantized tiled matmul");
 			if (encoder == nil) {
-				nn_metal_set_error("metal: encode quantized tiled matmul: create compute encoder returned nil");
 				return NNMetalStatusError;
 			}
 			NSUInteger groupWidth = ((NSUInteger)dimensions.resultCols + 63) / 64;
@@ -3630,7 +3608,6 @@ int nn_metal_scope_encode_matmul_quant(
 			[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
 			[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
 			[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
-			[encoder endEncoding];
 			[scopeRecord->retainedResources addObject:leftRecord->value];
 			[scopeRecord->retainedResources addObject:rightRecord->value];
 			[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -3646,9 +3623,8 @@ int nn_metal_scope_encode_matmul_quant(
 		return NNMetalStatusError;
 	}
 	@autoreleasepool {
-		encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode quantized matmul");
 		if (encoder == nil) {
-			nn_metal_set_error("metal: encode quantized matmul: create compute encoder returned nil");
 			return NNMetalStatusError;
 		}
 		NSUInteger groupWidth = ((NSUInteger)dimensions.resultCols + threadWidth - 1) / threadWidth;
@@ -3659,7 +3635,6 @@ int nn_metal_scope_encode_matmul_quant(
 		[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
 		[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
 		[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, threadHeight, 1)];
-		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:leftRecord->value];
 		[scopeRecord->retainedResources addObject:rightRecord->value];
 		[scopeRecord->retainedResources addObject:resultRecord->value];
@@ -3680,6 +3655,7 @@ int nn_metal_scope_commit(NNMetalScope scope) {
 	}
 
 	@autoreleasepool {
+		nn_metal_scope_end_compute_encoder(record);
 		[record->commandBuffer commit];
 		record->committed = 1;
 	}
@@ -3713,6 +3689,7 @@ void nn_metal_scope_release(NNMetalScope scope) {
 	}
 
 	@autoreleasepool {
+		nn_metal_scope_end_compute_encoder(record);
 		if (record->committed && [record->commandBuffer status] != MTLCommandBufferStatusCompleted &&
 			[record->commandBuffer status] != MTLCommandBufferStatusError) {
 			[record->commandBuffer waitUntilCompleted];
