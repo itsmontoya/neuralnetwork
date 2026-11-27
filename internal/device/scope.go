@@ -496,6 +496,87 @@ func (s *Scope) EncodeTensorPool2D(input, result *Buffer, spec Pool2DSpec) (err 
 	return err
 }
 
+// EncodeTensorConv2D appends an NCHW 2D cross-correlation described by spec
+// into a disjoint FP32 destination buffer. Weights and optional bias may be
+// Float32 (0), Float16 (1), or BFloat16 (2).
+func (s *Scope) EncodeTensorConv2D(input, weights, bias, result *Buffer, spec Conv2DSpec) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if err = s.validateBuffer(input, "Conv2D input"); err != nil {
+		return err
+	}
+	if err = s.validateBuffer(weights, "Conv2D weights"); err != nil {
+		return err
+	}
+	var biasHandle any
+	if bias != nil {
+		if err = s.validateBuffer(bias, "Conv2D bias"); err != nil {
+			return err
+		}
+		biasHandle = bias.handle
+	}
+	if err = s.validateBuffer(result, "Conv2D destination"); err != nil {
+		return err
+	}
+	if input == result || weights == result || (bias != nil && bias == result) ||
+		spec.HasBias != (bias != nil) ||
+		spec.Batch == 0 || spec.InChannels == 0 || spec.InH == 0 || spec.InW == 0 ||
+		spec.OutChannels == 0 || spec.OutH == 0 || spec.OutW == 0 ||
+		spec.KernelH == 0 || spec.KernelW == 0 ||
+		spec.StrideH == 0 || spec.StrideW == 0 ||
+		spec.DilationH == 0 || spec.DilationW == 0 ||
+		spec.Groups == 0 || spec.InChannels%spec.Groups != 0 || spec.OutChannels%spec.Groups != 0 ||
+		spec.WeightDType > 2 || (bias != nil && spec.BiasDType > 2) {
+		return errors.New("device: invalid Conv2D destination, dimensions, groups or dtype")
+	}
+	if spec.InH > math.MaxInt32 || spec.InW > math.MaxInt32 ||
+		spec.OutH > math.MaxInt32 || spec.OutW > math.MaxInt32 ||
+		spec.KernelH > math.MaxInt32 || spec.KernelW > math.MaxInt32 ||
+		spec.StrideH > math.MaxInt32 || spec.StrideW > math.MaxInt32 ||
+		spec.PadTop > math.MaxInt32 || spec.PadLeft > math.MaxInt32 ||
+		spec.DilationH > math.MaxInt32 || spec.DilationW > math.MaxInt32 {
+		return errors.New("device: Conv2D parameter exceeds int32 coordinate range")
+	}
+	var (
+		inSpatial          = uint64(spec.InH) * uint64(spec.InW)
+		outSpatial         = uint64(spec.OutH) * uint64(spec.OutW)
+		kernelSpatial      = uint64(spec.KernelH) * uint64(spec.KernelW)
+		inChannelsPerGroup = uint64(spec.InChannels / spec.Groups)
+		inTotal            = uint64(spec.Batch) * uint64(spec.InChannels) * inSpatial
+		outTotal           = uint64(spec.Batch) * uint64(spec.OutChannels) * outSpatial
+		weightTotal        = uint64(spec.OutChannels) * inChannelsPerGroup * kernelSpatial
+	)
+	if inSpatial > math.MaxUint32 || outSpatial > math.MaxUint32 || kernelSpatial > math.MaxUint32 ||
+		inTotal > math.MaxUint32 || outTotal > math.MaxUint32 || weightTotal > math.MaxUint32 ||
+		input.count != inTotal || result.count != outTotal {
+		return errors.New("device: Conv2D input or destination buffer length mismatch")
+	}
+	var weightElemBytes uint64 = 4
+	if spec.WeightDType != 0 {
+		weightElemBytes = 2
+	}
+	if weights.bytes != weightTotal*weightElemBytes {
+		return errors.New("device: Conv2D weights buffer length mismatch")
+	}
+	if bias != nil {
+		var biasElemBytes uint64 = 4
+		if spec.BiasDType != 0 {
+			biasElemBytes = 2
+		}
+		if bias.bytes != uint64(spec.OutChannels)*biasElemBytes {
+			return errors.New("device: Conv2D bias buffer length mismatch")
+		}
+	}
+	if err = s.runtime.backend.encodeTensorConv2D(s.handle, input.handle, weights.handle, biasHandle, result.handle, spec); err != nil {
+		err = fmt.Errorf("device: encode tensor Conv2D: %w", err)
+		s.fail(err)
+	}
+	return err
+}
+
 // EncodeTensorTranspose appends a contiguous 2-byte or 4-byte axis permutation
 // described by spec into a disjoint destination buffer.
 func (s *Scope) EncodeTensorTranspose(input, result *Buffer, spec TransposeSpec) (err error) {

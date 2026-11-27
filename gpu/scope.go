@@ -1333,6 +1333,118 @@ func (s *Scope) pool2D(name string, input, destination *Tensor, config Pool2DCon
 	return nil
 }
 
+// Conv2D records NCHW 2D cross-correlation from FP32 input [N, C, H, W] and
+// Float32, Float16, or BFloat16 weights [M, C/G, kH, kW] with optional bias
+// [M] (nil, or Float32, Float16, or BFloat16) into a disjoint FP32 destination
+// matching Conv2DShape(input.Shape(), weights.Shape(), config). Accumulation is
+// performed in FP32. Destination must not alias input, weights, or bias
+// (including via Tensor.View).
+func (s *Scope) Conv2D(input, weights, bias, destination *Tensor, config Conv2DConfig) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	if input == nil || input.state == nil || weights == nil || weights.state == nil || destination == nil || destination.state == nil {
+		return state.reject("Conv2D", fmt.Errorf("%w: missing input, weights or destination", ErrInvalid))
+	}
+	if err = requireFloat32("Conv2D", input, destination); err != nil {
+		return state.reject("Conv2D", err)
+	}
+	var weightDType = weights.state.storage.dtype
+	if weightDType != Float32 && weightDType != Float16 && weightDType != BFloat16 {
+		return state.reject("Conv2D", fmt.Errorf("%w: Conv2D weights have unsupported dtype %s", ErrInvalid, weightDType))
+	}
+	var expectedShape []int64
+	if expectedShape, err = Conv2DShape(input.state.shape, weights.state.shape, config); err != nil {
+		return state.reject("Conv2D", err)
+	}
+	if !slices.Equal(destination.state.shape, expectedShape) {
+		return state.reject("Conv2D", fmt.Errorf("%w: destination shape %v must match Conv2D output shape %v", ErrInvalid, destination.state.shape, expectedShape))
+	}
+	var (
+		biasDType  DType
+		biasBuffer allocation
+	)
+	if bias != nil {
+		if !hasShape(bias, weights.state.shape[0]) {
+			return state.reject("Conv2D", fmt.Errorf("%w: Conv2D bias must have shape [%d]", ErrInvalid, weights.state.shape[0]))
+		}
+		biasDType = bias.state.storage.dtype
+		if biasDType != Float32 && biasDType != Float16 && biasDType != BFloat16 {
+			return state.reject("Conv2D", fmt.Errorf("%w: Conv2D bias has unsupported dtype %s", ErrInvalid, biasDType))
+		}
+	}
+	var (
+		inH     = input.state.shape[2]
+		inW     = input.state.shape[3]
+		outH    = expectedShape[2]
+		outW    = expectedShape[3]
+		kernelH = weights.state.shape[2]
+		kernelW = weights.state.shape[3]
+		strideH = config.Strides[0]
+		strideW = config.Strides[1]
+		padTop  = config.Pads[0]
+		padLeft = config.Pads[1]
+		dilH    = config.Dilations[0]
+		dilW    = config.Dilations[1]
+	)
+	if inH > math.MaxInt32 || inW > math.MaxInt32 ||
+		outH > math.MaxInt32 || outW > math.MaxInt32 ||
+		kernelH > math.MaxInt32 || kernelW > math.MaxInt32 ||
+		strideH > math.MaxInt32 || strideW > math.MaxInt32 ||
+		padTop > math.MaxInt32 || padLeft > math.MaxInt32 ||
+		dilH > math.MaxInt32 || dilW > math.MaxInt32 ||
+		inH+padTop > math.MaxInt32 || inW+padLeft > math.MaxInt32 ||
+		padTop+dilH > math.MaxInt32 || padLeft+dilW > math.MaxInt32 ||
+		(outH-1)*strideH+(kernelH-1)*dilH > math.MaxInt32 ||
+		(outW-1)*strideW+(kernelW-1)*dilW > math.MaxInt32 {
+		return state.reject("Conv2D", fmt.Errorf("%w: Conv2D geometry exceeds the Metal int32 coordinate range", ErrInvalid))
+	}
+	if bias != nil {
+		if err = state.acquire(destination, input, weights, bias); err != nil {
+			return state.reject("Conv2D", err)
+		}
+		biasBuffer = bias.state.storage.buffer
+	} else {
+		if err = state.acquire(destination, input, weights); err != nil {
+			return state.reject("Conv2D", err)
+		}
+	}
+	var spec device.Conv2DSpec
+	spec.Batch = uint32(input.state.shape[0])
+	spec.InChannels = uint32(input.state.shape[1])
+	spec.InH = uint32(inH)
+	spec.InW = uint32(inW)
+	spec.OutChannels = uint32(weights.state.shape[0])
+	spec.OutH = uint32(outH)
+	spec.OutW = uint32(outW)
+	spec.KernelH = uint32(kernelH)
+	spec.KernelW = uint32(kernelW)
+	spec.StrideH = uint32(strideH)
+	spec.StrideW = uint32(strideW)
+	spec.PadTop = uint32(padTop)
+	spec.PadLeft = uint32(padLeft)
+	spec.DilationH = uint32(dilH)
+	spec.DilationW = uint32(dilW)
+	spec.Groups = uint32(config.Groups)
+	spec.WeightDType = layerNormDTypeTag(weightDType)
+	spec.BiasDType = layerNormDTypeTag(biasDType)
+	spec.HasBias = bias != nil
+	if err = state.commands.encodeConv2D(
+		input.state.storage.buffer,
+		weights.state.storage.buffer,
+		biasBuffer,
+		destination.state.storage.buffer,
+		spec,
+	); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode Conv2D: %w", err)
+	}
+	return nil
+}
+
 // RotatePairs applies (x0*cos - x1*sin, x1*cos + x0*sin) to adjacent FP32
 // feature pairs within each head. Input and destination are token-major
 // [rows, heads*headWidth] or [rows, heads, headWidth] with an even head width.

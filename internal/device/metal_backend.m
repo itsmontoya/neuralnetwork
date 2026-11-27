@@ -5,6 +5,7 @@
 #include "batched_matmul_metal_source.h"
 #include "batchnorm_metal_source.h"
 #include "broadcast_metal_source.h"
+#include "conv2d_metal_source.h"
 #include "elementwise_metal_source.h"
 #include "layernorm_metal_source.h"
 #include "matmul_mixed_metal_source.h"
@@ -404,6 +405,18 @@ typedef enum {
 static pthread_once_t nnMetalTensorPool2DOnce = PTHREAD_ONCE_INIT;
 static id<MTLComputePipelineState> nnMetalTensorPool2DPipelines[NNMetalTensorPool2DCount];
 static char nnMetalTensorPool2DError[1024];
+typedef enum {
+	NNMetalTensorConv2DDirectF32,
+	NNMetalTensorConv2DDirectF16,
+	NNMetalTensorConv2DDirectBF16,
+	NNMetalTensorConv2DImplicitGEMMF32,
+	NNMetalTensorConv2DImplicitGEMMF16,
+	NNMetalTensorConv2DImplicitGEMMBF16,
+	NNMetalTensorConv2DCount,
+} NNMetalTensorConv2DPipeline;
+static pthread_once_t nnMetalTensorConv2DOnce = PTHREAD_ONCE_INIT;
+static id<MTLComputePipelineState> nnMetalTensorConv2DPipelines[NNMetalTensorConv2DCount];
+static char nnMetalTensorConv2DError[1024];
 typedef enum {
 	NNMetalTensorTranspose2DU32,
 	NNMetalTensorTranspose2DU16,
@@ -840,6 +853,43 @@ static void nn_metal_initialize_tensor_pool2d(void) {
 				for (NSUInteger j = 0; j < i; j++) {
 					[nnMetalTensorPool2DPipelines[j] release];
 					nnMetalTensorPool2DPipelines[j] = nil;
+				}
+				break;
+			}
+		}
+		[library release];
+	}
+}
+
+// Tensor Conv2D pipelines compile lazily with fastMathEnabled = NO.
+static void nn_metal_initialize_tensor_conv2d(void) {
+	@autoreleasepool {
+		NSError *error = nil;
+		NSString *source = [NSString stringWithFormat:@"%s%s", nnMetalShaderHeader, nnMetalTensorConv2DSource];
+		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		[options setFastMathEnabled:NO];
+		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
+		[options release];
+		if (library == nil) {
+			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile tensor Conv2D library: %@", [error localizedDescription]]);
+			strlcpy(nnMetalTensorConv2DError, nnMetalLastError, sizeof(nnMetalTensorConv2DError));
+			return;
+		}
+		NSString *names[NNMetalTensorConv2DCount] = {
+			[NNMetalTensorConv2DDirectF32] = @"nn_conv2d_direct_f32",
+			[NNMetalTensorConv2DDirectF16] = @"nn_conv2d_direct_f16",
+			[NNMetalTensorConv2DDirectBF16] = @"nn_conv2d_direct_bf16",
+			[NNMetalTensorConv2DImplicitGEMMF32] = @"nn_conv2d_implicit_gemm_f32",
+			[NNMetalTensorConv2DImplicitGEMMF16] = @"nn_conv2d_implicit_gemm_f16",
+			[NNMetalTensorConv2DImplicitGEMMBF16] = @"nn_conv2d_implicit_gemm_bf16",
+		};
+		for (NSUInteger i = 0; i < NNMetalTensorConv2DCount; i++) {
+			nnMetalTensorConv2DPipelines[i] = nn_metal_new_pipeline(library, names[i]);
+			if (nnMetalTensorConv2DPipelines[i] == nil) {
+				strlcpy(nnMetalTensorConv2DError, nnMetalLastError, sizeof(nnMetalTensorConv2DError));
+				for (NSUInteger j = 0; j < i; j++) {
+					[nnMetalTensorConv2DPipelines[j] release];
+					nnMetalTensorConv2DPipelines[j] = nil;
 				}
 				break;
 			}
@@ -2176,6 +2226,128 @@ int nn_metal_scope_encode_tensor_pool2d(
 			threadsPerThreadgroup:MTLSizeMake(tgX, tgY, tgZ)];
 		[encoder endEncoding];
 		[scopeRecord->retainedResources addObject:inputRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_tensor_conv2d(
+	NNMetalScope scope,
+	NNMetalBuffer input,
+	NNMetalBuffer weights,
+	NNMetalBuffer bias,
+	NNMetalBuffer result,
+	NNMetalConv2DParams params,
+	uint32_t weightDType
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *inputRecord = nn_metal_buffer_record(input);
+	NNMetalBufferRecord *weightsRecord = nn_metal_buffer_record(weights);
+	NNMetalBufferRecord *biasRecord = (bias != NULL) ? nn_metal_buffer_record(bias) : NULL;
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+
+	if (scopeRecord == NULL || inputRecord == NULL || weightsRecord == NULL || resultRecord == NULL ||
+		(bias != NULL && biasRecord == NULL)) {
+		nn_metal_set_error("metal: encode tensor Conv2D: invalid handles");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || inputRecord == resultRecord || weightsRecord == resultRecord ||
+		(biasRecord != NULL && biasRecord == resultRecord) ||
+		(params.hasBias != 0u) != (biasRecord != NULL) ||
+		params.batch == 0 || params.inChannels == 0 || params.inH == 0 || params.inW == 0 ||
+		params.outChannels == 0 || params.outH == 0 || params.outW == 0 ||
+		params.kernelH == 0 || params.kernelW == 0 ||
+		params.strideH == 0 || params.strideW == 0 ||
+		params.dilationH == 0 || params.dilationW == 0 ||
+		params.groups == 0 || params.inChannels % params.groups != 0 || params.outChannels % params.groups != 0 ||
+		weightDType > 2u || (biasRecord != NULL && params.biasDType > 2u)) {
+		nn_metal_set_error("metal: encode tensor Conv2D: invalid state, alias, dimensions, groups or dtype");
+		return NNMetalStatusError;
+	}
+	uint64_t inSpatial = (uint64_t)params.inH * (uint64_t)params.inW;
+	uint64_t outSpatial = (uint64_t)params.outH * (uint64_t)params.outW;
+	uint64_t kernelSpatial = (uint64_t)params.kernelH * (uint64_t)params.kernelW;
+	uint64_t inChannelsPerGroup = (uint64_t)(params.inChannels / params.groups);
+	uint64_t outChannelsPerGroup = (uint64_t)(params.outChannels / params.groups);
+	if (inSpatial > UINT32_MAX || outSpatial > UINT32_MAX || kernelSpatial > UINT32_MAX) {
+		nn_metal_set_error("metal: encode tensor Conv2D: spatial extent exceeds uint32");
+		return NNMetalStatusError;
+	}
+	uint64_t inTotal = (uint64_t)params.batch * (uint64_t)params.inChannels * inSpatial;
+	uint64_t outTotal = (uint64_t)params.batch * (uint64_t)params.outChannels * outSpatial;
+	uint64_t weightTotal = (uint64_t)params.outChannels * inChannelsPerGroup * kernelSpatial;
+	if (inTotal > UINT32_MAX || outTotal > UINT32_MAX || weightTotal > UINT32_MAX) {
+		nn_metal_set_error("metal: encode tensor Conv2D: element count exceeds uint32");
+		return NNMetalStatusError;
+	}
+	uint64_t weightElemBytes = (weightDType == 0u) ? sizeof(float) : sizeof(uint16_t);
+	if (inTotal * sizeof(float) != inputRecord->bytes ||
+		outTotal * sizeof(float) != resultRecord->bytes ||
+		weightTotal * weightElemBytes != weightsRecord->bytes) {
+		nn_metal_set_error("metal: encode tensor Conv2D: buffer length mismatch");
+		return NNMetalStatusError;
+	}
+	if (biasRecord != NULL) {
+		uint64_t biasElemBytes = (params.biasDType == 0u) ? sizeof(float) : sizeof(uint16_t);
+		if ((uint64_t)params.outChannels * biasElemBytes != biasRecord->bytes) {
+			nn_metal_set_error("metal: encode tensor Conv2D: bias buffer length mismatch");
+			return NNMetalStatusError;
+		}
+	}
+
+	pthread_once(&nnMetalTensorConv2DOnce, nn_metal_initialize_tensor_conv2d);
+	uint64_t gemmM = (uint64_t)params.batch * outSpatial;
+	uint64_t gemmN = outChannelsPerGroup;
+	uint64_t gemmK = inChannelsPerGroup * kernelSpatial;
+	int useImplicitGEMM = (gemmN >= 8u && gemmM >= 8u && gemmK >= 8u);
+	NSUInteger pipelineIndex = (useImplicitGEMM ? NNMetalTensorConv2DImplicitGEMMF32 : NNMetalTensorConv2DDirectF32) + weightDType;
+	id<MTLComputePipelineState> pipeline = nnMetalTensorConv2DPipelines[pipelineIndex];
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalTensorConv2DError);
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		id<MTLComputeCommandEncoder> encoder = [scopeRecord->commandBuffer computeCommandEncoder];
+		if (encoder == nil) {
+			nn_metal_set_error("metal: encode tensor Conv2D: create compute encoder returned nil");
+			return NNMetalStatusError;
+		}
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:inputRecord->value offset:0 atIndex:0];
+		[encoder setBuffer:weightsRecord->value offset:0 atIndex:1];
+		[encoder setBuffer:(biasRecord != NULL ? biasRecord->value : weightsRecord->value) offset:0 atIndex:2];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:3];
+		[encoder setBytes:&params length:sizeof(params) atIndex:4];
+
+		MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
+		if (useImplicitGEMM) {
+			if (128u > limits.width || 128u > [pipeline maxTotalThreadsPerThreadgroup]) {
+				[encoder endEncoding];
+				nn_metal_set_error("metal: encode tensor Conv2D: threadgroup size exceeds Metal limits");
+				return NNMetalStatusError;
+			}
+			NSUInteger gridX = ((NSUInteger)gemmN + 63u) / 64u;
+			NSUInteger gridY = ((NSUInteger)gemmM + 31u) / 32u;
+			NSUInteger gridZ = (NSUInteger)params.groups;
+			[encoder dispatchThreadgroups:MTLSizeMake(gridX, gridY, gridZ)
+				threadsPerThreadgroup:MTLSizeMake(128, 1, 1)];
+		} else {
+			NSUInteger totalNM = (NSUInteger)params.batch * (NSUInteger)params.outChannels;
+			NSUInteger maxTG = MIN((NSUInteger)256, [pipeline maxTotalThreadsPerThreadgroup]);
+			NSUInteger targetX = (params.outH > 1u) ? (NSUInteger)16 : maxTG;
+			NSUInteger tgX = MIN((NSUInteger)params.outW, MIN(targetX, MIN(maxTG, limits.width)));
+			NSUInteger tgY = MIN((NSUInteger)params.outH, MIN(maxTG / tgX, limits.height));
+			NSUInteger tgZ = MIN(totalNM, MIN(maxTG / (tgX * tgY), limits.depth));
+			[encoder dispatchThreads:MTLSizeMake(params.outW, params.outH, totalNM)
+				threadsPerThreadgroup:MTLSizeMake(tgX, tgY, tgZ)];
+		}
+		[encoder endEncoding];
+		[scopeRecord->retainedResources addObject:inputRecord->value];
+		[scopeRecord->retainedResources addObject:weightsRecord->value];
+		if (biasRecord != NULL) {
+			[scopeRecord->retainedResources addObject:biasRecord->value];
+		}
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
 	return NNMetalStatusSuccess;

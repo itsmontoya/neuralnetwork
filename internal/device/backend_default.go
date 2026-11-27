@@ -91,6 +91,10 @@ func (unavailableBackend) encodeTensorPool2D(any, any, any, Pool2DSpec) (err err
 	return ErrUnavailable
 }
 
+func (unavailableBackend) encodeTensorConv2D(any, any, any, any, any, Conv2DSpec) (err error) {
+	return ErrUnavailable
+}
+
 func (unavailableBackend) encodeTensorTranspose(any, any, any, TransposeSpec) (err error) {
 	return ErrUnavailable
 }

@@ -698,6 +698,10 @@ func (b *testBackend) encodeTensorPool2D(_, _, _ any, _ Pool2DSpec) (err error) 
 	return b.encodeErr
 }
 
+func (b *testBackend) encodeTensorConv2D(_, _, _, _, _ any, _ Conv2DSpec) (err error) {
+	return b.encodeErr
+}
+
 func (b *testBackend) encodeTensorTranspose(_, _, _ any, _ TransposeSpec) (err error) {
 	return b.encodeErr
 }
