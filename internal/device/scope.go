@@ -624,6 +624,65 @@ func (s *Scope) EncodeTensorTranspose(input, result *Buffer, spec TransposeSpec)
 	return err
 }
 
+// EncodeTensorConcat appends a concatenation of inputs along one axis into a
+// disjoint destination buffer. When spec.Outer == 1, inputs are copied via
+// contiguous blits; otherwise strided 2-byte or 4-byte copy kernels are used.
+func (s *Scope) EncodeTensorConcat(inputs []*Buffer, result *Buffer, spec ConcatSpec) (err error) {
+	if err = s.lockForEncoding(); err != nil {
+		return err
+	}
+	defer s.mutex.Unlock()
+
+	if len(inputs) == 0 || len(inputs) != len(spec.SrcAxisLens) {
+		return errors.New("device: concat requires at least one input with matching axis lengths")
+	}
+	if err = s.validateBuffer(result, "concat destination"); err != nil {
+		return err
+	}
+	if spec.Outer == 0 || spec.Inner == 0 || spec.DstAxisLen == 0 ||
+		(spec.ElemBytes != 2 && spec.ElemBytes != 4) {
+		return errors.New("device: invalid concat dimensions or element width")
+	}
+	var totalDst = uint64(spec.Outer) * uint64(spec.DstAxisLen)
+	if totalDst > math.MaxUint32 {
+		return errors.New("device: concat destination count exceeds uint32")
+	}
+	totalDst *= uint64(spec.Inner)
+	if totalDst > math.MaxUint32 || result.bytes != totalDst*uint64(spec.ElemBytes) {
+		return errors.New("device: concat destination buffer length mismatch")
+	}
+	var (
+		inputHandles = make([]any, len(inputs))
+		axisSum      uint64
+	)
+	for i, input := range inputs {
+		if err = s.validateBuffer(input, "concat input"); err != nil {
+			return err
+		}
+		if input == result {
+			return errors.New("device: concat destination must not alias input")
+		}
+		var srcAxisLen = uint64(spec.SrcAxisLens[i])
+		if srcAxisLen == 0 || srcAxisLen > uint64(spec.DstAxisLen)-axisSum {
+			return errors.New("device: invalid concat input axis length")
+		}
+		axisSum += srcAxisLen
+		var srcBytes = uint64(spec.Outer) * srcAxisLen * uint64(spec.Inner) * uint64(spec.ElemBytes)
+		if input.bytes != srcBytes {
+			return errors.New("device: concat input buffer length mismatch")
+		}
+		inputHandles[i] = input.handle
+	}
+	if axisSum != uint64(spec.DstAxisLen) {
+		return errors.New("device: concat input axis lengths do not sum to destination axis")
+	}
+	if err = s.runtime.backend.encodeTensorConcat(s.handle, inputHandles, result.handle, spec); err != nil {
+		err = fmt.Errorf("device: encode tensor concat: %w", err)
+		s.fail(err)
+	}
+	return err
+}
+
 // EncodeTensorMatMulLeftTranspose appends left[K,M]^T * right[K,N] into
 // result[M,N] with FP32 accumulation for Float32 (0), Float16 (1), or
 // BFloat16 (2) right operands.

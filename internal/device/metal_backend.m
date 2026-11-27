@@ -5,6 +5,7 @@
 #include "batched_matmul_metal_source.h"
 #include "batchnorm_metal_source.h"
 #include "broadcast_metal_source.h"
+#include "concat_metal_source.h"
 #include "conv2d_metal_source.h"
 #include "elementwise_metal_source.h"
 #include "layernorm_metal_source.h"
@@ -436,6 +437,14 @@ typedef enum {
 static pthread_once_t nnMetalTensorTransposeOnce = PTHREAD_ONCE_INIT;
 static id<MTLComputePipelineState> nnMetalTensorTransposePipelines[NNMetalTensorTransposeCount];
 static char nnMetalTensorTransposeError[1024];
+typedef enum {
+	NNMetalTensorConcatU32,
+	NNMetalTensorConcatU16,
+	NNMetalTensorConcatCount,
+} NNMetalTensorConcatPipeline;
+static pthread_once_t nnMetalTensorConcatOnce = PTHREAD_ONCE_INIT;
+static id<MTLComputePipelineState> nnMetalTensorConcatPipelines[NNMetalTensorConcatCount];
+static char nnMetalTensorConcatError[1024];
 typedef enum {
 	NNMetalMatMulLeftTransposeF32,
 	NNMetalMatMulLeftTransposeF16,
@@ -950,6 +959,40 @@ static void nn_metal_initialize_tensor_transpose(void) {
 				for (NSUInteger j = 0; j < i; j++) {
 					[nnMetalTensorTransposePipelines[j] release];
 					nnMetalTensorTransposePipelines[j] = nil;
+				}
+				break;
+			}
+		}
+		[library release];
+	}
+}
+
+// Tensor concat pipelines compile lazily with fastMathEnabled = NO.
+static void nn_metal_initialize_tensor_concat(void) {
+	@autoreleasepool {
+		NSError *error = nil;
+		NSString *source = [NSString stringWithFormat:@"%s%s", nnMetalShaderHeader, nnMetalTensorConcatSource];
+		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		[options setFastMathEnabled:NO];
+		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
+		[options release];
+		if (library == nil) {
+			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile tensor concat library: %@", [error localizedDescription]]);
+			strlcpy(nnMetalTensorConcatError, nnMetalLastError, sizeof(nnMetalTensorConcatError));
+			return;
+		}
+
+		NSString *names[NNMetalTensorConcatCount] = {
+			[NNMetalTensorConcatU32] = @"nn_tensor_concat_u32",
+			[NNMetalTensorConcatU16] = @"nn_tensor_concat_u16",
+		};
+		for (NSUInteger i = 0; i < NNMetalTensorConcatCount; i++) {
+			nnMetalTensorConcatPipelines[i] = nn_metal_new_pipeline(library, names[i]);
+			if (nnMetalTensorConcatPipelines[i] == nil) {
+				strlcpy(nnMetalTensorConcatError, nnMetalLastError, sizeof(nnMetalTensorConcatError));
+				for (NSUInteger j = 0; j < i; j++) {
+					[nnMetalTensorConcatPipelines[j] release];
+					nnMetalTensorConcatPipelines[j] = nil;
 				}
 				break;
 			}
@@ -2459,6 +2502,140 @@ int nn_metal_scope_encode_tensor_transpose(
 			[encoder dispatchThreads:MTLSizeMake(params.count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threadWidth, 1, 1)];
 		}
 		[scopeRecord->retainedResources addObject:inputRecord->value];
+		[scopeRecord->retainedResources addObject:resultRecord->value];
+	}
+	return NNMetalStatusSuccess;
+}
+
+int nn_metal_scope_encode_tensor_concat(
+	NNMetalScope scope,
+	const NNMetalBuffer *inputs,
+	const uint32_t *srcAxisLens,
+	uint64_t inputCount,
+	NNMetalBuffer result,
+	uint32_t outer,
+	uint32_t dstAxisLen,
+	uint32_t inner,
+	uint32_t elemBytes
+) {
+	NNMetalScopeRecord *scopeRecord = nn_metal_scope_record(scope);
+	NNMetalBufferRecord *resultRecord = nn_metal_buffer_record(result);
+
+	if (scopeRecord == NULL || resultRecord == NULL || inputs == NULL || srcAxisLens == NULL) {
+		nn_metal_set_error("metal: encode tensor concat: invalid handles");
+		return NNMetalStatusError;
+	}
+	if (scopeRecord->committed || inputCount == 0 ||
+		outer == 0 || dstAxisLen == 0 || inner == 0 ||
+		(elemBytes != 2 && elemBytes != 4)) {
+		nn_metal_set_error("metal: encode tensor concat: invalid state, dimensions or element width");
+		return NNMetalStatusError;
+	}
+
+	uint64_t totalDst = (uint64_t)outer * (uint64_t)dstAxisLen;
+	if (totalDst > UINT32_MAX) {
+		nn_metal_set_error("metal: encode tensor concat: destination count exceeds uint32");
+		return NNMetalStatusError;
+	}
+	totalDst *= (uint64_t)inner;
+	if (totalDst > UINT32_MAX || resultRecord->bytes != totalDst * (uint64_t)elemBytes) {
+		nn_metal_set_error("metal: encode tensor concat: destination buffer length mismatch");
+		return NNMetalStatusError;
+	}
+
+	uint64_t axisSum = 0;
+	for (uint64_t i = 0; i < inputCount; i++) {
+		NNMetalBufferRecord *inRecord = nn_metal_buffer_record(inputs[i]);
+		if (inRecord == NULL || inRecord == resultRecord || srcAxisLens[i] == 0) {
+			nn_metal_set_error("metal: encode tensor concat: invalid input handle, alias or axis length");
+			return NNMetalStatusError;
+		}
+		if ((uint64_t)srcAxisLens[i] > (uint64_t)dstAxisLen - axisSum) {
+			nn_metal_set_error("metal: encode tensor concat: input axis sum exceeds destination");
+			return NNMetalStatusError;
+		}
+		axisSum += (uint64_t)srcAxisLens[i];
+		uint64_t srcBytes = (uint64_t)outer * (uint64_t)srcAxisLens[i] * (uint64_t)inner * (uint64_t)elemBytes;
+		if (inRecord->bytes != srcBytes) {
+			nn_metal_set_error("metal: encode tensor concat: input buffer length mismatch");
+			return NNMetalStatusError;
+		}
+	}
+	if (axisSum != (uint64_t)dstAxisLen) {
+		nn_metal_set_error("metal: encode tensor concat: input axis sum does not match destination");
+		return NNMetalStatusError;
+	}
+
+	if (outer == 1) {
+		@autoreleasepool {
+			nn_metal_scope_end_compute_encoder(scopeRecord);
+			id<MTLBlitCommandEncoder> encoder = [scopeRecord->commandBuffer blitCommandEncoder];
+			if (encoder == nil) {
+				nn_metal_set_error("metal: encode tensor concat: create blit encoder returned nil");
+				return NNMetalStatusError;
+			}
+			uint64_t dstOffsetBytes = 0;
+			for (uint64_t i = 0; i < inputCount; i++) {
+				NNMetalBufferRecord *inRecord = nn_metal_buffer_record(inputs[i]);
+				[encoder copyFromBuffer:inRecord->value
+					sourceOffset:0
+					toBuffer:resultRecord->value
+					destinationOffset:(NSUInteger)dstOffsetBytes
+					size:(NSUInteger)inRecord->bytes];
+				dstOffsetBytes += inRecord->bytes;
+				[scopeRecord->retainedResources addObject:inRecord->value];
+			}
+			[encoder endEncoding];
+			[scopeRecord->retainedResources addObject:resultRecord->value];
+		}
+		return NNMetalStatusSuccess;
+	}
+
+	pthread_once(&nnMetalTensorConcatOnce, nn_metal_initialize_tensor_concat);
+	NSUInteger pipelineIndex = (elemBytes == 4) ? NNMetalTensorConcatU32 : NNMetalTensorConcatU16;
+	id<MTLComputePipelineState> pipeline = nnMetalTensorConcatPipelines[pipelineIndex];
+	if (pipeline == nil) {
+		nn_metal_set_error(nnMetalTensorConcatError);
+		return NNMetalStatusError;
+	}
+
+	@autoreleasepool {
+		id<MTLComputeCommandEncoder> encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode tensor concat");
+		if (encoder == nil) {
+			return NNMetalStatusError;
+		}
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:resultRecord->value offset:0 atIndex:1];
+
+		MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
+		NSUInteger maxTG = MIN((NSUInteger)256, [pipeline maxTotalThreadsPerThreadgroup]);
+		uint32_t dstAxisOffset = 0;
+		for (uint64_t i = 0; i < inputCount; i++) {
+			NNMetalBufferRecord *inRecord = nn_metal_buffer_record(inputs[i]);
+			uint32_t srcAxisLen = srcAxisLens[i];
+			struct {
+				uint32_t outer;
+				uint32_t srcAxisLen;
+				uint32_t dstAxisLen;
+				uint32_t dstAxisOffset;
+				uint32_t inner;
+			} params = {
+				outer,
+				srcAxisLen,
+				dstAxisLen,
+				dstAxisOffset,
+				inner,
+			};
+			[encoder setBuffer:inRecord->value offset:0 atIndex:0];
+			[encoder setBytes:&params length:sizeof(params) atIndex:2];
+			NSUInteger tgX = MIN((NSUInteger)inner, MIN(maxTG, limits.width));
+			NSUInteger tgY = MIN((NSUInteger)srcAxisLen, MIN(maxTG / tgX, limits.height));
+			NSUInteger tgZ = MIN((NSUInteger)outer, MIN(maxTG / (tgX * tgY), limits.depth));
+			[encoder dispatchThreads:MTLSizeMake(inner, srcAxisLen, outer)
+				threadsPerThreadgroup:MTLSizeMake(tgX, tgY, tgZ)];
+			[scopeRecord->retainedResources addObject:inRecord->value];
+			dstAxisOffset += srcAxisLen;
+		}
 		[scopeRecord->retainedResources addObject:resultRecord->value];
 	}
 	return NNMetalStatusSuccess;

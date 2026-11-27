@@ -776,6 +776,50 @@ func (m *metalBackend) encodeTensorTranspose(scope, input, result any, spec Tran
 	return nil
 }
 
+func (m *metalBackend) encodeTensorConcat(scope any, inputs []any, result any, spec ConcatSpec) (err error) {
+	var (
+		scopeHandle  C.NNMetalScope
+		resultHandle C.NNMetalBuffer
+		inputHandles []C.NNMetalBuffer
+		srcAxisLens  []C.uint32_t
+		status       C.int
+	)
+	if scopeHandle, err = m.scopeHandle(scope); err != nil {
+		return err
+	}
+	if resultHandle, err = m.bufferHandle(result); err != nil {
+		return err
+	}
+	inputHandles = make([]C.NNMetalBuffer, len(inputs))
+	for i, input := range inputs {
+		if inputHandles[i], err = m.bufferHandle(input); err != nil {
+			return err
+		}
+	}
+	srcAxisLens = make([]C.uint32_t, len(spec.SrcAxisLens))
+	for i, length := range spec.SrcAxisLens {
+		srcAxisLens[i] = C.uint32_t(length)
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	status = C.nn_metal_scope_encode_tensor_concat(
+		scopeHandle,
+		(*C.NNMetalBuffer)(unsafe.Pointer(unsafe.SliceData(inputHandles))),
+		(*C.uint32_t)(unsafe.Pointer(unsafe.SliceData(srcAxisLens))),
+		C.uint64_t(len(inputHandles)),
+		resultHandle,
+		C.uint32_t(spec.Outer),
+		C.uint32_t(spec.DstAxisLen),
+		C.uint32_t(spec.Inner),
+		C.uint32_t(spec.ElemBytes),
+	)
+	if status != C.NNMetalStatusSuccess {
+		return m.lastError("encode Metal tensor concat")
+	}
+	return nil
+}
+
 func (m *metalBackend) encodeTensorMatMulLeftTranspose(scope, left, right, result any, rows, cols, inner, rightDType uint32) (err error) {
 	var (
 		scopeHandle  C.NNMetalScope

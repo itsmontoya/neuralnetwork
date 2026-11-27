@@ -99,6 +99,10 @@ func (unavailableBackend) encodeTensorTranspose(any, any, any, TransposeSpec) (e
 	return ErrUnavailable
 }
 
+func (unavailableBackend) encodeTensorConcat(any, []any, any, ConcatSpec) (err error) {
+	return ErrUnavailable
+}
+
 func (unavailableBackend) encodeTensorMatMulLeftTranspose(any, any, any, any, uint32, uint32, uint32, uint32) (err error) {
 	return ErrUnavailable
 }

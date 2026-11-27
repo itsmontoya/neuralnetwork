@@ -759,6 +759,106 @@ func (s *Scope) Transpose(input, destination *Tensor, perm []int) (err error) {
 	return nil
 }
 
+// Concat records a bit-exact concatenation of one or more non-quantized tensors
+// (Float32, Float16, or BFloat16) along axis into destination. All inputs and
+// destination must belong to this device, share the same DType and rank
+// (1..6), match along every non-concat dimension, contain at most 2³²−1
+// elements each, and have input axis lengths summing to destination.Shape()[axis].
+// Duplicate read inputs are permitted; destination must not alias any input
+// (including through Tensor.View).
+func (s *Scope) Concat(inputs []*Tensor, destination *Tensor, axis int) (err error) {
+	var state *scopeState
+	if state, err = s.beginEncoding(); err != nil {
+		return err
+	}
+	defer state.mutex.Unlock()
+
+	if len(inputs) == 0 {
+		return state.reject("concat", fmt.Errorf("%w: concat requires at least one input", ErrInvalid))
+	}
+	if destination == nil || destination.state == nil {
+		return state.reject("concat", fmt.Errorf("%w: missing destination", ErrInvalid))
+	}
+	var (
+		dstStorage = destination.state.storage
+		dstShape   = destination.state.shape
+		rank       = len(dstShape)
+	)
+	if !dstStorage.dtype.Valid() || dstStorage.dtype.IsQuantized() {
+		return state.reject("concat", fmt.Errorf("%w: concat requires non-quantized tensor, got %s", ErrInvalid, dstStorage.dtype))
+	}
+	if rank == 0 || rank > maxTensorRank {
+		return state.reject("concat", fmt.Errorf("%w: concat requires rank 1..%d, got %d", ErrInvalid, maxTensorRank, rank))
+	}
+	if axis < 0 || axis >= rank {
+		return state.reject("concat", fmt.Errorf("%w: concat axis %d out of range for rank %d", ErrInvalid, axis, rank))
+	}
+	if dstStorage.count > math.MaxUint32 {
+		return state.reject("concat", fmt.Errorf("%w: tensor element count exceeds the Metal concat index range", ErrInvalid))
+	}
+
+	var (
+		outer       uint64 = 1
+		inner       uint64 = 1
+		dstAxisLen         = uint64(dstShape[axis])
+		axisSum     uint64
+		srcBuffers  = make([]allocation, len(inputs))
+		srcAxisLens = make([]uint32, len(inputs))
+	)
+	for d := 0; d < axis; d++ {
+		outer *= uint64(dstShape[d])
+	}
+	for d := axis + 1; d < rank; d++ {
+		inner *= uint64(dstShape[d])
+	}
+	for i, input := range inputs {
+		if input == nil || input.state == nil {
+			return state.reject("concat", fmt.Errorf("%w: missing input at index %d", ErrInvalid, i))
+		}
+		var srcStorage = input.state.storage
+		if srcStorage.dtype != dstStorage.dtype {
+			return state.reject("concat", fmt.Errorf("%w: tensor dtypes differ (%s vs %s)", ErrInvalid, srcStorage.dtype, dstStorage.dtype))
+		}
+		if srcStorage.count > math.MaxUint32 {
+			return state.reject("concat", fmt.Errorf("%w: tensor element count exceeds the Metal concat index range", ErrInvalid))
+		}
+		var srcShape = input.state.shape
+		if len(srcShape) != rank {
+			return state.reject("concat", fmt.Errorf("%w: input %d rank %d must match destination rank %d", ErrInvalid, i, len(srcShape), rank))
+		}
+		for d := range rank {
+			if d != axis && srcShape[d] != dstShape[d] {
+				return state.reject("concat", fmt.Errorf("%w: input %d shape %v does not match destination shape %v along non-concat axis %d", ErrInvalid, i, srcShape, dstShape, d))
+			}
+		}
+		var srcAxis = uint64(srcShape[axis])
+		if srcAxis > dstAxisLen-axisSum {
+			return state.reject("concat", fmt.Errorf("%w: sum of input concat axes exceeds destination axis %d", ErrInvalid, dstAxisLen))
+		}
+		axisSum += srcAxis
+		srcBuffers[i] = srcStorage.buffer
+		srcAxisLens[i] = uint32(srcAxis)
+	}
+	if axisSum != dstAxisLen {
+		return state.reject("concat", fmt.Errorf("%w: sum of input concat axes %d does not match destination axis %d", ErrInvalid, axisSum, dstAxisLen))
+	}
+	if err = state.acquire(destination, inputs...); err != nil {
+		return state.reject("concat", err)
+	}
+	var spec = device.ConcatSpec{
+		Outer:       uint32(outer),
+		Inner:       uint32(inner),
+		DstAxisLen:  uint32(dstAxisLen),
+		ElemBytes:   uint32(dstStorage.dtype.Bytes()),
+		SrcAxisLens: srcAxisLens,
+	}
+	if err = state.commands.encodeConcat(srcBuffers, dstStorage.buffer, spec); err != nil {
+		state.status = scopePoisoned
+		return fmt.Errorf("gpu: encode concat: %w", err)
+	}
+	return nil
+}
+
 func buildTransposeSpec(inShape []int64, perm []int, elemBytes, count uint32) (spec device.TransposeSpec, contiguous bool) {
 	var (
 		rank   = len(inShape)

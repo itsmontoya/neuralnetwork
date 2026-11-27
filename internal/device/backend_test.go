@@ -706,6 +706,10 @@ func (b *testBackend) encodeTensorTranspose(_, _, _ any, _ TransposeSpec) (err e
 	return b.encodeErr
 }
 
+func (b *testBackend) encodeTensorConcat(_ any, _ []any, _ any, _ ConcatSpec) (err error) {
+	return b.encodeErr
+}
+
 func (b *testBackend) encodeTensorMatMulLeftTranspose(_, _, _, _ any, _, _, _, _ uint32) (err error) {
 	return b.encodeErr
 }
