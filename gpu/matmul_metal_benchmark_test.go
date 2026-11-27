@@ -244,6 +244,43 @@ func Benchmark_MatMulQuantBatchMetal(b *testing.B) {
 	}
 }
 
+// Benchmark_MatMulFloat32BatchMetal measures isolated resident FP32 rank-2
+// MatMul and MatMulRightTranspose across M=1..256 shapes.
+func Benchmark_MatMulFloat32BatchMetal(b *testing.B) {
+	var cases = []struct {
+		name              string
+		rows, inner, cols int64
+		transposed        bool
+	}{
+		{name: "MatMul_M1_K2048_N2048", rows: 1, inner: 2048, cols: 2048, transposed: false},
+		{name: "MatMul_M4_K2048_N2048", rows: 4, inner: 2048, cols: 2048, transposed: false},
+		{name: "MatMul_M6_K2048_N2048", rows: 6, inner: 2048, cols: 2048, transposed: false},
+		{name: "MatMul_M8_K2048_N2048", rows: 8, inner: 2048, cols: 2048, transposed: false},
+		{name: "MatMul_M29_K2048_N2048", rows: 29, inner: 2048, cols: 2048, transposed: false},
+		{name: "MatMul_M32_K2048_N2048", rows: 32, inner: 2048, cols: 2048, transposed: false},
+		{name: "MatMul_M64_K2048_N2048", rows: 64, inner: 2048, cols: 2048, transposed: false},
+		{name: "MatMul_M128_K2048_N2048", rows: 128, inner: 2048, cols: 2048, transposed: false},
+		{name: "MatMul_M256_K2048_N2048", rows: 256, inner: 2048, cols: 2048, transposed: false},
+		{name: "MatMulRT_M1_K2048_N2048", rows: 1, inner: 2048, cols: 2048, transposed: true},
+		{name: "MatMulRT_M4_K2048_N2048", rows: 4, inner: 2048, cols: 2048, transposed: true},
+		{name: "MatMulRT_M6_K2048_N2048", rows: 6, inner: 2048, cols: 2048, transposed: true},
+		{name: "MatMulRT_M8_K2048_N2048", rows: 8, inner: 2048, cols: 2048, transposed: true},
+		{name: "MatMulRT_M29_K2048_N2048", rows: 29, inner: 2048, cols: 2048, transposed: true},
+		{name: "MatMulRT_M32_K2048_N2048", rows: 32, inner: 2048, cols: 2048, transposed: true},
+		{name: "MatMulRT_M64_K2048_N2048", rows: 64, inner: 2048, cols: 2048, transposed: true},
+		{name: "MatMulRT_M128_K2048_N2048", rows: 128, inner: 2048, cols: 2048, transposed: true},
+		{name: "MatMulRT_M256_K2048_N2048", rows: 256, inner: 2048, cols: 2048, transposed: true},
+		{name: "MatMulRT_M32_K2048_N8192", rows: 32, inner: 2048, cols: 8192, transposed: true},
+		{name: "MatMulRT_M128_K2048_N8192", rows: 128, inner: 2048, cols: 8192, transposed: true},
+		{name: "MatMulRT_M256_K2048_N8192", rows: 256, inner: 2048, cols: 8192, transposed: true},
+	}
+	for _, tc := range cases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchmarkMetalMatMulMixedDType(b, Float32, tc.rows, tc.inner, tc.cols, tc.transposed)
+		})
+	}
+}
+
 func benchmarkMetalMatMulMixedDType(b *testing.B, dtype DType, rows, inner, cols int64, transposed bool) {
 	var (
 		gpu      = requireMetalDevice(b)
