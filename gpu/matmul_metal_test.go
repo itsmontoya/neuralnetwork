@@ -4,9 +4,11 @@ package gpu
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"math/rand/v2"
 	"slices"
+	"sync"
 	"testing"
 )
 
@@ -69,6 +71,281 @@ func Test_MetalTensorMatMul(t *testing.T) {
 	var after = native.ResourceSnapshot()
 	if after.LiveBuffers != initial.LiveBuffers || after.LiveBufferBytes != initial.LiveBufferBytes || after.LiveScopes != initial.LiveScopes {
 		t.Fatalf("matmul leaked native resources: before %+v; after %+v", initial, after)
+	}
+}
+
+func Test_MetalTensorMatMulFloat32Paths(t *testing.T) {
+	var (
+		gpu     = requireMetalDevice(t)
+		native  = gpu.state.backend.(metalBackend).runtime
+		initial = native.ResourceSnapshot()
+	)
+	var cases = []struct {
+		name              string
+		rows, inner, cols int64
+	}{
+		{name: "m1_k1_n1", rows: 1, inner: 1, cols: 1},
+		{name: "m1_k3_n7", rows: 1, inner: 3, cols: 7},
+		{name: "m1_k7_n3", rows: 1, inner: 7, cols: 3},
+		{name: "m1_k16_n16", rows: 1, inner: 16, cols: 16},
+		{name: "m1_k31_n31", rows: 1, inner: 31, cols: 31},
+		{name: "m1_k32_n32", rows: 1, inner: 32, cols: 32},
+		{name: "m1_k33_n33", rows: 1, inner: 33, cols: 33},
+		{name: "m2_k16_n16_fallback", rows: 2, inner: 16, cols: 16},
+		{name: "m3_k33_n33_fallback", rows: 3, inner: 33, cols: 33},
+		{name: "m4_k7_n33_small_k_fallback", rows: 4, inner: 7, cols: 33},
+		{name: "m4_k33_n7_small_n_fallback", rows: 4, inner: 33, cols: 7},
+		{name: "m4_k16_n16_tiled_min", rows: 4, inner: 16, cols: 16},
+		{name: "m6_k31_n33_tiled", rows: 6, inner: 31, cols: 33},
+		{name: "m7_k32_n32_tiled", rows: 7, inner: 32, cols: 32},
+		{name: "m8_k33_n33_tiled", rows: 8, inner: 33, cols: 33},
+		{name: "m15_k16_n31_tiled", rows: 15, inner: 16, cols: 31},
+		{name: "m16_k32_n32_tiled", rows: 16, inner: 32, cols: 32},
+		{name: "m17_k33_n33_tiled", rows: 17, inner: 33, cols: 33},
+		{name: "m27_k257_n512_tiled", rows: 27, inner: 257, cols: 512},
+		{name: "m28_k768_n512_tiled", rows: 28, inner: 768, cols: 512},
+		{name: "m29_k768_n512_tiled", rows: 29, inner: 768, cols: 512},
+		{name: "m31_k31_n33_tiled", rows: 31, inner: 31, cols: 33},
+		{name: "m32_k32_n32_tiled", rows: 32, inner: 32, cols: 32},
+		{name: "m33_k33_n65_tiled_edge", rows: 33, inner: 33, cols: 65},
+		{name: "m64_k257_n129_tiled", rows: 64, inner: 257, cols: 129},
+		{name: "m128_k64_n128_tiled", rows: 128, inner: 64, cols: 128},
+		{name: "m32_k2048_n2048_tiled", rows: 32, inner: 2048, cols: 2048},
+		{name: "m4_k8192_n512_tiled", rows: 4, inner: 8192, cols: 512},
+		{name: "m4_k2048_n8192_tiled", rows: 4, inner: 2048, cols: 8192},
+	}
+	for _, tc := range cases {
+		for _, transposed := range []bool{false, true} {
+			var label = fmt.Sprintf("%s_rt_%t", tc.name, transposed)
+			t.Run(label, func(t *testing.T) {
+				var (
+					left   = make([]float32, tc.rows*tc.inner)
+					weight = make([]float32, tc.inner*tc.cols)
+					random = rand.New(rand.NewPCG(0x6e6e30, uint64(tc.rows*1000003+tc.inner*1009+tc.cols)))
+				)
+				for i := range left {
+					left[i] = 2*random.Float32() - 1
+				}
+				for i := range weight {
+					weight[i] = 2*random.Float32() - 1
+				}
+				var got = runMetalMatMul(t, gpu, tc.rows, tc.inner, tc.cols, left, weight, transposed)
+				checkMetalMatMul(t, tc.inner, tc.cols, left, weight, got)
+			})
+		}
+	}
+	var after = native.ResourceSnapshot()
+	if after.LiveBuffers != initial.LiveBuffers || after.LiveBufferBytes != initial.LiveBufferBytes || after.LiveScopes != initial.LiveScopes {
+		t.Fatalf("fp32 matmul paths leaked native resources: before %+v; after %+v", initial, after)
+	}
+}
+
+func Test_MetalTensorMatMulTiledSpecialValues(t *testing.T) {
+	var (
+		gpu     = requireMetalDevice(t)
+		native  = gpu.state.backend.(metalBackend).runtime
+		initial = native.ResourceSnapshot()
+		inf     = float32(math.Inf(1))
+		nan     = float32(math.NaN())
+		large   = float32(math.MaxFloat32 / 4)
+	)
+	var cases = []struct {
+		name        string
+		left, right []float32
+		want        float32
+	}{
+		{name: "nan", left: []float32{1, 2}, right: []float32{nan, 3}, want: nan},
+		{name: "positive_infinity", left: []float32{1, 2}, right: []float32{inf, 3}, want: inf},
+		{name: "negative_infinity", left: []float32{-1, 2}, right: []float32{inf, 3}, want: -inf},
+		{name: "zero_times_infinity", left: []float32{0, 2}, right: []float32{inf, 3}, want: nan},
+		{name: "opposing_infinities", left: []float32{1, 2}, right: []float32{inf, -inf}, want: nan},
+		{name: "large_finite", left: []float32{large, large}, right: []float32{1, 2}, want: 3 * large},
+		{name: "finite_cancellation", left: []float32{large, -large, 1e-30}, right: []float32{1, 1, 1}, want: 1e-30},
+		{name: "small_normal", left: []float32{1e-30, 0}, right: []float32{1e-6, 1}, want: float32(1e-30) * float32(1e-6)},
+		{name: "overflow", left: []float32{math.MaxFloat32, math.MaxFloat32}, right: []float32{1, 1}, want: inf},
+	}
+	var shapes = []struct {
+		name              string
+		rows, inner, cols int64
+	}{
+		{name: "fallback_2x4x4", rows: 2, inner: 4, cols: 4},
+		{name: "tiled_partial_8x9x9", rows: 8, inner: 9, cols: 9},
+		{name: "tiled_edge_33x35x65", rows: 33, inner: 35, cols: 65},
+	}
+	for _, sh := range shapes {
+		for _, transposed := range []bool{false, true} {
+			for _, tc := range cases {
+				var label = fmt.Sprintf("%s_rt_%t/%s", sh.name, transposed, tc.name)
+				t.Run(label, func(t *testing.T) {
+					var (
+						left   = make([]float32, sh.rows*sh.inner)
+						weight = make([]float32, sh.cols*sh.inner)
+					)
+					// Place the special-value test vector in both the first and last
+					// row/column so interior tiles and boundary edge tiles are covered.
+					var targetRows = []int64{0, sh.rows - 1}
+					var targetCols = []int64{0, sh.cols - 1}
+					for _, r := range targetRows {
+						copy(left[r*sh.inner:r*sh.inner+int64(len(tc.left))], tc.left)
+					}
+					for _, c := range targetCols {
+						copy(weight[c*sh.inner:c*sh.inner+int64(len(tc.right))], tc.right)
+					}
+					var got = runMetalMatMul(t, gpu, sh.rows, sh.inner, sh.cols, left, weight, transposed)
+					for _, r := range targetRows {
+						for _, c := range targetCols {
+							var val = got[r*sh.cols+c]
+							if val != tc.want && !(math.IsNaN(float64(val)) && math.IsNaN(float64(tc.want))) {
+								t.Fatalf("[%d,%d]: got %g, want %g", r, c, val, tc.want)
+							}
+						}
+					}
+				})
+			}
+		}
+	}
+	var after = native.ResourceSnapshot()
+	if after.LiveBuffers != initial.LiveBuffers || after.LiveBufferBytes != initial.LiveBufferBytes || after.LiveScopes != initial.LiveScopes {
+		t.Fatalf("special-value fp32 matmul leaked native resources: before %+v; after %+v", initial, after)
+	}
+}
+
+func Test_MetalTensorMatMulFloat32ConcurrentStress(t *testing.T) {
+	var (
+		gpu     = requireMetalDevice(t)
+		native  = gpu.state.backend.(metalBackend).runtime
+		initial = native.ResourceSnapshot()
+		ctx     = context.Background()
+		workers = 8
+	)
+	var modes = []struct {
+		name              string
+		rows, inner, cols int64
+		transposed        bool
+	}{
+		{name: "gemv_m1_rt", rows: 1, inner: 131, cols: 67, transposed: true},
+		{name: "tiled_m33_nn", rows: 33, inner: 131, cols: 67, transposed: false},
+		{name: "tiled_m33_nt", rows: 33, inner: 131, cols: 67, transposed: true},
+	}
+	for _, mode := range modes {
+		t.Run(mode.name, func(t *testing.T) {
+			var (
+				random  = rand.New(rand.NewPCG(0x6e6e30, uint64(mode.rows*97+mode.cols)))
+				leftVal = make([]float32, mode.rows*mode.inner)
+				weightV = make([]float32, mode.cols*mode.inner)
+				weight  *Tensor
+			)
+			for i := range leftVal {
+				leftVal[i] = 2*random.Float32() - 1
+			}
+			for i := range weightV {
+				weightV[i] = 2*random.Float32() - 1
+			}
+			if mode.transposed {
+				weight = requireTensor(t, gpu, mode.cols, mode.inner)
+				requireError(t, weight.Upload(weightV), nil)
+			} else {
+				var physical = make([]float32, len(weightV))
+				for col := range mode.cols {
+					for k := range mode.inner {
+						physical[k*mode.cols+col] = weightV[col*mode.inner+k]
+					}
+				}
+				weight = requireTensor(t, gpu, mode.inner, mode.cols)
+				requireError(t, weight.Upload(physical), nil)
+			}
+
+			var (
+				wg   sync.WaitGroup
+				errs = make(chan error, workers)
+			)
+			for worker := range workers {
+				wg.Add(1)
+				go func(workerID int) {
+					defer wg.Done()
+					var (
+						left, errL = gpu.NewFloat32([]int64{mode.rows, mode.inner})
+						out, errO  = gpu.NewFloat32([]int64{mode.rows, mode.cols})
+					)
+					if errL != nil {
+						errs <- errL
+						return
+					}
+					defer left.Close()
+					if errO != nil {
+						errs <- errO
+						return
+					}
+					defer out.Close()
+					if err := left.Upload(leftVal); err != nil {
+						errs <- err
+						return
+					}
+					for iter := range 4 {
+						var scope, errS = gpu.NewScope()
+						if errS != nil {
+							errs <- errS
+							return
+						}
+						var errOp error
+						if mode.transposed {
+							errOp = scope.MatMulRightTranspose(left, weight, out)
+						} else {
+							errOp = scope.MatMul(left, weight, out)
+						}
+						if errOp != nil {
+							_ = scope.Close()
+							errs <- errOp
+							return
+						}
+						if err := scope.Submit(ctx); err != nil {
+							_ = scope.Close()
+							errs <- err
+							return
+						}
+						if err := scope.Wait(ctx); err != nil {
+							_ = scope.Close()
+							errs <- err
+							return
+						}
+						if err := scope.Close(); err != nil {
+							errs <- err
+							return
+						}
+						if iter == 3 {
+							var got = make([]float32, mode.rows*mode.cols)
+							if err := out.DownloadInto(got); err != nil {
+								errs <- err
+								return
+							}
+							for row := range mode.rows {
+								for col := range mode.cols {
+									var want float64
+									for k := range mode.inner {
+										want += float64(leftVal[row*mode.inner+k]) * float64(weightV[col*mode.inner+k])
+									}
+									var diff = math.Abs(float64(got[row*mode.cols+col]) - want)
+									var limit = 4e-4 + 3e-5*math.Abs(want)
+									if math.IsNaN(diff) || diff > limit {
+										errs <- fmt.Errorf("worker %d (%d,%d): got %g, want %g (diff %g)", workerID, row, col, got[row*mode.cols+col], want, diff)
+										return
+									}
+								}
+							}
+						}
+					}
+				}(worker)
+			}
+			wg.Wait()
+			close(errs)
+			for err := range errs {
+				t.Fatal(err)
+			}
+		})
+	}
+	var after = native.ResourceSnapshot()
+	if after.LiveBuffers != initial.LiveBuffers || after.LiveBufferBytes != initial.LiveBufferBytes || after.LiveScopes != initial.LiveScopes {
+		t.Fatalf("concurrent fp32 matmul leaked native resources: before %+v; after %+v", initial, after)
 	}
 }
 
