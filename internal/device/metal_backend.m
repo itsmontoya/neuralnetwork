@@ -8,6 +8,7 @@
 #include "conv2d_metal_source.h"
 #include "elementwise_metal_source.h"
 #include "layernorm_metal_source.h"
+#include "matmul_f32_metal_source.h"
 #include "matmul_mixed_metal_source.h"
 #include "matmul_quant_metal_source.h"
 #include "pool2d_metal_source.h"
@@ -344,8 +345,15 @@ static id<MTLComputePipelineState> nnMetalColumnSumsPipeline = nil;
 static id<MTLComputePipelineState> nnMetalCategoricalCrossEntropyPipeline = nil;
 static id<MTLComputePipelineState> nnMetalCategoricalCrossEntropyGradientPipeline = nil;
 static id<MTLComputePipelineState> nnMetalMatMulPipeline = nil;
+typedef enum {
+	NNMetalMatMulF32Fallback,
+	NNMetalMatMulF32RowRT,
+	NNMetalMatMulF32TiledNN,
+	NNMetalMatMulF32TiledNT,
+	NNMetalMatMulF32Count,
+} NNMetalMatMulF32Pipeline;
 static pthread_once_t nnMetalTensorMatMulOnce = PTHREAD_ONCE_INIT;
-static id<MTLComputePipelineState> nnMetalTensorMatMulPipeline = nil;
+static id<MTLComputePipelineState> nnMetalTensorMatMulPipelines[NNMetalMatMulF32Count];
 static char nnMetalTensorMatMulError[1024];
 typedef enum {
 	NNMetalMatMulMixedF16,
@@ -560,21 +568,36 @@ static id<MTLComputePipelineState> nn_metal_new_pipeline(id<MTLLibrary> library,
 static void nn_metal_initialize_tensor_matmul(void) {
 	@autoreleasepool {
 		NSError *error = nil;
-		NSString *source = [NSString stringWithFormat:@"%s%s%s",
-			nnMetalShaderHeader, nnMetalMatMulDimensionsSource, nnMetalMatMulSource];
+		NSString *source = [NSString stringWithFormat:@"%s%s%s%s",
+			nnMetalShaderHeader, nnMetalMatMulDimensionsSource, nnMetalMatMulSource, nnMetalMatMulF32Source];
 		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
 		[options setFastMathEnabled:NO];
 		id<MTLLibrary> library = [nnMetalDevice newLibraryWithSource:source options:options error:&error];
 		[options release];
 		if (library == nil) {
 			nn_metal_set_error_ns([NSString stringWithFormat:@"metal: compile tensor matmul library: %@", [error localizedDescription]]);
-		} else {
-			nnMetalTensorMatMulPipeline = nn_metal_new_pipeline(library, @"nn_matmul");
-			[library release];
-		}
-		if (nnMetalTensorMatMulPipeline == nil) {
 			strlcpy(nnMetalTensorMatMulError, nnMetalLastError, sizeof(nnMetalTensorMatMulError));
+			return;
 		}
+
+		NSString *names[NNMetalMatMulF32Count] = {
+			[NNMetalMatMulF32Fallback] = @"nn_matmul",
+			[NNMetalMatMulF32RowRT] = @"nn_matmul_f32_row_right_transpose",
+			[NNMetalMatMulF32TiledNN] = @"nn_matmul_f32_tiled_nn",
+			[NNMetalMatMulF32TiledNT] = @"nn_matmul_f32_tiled_nt",
+		};
+		for (NSUInteger i = 0; i < NNMetalMatMulF32Count; i++) {
+			nnMetalTensorMatMulPipelines[i] = nn_metal_new_pipeline(library, names[i]);
+			if (nnMetalTensorMatMulPipelines[i] == nil) {
+				strlcpy(nnMetalTensorMatMulError, nnMetalLastError, sizeof(nnMetalTensorMatMulError));
+				for (NSUInteger j = 0; j < i; j++) {
+					[nnMetalTensorMatMulPipelines[j] release];
+					nnMetalTensorMatMulPipelines[j] = nil;
+				}
+				break;
+			}
+		}
+		[library release];
 	}
 }
 
@@ -3299,13 +3322,78 @@ int nn_metal_scope_encode_matmul(
 		return NNMetalStatusError;
 	}
 	if (tensorPipeline) {
+		int useRowRT = (dimensions.resultRows == 1 && dimensions.variant == 2);
+		int useTiled = (!useRowRT &&
+			(dimensions.variant == 0 || dimensions.variant == 2) &&
+			dimensions.resultCols >= 8 &&
+			dimensions.leftCols >= 8 &&
+			dimensions.resultRows >= 4);
+		NSUInteger pipelineIndex = NNMetalMatMulF32Fallback;
+
 		pthread_once(&nnMetalTensorMatMulOnce, nn_metal_initialize_tensor_matmul);
-		pipeline = nnMetalTensorMatMulPipeline;
+		if (useRowRT) {
+			pipelineIndex = NNMetalMatMulF32RowRT;
+		} else if (useTiled) {
+			pipelineIndex = (dimensions.variant == 2) ? NNMetalMatMulF32TiledNT : NNMetalMatMulF32TiledNN;
+		}
+		pipeline = nnMetalTensorMatMulPipelines[pipelineIndex];
 		if (pipeline == nil) {
 			nn_metal_set_error(nnMetalTensorMatMulError);
 			return NNMetalStatusError;
 		}
+
 		MTLSize limits = [nnMetalDevice maxThreadsPerThreadgroup];
+		if (useRowRT) {
+			NSUInteger threads = 128;
+			if (threads > limits.width || threads > [pipeline maxTotalThreadsPerThreadgroup]) {
+				nn_metal_set_error("metal: encode tensor row matmul: threadgroup size exceeds Metal limits");
+				return NNMetalStatusError;
+			}
+			@autoreleasepool {
+				encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode tensor row matmul");
+				if (encoder == nil) {
+					return NNMetalStatusError;
+				}
+				NSUInteger groups = ((NSUInteger)dimensions.resultCols + 7) / 8;
+				[encoder setComputePipelineState:pipeline];
+				[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
+				[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
+				[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+				[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
+				[encoder dispatchThreadgroups:MTLSizeMake(groups, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
+				[scopeRecord->retainedResources addObject:leftRecord->value];
+				[scopeRecord->retainedResources addObject:rightRecord->value];
+				[scopeRecord->retainedResources addObject:resultRecord->value];
+			}
+			return NNMetalStatusSuccess;
+		}
+
+		if (useTiled) {
+			NSUInteger threads = 128;
+			if (threads > limits.width || threads > [pipeline maxTotalThreadsPerThreadgroup]) {
+				nn_metal_set_error("metal: encode tensor tiled matmul: threadgroup size exceeds Metal limits");
+				return NNMetalStatusError;
+			}
+			@autoreleasepool {
+				encoder = nn_metal_scope_compute_encoder(scopeRecord, "metal: encode tensor tiled matmul");
+				if (encoder == nil) {
+					return NNMetalStatusError;
+				}
+				groupWidth = ((NSUInteger)dimensions.resultCols + 63) / 64;
+				groupHeight = ((NSUInteger)dimensions.resultRows + 31) / 32;
+				[encoder setComputePipelineState:pipeline];
+				[encoder setBuffer:leftRecord->value offset:0 atIndex:0];
+				[encoder setBuffer:rightRecord->value offset:0 atIndex:1];
+				[encoder setBuffer:resultRecord->value offset:0 atIndex:2];
+				[encoder setBytes:&dimensions length:sizeof(dimensions) atIndex:3];
+				[encoder dispatchThreadgroups:MTLSizeMake(groupWidth, groupHeight, 1) threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
+				[scopeRecord->retainedResources addObject:leftRecord->value];
+				[scopeRecord->retainedResources addObject:rightRecord->value];
+				[scopeRecord->retainedResources addObject:resultRecord->value];
+			}
+			return NNMetalStatusSuccess;
+		}
+
 		if (threadWidth > limits.width || threadHeight > limits.height ||
 			threadWidth * threadHeight > [pipeline maxTotalThreadsPerThreadgroup]) {
 			nn_metal_set_error("metal: encode tensor matmul: threadgroup size exceeds Metal limits");
