@@ -31,6 +31,7 @@ type commandBuffer interface {
 	encodePool2D(input, destination allocation, spec device.Pool2DSpec) (err error)
 	encodeConv2D(input, weights, bias, destination allocation, spec device.Conv2DSpec) (err error)
 	encodeTranspose(input, destination allocation, spec device.TransposeSpec) (err error)
+	encodeConcat(inputs []allocation, destination allocation, spec device.ConcatSpec) (err error)
 	encodeMatMulLeftTranspose(left, right, destination allocation, m, n, k uint32, rightDType DType) (err error)
 	encodeBatchedMatMul(left, right, destination allocation, spec device.BatchedMatMulSpec) (err error)
 	encodeKVAppend(keys, values, target allocation, plane, prefix uint32, cacheDType DType) (err error)
@@ -182,6 +183,14 @@ func (m metalCommandBuffer) encodeConv2D(input, weights, bias, destination alloc
 
 func (m metalCommandBuffer) encodeTranspose(input, destination allocation, spec device.TransposeSpec) (err error) {
 	return m.EncodeTensorTranspose(input.(*device.Buffer), destination.(*device.Buffer), spec)
+}
+
+func (m metalCommandBuffer) encodeConcat(inputs []allocation, destination allocation, spec device.ConcatSpec) (err error) {
+	var buffers = make([]*device.Buffer, len(inputs))
+	for i, input := range inputs {
+		buffers[i] = input.(*device.Buffer)
+	}
+	return m.EncodeTensorConcat(buffers, destination.(*device.Buffer), spec)
 }
 
 func (m metalCommandBuffer) encodeMatMulLeftTranspose(left, right, destination allocation, rows, cols, inner uint32, rightDType DType) (err error) {

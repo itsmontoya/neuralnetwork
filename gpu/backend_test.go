@@ -26,6 +26,7 @@ type fakeBackend struct {
 	pool2Ds             atomic.Int32
 	conv2Ds             atomic.Int32
 	transposes          atomic.Int32
+	concats             atomic.Int32
 	copies              atomic.Int32
 	matMulLeftTranspose atomic.Int32
 	batchedMatMuls      atomic.Int32
@@ -253,6 +254,45 @@ func (c *fakeCommandBuffer) encodeConv2D(_, _, _, _ allocation, _ device.Conv2DS
 
 func (c *fakeCommandBuffer) encodeTranspose(_, _ allocation, _ device.TransposeSpec) (err error) {
 	c.backend.transposes.Add(1)
+	return c.encodeErr
+}
+
+func (c *fakeCommandBuffer) encodeConcat(inputs []allocation, destination allocation, spec device.ConcatSpec) (err error) {
+	c.backend.concats.Add(1)
+	var (
+		output      = destination.(*fakeAllocation)
+		sources     = make([]*fakeAllocation, len(inputs))
+		srcAxisLens = slices.Clone(spec.SrcAxisLens)
+	)
+	for i, input := range inputs {
+		sources[i] = input.(*fakeAllocation)
+	}
+	c.commands = append(c.commands, func() {
+		var (
+			outer      = int(spec.Outer)
+			inner      = int(spec.Inner)
+			dstAxisLen = int(spec.DstAxisLen)
+			axisOffset int
+		)
+		for i, src := range sources {
+			var srcAxisLen = int(srcAxisLens[i])
+			for o := range outer {
+				for a := range srcAxisLen {
+					var (
+						srcStart = (o*srcAxisLen + a) * inner
+						dstStart = (o*dstAxisLen + axisOffset + a) * inner
+					)
+					if spec.ElemBytes == 4 && len(output.values) > 0 && len(src.values) > 0 {
+						copy(output.values[dstStart:dstStart+inner], src.values[srcStart:srcStart+inner])
+					}
+					if spec.ElemBytes == 2 && len(output.bits16) > 0 && len(src.bits16) > 0 {
+						copy(output.bits16[dstStart:dstStart+inner], src.bits16[srcStart:srcStart+inner])
+					}
+				}
+			}
+			axisOffset += srcAxisLen
+		}
+	})
 	return c.encodeErr
 }
 
